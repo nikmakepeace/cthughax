@@ -402,13 +402,13 @@ int screen_bent() {
 
     prepare_3d(256);
 
-    h = h * 0.95 + (min((2.0*soundAnalyze.amplitude), 120.0)) * 0.05;
+    h = h * 0.95 + (min((2 * soundAnalyze.amplitude), 120)) * 0.05;
 
     for(i=BUFF_WIDTH; i != 0; i--) {
 	height[i] = (int)(h * sin(t) *			\
 			  sin((double)(i)/(double)BUFF_WIDTH*3.0*M_PI)) + 128;
     }
-    stp = stp * 0.95 + max(cthughaDisplay->fps*2.0, 1) * 0.05;
+    stp = stp * 0.95 + max(int(cthughaDisplay->fps * 2), 1) * 0.05;
     t += 4.0/stp;
 
     for(i=BUFF_HEIGHT; i != 0; i--) {

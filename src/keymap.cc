@@ -358,13 +358,13 @@ ACTION(printScreen)	{ displayDevice->printScreen(); }
 
 ACTION(restore)		{ CoreOption::restore(); }
 ACTION(toggleSave)	{ Interface::saveToHot = 1 - Interface::saveToHot; }
-ACTION(save)		{ CoreOption::save(v); }
+ACTION(save)		{ CoreOption::save(int(v)); }
 ACTION(saveOrRestore)	{
     if(Interface::saveToHot) {
-	CoreOption::save(v);
+	CoreOption::save(int(v));
 	Interface::saveToHot = 0;
     } else {
-	CoreOption::restore(v);
+	CoreOption::restore(int(v));
     }
 }
 

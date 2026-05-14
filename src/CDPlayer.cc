@@ -475,8 +475,8 @@ public:
 } interfaceCD;
     
 
-ACTION(CDnext)  { if(cdPlayer) cdPlayer->next(v); }
-ACTION(CDfast)  { if(cdPlayer) cdPlayer->fast(v); }
+ACTION(CDnext)  { if(cdPlayer) cdPlayer->next(int(v)); }
+ACTION(CDfast)  { if(cdPlayer) cdPlayer->fast(int(v)); }
 ACTION(CDpause)	{ if(cdPlayer) cdPlayer->pause(); }
 ACTION(CDstop)  { if(cdPlayer) cdPlayer->stop(); }
 ACTION(CDcloseEject) { if(cdPlayer) cdPlayer->eject(); }

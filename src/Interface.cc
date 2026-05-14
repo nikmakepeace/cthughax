@@ -109,28 +109,31 @@ ACTION(chgValue1) {
     if(currentOptionInterfaceElement == NULL)
 	return;
 
+    int step = int(v * currentOptionInterfaceElement->inc1);
     if(currentCoreOption)
-	currentCoreOption->change(v * currentOptionInterfaceElement->inc1, 0);
+	currentCoreOption->change(step, 0);
     else if(currentOption)
-	currentOption->change(v * currentOptionInterfaceElement->inc1);
+	currentOption->change(step);
 }
 ACTION(chgValue2) {
     if(currentOptionInterfaceElement == NULL)
 	return;
 
+    int step = int(v * currentOptionInterfaceElement->inc2);
     if(currentCoreOption)
-	currentCoreOption->change(v * currentOptionInterfaceElement->inc2, 0);
+	currentCoreOption->change(step, 0);
     else if(currentOption)
-	currentOption->change(v * currentOptionInterfaceElement->inc2);
+	currentOption->change(step);
 }
 ACTION(chgValue3) {
     if(currentOptionInterfaceElement == NULL)
 	return;
 
+    int step = int(v * currentOptionInterfaceElement->inc3);
     if(currentCoreOption)
-	currentCoreOption->change(v * currentOptionInterfaceElement->inc3, 0);
+	currentCoreOption->change(step, 0);
     else if(currentOption)
-	currentOption->change(v * currentOptionInterfaceElement->inc3);
+	currentOption->change(step);
 }
 ACTION(setValue) {
     if(currentOptionInterfaceElement == NULL)
@@ -502,5 +505,4 @@ int nElementsOption = sizeof(elementsOption)/sizeof(InterfaceElement*);
 
 Interface interfaceOption("Options", "Options", NULL,
 			  elementsOption, nElementsOption);
-
 
