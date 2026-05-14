@@ -13,8 +13,12 @@ protected:
 
 public:
     InterfaceElement(const char * t) : str(t) {}
+    virtual ~InterfaceElement() {}
+
     virtual const char * text(int /* selected */) { return str; }
     virtual int doKey(int /* key */) { return 1; }
+
+    
 };
 
 
@@ -43,6 +47,8 @@ public:
     Interface(const char * n, const char * ti, const char * te,
 	      InterfaceElement * el[], int nEl);
 
+    virtual ~Interface();
+
     void setElements(InterfaceElement ** el, int nEl);
     static void set(const char * n);
 
@@ -51,6 +57,8 @@ public:
     virtual void msg(char * msg);
     virtual void doKey(int key);
     virtual void run();
+
+    
 };
 
 

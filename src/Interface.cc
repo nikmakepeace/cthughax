@@ -46,6 +46,8 @@ Interface::Interface(const char * n,
     head = this;
 }
 
+Interface::~Interface() {}
+
 void Interface::setElements(InterfaceElement ** el, int nEl) {
     elements = el;
     nElements = nEl;
@@ -279,6 +281,9 @@ void Interface::run() {
 //
 // class InterfaceElementOption
 //
+
+
+
 Keymap InterfaceElementOption::keymap("OptionElement");
 
 InterfaceElementOption::InterfaceElementOption(const char * t, Option * o, 

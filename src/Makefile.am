@@ -60,10 +60,10 @@ tabinfo_SOURCES = tabinfo.cc
 ## all the header files
 noinst_HEADERS = 	\
 	AutoChanger.h     SoundAnalyze.h    flames.h          pcx.h		\
-        CDPlayer.h        SoundDevice.h     sound.h           \
+        CDPlayer.h        SoundDevice.h  \
 	CoreOption.h      SoundProcess.h    imath.h           tab_header.h	\
 	CthughaBuffer.h   SoundServer.h     information.h     translate.h	\
-	CthughaDisplay.h  cth_buffer.h      interface.h       vroot.h		\
+	CthughaDisplay.h  cth_buffer.h      vroot.h		\
 	DisplayDevice.h   cthugha.h         keys.h            waves.h		\
 	Option.h          disp-sys.h        network.h         xcthugha.h	\
 	Sound.h           display.h         options.h	      glcthugha.h	\

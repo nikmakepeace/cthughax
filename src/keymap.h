@@ -14,6 +14,7 @@ public:
 	head = this; 
 	nameLen = strlen(name);
     }
+    virtual ~Action() {}
     virtual void act(const char * /* param */, double /* value */) {};
 
     int operator==(const char * n) const {
