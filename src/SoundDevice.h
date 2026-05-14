@@ -52,10 +52,12 @@ class SoundDevice {
 protected:
     int error;
 
-    void * tmpData;			// sound data in format read 
+    char * tmpData;			// sound data in format read 
+    int tmpDataOwned;			// tmpData was allocated with new[]
     int rawSize;			// number of bytes to get
     int tmpSize;			// size of temorary buffer (>= rawSize)
     void setTmpData();
+    void borrowTmpData(char * data);
 
     void convert(char2 * dst, void * src, int n);	// convert tmpData to stereo,signed,8bit
 public:
@@ -188,6 +190,7 @@ protected:
 public:
     static char name[];
     static char fifo[];
+    static char fifoDir[];
 
     SoundDeviceFile();
     virtual ~SoundDeviceFile();
@@ -211,6 +214,4 @@ public:
 };
 
 #endif
-
-
 

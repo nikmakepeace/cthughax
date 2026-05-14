@@ -136,7 +136,7 @@ SoundDeviceFork::SoundDeviceFork() {
 	signal(SIGTSTP, sig_tty_parent);	/* react to ^Z */
 
 	do {
-	    soundDevice->tmpData = (char2*)sound_shared;
+	    soundDevice->borrowTmpData((char*)sound_shared);
 	    (*soundDevice)();
 	    if(sound_communicator->update) {
 		sound_comm_read();		// this only sets the values
@@ -205,4 +205,3 @@ SoundDeviceFork::~SoundDeviceFork() {
     shmdt((char*)sound_shared);
     shmctl(sound_shm_key, IPC_RMID, 0);
 }
-

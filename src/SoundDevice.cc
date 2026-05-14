@@ -19,13 +19,15 @@ SoundDevice::SoundDevice() {
     size =  1 << ilog2(max(BUFF_WIDTH, BUFF_HEIGHT));
     data = new char2[1024];
 
-    tmpData = NULL; tmpSize = 0;
+    tmpData = NULL; tmpDataOwned = 0; tmpSize = 0;
     setTmpData();
 }
 
 SoundDevice::~SoundDevice() {
-    delete(tmpData); tmpData = NULL;
-    delete(data);    data = NULL;
+    if(tmpDataOwned)
+	delete[] tmpData;
+    tmpData = NULL; tmpDataOwned = 0;
+    delete[] data;    data = NULL;
 }
 
 void SoundDevice::operator()() {
@@ -64,10 +66,19 @@ void SoundDevice::setTmpData() {
     bytesPerSample = (soundFormat < 2) ? soundChannels : 2 * soundChannels;
     rawSize = bytesPerSample * size;
 
-    delete tmpData;
+    if(tmpDataOwned)
+	delete[] tmpData;
     if(tmpSize < rawSize)
 	tmpSize = rawSize;
     tmpData = new char[tmpSize];
+    tmpDataOwned = 1;
+}
+
+void SoundDevice::borrowTmpData(char * data) {
+    if(tmpDataOwned)
+	delete[] tmpData;
+    tmpData = data;
+    tmpDataOwned = 0;
 }
 
 void SoundDevice::convert(char2 * dst, void * src, int n) {
