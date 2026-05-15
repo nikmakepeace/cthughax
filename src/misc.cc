@@ -17,9 +17,7 @@
 
 #include <errno.h>
 
-#ifdef HAVE_VPRINTF
 #include <stdarg.h>
-#endif
 
 //
 // usefull to find memory errors
@@ -39,29 +37,27 @@ void operator delete(void *d) {
 
 OptionInt cthugha_verbose("verbose", 1, 0, -1); // verbosity level (no max, min=-1)
 
-//
-// print a verbose message
-//
-int printfv(int lvl, const char* fmt, ...) {
+static void copy_console_format(char* out, const char* in) {
+    int i;
+    for (i = 0; *in != '\0'; in++) {
+        out[i++] = *in;
+        if (*in == '\n')
+            out[i++] = '\r';
+    }
+    out[i] = '\0';
+}
+
+static int vprintfv(int lvl, const char* fmt, va_list ap) {
     if (lvl <= int(cthugha_verbose)) {
         // I had problems with missing carrige returns on Linux console
         // so i translate it to \n\r
         char fmt_r[2 * strlen(fmt) + 1];
-        int i;
-        for (i = 0; *fmt != '\0'; fmt++) {
-            fmt_r[i++] = *fmt;
-            if (*fmt == '\n')
-                fmt_r[i++] = '\r';
-        }
-        fmt_r[i] = '\0';
+        copy_console_format(fmt_r, fmt);
 
         //	printf("%5d:", getpid());
 
 #ifdef HAVE_VPRINTF
-        va_list ap;
-        va_start(ap, fmt);
         vprintf(fmt_r, ap);
-        va_end(ap);
 #else
         printf(fmt_r);
 #endif
@@ -70,30 +66,37 @@ int printfv(int lvl, const char* fmt, ...) {
     return 0;
 }
 
-//
-// print an error message and the error number
-//
-int printfee(const char* fmt, ...) {
-
+static int vprintfe(const char* fmt, va_list ap) {
     printf("\n\r");
     fflush(stdout);
 
     // I had problems with missing carrige returns on Linux console
     // so i translate it to \n\r
     char fmt_r[2 * strlen(fmt) + 1];
-    int i;
-    for (i = 0; *fmt != '\0'; fmt++) {
-        fmt_r[i++] = *fmt;
-        if (*fmt == '\n')
-            fmt_r[i++] = '\r';
-    }
-    fmt_r[i] = '\0';
+    copy_console_format(fmt_r, fmt);
 
 #ifdef HAVE_VPRINTF
-    va_list ap;
-    va_start(ap, fmt);
     vfprintf(stderr, fmt_r, ap);
-    va_end(ap);
+#else
+    fprintf(stderr, fmt);
+#endif
+
+    fflush(stderr);
+
+    return 0;
+}
+
+static int vprintfee(const char* fmt, va_list ap) {
+    printf("\n\r");
+    fflush(stdout);
+
+    // I had problems with missing carrige returns on Linux console
+    // so i translate it to \n\r
+    char fmt_r[2 * strlen(fmt) + 1];
+    copy_console_format(fmt_r, fmt);
+
+#ifdef HAVE_VPRINTF
+    vfprintf(stderr, fmt_r, ap);
 #else
     fprintf(stderr, fmt_r);
 #endif
@@ -110,34 +113,108 @@ int printfee(const char* fmt, ...) {
 }
 
 //
-// print an error message
+// print a verbose message
 //
-int printfe(const char* fmt, ...) {
+int printfv(int lvl, const char* fmt, ...) {
+#ifdef HAVE_VPRINTF
+    va_list ap;
+    va_start(ap, fmt);
+    vprintfv(lvl, fmt, ap);
+    va_end(ap);
+#else
+    if (lvl <= int(cthugha_verbose))
+        printf(fmt);
+#endif
+    return 0;
+}
 
-    printf("\n\r");
-    fflush(stdout);
+//
+// print a named-level log message
+//
+int ?cth_log(int lvl, const char* fmt, ...) {
+#ifdef HAVE_VPRINTF
+    va_list ap;
+    va_start(ap, fmt);
+    if (lvl <= CTH_LOG_ERROR)
+        vprintfe(fmt, ap);
+    else
+        vprintfv(lvl, fmt, ap);
+    va_end(ap);
+#else
+    if (lvl <= CTH_LOG_ERROR)
+        fprintf(stderr, fmt);
+    else if (lvl <= int(cthugha_verbose))
+        printf(fmt);
+#endif
+    return 0;
+}
 
-    // I had problems with missing carrige returns on Linux console
-    // so i translate it to \n\r
-    char fmt_r[2 * strlen(fmt) + 1];
-    int i;
-    for (i = 0; *fmt != '\0'; fmt++) {
-        fmt_r[i++] = *fmt;
-        if (*fmt == '\n')
-            fmt_r[i++] = '\r';
-    }
-    fmt_r[i] = '\0';
+//
+// print an error message and the error number
+//
+int printfee(const char* fmt, ...) {
 
 #ifdef HAVE_VPRINTF
     va_list ap;
     va_start(ap, fmt);
-    vfprintf(stderr, fmt_r, ap);
+    vprintfee(fmt, ap);
+    va_end(ap);
+#else
+    fprintf(stderr, fmt);
+    fprintf(stderr, " (%d)\n\r", errno);
+#endif
+
+    return 0;
+}
+
+//
+// print a named-level error message and the error number
+//
+int cth_log_errno(const char* fmt, ...) {
+
+#ifdef HAVE_VPRINTF
+    va_list ap;
+    va_start(ap, fmt);
+    vprintfee(fmt, ap);
+    va_end(ap);
+#else
+    fprintf(stderr, fmt);
+    fprintf(stderr, " (%d)\n\r", errno);
+#endif
+
+    return 0;
+}
+
+//
+// print an error message
+//
+int printfe(const char* fmt, ...) {
+
+#ifdef HAVE_VPRINTF
+    va_list ap;
+    va_start(ap, fmt);
+    vprintfe(fmt, ap);
     va_end(ap);
 #else
     fprintf(stderr, fmt);
 #endif
 
-    fflush(stderr);
+    return 0;
+}
+
+//
+// print a named-level error message
+//
+int cth_log_error(const char* fmt, ...) {
+
+#ifdef HAVE_VPRINTF
+    va_list ap;
+    va_start(ap, fmt);
+    vprintfe(fmt, ap);
+    va_end(ap);
+#else
+    fprintf(stderr, fmt);
+#endif
 
     return 0;
 }

@@ -82,9 +82,20 @@ char* cthugha_mode_text(); /* returns "svga", "xwin", ... */
 int cth_init(int* argc, char* argv[]);
 int cth_main();
 
+enum CthughaLogLevel {
+    CTH_LOG_ERROR = 0,
+    CTH_LOG_WARN = 1,
+    CTH_LOG_INFO = 2,
+    CTH_LOG_DEBUG = 5,
+    CTH_LOG_TRACE = 10
+};
+
 int printfv(int lvl, const char* fmt, ...); // print verbose message
 int printfee(const char* fmt, ...); // print error msg with errno
 int printfe(const char* fmt, ...); // print error msg (no errno)
+int cth_log(int lvl, const char* fmt, ...); // print named-level log message
+int cth_log_error(const char* fmt, ...); // print error log message
+int cth_log_errno(const char* fmt, ...); // print error log message with errno
 
 int systemf(const char* fmt, ...); // combined sprintf and system
 

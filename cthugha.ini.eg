@@ -30,13 +30,12 @@ cthugha.disp-mode	: 2			# this is 800x600
 cthugha.buff-size	: 2
 cthugha.line		: 80			# use line-in as input
 cthugha.rate		: 22000			# by default this is 44000
-cthugha.verbose		: 2			# print some messages
+cthugha.verbose		: 2			# log level: 0 error, 1 warn, 2 info, 5 debug, 10 trace
 
 cthugha.flashlight.?	: locked:off		# I don't like this, so I turn it off
 						#  for all buffers
 
 cthugha.font            : -adobe-courier-bold-r-*-*-24-*-*-*-*-*-*-*
-
 
 
 
