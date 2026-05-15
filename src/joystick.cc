@@ -25,7 +25,7 @@ void Joystick::run() {
             return;
 
         if ((js = open("/dev/js0", O_RDONLY | O_NONBLOCK)) < 0) {
-            printfe("Can not open `/dev/js0'.\n");
+            CTH_ERROR("Can not open `/dev/js0'.\n");
             return;
         }
 

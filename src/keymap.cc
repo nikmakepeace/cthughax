@@ -119,7 +119,7 @@ Keymap* Keymap::find(const char* name, int create) {
         strcpy(n, name);
         return new Keymap(n);
     } else {
-        printfe("Could not find keymap '%s'.\n", name);
+        CTH_ERROR("Could not find keymap '%s'.\n", name);
         return first;
     }
 }
@@ -175,7 +175,7 @@ Keymap::Binding Keymap::parseBinding(const char* line) {
             }
 
         if ((*line != '\0') && !isspace(*line)) {
-            printfe("Unknown key symbol in keymap line: '%s'\n", fullLine);
+            CTH_ERROR("Unknown key symbol in keymap line: '%s'\n", fullLine);
             b.key = 0;
             return b;
         }
@@ -200,14 +200,14 @@ Keymap::Binding Keymap::parseBinding(const char* line) {
             skipSpace(line);
 
             if (*line != '(') { // check and skip '('
-                printfe("Missing '(' in binding: '%s'\n", fullLine);
+                CTH_ERROR("Missing '(' in binding: '%s'\n", fullLine);
                 b.key = 0;
                 return b;
             }
             line++;
 
             if (strchr(line, ')') == NULL) { // check and skip ')'
-                printfe("Missing ')' in binding: '%s'\n", fullLine);
+                CTH_ERROR("Missing ')' in binding: '%s'\n", fullLine);
                 b.key = 0;
                 return b;
             }
@@ -222,7 +222,7 @@ Keymap::Binding Keymap::parseBinding(const char* line) {
             // add new action to List
             b.actionList = new Binding::ActionList(A, p, b.actionList);
         } else {
-            printfe("Error in keymap. Unknown command: '%s'\n", line);
+            CTH_ERROR("Error in keymap. Unknown command: '%s'\n", line);
             b.key = 0;
             return b;
         }

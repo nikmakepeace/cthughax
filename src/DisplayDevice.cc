@@ -125,7 +125,7 @@ double DisplayDevice::print(const char* text, double y, int justify, int color, 
             x = max(fontSize.x * (text_size.x - len), 0);
             break;
         default:
-            printfe("unknown justification (internal error).\n");
+            CTH_ERROR("unknown justification (internal error).\n");
             x = 0;
         }
 

@@ -237,7 +237,7 @@ CoreOptionEntry* read_object(
                 }
             } else {
                 if (j >= nlines) {
-                    printfe("Error reading object file %s", name);
+                    CTH_ERROR("Error reading object file %s", name);
                     delete new_obj;
                     return NULL;
                 }
@@ -303,7 +303,7 @@ void putat(int x, int y, int val) {
 
 #if 0
     if( (a < 0) || (a >= BUFF_SIZE)) {
-	printfe("Penguin alert! %d,%d", x,y);
+	CTH_ERROR("Penguin alert! %d,%d", x,y);
 	exit(1);
     }
 #endif

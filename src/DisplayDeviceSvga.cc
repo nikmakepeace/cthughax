@@ -178,7 +178,7 @@ public:
 
         if ((disp_size.x < BUFF_WIDTH) || (disp_size.y < BUFF_HEIGHT)) {
             exit_graph_mode();
-            printfe("Screen must not be smaller than buffer.");
+            CTH_ERROR("Screen must not be smaller than buffer.");
             exit(0);
         }
 

@@ -132,7 +132,7 @@ void CthughaBuffer::initAll() {
 
     /* check if any palettes in use */
     if (CthughaBuffer::current->palette.getNEntries() == 0) {
-        printfe("No palettes specified. enabling inbuilt palettes\n");
+        CTH_ERROR("No palettes specified. enabling inbuilt palettes\n");
         display_internal_pal = 1;
         if (load_palettes())
             exit(0);

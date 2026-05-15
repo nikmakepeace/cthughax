@@ -104,6 +104,7 @@ int cth_log_errno(const char* fmt, ...); // print error log message with errno
         if (CTH_LOG_ENABLED(lvl)) \
             cth_log(lvl, args); \
     } while (0)
+#define CTH_ERROR(args...) cth_log_error(args)
 #define CTH_WARN(args...) CTH_LOG(CTH_LOG_WARN, args)
 #define CTH_INFO(args...) CTH_LOG(CTH_LOG_INFO, args)
 #define CTH_DEBUG(args...) CTH_LOG(CTH_LOG_DEBUG, args)

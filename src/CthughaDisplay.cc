@@ -115,7 +115,7 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
     }
 
     if ((zoom != 1) && (bypp != 1) && (bypp != 2) && (bypp != 4)) {
-        printfe("Sorry zooming is only implements for 1,2 and 4 bytes/pixel displays.");
+        CTH_ERROR("Sorry zooming is only implements for 1,2 and 4 bytes/pixel displays.");
         zoom.setValue(1);
     }
 
@@ -248,7 +248,7 @@ void CthughaDisplay::checkZoom() {
         draw_size.x = zoom * 2 * BUFF_WIDTH;
         draw_size.y = zoom * 2 * BUFF_HEIGHT;
         while ((draw_size.x > disp_size.x) || (draw_size.y > disp_size.y)) {
-            printfe("Zoom factor is set too high for current display size. reducing.\n");
+            CTH_ERROR("Zoom factor is set too high for current display size. reducing.\n");
             zoom.setValue(zoom / 2);
             draw_size.x = zoom * 2 * BUFF_WIDTH;
             draw_size.y = zoom * 2 * BUFF_HEIGHT;

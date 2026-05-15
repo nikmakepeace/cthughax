@@ -47,7 +47,7 @@ void SoundDevice::operator()() {
 }
 
 int SoundDevice::read() {
-    printfe("internal error. SoundDevice::read() called.\n");
+    CTH_ERROR("internal error. SoundDevice::read() called.\n");
     exit(0);
 }
 
@@ -165,7 +165,7 @@ void SoundDevice::convert(char2* dst, void* src, int n) {
         break;
 
     default:
-        printfe("internal error: wrong sound format.\n");
+        CTH_ERROR("internal error: wrong sound format.\n");
     }
 }
 
@@ -191,7 +191,7 @@ void SoundDevice::newSD() {
             soundDevice = ::new SoundDeviceFile();
         break;
     default:
-        printfe("Illegal SoundDeviceNr %d.\n", int(soundDeviceNr));
+        CTH_ERROR("Illegal SoundDeviceNr %d.\n", int(soundDeviceNr));
         exit(0);
     }
 
@@ -207,7 +207,7 @@ void SoundDevice::newSD() {
     if ((soundDevice == NULL) || (soundDevice->error != 0)) {
         delete soundDevice;
 
-        printfe("Can not use requested sound device. Using random noise.\n");
+        CTH_ERROR("Can not use requested sound device. Using random noise.\n");
         soundDevice = ::new SoundDeviceRandom;
     }
 

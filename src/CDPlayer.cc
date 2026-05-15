@@ -131,7 +131,7 @@ int CDPlayer::readTOC() {
     first = tocHdr.cdth_trk0;
     last = tocHdr.cdth_trk1;
     if ((first == 0) || (first > last)) {
-        printfe("Illegal Table of Contents (first track: %d, last track: %d)\n", first, last);
+        CTH_ERROR("Illegal Table of Contents (first track: %d, last track: %d)\n", first, last);
         return 1;
     }
 

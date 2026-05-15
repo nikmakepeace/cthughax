@@ -111,10 +111,10 @@ void SoundServer::operator()() {
                 remove_client(my_s_addr, size);
 
             } else
-                printfe("Unknown request `%s'\n", data);
+                CTH_ERROR("Unknown request `%s'\n", data);
 
         } else {
-            printfe("Only AF_INET connections are supported currently.\n");
+            CTH_ERROR("Only AF_INET connections are supported currently.\n");
         }
 
         close(acc_socket);
@@ -136,7 +136,7 @@ int SoundServer::add_client(struct sockaddr my_s_addr, int size) {
 
     /* check for full memory */
     if (nClients >= MAX_CLIENTS) {
-        printfe("Maximum number of clients (%d) reached.\n", MAX_CLIENTS);
+        CTH_ERROR("Maximum number of clients (%d) reached.\n", MAX_CLIENTS);
         return 1;
     }
 
@@ -198,7 +198,7 @@ public:
 #else
 
 int init_server() {
-    printfe("Sound server was disabled at compile time.\n");
+    CTH_ERROR("Sound server was disabled at compile time.\n");
     return 1;
 }
 int exit_server() { return 0; }

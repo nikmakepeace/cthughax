@@ -142,7 +142,7 @@ int mixer_initial_volume(char* name, int volume) {
         }
     }
 
-    printfe("unknown mixer device `%s'.\n", name);
+    CTH_ERROR("unknown mixer device `%s'.\n", name);
     return 1;
 }
 

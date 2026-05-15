@@ -205,7 +205,7 @@ CoreOptionEntry* read_pcx(
     /* read header */
     iread = fread(&header, 1, sizeof(header), picf);
     if (iread != sizeof(header)) {
-        printfe("Can't read head of file: %s\n", name);
+        CTH_ERROR("Can't read head of file: %s\n", name);
         return NULL;
     }
 
@@ -215,19 +215,19 @@ CoreOptionEntry* read_pcx(
 
     /* Check header */
     if (header.id != 0x0A) {
-        printfe("Illegal PCX header (wrong ID %d) in file: %s\n", header.id, name);
+        CTH_ERROR("Illegal PCX header (wrong ID %d) in file: %s\n", header.id, name);
         return NULL;
     }
     if (header.version != 0 && header.version != 2 && header.version != 3 && header.version != 5) {
-        printfe("Illegal PCX header (wrong version %d) in file: %s\n", header.version, name);
+        CTH_ERROR("Illegal PCX header (wrong version %d) in file: %s\n", header.version, name);
         return NULL;
     }
     if (header.compr != 0 && header.compr != 1) {
-        printfe("Illegal PCX header (wrong compression %d) in file: %s\n", header.compr, name);
+        CTH_ERROR("Illegal PCX header (wrong compression %d) in file: %s\n", header.compr, name);
         return NULL;
     }
     if (header.ncolplanes > 4) {
-        printfe("Illegal PCX header (wrong ncolplanes %d) in file: %s\n", header.ncolplanes, name);
+        CTH_ERROR("Illegal PCX header (wrong ncolplanes %d) in file: %s\n", header.ncolplanes, name);
         return NULL;
     }
     if (header.greyscale != 1 && header.greyscale != 2)
@@ -238,7 +238,7 @@ CoreOptionEntry* read_pcx(
 
     bitsperplane = header.bitsperpixel * header.ncolplanes;
     if (bitsperplane != 8) {
-        printfe("Wrong number of bits per plane (%d).\n", bitsperplane);
+        CTH_ERROR("Wrong number of bits per plane (%d).\n", bitsperplane);
         return NULL;
     }
 

@@ -209,11 +209,11 @@ void DisplayDeviceX11::loadFont() {
         // set the font for displaying text
         font = XLoadQueryFont(xcth_display, xcth_font);
         if (font == NULL) {
-            printfe("Can not load font `%s'. Trying font `fixed'.\n", xcth_font);
+            CTH_ERROR("Can not load font `%s'. Trying font `fixed'.\n", xcth_font);
 
             font = XLoadQueryFont(xcth_display, "fixed");
             if (font == NULL) {
-                printfe("Can not load font fixed.\n");
+                CTH_ERROR("Can not load font fixed.\n");
                 exit(0);
             }
         }
@@ -297,7 +297,7 @@ DisplayDeviceX11::DisplayDeviceX11()
         if ((textPixmap = XCreatePixmap(xcth_display, XtWindow(panelTextWidget),
                  text_size.x * fontSize.x, text_size.y * fontSize.y, planes))
             == 0) {
-            printfe("Can not create the text pixmap.\n");
+            CTH_ERROR("Can not create the text pixmap.\n");
             exit(0);
         }
         copyText = 2;
@@ -430,7 +430,7 @@ void DisplayDeviceX11::allocImage() {
         if ((image = XShmCreateImage(
                  xcth_display, visual, planes, ZPixmap, NULL, &shminfo, disp_size.x, disp_size.y))
             == NULL) {
-            printfe("Can not create the shared XImage.\n");
+            CTH_ERROR("Can not create the shared XImage.\n");
             exit(0);
         }
         bypp = (image->bits_per_pixel + 7) / 8;
@@ -448,7 +448,7 @@ void DisplayDeviceX11::allocImage() {
         }
         shminfo.readOnly = False;
         if (XShmAttach(xcth_display, &shminfo) == 0) {
-            printfe("Can not X-attach shared memory segment.\n");
+            CTH_ERROR("Can not X-attach shared memory segment.\n");
             exit(0);
             ;
         }
@@ -456,7 +456,7 @@ void DisplayDeviceX11::allocImage() {
         if ((pixmap = XShmCreatePixmap(
                  xcth_display, window, image->data, &shminfo, disp_size.x, disp_size.y, planes))
             == 0) {
-            printfe("Can not create the shared XPixmap.\n");
+            CTH_ERROR("Can not create the shared XPixmap.\n");
             exit(0);
         }
         break;
@@ -468,7 +468,7 @@ void DisplayDeviceX11::allocImage() {
                  NULL, /* data */
                  &shminfo, disp_size.x, disp_size.y))
             == NULL) {
-            printfe("Can not create XImage.\n");
+            CTH_ERROR("Can not create XImage.\n");
             exit(0);
         }
         bypp = (image->bits_per_pixel + 7) / 8;
@@ -488,7 +488,7 @@ void DisplayDeviceX11::allocImage() {
 
         /* Attach X11 with Shared Memory */
         if (XShmAttach(xcth_display, &shminfo) == 0) {
-            printfe("Can not X-attach shared memory segment.\n");
+            CTH_ERROR("Can not X-attach shared memory segment.\n");
             exit(0);
             ;
         }
@@ -499,14 +499,14 @@ void DisplayDeviceX11::allocImage() {
         if ((image = XCreateImage(xcth_display, visual, planes, ZPixmap, 0, NULL, disp_size.x,
                  disp_size.y, XBitmapPad(xcth_display), 0 /*bytes_per_line will be computed */))
             == NULL) {
-            printfe("Can not create XImage.\n");
+            CTH_ERROR("Can not create XImage.\n");
             exit(0);
         }
         bypp = (image->bits_per_pixel + 7) / 8;
         bytes_per_line = image->bytes_per_line;
 
         if ((image->data = (char*)malloc(disp_size.y * bytes_per_line)) == NULL) {
-            printfe("Can not allocate memory for bitmap.\n");
+            CTH_ERROR("Can not allocate memory for bitmap.\n");
             exit(0);
         }
     }
@@ -695,7 +695,7 @@ void DisplayDeviceX11::initPalette() {
             draw_mode = DM_mapped4;
             break;
         default:
-            printfe("Unsupported bytes per pixel %d.", bypp);
+            CTH_ERROR("Unsupported bytes per pixel %d.", bypp);
             exit(0);
         }
 
@@ -714,7 +714,7 @@ void DisplayDeviceX11::initPalette() {
     case StaticColor:
     case GrayScale:
 
-        printfe("Cthugha will propably not work on this visual.\n");
+        CTH_ERROR("Cthugha will propably not work on this visual.\n");
 
         colormapped = 0;
         draw_mode = DM_mapped1;
@@ -731,7 +731,7 @@ void DisplayDeviceX11::initPalette() {
 
     case PseudoColor: { /* 256 color mode with palette */
         if (planes != 8) {
-            printfe("xcthugha needs for PseudoColor 8 bits/pixel - you have %d.\n", planes);
+            CTH_ERROR("xcthugha needs for PseudoColor 8 bits/pixel - you have %d.\n", planes);
         }
 
         if (private_cmap == 0) {
@@ -797,7 +797,7 @@ void DisplayDeviceX11::initPalette() {
                         /* can not allocate colorcell */
                         textColor[i] = 0;
 
-                        printfe("Could not allocate color for text.\n");
+                        CTH_ERROR("Could not allocate color for text.\n");
                     } else {
                         textColor[i] = col.pixel;
                     }
@@ -809,7 +809,7 @@ void DisplayDeviceX11::initPalette() {
                 if (XAllocColorCells(xcth_display, colormap, 0, NULL, 0, // color planes
                         pixels, 128)
                     == 0) {
-                    printfe("Could not allocate 128 color cells.\n"
+                    CTH_ERROR("Could not allocate 128 color cells.\n"
                             "please make more colors available or start with '--install' option.");
                     exit(0);
                 }
@@ -1027,7 +1027,7 @@ int DisplayDeviceX11::printScreen() {
 #else
 
 int DisplayDeviceX11::printScreen() {
-    printfe("Print screen is not available. You need the Xpm library.\n");
+    CTH_ERROR("Print screen is not available. You need the Xpm library.\n");
     return 1;
 }
 

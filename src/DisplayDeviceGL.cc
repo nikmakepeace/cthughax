@@ -334,7 +334,7 @@ public:
         glutInitDisplayMode(GLUT_RGB | GLUT_DEPTH | GLUT_DOUBLE);
 
         if ((Window = glutCreateWindow("GLCthugha")) == 0) {
-            printfe("Can not create GLUT window.\n");
+            CTH_ERROR("Can not create GLUT window.\n");
             exit(0);
         }
 
@@ -355,7 +355,7 @@ public:
 
         // check if paletted texture is available
         if (!glutExtensionSupported("GL_EXT_paletted_texture")) {
-            printfe("Sorry, GL_EXT_paletted_texture is not available.\n");
+            CTH_ERROR("Sorry, GL_EXT_paletted_texture is not available.\n");
             exit(0);
         }
 

@@ -151,7 +151,7 @@ SoundDeviceNet::~SoundDeviceNet() {
 //
 
 SoundDeviceNet::SoundDeviceNet() {
-    printfe("Network code was disabled at compile time.\n");
+    CTH_ERROR("Network code was disabled at compile time.\n");
     error = 1;
 }
 

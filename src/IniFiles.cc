@@ -174,7 +174,7 @@ int getini(const char* entry, int* value) {
     /* try to read as number */
     int tvalue = strtol(str, &pos, 0);
     if (str == pos) { // not a number
-        printfe("Not a number `%s' for entry `%s'.\n", str, entry);
+        CTH_ERROR("Not a number `%s' for entry `%s'.\n", str, entry);
         return 1;
     }
 
@@ -203,7 +203,7 @@ int getini_yesno(const char* entry, int* value) {
     else if (!strncasecmp("disable", str, 7))
         *value = 2;
     else {
-        printfe("Illegal value `%s' for entry `%s'.\n", str, entry);
+        CTH_ERROR("Illegal value `%s' for entry `%s'.\n", str, entry);
     }
 
     return 0;
@@ -330,7 +330,7 @@ int write_ini() {
 
     /* make sure file exists */
     if ((f = fopen(fname, "a")) == NULL) {
-        printfe("Can not open ini file.");
+        CTH_ERROR("Can not open ini file.");
         return 1;
     }
     fclose(f);
@@ -384,7 +384,7 @@ int write_ini() {
      * copy old settings
      */
     if ((f = fopen(fname_dst, "r")) == NULL) {
-        printfe("Can not open backup file");
+        CTH_ERROR("Can not open backup file");
         return 1;
     }
 

@@ -178,7 +178,7 @@ int SoundDeviceFile::open() {
 
 #else
 
-        printfe("Sorry. No MOD Player configured.\n");
+        CTH_ERROR("Sorry. No MOD Player configured.\n");
         return 1;
 
 #endif
@@ -257,7 +257,7 @@ int SoundDeviceFile::open() {
 
         systemf("echo \"n\" | %s -wav -fn 0 \"%s\" %s 2> /dev/null", MP3_PATH, name, fifo);
         if ((file = fopen(fifo, "r")) == NULL) {
-            printfe("Can not open temporary file.\n");
+            CTH_ERROR("Can not open temporary file.\n");
             return 1;
         }
         if (wavHeader()) {
@@ -277,7 +277,7 @@ int SoundDeviceFile::open() {
         }
 
 #else
-        printfe("Sorry. No MP3 Player configured.\n");
+        CTH_ERROR("Sorry. No MP3 Player configured.\n");
         return 1;
 #endif
 
@@ -342,7 +342,7 @@ int SoundDeviceFile::wavHeader() {
 
     if (fread(&header, sizeof(header), 1, file) <= 0) {
         if (feof(file))
-            printfe("Can not read header (end of file).\n");
+            CTH_ERROR("Can not read header (end of file).\n");
         else
             printfee("Can not read header.");
     }

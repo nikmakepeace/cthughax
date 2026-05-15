@@ -86,7 +86,7 @@ void SoundDeviceDSP::setFormat() {
         sound_format = AFMT_S16_BE;
         break;
     default:
-        printfe("Internal error: unknown sound format.\n");
+        CTH_ERROR("Internal error: unknown sound format.\n");
         sound_format = AFMT_U8;
     }
 
@@ -123,7 +123,7 @@ void SoundDeviceDSP::setFormat() {
         soundFormat.setValue(SF_s16_be);
         break;
     default:
-        printfe("Unknown sound format returned by SNDCTL_DSP_SETFMT %d.\n", sound_format);
+        CTH_ERROR("Unknown sound format returned by SNDCTL_DSP_SETFMT %d.\n", sound_format);
         error = 1;
     }
 }
@@ -224,7 +224,7 @@ void SoundDeviceDSP::init(int mode) {
     }
     case 4: { // use DMA
         if (mode == O_WRONLY) {
-            printfe("Sound method 4 is only available for reading sound data.\n"
+            CTH_ERROR("Sound method 4 is only available for reading sound data.\n"
                     "Please use a different sound method.\n");
             error = 1;
             break;
@@ -241,19 +241,19 @@ void SoundDeviceDSP::init(int mode) {
 
         struct audio_buf_info info;
         if (ioctl(handle, SNDCTL_DSP_GETISPACE, &info) == -1) {
-            printfe("ioctl: SNDCTL_DSP_GETISPACE failed.");
+            CTH_ERROR("ioctl: SNDCTL_DSP_GETISPACE failed.");
             error = 1;
             break;
         }
         int sz = info.fragstotal * info.fragsize;
         if (sz < 2048) {
-            printfe("Fragment size changed. New value (%d) is too small.\n"
+            CTH_ERROR("Fragment size changed. New value (%d) is too small.\n"
                     "Please use a different sound method.\n",
                 sz);
         }
         if ((DMAbuffer = (char*)mmap(NULL, sz, PROT_READ, MAP_FILE | MAP_SHARED, handle, 0))
             == (char*)-1) {
-            printfe("mmap failed.\n");
+            CTH_ERROR("mmap failed.\n");
             error = 1;
             break;
         }
@@ -268,8 +268,8 @@ void SoundDeviceDSP::init(int mode) {
         break;
     }
     default:
-        printfe("Unknown sound method %d.", int(soundDSPMethod));
-        printfe("   available sound methods:\n"
+        CTH_ERROR("Unknown sound method %d.", int(soundDSPMethod));
+        CTH_ERROR("   available sound methods:\n"
                 "   0: sophisticated 1 (optimal fragment size)\n"
                 "   1: sophisticated 2 (small fragments)\n"
                 "   2: simple (small DMA buffer)\n"
@@ -377,7 +377,7 @@ SoundDeviceDSP::SoundDeviceDSP(int mode)
 }
 
 void SoundDeviceDSP::init(int) {
-    printfe("DSP device was disabled at compile time.\n");
+    CTH_ERROR("DSP device was disabled at compile time.\n");
     error = 1;
 }
 

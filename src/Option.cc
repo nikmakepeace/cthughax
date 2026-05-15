@@ -25,6 +25,6 @@ void OptionOnOff::change(const char* to) {
     else if (!strncasecmp("0", to, 1))
         value = 0;
     else {
-        printfe("Illegal yes/no-value `%s'.\n", to);
+        CTH_ERROR("Illegal yes/no-value `%s'.\n", to);
     }
 }

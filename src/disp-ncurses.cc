@@ -25,7 +25,7 @@ int ncurses_use = 1;
 int init_ncurses() {
 
     if (!initscr()) {
-        printfe("Can not initialize ncurses.\n");
+        CTH_ERROR("Can not initialize ncurses.\n");
         return 1;
     }
 

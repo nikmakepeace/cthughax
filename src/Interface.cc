@@ -67,7 +67,7 @@ void Interface::set(const char* n) {
             return;
         }
     // could not find it, leave it as it is
-    printfe("Unknown interface '%s'\n", n);
+    CTH_ERROR("Unknown interface '%s'\n", n);
 }
 
 ErrorMessages errors;
@@ -325,7 +325,7 @@ ACTION(lockElement) {
 
 void ErrorMessages::addMessage(const char* text) {
     if (nMsgs == 128) {
-        printfe("too many errors: %s\n", text);
+        CTH_ERROR("too many errors: %s\n", text);
         return;
     }
     strncpy(msgs[nMsgs], text, 128);

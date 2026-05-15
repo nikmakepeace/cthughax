@@ -237,7 +237,7 @@ void CoreOption::changeOne() {
             n--;
         }
         if (o == NULL) {
-            printfe("internal error: Something very strange happend. %d/%d\n", n, nCoreOptions);
+            CTH_ERROR("internal error: Something very strange happend. %d/%d\n", n, nCoreOptions);
             return;
         }
     } while (o->buffer >= CthughaBuffer::nBuffers);

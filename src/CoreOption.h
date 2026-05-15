@@ -172,9 +172,9 @@ public:
 
     int optNr(const char* n);
 
-    void change(int) { printfe("internal error. wrong change called for option `%s'.\n", name()); }
+    void change(int) { CTH_ERROR("internal error. wrong change called for option `%s'.\n", name()); }
     void change(const char*) {
-        printfe("internal error. wrong change called for option `%s'.\n", name());
+        CTH_ERROR("internal error. wrong change called for option `%s'.\n", name());
     }
 
     static void changeOne();

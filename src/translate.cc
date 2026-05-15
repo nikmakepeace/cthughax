@@ -68,14 +68,14 @@ static int* read_trans_data(FILE* file, const tab_header& header, int BSize, con
     /* allocate memory for read buffer */
     D.l = new unsigned long[header.size_x];
     if ((void*)D.l != (void*)D.s) {
-        printfe("Wackiness afoot at %d in %s\n", __LINE__, __FILE__);
+        CTH_ERROR("Wackiness afoot at %d in %s\n", __LINE__, __FILE__);
         exit(1);
     }
 
     /* read data */
     for (i = 0; i < header.size_y; i++) {
         if ((j = fread(D.l, size, header.size_x, file)) < header.size_x) {
-            printfe("  Can't read at line: %d, read: %d (%s)\n", i, j, name);
+            CTH_ERROR("  Can't read at line: %d, read: %d (%s)\n", i, j, name);
             delete[] D.l;
             delete[] trans;
             return NULL;
@@ -83,7 +83,7 @@ static int* read_trans_data(FILE* file, const tab_header& header, int BSize, con
         for (j = 0; j < header.size_x; j++) {
             if (BSize > 65535) {
                 if (D.l[j] >= (unsigned int)(BSize)) {
-                    printfe("  High-translate (value: %ld) in %s.\n", D.l[j], name);
+                    CTH_ERROR("  High-translate (value: %ld) in %s.\n", D.l[j], name);
                     delete[] D.l;
                     delete[] trans;
                     return NULL;
@@ -91,7 +91,7 @@ static int* read_trans_data(FILE* file, const tab_header& header, int BSize, con
                 *dst++ = (int)D.l[j];
             } else {
                 if (D.s[j] >= (unsigned int)(BSize)) {
-                    printfe("  High-translate (value: %d) in %s.\n", D.s[j], name);
+                    CTH_ERROR("  High-translate (value: %d) in %s.\n", D.s[j], name);
                     delete[] D.l;
                     delete[] trans;
                     return NULL;
@@ -105,7 +105,7 @@ static int* read_trans_data(FILE* file, const tab_header& header, int BSize, con
 
     /* Check for too much data */
     if (fread(&D, size, 1, file)) {
-        printfe("  Extra data at end of file %s\n", name);
+        CTH_ERROR("  Extra data at end of file %s\n", name);
         delete[] trans;
         return NULL;
     }
@@ -158,7 +158,7 @@ CoreOptionEntry* TranslateEntry::loaderTab(
 
     /* read header */
     if (fread(&header, sizeof(tab_header), 1, file) != 1) {
-        printfe("  Can't read header from file '%s'.\n", name);
+        CTH_ERROR("  Can't read header from file '%s'.\n", name);
         return NULL;
     }
 
@@ -198,7 +198,7 @@ CoreOptionEntry* TranslateEntry::loaderTab(
 
     if (transLoadOnDemand) {
         if (TranslateEntry::cmdRead[0] == '\0') {
-            printfe("Could not find 'cmdRead'. Can not load .tab files on demand.\n");
+            CTH_ERROR("Could not find 'cmdRead'. Can not load .tab files on demand.\n");
             transLoadOnDemand.setValue(0);
         } else {
             sprintf(new_trans->command, TranslateEntry::cmdRead, total_name);
@@ -241,7 +241,7 @@ CoreOptionEntry* TranslateEntry::loaderCmd(
     /* check ID */
     fgets(line, 512, file);
     if (strncmp(line, "cmdtab", 6) != 0) {
-        printfe("  Not a command translate file: %s.\n", name);
+        CTH_ERROR("  Not a command translate file: %s.\n", name);
         return NULL;
     }
 
@@ -320,7 +320,7 @@ int TranslateEntry::loadLine(FILE* in, int n) {
     int* d = trans + BUFF_WIDTH * n;
     for (int i = 0; i < BUFF_WIDTH; i++, d++) {
         if ((line[i] >= BUFF_SIZE) || (line[i] < 0)) {
-            printfe("  illegal value in translation table %s.\n", name);
+            CTH_ERROR("  illegal value in translation table %s.\n", name);
             return 1;
         }
         *d = line[i];
