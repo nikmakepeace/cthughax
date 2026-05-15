@@ -106,35 +106,55 @@ int load_palettes() {
 }
 
 /*
- * store the palette with 8 bytes per color
+ * store the palette with 8 bytes per color. 
+ * palettes are 256 entries of 8 bit rgb. Shorter palettes are filled up with black.
+ * longer palettes are truncated.
  */
 CoreOptionEntry* read_palette(
     FILE* file, const char* name, const char* /*dir*/, const char* /*total_name*/) {
-    char dummy[256];
+    char line[256];
     int i, j, r, g, b;
+    bool read_all_entries = true;
     Palette* pal;
     PaletteEntry* new_pal = new PaletteEntry(name, "");
 
     pal = &(new_pal->pal);
 
     for (i = 0; i < 256; i++) {
-        if (fscanf(file, "%d %d %d", &r, &g, &b) < 3) {
-            CTH_WARN("\n    Can't read at line: %d (%s)", i, name);
+        if (fgets(line, sizeof(line), file) == NULL) {
+            CTH_DEBUG("\n    Reached end of palette after %d entries (%s) ... filling with black", i,
+                name);
+            read_all_entries = false;
             if (i == 0) { /* nothing read */
-                CTH_WARN(" ... skipping file");
+                CTH_DEBUG(" ... skipping file");
                 delete new_pal;
                 return NULL;
             }
-            CTH_WARN(" ... filling with black");
             for (; i < 256; i++) /* fill with black */
                 for (j = 0; j < 3; j++)
                     (*pal)[i][j] = 0;
             break;
         }
-        fgets(dummy, 255, file);
+
+        if (sscanf(line, "%d %d %d", &r, &g, &b) < 3) {
+            CTH_WARN("\n    Malformed palette line: %d (%s) ... replacing with black", i + 1, name);
+            r = g = b = 0;
+        }
+
         (*pal)[i][0] = r;
         (*pal)[i][1] = g;
         (*pal)[i][2] = b;
+    }
+
+    if (read_all_entries) {
+        while (fgets(line, sizeof(line), file) != NULL) {
+            char extra;
+
+            if (sscanf(line, " %c", &extra) == 1) {
+                CTH_WARN("\n    Palette has more than 256 lines (%s)", name);
+                break;
+            }
+        }
     }
 
     return new_pal;
