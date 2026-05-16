@@ -353,6 +353,8 @@ static double scaleFactorSpeed = 0.03; /* cycles per second */
 static double intensityFactor = 10.0; /* how much the sound intensity affects the scale factor */
 static const double minScaleFactor = 0.8;
 static const double maxScaleFactor = 2.0;
+static int splatSize = 1;
+static const int maxSplatSize = 4;
 
 /*
  * rotate vektor p around x/y/z axis (by rot[i])
@@ -382,6 +384,14 @@ inline void put_3d_pixel(unsigned char* dst, int x, int y, unsigned char color) 
         dst[y * cthughaDisplay->bufferWidth + x] = color;
 }
 
+inline void put_3d_splat(unsigned char* dst, int x, int y, unsigned char color) {
+    int offset = (splatSize - 1) / 2;
+
+    for (int yy = 0; yy < splatSize; yy++)
+        for (int xx = 0; xx < splatSize; xx++)
+            put_3d_pixel(dst, x + xx - offset, y + yy - offset, color);
+}
+
 void update_3d_scale_factor() {
     double dt = deltaT;
     double mid = (minScaleFactor + maxScaleFactor) / 2.0;
@@ -397,6 +407,12 @@ void update_3d_scale_factor() {
         scaleFactorPhase = fmod(scaleFactorPhase, 2.0 * M_PI);
 
     scaleFactor = mid - amp * cos(scaleFactorPhase) + (intensityFactor * soundAnalyze.intensity);
+    splatSize = int(scaleFactor + 0.5);
+    if (splatSize < 1)
+        splatSize = 1;
+    if (splatSize > maxSplatSize)
+        splatSize = maxSplatSize;
+
     CTH_TRACE("update_3d_scale_factor: dt=%.3f, phase=%.3f, scaleFactor=%.3f\n", dt, scaleFactorPhase,
         scaleFactor);
     CTH_TRACE("intensity: %.3f\n", soundAnalyze.intensity);
@@ -469,7 +485,7 @@ int screen_hfield() {
     for (i = BUFF_HEIGHT; i != 0; i--) {
         xy t = p;
         for (j = BUFF_WIDTH; j != 0; j--) {
-            put_3d_pixel(dst, (p.x + height_offset[*src].x) >> 16,
+            put_3d_splat(dst, (p.x + height_offset[*src].x) >> 16,
                 (p.y + height_offset[*src].y) >> 16, *src | 128);
             src++;
             p.x += s1.x;
@@ -508,7 +524,7 @@ int screen_bent() {
     for (i = BUFF_HEIGHT; i != 0; i--) {
         xy t = p;
         for (j = BUFF_WIDTH; j != 0; j--) {
-            put_3d_pixel(dst, (p.x + height_offset[height[j]].x) >> 16,
+            put_3d_splat(dst, (p.x + height_offset[height[j]].x) >> 16,
                 (p.y + height_offset[height[j]].y) >> 16, *src | 128);
             src++;
             p.x += s1.x;
@@ -535,7 +551,7 @@ int screen_plate() {
     for (i = BUFF_HEIGHT; i != 0; i--) {
         xy t = p;
         for (j = BUFF_WIDTH; j != 0; j--) {
-            put_3d_pixel(dst, p.x >> 16, p.y >> 16, *src | 128);
+            put_3d_splat(dst, p.x >> 16, p.y >> 16, *src | 128);
             src++;
             p.x += s1.x;
             p.y += s1.y;
