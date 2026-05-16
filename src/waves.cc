@@ -46,6 +46,8 @@ void wave_laser();
 void wave_corner();
 void wave_jump();
 void wave_sticks();
+void wave_grid();
+void wave_none();
 
 class WaveEntry : public CoreOptionEntry {
 public:
@@ -94,6 +96,8 @@ CoreOptionEntry* _waves[] = {
     new WaveEntry(wave_corner, "Corner", "Corner"), // 26
     new WaveEntry(wave_jump, "Jump", "Jumping points"), // 27
     new WaveEntry(wave_sticks, "Sticks", "Random sticks"), // 28
+    new WaveEntry(wave_grid, "Grid", "Diagnostic grid", 0), // 29
+    new WaveEntry(wave_none, "None", "No wave drawing", 0), // 30
 };
 int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
 
@@ -451,6 +455,39 @@ void prepareSoundData(int n, int add = 128) {
 /*****************************************************************************
  * Dot horizontal
  *****************************************************************************/
+
+void wave_none() { }
+
+void wave_grid() {
+    for (int y = 0; y < BUFF_HEIGHT; y++) {
+        for (int x = 0; x < BUFF_WIDTH; x++) {
+            int c = 0;
+
+            if ((x % 10 == 0) || (y % 10 == 0))
+                c = 48;
+            if ((x % 20 == 0) || (y % 20 == 0))
+                c = 96;
+            if ((x == MID_X) || (y == MID_Y))
+                c = 192;
+            if ((x == 0) || (x == BUFF_WIDTH - 1) || (y == 0) || (y == BUFF_HEIGHT - 1))
+                c = 224;
+
+            if (c != 0)
+                active_buffer[addr(x, y)] = c;
+        }
+    }
+
+    for (int i = 0; (i < BUFF_WIDTH) && (i < BUFF_HEIGHT); i++)
+        active_buffer[addr(i, i)] = 255;
+
+    for (int i = 0; (i < BUFF_WIDTH) && (i < BUFF_HEIGHT); i++)
+        active_buffer[addr(BUFF_WIDTH - 1 - i, i)] = 160;
+
+    putat_cut(5, 5, 255);
+    putat_cut(BUFF_WIDTH - 6, 5, 192);
+    putat_cut(5, BUFF_HEIGHT - 6, 160);
+    putat_cut(BUFF_WIDTH - 6, BUFF_HEIGHT - 6, 128);
+}
 
 void wave_dotHor() { /* dot horizontal */
     int x, tmp;
