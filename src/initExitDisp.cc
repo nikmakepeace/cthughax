@@ -122,7 +122,16 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-// #define PROF
+// Ad hoc profiling of the main loop. 
+// This is not very exact, but it gives a good impression of where the time is spent.
+// To enable it, define PROF in the Makefile and recompile.
+// 
+// The timing is accumulated and output is printed every 25 frames
+// It shows the time spent in each module (sound reading, sound analyzing, display, ...) 
+// and the total time for 25 frames.
+
+
+//#define PROF
 #undef PROF
 
 #ifdef PROF
@@ -183,7 +192,7 @@ void run(int doDisplay) {
         printf("%6.4f: ", to - To);
         To = to;
 
-        for (int i = 0; i < 9; i++) {
+        for (int i = 0; i < 8; i++) {
             printf("%6.4f ", Ts[i]);
             Ts[i] = 0;
         }
