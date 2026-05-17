@@ -301,6 +301,18 @@ CoreOptionEntry* read_object(
 
 #define tcolor(x) (tables[int(CthughaBuffer::current->table)][(x)])
 
+static void rotate_axis(
+    double x, double y, double z, const double axis[3], int angle, double& rx, double& ry, double& rz) {
+    double s = isin(angle);
+    double c = icos(angle);
+    double inv_c = 1.0 - c;
+    double dot = axis[0] * x + axis[1] * y + axis[2] * z;
+
+    rx = x * c + (axis[1] * z - axis[2] * y) * s + axis[0] * dot * inv_c;
+    ry = y * c + (axis[2] * x - axis[0] * z) * s + axis[1] * dot * inv_c;
+    rz = z * c + (axis[0] * y - axis[1] * x) * s + axis[2] * dot * inv_c;
+}
+
 // #define putat(x,y,val)	active_buffer[ addr( (x) , (y) ) ] = val
 void putat(int x, int y, int val) {
     int a = addr(x, y);
@@ -1153,17 +1165,34 @@ void wave_wire1() {
     }
 }
 
-#define cube theObj
 #define nobj 10
 #define whirlyRadius 45
-/* by Russ, changed by Harald */
+/* by Russ, changed by Harald, then Nik */
 void wave_wire2() {
+    // Persistent swarm state. Wire2 draws nobj copies of the selected wire
+    // object, each with its own position in the blob, local spin, and color.
     static int theta = 0, psi[nobj], rate[nobj], col[nobj];
     static int loc[nobj][3];
-    double st, ct, ax, ay, az, x, y, z, scl, px, py, pz, sto, cto;
+    static double blobAxis[3] = { 0.0, 1.0, 0.0 };
+
+    // Scratch vertex in object-local or blob-local coordinates.
+    double x, y, z;
+
+    // Accumulated 3D point after blob rotation plus local object spin.
+    double ax, ay, az;
+
+    // Projection scale and screen origin.
+    double scl;
+
+    // Sine/cosine for each object's local spin.
+    double sto, cto;
 
     register int i, j, k, x1, y1, x2, y2;
     register int mx, my, mz, m;
+
+    // Object midpoint and normalization divisor in source coordinate space.
+    // The legacy formula deliberately uses the y extent, so flat/wide models
+    // keep the same tall, spindly Wire2 character as the built-in glyphs.
     double omx, omy, omz, om;
     register int ox, oy;
 
@@ -1178,11 +1207,31 @@ void wave_wire2() {
         return;
     }
 
-    /* there was just a change in objects, so do stuff */
+    /*
+     * Initialize the swarm when Wire2 first starts, or when callers explicitly
+     * mark the object set as changed. The selected model is not baked into this
+     * state: changing objects normally replaces the geometry in the existing
+     * swarm positions/spins.
+     */
     if (obj_change) {
         obj_change = 0;
 
-        /* initialize the object whirly list */
+        // Rotate the whole blob around a random axis for this swarm lifetime.
+        do {
+            blobAxis[0] = (double)(rand() % 201 - 100);
+            blobAxis[1] = (double)(rand() % 201 - 100);
+            blobAxis[2] = (double)(rand() % 201 - 100);
+            scl = sqrt(blobAxis[0] * blobAxis[0] + blobAxis[1] * blobAxis[1]
+                + blobAxis[2] * blobAxis[2]);
+        } while (scl == 0.0);
+        blobAxis[0] /= scl;
+        blobAxis[1] /= scl;
+        blobAxis[2] /= scl;
+
+        /*
+         * Pick a shell position and local spin for each copy. Avoid zero
+         * radius and zero spin so no model sits fixed in the center.
+         */
         for (i = 0; i < nobj; i++) {
 
             loc[i][1] = rand() % (whirlyRadius * 2) - whirlyRadius;
@@ -1190,17 +1239,11 @@ void wave_wire2() {
             k = 1 + rand() % (whirlyRadius - 1);
             loc[i][0] = int(isin(j) * k);
             loc[i][2] = int(icos(j) * k);
-            /*
-                        if (!strcmp("MaCthugha.obj",opt_get(active_object, objects,
-               nr_objects)->name)) { rate[i] = 1; psi[i] = theta+j;
 
-                        } else */
-            {
-                rate[i] = 1 + rand() % 7;
-                if (rand() % 2)
-                    rate[i] *= -1;
-                psi[i] = rand() % 320;
-            }
+            rate[i] = 1 + rand() % 7;
+            if (rand() % 2)
+                rate[i] *= -1;
+            psi[i] = rand() % 320;
             col[i] = abs(rand() % 256);
         }
     }
@@ -1226,8 +1269,6 @@ void wave_wire2() {
     omx /= 2.0;
     omy /= 2.0;
     omz /= 2.0;
-    /*	om = (omx>omy) ? omx : omy; */
-    /*	om = (om>mz) ? om : omz;*/
     om = omy;
     om /= 3.0;
 
@@ -1245,31 +1286,24 @@ void wave_wire2() {
     m = (mx > my) ? mx : my;
     m = (m > mz) ? m : mz;
 
-    // m++;
+    /*
+     * The perspective distance is fixed to the blob radius rather than the
+     * measured max above. This keeps the swarm compact and centered even when
+     * the random shell is uneven.
+     */
     m = whirlyRadius * 3 / 2;
 
-    scl = (double)BUFF_HEIGHT * 0.80; //((double)BUFF_HEIGHT/2/m);
-
-    /*	if (scl>100)*/
-    /*		scl = 100;*/
-
+    // Screen-space projection scale. Wire2 is intentionally height-led.
+    scl = (double)BUFF_HEIGHT * 0.80;
     if (!scl)
         scl = 1;
 
     ox = BUFF_WIDTH / 2 - mx / 2;
     oy = BUFF_HEIGHT / 2 - my / 2;
 
-    px = (double)mx / 2;
-    py = (double)my / 2;
-    pz = (double)mz / 2;
-
-    /* this is the rotation for the whole blob */
-    st = isin(theta);
-    ct = icos(theta);
-
     for (j = 0; j < nobj; j++) {
 
-        /* this is individual object rotation within the blob */
+        // Each copy still spins around its own local y axis.
         sto = isin(psi[j]);
         cto = icos(psi[j]);
 
@@ -1277,38 +1311,32 @@ void wave_wire2() {
 
         for (i = 0; theObj[i][0][0] != -1; i++) {
 
-            /* figure the center point for the object in the blob */
+            // Rotate this copy's blob position around the swarm axis.
             x = loc[j][0];
             y = loc[j][1];
             z = loc[j][2];
 
-            ax = x * ct + z * st;
-            ay = y;
-            az = z * ct - x * st;
+            rotate_axis(x, y, z, blobAxis, theta, ax, ay, az);
 
-            /* figure individual object rotation */
+            // Normalize the first endpoint and spin it around local y.
             x = (theObj[i][0][0] - omx) / om;
             y = (theObj[i][0][1] - omy) / om;
             z = (theObj[i][0][2] - omz) / om;
 
-            /* add to the blob location */
             ax += x * cto + z * sto;
             ay += y;
             az += z * cto - x * sto;
 
-            /*			ex = scl/(az+2);*/
-
-            /* our first 3D-2D transform */
+            // Project the first endpoint to the 2D Cthugha buffer.
             x1 = int((double)ax * scl / (az + m) + ox);
             y1 = int((double)ay * scl / (az + m) + oy);
 
+            // Repeat for the second endpoint of the same wire segment.
             x = loc[j][0];
             y = loc[j][1];
             z = loc[j][2];
 
-            ax = x * ct + z * st;
-            ay = y;
-            az = z * ct - x * st;
+            rotate_axis(x, y, z, blobAxis, theta, ax, ay, az);
 
             x = (theObj[i][1][0] - omx) / om;
             y = (theObj[i][1][1] - omy) / om;
@@ -1317,8 +1345,6 @@ void wave_wire2() {
             ax += x * cto + z * sto;
             ay += y;
             az += z * cto - x * sto;
-
-            /*			ex = scl/(az+2); */
 
             x2 = int((double)ax * scl / (az + m) + ox);
             y2 = int((double)ay * scl / (az + m) + oy);
