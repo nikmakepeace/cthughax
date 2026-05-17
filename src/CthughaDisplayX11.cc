@@ -282,6 +282,13 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
 void CthughaDisplayX11::operator()() {
 
     /*
+     * Sync the palette before indexed pixels are expanded or copied. Waiting
+     * until postDraw() leaves the first frame after a palette change rendered
+     * through stale bitmap colors.
+     */
+    displayDevice->setGlobalPalette();
+
+    /*
      * prepare the display device
      */
     unsigned char* display_base = displayDevice->preDraw();

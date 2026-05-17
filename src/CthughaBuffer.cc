@@ -205,9 +205,14 @@ void CthughaBuffer::smoothPalette() {
     // this is the palette that should be displayed
     Palette* desiredPal = &(((PaletteEntry*)palette.current())->pal);
 
-    // changing should take at most 2 second
+    const int PALETTE_CHANNEL_RANGE = 256;
+    const int PALETTE_SMOOTH_SECONDS = 2;
+
+    // Changing across the full palette range should take about PALETTE_SMOOTH_SECONDS seconds.
     static int oldMC = 1;
-    max_chg = (cthughaDisplay->fps > 0) ? max(int(128.0 / cthughaDisplay->fps), 1) : oldMC;
+    max_chg = (cthughaDisplay->fps > 0)
+        ? max(int((double)(PALETTE_CHANNEL_RANGE / PALETTE_SMOOTH_SECONDS) / cthughaDisplay->fps), 1)
+        : oldMC;
     oldMC = max_chg;
 
     // count if anything changed
