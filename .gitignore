@@ -124,3 +124,6 @@ CVS/
 
 # Test files
 *.mp3
+
+# compiled object files
+/obj/*.obj
