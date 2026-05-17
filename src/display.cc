@@ -31,22 +31,25 @@ int screen_scale2();
 int screen_vscale_hmirror();
 int screen_hscale_vmirror();
 
-static CoreOptionEntry* _screens[] = { new ScreenEntry(screen_up, "Up", "Up Display", xy(1, 1)),
-    new ScreenEntry(screen_down, "Down", "Upside Down", xy(1, 1)),
-    new ScreenEntry(screen_2hor, "2hor", "Hor. Split out", xy(1, 1)),
-    new ScreenEntry(screen_r2hor, "r2hor", "Hor. Split in", xy(1, 1)),
-    new ScreenEntry(screen_4hor, "4hor", "Kaleidoscope", xy(1, 1)),
-    new ScreenEntry(screen_2verd, "2verd", "90deg rot. mirror", xy(1, 1)),
-    new ScreenEntry(screen_r2verd, "r2verd", "90deg rot. mirror II", xy(1, 1)),
-    new ScreenEntry(screen_4kal, "4kal", "90deg Kaleidoscope", xy(1, 1)),
-    new ScreenEntry(screen_hfield, "hfield", "Heightfield", xy(2, 2)),
-    new ScreenEntry(screen_roll, "roll", "Roll around x-axis", xy(1, 1)),
-    new ScreenEntry(screen_zick, "zick", "Zick Zack", xy(1, 1), 0),
-    new ScreenEntry(screen_bent, "bent", "A bending plane", xy(2, 2)),
-    new ScreenEntry(screen_plate, "plate", "A rotating plate", xy(2, 2)),
-    new ScreenEntry(screen_scale2, "scale2", "Scale 2x", xy(2, 2), 0),
-    new ScreenEntry(screen_vscale_hmirror, "vscale", "Scale vertical, mirror horizontal", xy(1, 2)),
-    new ScreenEntry(screen_hscale_vmirror, "hscale", "Scale horizontal, mirror vertical", xy(2, 1)) };
+static CoreOptionEntry* _screens[] = { 
+    new ScreenEntry(screen_up, "Up", "Up Display", xy(1, 1)),               // 0
+    new ScreenEntry(screen_down, "Down", "Upside Down", xy(1, 1)),          // 1
+    new ScreenEntry(screen_2hor, "2hor", "Hor. Split out", xy(1, 1)),       // 2
+    new ScreenEntry(screen_r2hor, "r2hor", "Hor. Split in", xy(1, 1)),      // 3
+    new ScreenEntry(screen_4hor, "4hor", "Kaleidoscope", xy(1, 1)),         // 4
+    new ScreenEntry(screen_2verd, "2verd", "90deg rot. mirror", xy(1, 1)),  // 5
+    new ScreenEntry(screen_r2verd, "r2verd", "90deg rot. mirror II", xy(1, 1)), // 6
+    new ScreenEntry(screen_4kal, "4kal", "90deg Kaleidoscope", xy(1, 1)),   // 7
+    new ScreenEntry(screen_hfield, "hfield", "Heightfield", xy(2, 2)),      // 8
+    new ScreenEntry(screen_roll, "roll", "Roll around x-axis", xy(1, 1)),   // 9
+    new ScreenEntry(screen_zick, "zick", "Zick Zack", xy(1, 1), 0),         // 10
+    new ScreenEntry(screen_bent, "bent", "A bending plane", xy(2, 2)),      // 11
+    new ScreenEntry(screen_plate, "plate", "A rotating plate", xy(2, 2)),   // 12
+
+    new ScreenEntry(screen_scale2, "scalexy", "Scale 2x", xy(2, 2), 0),     // 13
+    new ScreenEntry(screen_vscale_hmirror, "scaley", "Scale vertical, mirror horizontal", xy(1, 2)), // 14
+    new ScreenEntry(screen_hscale_vmirror, "scalex", "Scale horizontal, mirror vertical", xy(2, 1)), // 15
+};
 static CoreOptionEntryList screenEntries(_screens, sizeof(_screens) / sizeof(CoreOption*));
 
 CoreOption screen(-1, "display", screenEntries);

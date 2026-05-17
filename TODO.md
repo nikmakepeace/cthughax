@@ -43,6 +43,10 @@
 5. Stabilize PCX behavior.
    - Verify loading from `pcx/`, `.pcx.gz`, clipping, centering, palette selection, and
      screenshot save behavior.
+   - Review init/load return-code behavior: several `init_*` functions currently always
+     return `0`, while `CthughaBuffer::initAll()` still checks them and calls `exit(0)`.
+     Decide whether those functions should be `void`, or whether startup should have real
+     fatal error propagation.
    - Keep PCX working as legacy content while preparing for a modern image path.
 
 6. Add a modern image loader.
