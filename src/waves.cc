@@ -37,6 +37,8 @@ void wave_fract2();
 void wave_test();
 void wave_aaron();
 void wave_wire1();
+void wave_wire1dot5();
+void wave_wire1dot6();
 void wave_lineHLdiff();
 void wave_wire2();
 void wave_spiral();
@@ -49,6 +51,9 @@ void wave_sticks();
 void wave_grid();
 void wave_none();
 
+static void (*last_wave_function)() = NULL;
+static int wave_just_started = 1;
+
 class WaveEntry : public CoreOptionEntry {
 public:
     void (*wave)();
@@ -58,6 +63,8 @@ public:
         , wave(f) { }
 
     int operator()() {
+        wave_just_started = (last_wave_function != wave);
+        last_wave_function = wave;
         (*wave)();
         return 0;
     }
@@ -87,17 +94,19 @@ CoreOptionEntry* _waves[] = {
     new WaveEntry(wave_test, "Test", "Test"), // 17
     new WaveEntry(wave_aaron, "Aaron", "Rings of Fire"), // 18
     new WaveEntry(wave_wire1, "Wire1", "Wire frame 1"), // 19
-    new WaveEntry(wave_wire2, "Wire2", "Wire frame 2"), // 20
-    new WaveEntry(wave_lineHLdiff, "LineHLDiff", "Difference Hor."), // 21
-    new WaveEntry(wave_spiral, "Spiral", "Spirograph"), // 22
-    new WaveEntry(wave_pyro, "Pyro", "Fire works"), // 23
-    new WaveEntry(wave_warp, "Warp", "Space warp"), // 24
-    new WaveEntry(wave_laser, "Laser", "Laser"), // 25
-    new WaveEntry(wave_corner, "Corner", "Corner"), // 26
-    new WaveEntry(wave_jump, "Jump", "Jumping points"), // 27
-    new WaveEntry(wave_sticks, "Sticks", "Random sticks"), // 28
-    new WaveEntry(wave_grid, "Grid", "Diagnostic grid", 0), // 29
-    new WaveEntry(wave_none, "None", "No wave drawing", 0), // 30
+    new WaveEntry(wave_wire1dot5, "Wire1dot5", "Wire frame 1.5"), // 20
+    new WaveEntry(wave_wire1dot6, "Wire1dot6", "Wire frame 1.6"), // 21
+    new WaveEntry(wave_wire2, "Wire2", "Wire frame 2"), // 22
+    new WaveEntry(wave_lineHLdiff, "LineHLDiff", "Difference Hor."), // 23
+    new WaveEntry(wave_spiral, "Spiral", "Spirograph"), // 24
+    new WaveEntry(wave_pyro, "Pyro", "Fire works"), // 25
+    new WaveEntry(wave_warp, "Warp", "Space warp"), // 26
+    new WaveEntry(wave_laser, "Laser", "Laser"), // 27
+    new WaveEntry(wave_corner, "Corner", "Corner"), // 28
+    new WaveEntry(wave_jump, "Jump", "Jumping points"), // 29
+    new WaveEntry(wave_sticks, "Sticks", "Random sticks"), // 30
+    new WaveEntry(wave_grid, "Grid", "Diagnostic grid", 0), // 31
+    new WaveEntry(wave_none, "None", "No wave drawing", 0), // 32
 };
 int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
 
@@ -108,6 +117,24 @@ static void draw_line(int x1, int y1, int x2, int y2, int c);
 OptionOnOff use_objects("use-objects", 1); /* use 3-D objects */
 CoreOptionEntry* read_object(FILE* file, const char* name, const char* dir, const char* total_name);
 int obj_change = 1; /* flag to indicate an object change occurred */
+
+/*
+ * Object waves have two kinds of work:
+ *
+ *  - startup work, such as picking a random rotation axis or placing the
+ *    Wire2 swarm;
+ *  - frame work, such as advancing angles and drawing the current object.
+ *
+ * A wave is "starting" when it has just become the active wave, or when the
+ * object option has changed and the wave needs to refresh state that depends
+ * on the selected model.  The flag is consumed here so callers get one clean
+ * startup event, not a repeated event every frame.
+ */
+static int object_wave_starting() {
+    int starting = wave_just_started || obj_change;
+    obj_change = 0;
+    return starting;
+}
 
 static const char* object_path[] = { "./", "./obj/", CTH_LIBDIR "/obj/", "" };
 
@@ -301,6 +328,12 @@ CoreOptionEntry* read_object(
 
 #define tcolor(x) (tables[int(CthughaBuffer::current->table)][(x)])
 
+/*
+ * Rotate a point around an arbitrary unit axis using Rodrigues' rotation
+ * formula.  Most of the old wire code hard-coded the y axis, but this lets
+ * the newer object waves keep the same cheap integer-angle timing while
+ * choosing a more interesting axis at startup.
+ */
 static void rotate_axis(
     double x, double y, double z, const double axis[3], int angle, double& rx, double& ry, double& rz) {
     double s = isin(angle);
@@ -311,6 +344,54 @@ static void rotate_axis(
     rx = x * c + (axis[1] * z - axis[2] * y) * s + axis[0] * dot * inv_c;
     ry = y * c + (axis[2] * x - axis[0] * z) * s + axis[1] * dot * inv_c;
     rz = z * c + (axis[0] * y - axis[1] * x) * s + axis[2] * dot * inv_c;
+}
+
+/*
+ * Pick a non-zero random vector and normalize it for rotate_axis().
+ * The range is intentionally small because only the direction survives
+ * normalization; large random coordinates buy nothing here.
+ */
+static void random_axis(double axis[3]) {
+    double scale;
+
+    do {
+        axis[0] = (double)(rand() % 201 - 100);
+        axis[1] = (double)(rand() % 201 - 100);
+        axis[2] = (double)(rand() % 201 - 100);
+        scale = sqrt(axis[0] * axis[0] + axis[1] * axis[1] + axis[2] * axis[2]);
+    } while (scale == 0.0);
+
+    axis[0] /= scale;
+    axis[1] /= scale;
+    axis[2] /= scale;
+}
+
+/*
+ * Map a vertex to a stable little slice of the audio buffer.
+ *
+ * Wire1 scales each edge independently, which can pull shared vertices apart.
+ * Wire1dot6 instead hashes the original object-space vertex coordinates into
+ * the 1024-sample sound buffer, averages a few stereo samples from that point,
+ * and returns a modest radial stretch.  The same vertex coordinate therefore
+ * gets the same stretch wherever it appears in the line list.
+ */
+static double vertex_sound_stretch(int x, int y, int z) {
+    int i;
+    int sound = 0;
+    int slice = mod(x * 73 + y * 151 + z * 251, 1024);
+    const int samples = 8;
+
+    for (i = 0; i < samples; i++) {
+        int sample = (slice + i) & 1023;
+        sound += abs(soundDevice->dataProc[sample][0]);
+        sound += abs(soundDevice->dataProc[sample][1]);
+    }
+
+    double amp = (double)sound / (double)(samples * 2 * 128);
+    if (amp > 1.0)
+        amp = 1.0;
+
+    return 1.0 + amp * 0.35;
 }
 
 // #define putat(x,y,val)	active_buffer[ addr( (x) , (y) ) ] = val
@@ -1069,7 +1150,13 @@ void wave_lineHLdiff() {
  * Rotation objects
  */
 
-/* by Russ, changed by Harald */
+/*
+ * Wire1 is the original single-object wire wave.  It intentionally keeps its
+ * old behavior: every edge samples a different slice of the sound buffer, and
+ * the two endpoints use separate channel-derived scales.  That makes the
+ * object fracture under sound, because a shared vertex can be projected at
+ * different radii for different edges.
+ */
 void wave_wire1() {
     static double theta = 0;
     double st, ct, ax, ay, az, x, y, z, px, py, pz;
@@ -1094,7 +1181,12 @@ void wave_wire1() {
     theta += M_PI / 45.0;
     mx = my = mz = 0;
 
-    /* find size of the cube */
+    /*
+     * Object files are shifted to positive coordinates when loaded, so the
+     * midpoint is half the largest observed coordinate on each axis.  The
+     * largest axis becomes the normalization divisor, keeping imported objects
+     * roughly comparable on screen.
+     */
     for (n = 0; theObj[n][0][0] != -1; n++)
         for (j = 0; j < 2; j++) {
             if (theObj[n][j][0] > mx)
@@ -1165,34 +1257,236 @@ void wave_wire1() {
     }
 }
 
+/*
+ * Wire1dot5 keeps Wire1's single rotating object, but treats it as a rigid
+ * model.  The whole audio buffer contributes to one frame-wide scale factor,
+ * so all vertices move together and the wireframe remains coherent.
+ */
+void wave_wire1dot5() {
+    static int theta = 0;
+    static double axis[3] = { 0.0, 1.0, 0.0 };
+    double ax, ay, az, x, y, z, px, py, pz;
+    double objectHalf, screenScale, scale;
+    const double cameraDistance = 3.0;
+
+    ObjectEntry* objE = (ObjectEntry*)CthughaBuffer::current->object.current();
+    if (objE == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+    WObject* theObj = objE->obj;
+    if (theObj == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+
+    int i, j, x1, y1, x2, y2;
+    int mx, my, mz, m;
+    int n;
+    int sound = 0;
+
+    if (object_wave_starting())
+        random_axis(axis);
+
+    theta += 2;
+    mx = my = mz = 0;
+
+    /*
+     * Find the bounding box upper corner.  The loader has already moved the
+     * object so the lower corner is at the origin.
+     */
+    for (n = 0; theObj[n][0][0] != -1; n++)
+        for (j = 0; j < 2; j++) {
+            if (theObj[n][j][0] > mx)
+                mx = theObj[n][j][0];
+
+            if (theObj[n][j][1] > my)
+                my = theObj[n][j][1];
+
+            if (theObj[n][j][2] > mz)
+                mz = theObj[n][j][2];
+        }
+    m = (mx > my) ? mx : my;
+    m = (m > mz) ? m : mz;
+
+    if (m <= 0)
+        m = 1;
+
+    for (i = 0; i < 1024; i++) {
+        sound += abs(soundDevice->dataProc[i][0]);
+        sound += abs(soundDevice->dataProc[i][1]);
+    }
+
+    px = (double)mx / 2;
+    py = (double)my / 2;
+    pz = (double)mz / 2;
+    objectHalf = (double)m / 2.0;
+    if (objectHalf < 1.0)
+        objectHalf = 1.0;
+
+    screenScale = (double)min(BUFF_HEIGHT, BUFF_WIDTH) * 0.75;
+    scale = screenScale * (0.60 + 1.40 * ((double)sound / (double)(1024 * 2 * 128)));
+
+    for (i = 0; i < n; i++) {
+        /*
+         * Center and normalize each endpoint, rotate the result around the
+         * startup axis, then project it with a small fixed camera distance.
+         */
+        x = (theObj[i][0][0] - px) / objectHalf;
+        y = (theObj[i][0][1] - py) / objectHalf;
+        z = (theObj[i][0][2] - pz) / objectHalf;
+
+        rotate_axis(x, y, z, axis, theta, ax, ay, az);
+
+        x1 = int((double)ax * scale / (az + cameraDistance) + MID_X);
+        y1 = int((double)ay * scale / (az + cameraDistance) + MID_Y);
+
+        x = (theObj[i][1][0] - px) / objectHalf;
+        y = (theObj[i][1][1] - py) / objectHalf;
+        z = (theObj[i][1][2] - pz) / objectHalf;
+
+        rotate_axis(x, y, z, axis, theta, ax, ay, az);
+
+        x2 = int((double)ax * scale / (az + cameraDistance) + MID_X);
+        y2 = int((double)ay * scale / (az + cameraDistance) + MID_Y);
+
+        draw_line(x1, y1, x2, y2, tcolor(255));
+    }
+}
+
+/*
+ * Wire1dot6 is the elastic variant.  It still rotates around one startup axis,
+ * but each vertex is pushed radially outward according to its own stable audio
+ * slice.  The stretch happens before rotation and perspective projection.
+ */
+void wave_wire1dot6() {
+    static int theta = 0;
+    static double axis[3] = { 0.0, 1.0, 0.0 };
+    double ax, ay, az, x, y, z, px, py, pz;
+    double objectHalf, screenScale, stretch;
+    const double cameraDistance = 4.0;
+
+    ObjectEntry* objE = (ObjectEntry*)CthughaBuffer::current->object.current();
+    if (objE == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+    WObject* theObj = objE->obj;
+    if (theObj == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+
+    int i, j, x1, y1, x2, y2;
+    int mx, my, mz, m;
+    int n;
+
+    if (object_wave_starting())
+        random_axis(axis);
+
+    theta += 2;
+    mx = my = mz = 0;
+
+    /*
+     * Same normalization scheme as Wire1dot5.  Keeping the base transform the
+     * same makes the elastic stretch the only intended visual difference.
+     */
+    for (n = 0; theObj[n][0][0] != -1; n++)
+        for (j = 0; j < 2; j++) {
+            if (theObj[n][j][0] > mx)
+                mx = theObj[n][j][0];
+
+            if (theObj[n][j][1] > my)
+                my = theObj[n][j][1];
+
+            if (theObj[n][j][2] > mz)
+                mz = theObj[n][j][2];
+        }
+    m = (mx > my) ? mx : my;
+    m = (m > mz) ? m : mz;
+
+    if (m <= 0)
+        m = 1;
+
+    px = (double)mx / 2;
+    py = (double)my / 2;
+    pz = (double)mz / 2;
+    objectHalf = (double)m / 2.0;
+    if (objectHalf < 1.0)
+        objectHalf = 1.0;
+
+    screenScale = (double)min(BUFF_HEIGHT, BUFF_WIDTH) * 0.75;
+
+    for (i = 0; i < n; i++) {
+        /*
+         * Stretch all three local axes by the same per-vertex amount.  This is
+         * radial in object space, so it changes depth as well as silhouette.
+         * The camera is therefore a little farther back than Wire1dot5: close
+         * enough to show movement, but not so close that near-side vertices
+         * explode as az approaches -cameraDistance.
+         */
+        stretch = vertex_sound_stretch(theObj[i][0][0], theObj[i][0][1], theObj[i][0][2]);
+        x = ((theObj[i][0][0] - px) / objectHalf) * stretch;
+        y = ((theObj[i][0][1] - py) / objectHalf) * stretch;
+        z = ((theObj[i][0][2] - pz) / objectHalf) * stretch;
+
+        rotate_axis(x, y, z, axis, theta, ax, ay, az);
+
+        x1 = int((double)ax * screenScale / (az + cameraDistance) + MID_X);
+        y1 = int((double)ay * screenScale / (az + cameraDistance) + MID_Y);
+
+        stretch = vertex_sound_stretch(theObj[i][1][0], theObj[i][1][1], theObj[i][1][2]);
+        x = ((theObj[i][1][0] - px) / objectHalf) * stretch;
+        y = ((theObj[i][1][1] - py) / objectHalf) * stretch;
+        z = ((theObj[i][1][2] - pz) / objectHalf) * stretch;
+
+        rotate_axis(x, y, z, axis, theta, ax, ay, az);
+
+        x2 = int((double)ax * screenScale / (az + cameraDistance) + MID_X);
+        y2 = int((double)ay * screenScale / (az + cameraDistance) + MID_Y);
+
+        draw_line(x1, y1, x2, y2, tcolor(255));
+    }
+}
+
 #define nobj 10
 #define whirlyRadius 45
-/* by Russ, changed by Harald, then Nik */
+/*
+ * Wire2 draws a little swarm of copies of the selected object.  The object
+ * itself is not reloaded or copied here; every frame reads the currently
+ * selected WObject and draws it at each saved swarm location.
+ */
 void wave_wire2() {
-    // Persistent swarm state. Wire2 draws nobj copies of the selected wire
-    // object, each with its own position in the blob, local spin, and color.
+    /*
+     * Persistent swarm state.  Each copy has a position in the blob, its own
+     * local spin angle/rate, and a color.  This state belongs to the wave, not
+     * to any particular object, so changing the object swaps the geometry into
+     * the existing animated pattern.
+     */
     static int theta = 0, psi[nobj], rate[nobj], col[nobj];
     static int loc[nobj][3];
     static double blobAxis[3] = { 0.0, 1.0, 0.0 };
 
-    // Scratch vertex in object-local or blob-local coordinates.
+    /* Scratch vertex in object-local or blob-local coordinates. */
     double x, y, z;
 
-    // Accumulated 3D point after blob rotation plus local object spin.
+    /* Accumulated 3D point after blob rotation plus local object spin. */
     double ax, ay, az;
 
-    // Projection scale and screen origin.
+    /* Projection scale and screen origin. */
     double scl;
 
-    // Sine/cosine for each object's local spin.
+    /* Sine/cosine for each object's local spin. */
     double sto, cto;
 
     register int i, j, k, x1, y1, x2, y2;
     register int mx, my, mz, m;
 
-    // Object midpoint and normalization divisor in source coordinate space.
-    // The legacy formula deliberately uses the y extent, so flat/wide models
-    // keep the same tall, spindly Wire2 character as the built-in glyphs.
+    /*
+     * Object midpoint and normalization divisor in source coordinate space.
+     * The legacy formula deliberately uses the y extent, so flat/wide models
+     * keep the same tall, spindly Wire2 character as the built-in glyphs.
+     */
     double omx, omy, omz, om;
     register int ox, oy;
 
@@ -1208,25 +1502,14 @@ void wave_wire2() {
     }
 
     /*
-     * Initialize the swarm when Wire2 first starts, or when callers explicitly
-     * mark the object set as changed. The selected model is not baked into this
-     * state: changing objects normally replaces the geometry in the existing
-     * swarm positions/spins.
+     * Startup state is refreshed when Wire2 first starts, or when callers
+     * explicitly mark the object set as changed. Between those moments the
+     * frame loop only advances theta/psi, so the blob axis and swarm layout do
+     * not jump every frame.
      */
-    if (obj_change) {
-        obj_change = 0;
-
-        // Rotate the whole blob around a random axis for this swarm lifetime.
-        do {
-            blobAxis[0] = (double)(rand() % 201 - 100);
-            blobAxis[1] = (double)(rand() % 201 - 100);
-            blobAxis[2] = (double)(rand() % 201 - 100);
-            scl = sqrt(blobAxis[0] * blobAxis[0] + blobAxis[1] * blobAxis[1]
-                + blobAxis[2] * blobAxis[2]);
-        } while (scl == 0.0);
-        blobAxis[0] /= scl;
-        blobAxis[1] /= scl;
-        blobAxis[2] /= scl;
+    if (object_wave_starting()) {
+        /* Rotate the whole blob around a random axis for this swarm lifetime. */
+        random_axis(blobAxis);
 
         /*
          * Pick a shell position and local spin for each copy. Avoid zero
@@ -1293,7 +1576,7 @@ void wave_wire2() {
      */
     m = whirlyRadius * 3 / 2;
 
-    // Screen-space projection scale. Wire2 is intentionally height-led.
+    /* Screen-space projection scale.  Wire2 is intentionally height-led. */
     scl = (double)BUFF_HEIGHT * 0.80;
     if (!scl)
         scl = 1;
@@ -1303,7 +1586,7 @@ void wave_wire2() {
 
     for (j = 0; j < nobj; j++) {
 
-        // Each copy still spins around its own local y axis.
+        /* Each copy still spins around its own local y axis. */
         sto = isin(psi[j]);
         cto = icos(psi[j]);
 
@@ -1311,14 +1594,14 @@ void wave_wire2() {
 
         for (i = 0; theObj[i][0][0] != -1; i++) {
 
-            // Rotate this copy's blob position around the swarm axis.
+            /* Rotate this copy's blob position around the swarm axis. */
             x = loc[j][0];
             y = loc[j][1];
             z = loc[j][2];
 
             rotate_axis(x, y, z, blobAxis, theta, ax, ay, az);
 
-            // Normalize the first endpoint and spin it around local y.
+            /* Normalize the first endpoint and spin it around local y. */
             x = (theObj[i][0][0] - omx) / om;
             y = (theObj[i][0][1] - omy) / om;
             z = (theObj[i][0][2] - omz) / om;
@@ -1327,11 +1610,11 @@ void wave_wire2() {
             ay += y;
             az += z * cto - x * sto;
 
-            // Project the first endpoint to the 2D Cthugha buffer.
+            /* Project the first endpoint to the 2D Cthugha buffer. */
             x1 = int((double)ax * scl / (az + m) + ox);
             y1 = int((double)ay * scl / (az + m) + oy);
 
-            // Repeat for the second endpoint of the same wire segment.
+            /* Repeat for the second endpoint of the same wire segment. */
             x = loc[j][0];
             y = loc[j][1];
             z = loc[j][2];
