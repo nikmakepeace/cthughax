@@ -46,8 +46,10 @@ void DisplayDeviceX11::key_button(Widget /*w*/, XtPointer data, XtPointer /*data
 void DisplayDeviceX11::menuCB(Widget /*item*/, XtPointer data, XtPointer /*data2*/) {
     menu_data_t* d = (menu_data_t*)data;
 
-    if (d->opt != 0)
+    if (d->opt != 0) {
         d->opt->setValue(d->pos);
+        d->opt->change(0, 0);
+    }
 }
 
 Widget DisplayDeviceX11::add_menu(

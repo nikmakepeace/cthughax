@@ -5,6 +5,7 @@
 #include "cth_buffer.h"
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
+#include "imath.h"
 
 #include <unistd.h>
 
@@ -66,6 +67,7 @@ int init_pcx() {
  */
 int show_pcx() {
 
+    CTH_DEBUG("showing pcx `%s'...\n", CthughaBuffer::current->pcx.currentName());
     PCXEntry* pcxE = (PCXEntry*)CthughaBuffer::current->pcx.current();
 
     if ((pcxE == NULL) || (pcxE->data == NULL))
@@ -74,24 +76,21 @@ int show_pcx() {
     int x = (BUFF_WIDTH - pcxE->width) / 2;
     int y = (BUFF_HEIGHT - pcxE->height) / 2;
 
-    int h = (y < 0) ? BUFF_HEIGHT : pcxE->height;
-    int img_off = (y < 0) ? -y : 0; // first line of image
-    int scr_off = (y < 0) ? 0 : y; // first line of buffer to draw into
+    int src_x = (x < 0) ? -x : 0;
+    int dst_x = (x > 0) ? x : 0;
+    int copy_w = min(pcxE->width - src_x, BUFF_WIDTH - dst_x);
 
-    if (x > 0) {
-        for (int i = img_off; i < h; i++) {
-            memcpy(active_buffer + (i + scr_off) * BUFF_WIDTH + x, pcxE->data + (i)*pcxE->width,
-                pcxE->width);
-            memcpy(passive_buffer + (i + scr_off) * BUFF_WIDTH + x, pcxE->data + (i)*pcxE->width,
-                pcxE->width);
-        }
-    } else {
-        for (int i = img_off; i < h; i++) {
-            memcpy(active_buffer + (i + scr_off) * BUFF_WIDTH, pcxE->data + (i)*pcxE->width - x,
-                BUFF_WIDTH);
-            memcpy(passive_buffer + (i + scr_off) * BUFF_WIDTH, pcxE->data + (i)*pcxE->width - x,
-                BUFF_WIDTH);
-        }
+    int src_y = (y < 0) ? -y : 0;
+    int dst_y = (y > 0) ? y : 0;
+    int copy_h = min(pcxE->height - src_y, BUFF_HEIGHT - dst_y);
+
+    for (int row = 0; row < copy_h; row++) {
+        unsigned char* src = pcxE->data + (src_y + row) * pcxE->width + src_x;
+        unsigned char* active_dst = active_buffer + (dst_y + row) * BUFF_WIDTH + dst_x;
+        unsigned char* passive_dst = passive_buffer + (dst_y + row) * BUFF_WIDTH + dst_x;
+
+        memcpy(active_dst, src, copy_w);
+        memcpy(passive_dst, src, copy_w);
     }
 
     // use the correct colors for just a short time
@@ -246,6 +245,10 @@ CoreOptionEntry* read_pcx(
 
     new_pcx->width = x = header.xmax - header.xmin + 1;
     new_pcx->height = y = header.ymax - header.ymin + 1;
+    if ((x > BUFF_WIDTH) || (y > BUFF_HEIGHT)) {
+        CTH_WARN("PCX `%s' is %dx%d, larger than buffer %dx%d; image will be cropped.\n",
+            name, x, y, BUFF_WIDTH, BUFF_HEIGHT);
+    }
     new_pcx->data = buff = new unsigned char[x * y];
 
     zcompr = (header.compr == 1) ? 1 : 0;

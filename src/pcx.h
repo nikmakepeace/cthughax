@@ -40,7 +40,10 @@ public:
         CoreOption::change(by, doSave); // business as usuall
         show_pcx();
     }
-    void change(const char* to, int doSave) { CoreOption::change(to, doSave); }
+    void change(const char* to, int doSave) {
+        CoreOption::change(to, doSave);
+        show_pcx();
+    }
     void changeRandom(int doSave) {
         CoreOption::changeRandom(doSave); // business as usuall
         show_pcx();

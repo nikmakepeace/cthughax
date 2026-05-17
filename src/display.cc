@@ -350,6 +350,7 @@ static xy height_offset[256];
 static xy s1, s2, p;
 static float rot[3] = { 0, 0, 0 };
 static float P[4][3] = { { -1, -1, 0 }, { 1, -1, 0 }, { 1, 1, 0 }, { 0, 0, 1 } };
+static const float rotSpeed[3] = { 0.150, 0.250, 0.100 }; /* radians per second */
 static double scaleFactor = 0.8;
 static double scaleFactorPhase = 0.0;
 static double scaleFactorSpeed = 0.03; /* cycles per second */
@@ -440,11 +441,16 @@ int prepare_3d(int maxZ) {
     scale = scaleFactor * (float)min(BUFF_WIDTH, BUFF_HEIGHT) / l;
 
     /* rotate a little bit */
-    /* TODO: use fps, some value from the sound to set speed,
+    /* TODO: use some value from the sound to set speed,
        external value (joystick) to set rotation */
-    rot[0] += 0.006;
-    rot[1] += 0.010;
-    rot[2] += 0.004;
+    double dt = deltaT;
+    if (dt < 0.0)
+        dt = 0.0;
+    if (dt > 0.25)
+        dt = 0.25;
+    rot[0] += rotSpeed[0] * dt;
+    rot[1] += rotSpeed[1] * dt;
+    rot[2] += rotSpeed[2] * dt;
     for (i = 0; i < 4; i++)
         rotate(P[i], rot, ro[i]);
 

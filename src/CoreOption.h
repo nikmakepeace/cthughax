@@ -166,9 +166,9 @@ public:
     OptionOnOff lock; // individual lock
 
     static void changeToInitial();
-    void change(const char* to, int doSave = 1);
-    void change(int by, int doSave = 1);
-    void changeRandom(int save_ = 1);
+    virtual void change(const char* to, int doSave = 1);
+    virtual void change(int by, int doSave = 1);
+    virtual void changeRandom(int save_ = 1);
 
     int optNr(const char* n);
 
