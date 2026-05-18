@@ -38,9 +38,11 @@ void wave_test();
 void wave_aaron();
 void wave_wire1();
 void wave_wire1dot5();
+void wave_wire1dot55();
 void wave_wire1dot6();
 void wave_lineHLdiff();
 void wave_wire2();
+void wave_wire2dot1();
 void wave_spiral();
 void wave_pyro();
 void wave_warp();
@@ -95,18 +97,20 @@ CoreOptionEntry* _waves[] = {
     new WaveEntry(wave_aaron, "Aaron", "Rings of Fire"), // 18
     new WaveEntry(wave_wire1, "Wire1", "Wire frame 1"), // 19
     new WaveEntry(wave_wire1dot5, "Wire1dot5", "Wire frame 1.5"), // 20
-    new WaveEntry(wave_wire1dot6, "Wire1dot6", "Wire frame 1.6"), // 21
-    new WaveEntry(wave_wire2, "Wire2", "Wire frame 2"), // 22
-    new WaveEntry(wave_lineHLdiff, "LineHLDiff", "Difference Hor."), // 23
-    new WaveEntry(wave_spiral, "Spiral", "Spirograph"), // 24
-    new WaveEntry(wave_pyro, "Pyro", "Fire works"), // 25
-    new WaveEntry(wave_warp, "Warp", "Space warp"), // 26
-    new WaveEntry(wave_laser, "Laser", "Laser"), // 27
-    new WaveEntry(wave_corner, "Corner", "Corner"), // 28
-    new WaveEntry(wave_jump, "Jump", "Jumping points"), // 29
-    new WaveEntry(wave_sticks, "Sticks", "Random sticks"), // 30
-    new WaveEntry(wave_grid, "Grid", "Diagnostic grid", 0), // 31
-    new WaveEntry(wave_none, "None", "No wave drawing", 0), // 32
+    new WaveEntry(wave_wire1dot55, "Wire1dot55", "Wire frame 1.55"), // 21
+    new WaveEntry(wave_wire1dot6, "Wire1dot6", "Wire frame 1.6"), // 22
+    new WaveEntry(wave_wire2, "Wire2", "Wire frame 2"), // 23
+    new WaveEntry(wave_wire2dot1, "Wire2dot1", "Wire frame 2.1"), // 24
+    new WaveEntry(wave_lineHLdiff, "LineHLDiff", "Difference Hor."), // 25
+    new WaveEntry(wave_spiral, "Spiral", "Spirograph"), // 26
+    new WaveEntry(wave_pyro, "Pyro", "Fire works"), // 27
+    new WaveEntry(wave_warp, "Warp", "Space warp"), // 28
+    new WaveEntry(wave_laser, "Laser", "Laser"), // 29
+    new WaveEntry(wave_corner, "Corner", "Corner"), // 30
+    new WaveEntry(wave_jump, "Jump", "Jumping points"), // 31
+    new WaveEntry(wave_sticks, "Sticks", "Random sticks"), // 32
+    new WaveEntry(wave_grid, "Grid", "Diagnostic grid", 0), // 33
+    new WaveEntry(wave_none, "None", "No wave drawing", 0), // 34
 };
 int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
 
@@ -328,6 +332,9 @@ CoreOptionEntry* read_object(
 
 #define tcolor(x) (tables[int(CthughaBuffer::current->table)][(x)])
 
+#define PRECESSION_TIME_MIN 4.0
+#define PRECESSION_TIME_MAX 12.0
+
 /*
  * Rotate a point around an arbitrary unit axis using Rodrigues' rotation
  * formula.  Most of the old wire code hard-coded the y axis, but this lets
@@ -364,6 +371,58 @@ static void random_axis(double axis[3]) {
     axis[0] /= scale;
     axis[1] /= scale;
     axis[2] /= scale;
+}
+
+static double random_unit() {
+    return (double)rand() / (double)RAND_MAX;
+}
+
+/*
+ * Precess an axis around its original direction.
+ *
+ * baseAxis is the fixed startup axis A.  coneAngle is the angle away from A.
+ * phase is the current position around the cone.  The result is another unit
+ * axis suitable for rotate_axis().
+ */
+static void precess_axis(const double baseAxis[3], double coneAngle, double phase, double axis[3]) {
+    double side0[3];
+    double side1[3];
+    double ref[3] = { 0.0, 1.0, 0.0 };
+    double scale;
+
+    if (fabs(baseAxis[1]) > 0.90) {
+        ref[0] = 1.0;
+        ref[1] = 0.0;
+    }
+
+    side0[0] = baseAxis[1] * ref[2] - baseAxis[2] * ref[1];
+    side0[1] = baseAxis[2] * ref[0] - baseAxis[0] * ref[2];
+    side0[2] = baseAxis[0] * ref[1] - baseAxis[1] * ref[0];
+
+    scale = sqrt(side0[0] * side0[0] + side0[1] * side0[1] + side0[2] * side0[2]);
+    if (scale == 0.0) {
+        axis[0] = baseAxis[0];
+        axis[1] = baseAxis[1];
+        axis[2] = baseAxis[2];
+        return;
+    }
+
+    side0[0] /= scale;
+    side0[1] /= scale;
+    side0[2] /= scale;
+
+    side1[0] = baseAxis[1] * side0[2] - baseAxis[2] * side0[1];
+    side1[1] = baseAxis[2] * side0[0] - baseAxis[0] * side0[2];
+    side1[2] = baseAxis[0] * side0[1] - baseAxis[1] * side0[0];
+
+    double ccone = cos(coneAngle);
+    double scone = sin(coneAngle);
+    double cphase = cos(phase);
+    double sphase = sin(phase);
+
+    axis[0] = baseAxis[0] * ccone + (side0[0] * cphase + side1[0] * sphase) * scone;
+    axis[1] = baseAxis[1] * ccone + (side0[1] * cphase + side1[1] * sphase) * scone;
+    axis[2] = baseAxis[2] * ccone + (side0[2] * cphase + side1[2] * sphase) * scone;
 }
 
 /*
@@ -1264,6 +1323,7 @@ void wave_wire1() {
  */
 void wave_wire1dot5() {
     static int theta = 0;
+    static int col = 255;
     static double axis[3] = { 0.0, 1.0, 0.0 };
     double ax, ay, az, x, y, z, px, py, pz;
     double objectHalf, screenScale, scale;
@@ -1285,8 +1345,10 @@ void wave_wire1dot5() {
     int n;
     int sound = 0;
 
-    if (object_wave_starting())
+    if (object_wave_starting()) {
         random_axis(axis);
+        col = abs(rand() % 256);
+    }
 
     theta += 2;
     mx = my = mz = 0;
@@ -1350,7 +1412,110 @@ void wave_wire1dot5() {
         x2 = int((double)ax * scale / (az + cameraDistance) + MID_X);
         y2 = int((double)ay * scale / (az + cameraDistance) + MID_Y);
 
-        draw_line(x1, y1, x2, y2, tcolor(255));
+        draw_line(x1, y1, x2, y2, tcolor(col));
+    }
+}
+
+/*
+ * Wire1dot55 adds axial precession to Wire1dot5.  At startup it chooses an
+ * original axis A, a cone angle away from A, and a precession period.  Each
+ * frame the actual rotation axis moves around that cone, while the model still
+ * keeps Wire1dot5's coherent frame-wide audio scale.
+ */
+void wave_wire1dot55() {
+    static int theta = 0;
+    static int col = 255;
+    static double baseAxis[3] = { 0.0, 1.0, 0.0 };
+    static double coneAngle = 0.0;
+    static double precessionTime = PRECESSION_TIME_MIN;
+    static double precessionStart = 0.0;
+    double axis[3];
+    double ax, ay, az, x, y, z, px, py, pz;
+    double objectHalf, screenScale, scale;
+    const double cameraDistance = 3.0;
+
+    ObjectEntry* objE = (ObjectEntry*)CthughaBuffer::current->object.current();
+    if (objE == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+    WObject* theObj = objE->obj;
+    if (theObj == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+
+    int i, j, x1, y1, x2, y2;
+    int mx, my, mz, m;
+    int n;
+    int sound = 0;
+
+    if (object_wave_starting()) {
+        random_axis(baseAxis);
+        coneAngle = random_unit() * M_PI;
+        precessionTime = PRECESSION_TIME_MIN
+            + random_unit() * (PRECESSION_TIME_MAX - PRECESSION_TIME_MIN);
+        precessionStart = now;
+        col = abs(rand() % 256);
+    }
+
+    precess_axis(baseAxis, coneAngle, M_PI2 * (now - precessionStart) / precessionTime, axis);
+
+    theta += 2;
+    mx = my = mz = 0;
+
+    for (n = 0; theObj[n][0][0] != -1; n++)
+        for (j = 0; j < 2; j++) {
+            if (theObj[n][j][0] > mx)
+                mx = theObj[n][j][0];
+
+            if (theObj[n][j][1] > my)
+                my = theObj[n][j][1];
+
+            if (theObj[n][j][2] > mz)
+                mz = theObj[n][j][2];
+        }
+    m = (mx > my) ? mx : my;
+    m = (m > mz) ? m : mz;
+
+    if (m <= 0)
+        m = 1;
+
+    for (i = 0; i < 1024; i++) {
+        sound += abs(soundDevice->dataProc[i][0]);
+        sound += abs(soundDevice->dataProc[i][1]);
+    }
+
+    px = (double)mx / 2;
+    py = (double)my / 2;
+    pz = (double)mz / 2;
+    objectHalf = (double)m / 2.0;
+    if (objectHalf < 1.0)
+        objectHalf = 1.0;
+
+    screenScale = (double)min(BUFF_HEIGHT, BUFF_WIDTH) * 0.75;
+    scale = screenScale * (0.60 + 1.40 * ((double)sound / (double)(1024 * 2 * 128)));
+
+    for (i = 0; i < n; i++) {
+        x = (theObj[i][0][0] - px) / objectHalf;
+        y = (theObj[i][0][1] - py) / objectHalf;
+        z = (theObj[i][0][2] - pz) / objectHalf;
+
+        rotate_axis(x, y, z, axis, theta, ax, ay, az);
+
+        x1 = int((double)ax * scale / (az + cameraDistance) + MID_X);
+        y1 = int((double)ay * scale / (az + cameraDistance) + MID_Y);
+
+        x = (theObj[i][1][0] - px) / objectHalf;
+        y = (theObj[i][1][1] - py) / objectHalf;
+        z = (theObj[i][1][2] - pz) / objectHalf;
+
+        rotate_axis(x, y, z, axis, theta, ax, ay, az);
+
+        x2 = int((double)ax * scale / (az + cameraDistance) + MID_X);
+        y2 = int((double)ay * scale / (az + cameraDistance) + MID_Y);
+
+        draw_line(x1, y1, x2, y2, tcolor(col));
     }
 }
 
@@ -1361,6 +1526,7 @@ void wave_wire1dot5() {
  */
 void wave_wire1dot6() {
     static int theta = 0;
+    static int col = 255;
     static double axis[3] = { 0.0, 1.0, 0.0 };
     double ax, ay, az, x, y, z, px, py, pz;
     double objectHalf, screenScale, stretch;
@@ -1381,8 +1547,10 @@ void wave_wire1dot6() {
     int mx, my, mz, m;
     int n;
 
-    if (object_wave_starting())
+    if (object_wave_starting()) {
         random_axis(axis);
+        col = abs(rand() % 256);
+    }
 
     theta += 2;
     mx = my = mz = 0;
@@ -1445,7 +1613,7 @@ void wave_wire1dot6() {
         x2 = int((double)ax * screenScale / (az + cameraDistance) + MID_X);
         y2 = int((double)ay * screenScale / (az + cameraDistance) + MID_Y);
 
-        draw_line(x1, y1, x2, y2, tcolor(255));
+        draw_line(x1, y1, x2, y2, tcolor(col));
     }
 }
 
@@ -1528,6 +1696,8 @@ void wave_wire2() {
                 rate[i] *= -1;
             psi[i] = rand() % 320;
             col[i] = abs(rand() % 256);
+            CTH_DEBUG("model %d: rate %d, psi %d, col %d\n", i, rate[i], psi[i], col[i]);
+
         }
     }
 
@@ -1628,6 +1798,164 @@ void wave_wire2() {
             ax += x * cto + z * sto;
             ay += y;
             az += z * cto - x * sto;
+
+            x2 = int((double)ax * scl / (az + m) + ox);
+            y2 = int((double)ay * scl / (az + m) + oy);
+
+            draw_line(x1, y1, x2, y2, tcolor(col[j]));
+        }
+    }
+}
+
+/*
+ * Wire2dot1 is Wire2 with one extra degree of freedom: each copy has its own
+ * local rotation axis.  The blob still rotates around one shared axis, but the
+ * individual models no longer all tumble around their local y axes.
+ */
+void wave_wire2dot1() {
+    /*
+     * This mirrors Wire2's persistent swarm state, with modelAxis storing one
+     * normalized local spin axis per copy.  The axes are chosen during startup
+     * and then reused frame after frame, so the motion is varied but stable.
+     */
+    static int theta = 0, psi[nobj], rate[nobj], col[nobj];
+    static int loc[nobj][3];
+    static double blobAxis[3] = { 0.0, 1.0, 0.0 };
+    static double modelAxis[nobj][3];
+
+    double x, y, z;
+    double ax, ay, az;
+    double lx, ly, lz;
+    double scl;
+
+    register int i, j, k, x1, y1, x2, y2;
+    register int mx, my, mz, m;
+    double omx, omy, omz, om;
+    register int ox, oy;
+
+    ObjectEntry* objE = (ObjectEntry*)CthughaBuffer::current->object.current();
+    if (objE == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+    WObject* theObj = objE->obj;
+    if (theObj == NULL) {
+        CthughaBuffer::current->wave.change(+1, 0);
+        return;
+    }
+
+    if (object_wave_starting()) {
+        random_axis(blobAxis);
+
+        for (i = 0; i < nobj; i++) {
+            loc[i][1] = rand() % (whirlyRadius * 2) - whirlyRadius;
+            j = rand() % 320;
+            k = 1 + rand() % (whirlyRadius - 1);
+            loc[i][0] = int(isin(j) * k);
+            loc[i][2] = int(icos(j) * k);
+
+            rate[i] = 1 + rand() % 7;
+            if (rand() % 2)
+                rate[i] *= -1;
+            psi[i] = rand() % 320;
+            col[i] = abs(rand() % 256);
+            CTH_DEBUG("model %d: rate %d, psi %d, col %d\n", i, rate[i], psi[i], col[i]);
+
+            random_axis(modelAxis[i]);
+        }
+    }
+
+    theta += 1;
+
+    mx = my = mz = 0;
+    omx = omy = omz = 0;
+
+    for (i = 0; theObj[i][0][0] != -1; i++)
+        for (j = 0; j < 2; j++) {
+
+            if (theObj[i][j][0] > omx)
+                omx = theObj[i][j][0];
+
+            if (theObj[i][j][1] > omy)
+                omy = theObj[i][j][1];
+
+            if (theObj[i][j][2] > omz)
+                omz = theObj[i][j][2];
+        }
+
+    omx /= 2.0;
+    omy /= 2.0;
+    omz /= 2.0;
+    om = omy;
+    om /= 3.0;
+
+    for (i = 0; i < nobj; i++) {
+        if (loc[i][0] > mx)
+            mx = loc[i][0];
+
+        if (loc[i][1] > my)
+            my = loc[i][1];
+
+        if (loc[i][2] > mz)
+            mz = loc[i][2];
+    }
+
+    m = (mx > my) ? mx : my;
+    m = (m > mz) ? m : mz;
+    m = whirlyRadius * 3 / 2;
+
+    scl = (double)BUFF_HEIGHT * 0.80;
+    if (!scl)
+        scl = 1;
+
+    ox = BUFF_WIDTH / 2 - mx / 2;
+    oy = BUFF_HEIGHT / 2 - my / 2;
+
+    for (j = 0; j < nobj; j++) {
+
+        psi[j] += rate[j];
+
+        for (i = 0; theObj[i][0][0] != -1; i++) {
+
+            x = loc[j][0];
+            y = loc[j][1];
+            z = loc[j][2];
+
+            rotate_axis(x, y, z, blobAxis, theta, ax, ay, az);
+
+            /*
+             * Unlike Wire2, rotate the endpoint around this copy's own random
+             * axis.  Every copy has a different axis, but both endpoints of a
+             * line segment use the same axis for that copy.
+             */
+            x = (theObj[i][0][0] - omx) / om;
+            y = (theObj[i][0][1] - omy) / om;
+            z = (theObj[i][0][2] - omz) / om;
+
+            rotate_axis(x, y, z, modelAxis[j], psi[j], lx, ly, lz);
+
+            ax += lx;
+            ay += ly;
+            az += lz;
+
+            x1 = int((double)ax * scl / (az + m) + ox);
+            y1 = int((double)ay * scl / (az + m) + oy);
+
+            x = loc[j][0];
+            y = loc[j][1];
+            z = loc[j][2];
+
+            rotate_axis(x, y, z, blobAxis, theta, ax, ay, az);
+
+            x = (theObj[i][1][0] - omx) / om;
+            y = (theObj[i][1][1] - omy) / om;
+            z = (theObj[i][1][2] - omz) / om;
+
+            rotate_axis(x, y, z, modelAxis[j], psi[j], lx, ly, lz);
+
+            ax += lx;
+            ay += ly;
+            az += lz;
 
             x2 = int((double)ax * scl / (az + m) + ox);
             y2 = int((double)ay * scl / (az + m) + oy);
