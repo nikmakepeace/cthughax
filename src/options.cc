@@ -87,45 +87,33 @@ struct option long_options[] = {
     { "no-sound", 0, 0, 'x' }, { "network", 1, 0, 'N' },
 
     { "play", 1, 0, opt_play }, { "silent", 0, 0, opt_silent },
-    { "no-silent", 0, 0, opt_no_silent }, { "loud", 0, 0, opt_no_silent },
-    { "no-loud", 0, 0, opt_silent },
+    { "no-silent", 0, 0, opt_no_silent },
 
     // general sound options
     { "rate", 1, 0, 'v' }, { "stereo", 0, 0, '2' }, { "no-stereo", 0, 0, '1' },
-    { "mono", 0, 0, '1' }, { "no-mono", 0, 0, '2' }, { "snd-format", 1, 0, opt_sound_format },
-    { "sound-format", 1, 0, opt_sound_format },
+    { "snd-format", 1, 0, opt_sound_format },
 
 // DSP options
 #if WITH_DSP == 1
-    { "snd-method", 1, 0, opt_sound_method }, { "sound-method", 1, 0, opt_sound_method },
+    { "snd-method", 1, 0, opt_sound_method },
     { "snd-sync", 0, 0, opt_dsp_sync }, { "no-snd-sync", 0, 0, opt_no_dsp_sync },
-    { "sound-sync", 0, 0, opt_dsp_sync }, { "no-sound-sync", 0, 0, opt_no_dsp_sync },
-    { "snd-fragments", 1, 0, opt_snd_fragments }, { "sound-fragments", 1, 0, opt_snd_fragments },
+    { "snd-fragments", 1, 0, opt_snd_fragments },
     { "dev-dsp", 1, 0, opt_dev_dsp },
 #endif
 
     // Play/exec options
     { "fifo", 1, 0, opt_fifo }, { "snd-buffer", 1, 0, opt_sound_buffer },
-    { "no-snd-buffer", 0, 0, opt_no_snd_buffer }, { "sound-buffer", 1, 0, opt_sound_buffer },
-    { "no-sound-buffer", 0, 0, opt_no_snd_buffer }, { "once", 0, &soundPlayLoop, 0 },
-    { "sound-once", 0, &soundPlayLoop, 0 }, { "play-once", 0, &soundPlayLoop, 0 },
-    { "snd-once", 0, &soundPlayLoop, 0 }, { "no-once", 0, &soundPlayLoop, 1 },
-    { "no-sound-once", 0, &soundPlayLoop, 1 }, { "no-play-once", 0, &soundPlayLoop, 1 },
-    { "no-snd-once", 0, &soundPlayLoop, 1 }, { "loop", 0, &soundPlayLoop, 1 },
-    { "play-loop", 0, &soundPlayLoop, 1 }, { "sound-loop", 0, &soundPlayLoop, 1 },
-    { "snd-loop", 0, &soundPlayLoop, 1 }, { "no-loop", 0, &soundPlayLoop, 0 },
-    { "no-play-loop", 0, &soundPlayLoop, 0 }, { "no-sound-loop", 0, &soundPlayLoop, 0 },
-    { "no-snd-loop", 0, &soundPlayLoop, 0 },
+    { "no-snd-buffer", 0, 0, opt_no_snd_buffer }, { "loop", 0, &soundPlayLoop, 1 },
+    { "no-loop", 0, &soundPlayLoop, 0 },
 
 // CD options
 #if WITH_CDROM == 1
     { "dev-cd", 1, 0, opt_dev_cd }, { "cd-stop", 0, &cd_stop_on_exit.value, 1 },
     { "no-cd-stop", 0, &cd_stop_on_exit.value, 0 }, { "cd-random", 0, &cd_randomplay.value, 1 },
-    { "no-cd-random", 0, &cd_randomplay.value, 0 }, { "cd-no-random", 0, &cd_randomplay.value, 0 },
+    { "no-cd-random", 0, &cd_randomplay.value, 0 },
     { "cd-loop", 0, &cd_loop.value, 1 }, { "no-cd-loop", 0, &cd_loop.value, 0 },
-    { "cd-no-loop", 0, &cd_loop.value, 0 }, { "cd-eject", 0, &cd_eject_on_end.value, 1 },
-    { "no-cd-eject", 0, &cd_eject_on_end.value, 0 },
-    { "cd-no-eject", 0, &cd_eject_on_end.value, 0 }, { "track", 1, 0, 'c' },
+    { "cd-eject", 0, &cd_eject_on_end.value, 1 },
+    { "no-cd-eject", 0, &cd_eject_on_end.value, 0 }, { "track", 1, 0, 'c' },
 #endif
 
 // Mixer options
@@ -138,8 +126,8 @@ struct option long_options[] = {
 #ifndef CTH_SERV
     { "lock", 0, &lock.value, 1 }, { "no-lock", 0, &lock.value, 0 },
     { "little", 0, &change_little.value, 1 }, { "no-little", 0, &change_little.value, 0 },
-    { "min-time", 1, 0, 'T' }, { "time", 1, 0, 'T' }, { "random-time", 1, 0, 'R' },
-    { "random", 1, 0, 'R' }, { "msg-time", 1, 0, opt_msg_time }, { "quiet-time", 1, 0, 'Q' },
+    { "min-time", 1, 0, 'T' }, { "random-time", 1, 0, 'R' },
+    { "msg-time", 1, 0, opt_msg_time }, { "quiet-time", 1, 0, 'Q' },
     { "quiet-file", 1, 0, 'q' }, { "min-noise", 1, 0, opt_min_noise },
     { "fire-level", 1, 0, opt_fire_level },
 #endif
@@ -153,9 +141,9 @@ struct option long_options[] = {
 
 // buffer options
 #ifndef CTH_SERV
-    { "buff-size", 1, 0, 'S' }, { "buffer-size", 1, 0, 'S' }, { "wave", 1, 0, 'w' },
+    { "buff-size", 1, 0, 'S' }, { "wave", 1, 0, 'w' },
     { "wave-scale", 1, 0, opt_wave_scale }, { "object", 1, 0, 'o' },
-    { "no-object", 0, &use_objects.value, 0 }, { "no-use-object", 0, &use_objects.value, 0 },
+    { "no-object", 0, &use_objects.value, 0 },
     { "use-object", 0, &use_objects.value, 1 }, { "trans", 0, &use_translates.value, 1 },
     { "no-trans", 0, &use_translates.value, 0 }, { "stretch", 0, &trans_stretch.value, 1 },
     { "no-stretch", 0, &trans_stretch.value, 0 },
@@ -169,12 +157,12 @@ struct option long_options[] = {
 #ifndef CTH_SERV
     { "disp-mode", 1, 0, 'D' }, { "palette", 1, 0, 'p' }, { "display", 1, 0, 'd' },
     { "pcx", 1, 0, 'P' }, { "use-pcx", 0, &display_use_pcx, 1 },
-    { "no-pcx", 0, &display_use_pcx, 0 }, { "no-use-pcx", 0, &display_use_pcx, 0 },
+    { "no-pcx", 0, &display_use_pcx, 0 },
     { "ipal", 0, &display_internal_pal, 1 }, { "no-ipal", 0, &display_internal_pal, 0 },
     { "epal", 0, &display_external_pal, 1 }, { "no-epal", 0, &display_external_pal, 0 },
     { "palette-smoothing", 1, 0, opt_palette_smoothing },
     { "no-palette-smoothing", 0, 0, opt_no_palette_smoothing },
-    { "test", 0, 0, opt_test }, { "max-fps", 1, 0, opt_maxfps }, { "maxfps", 1, 0, opt_maxfps },
+    { "test", 0, 0, opt_test }, { "max-fps", 1, 0, opt_maxfps },
     { "zoom", 1, 0, opt_zoom },
 #endif
 
@@ -189,15 +177,10 @@ struct option long_options[] = {
 // X11 options
 #ifdef CTH_XWIN
     { "mit-shm", 0, &display_mit_shm, 1 }, { "no-mit-shm", 0, &display_mit_shm, 0 },
-    { "on-root", 0, &display_on_root, 1 }, { "no-on-root", 0, &display_on_root, 0 },
     { "root", 0, &display_on_root, 1 }, { "no-root", 0, &display_on_root, 0 },
-    { "in-window", 0, &display_on_root, 0 }, { "no-in-window", 0, &display_on_root, 1 },
-    { "private-cmap", 0, &private_cmap, 1 }, { "no-private-cmap", 0, &private_cmap, 0 },
     { "install", 0, &private_cmap, 1 }, { "no-install", 0, &private_cmap, 0 },
     { "override-redirect", 0, &display_override_redirect, 1 },
     { "no-override-redirect", 0, &display_override_redirect, 0 },
-    { "no-decoration", 0, &display_override_redirect, 1 },
-    { "decoration", 0, &display_override_redirect, 0 },
     { "no-decorate", 0, &display_override_redirect, 1 },
     { "decorate", 0, &display_override_redirect, 0 }, { "full-screen", 0, &full_screen, 1 },
     { "no-full-screen", 0, &full_screen, 0 }, { "panel", 0, &xcth_panel, 1 },
@@ -211,13 +194,10 @@ struct option long_options[] = {
     { "mesh-size", 1, 0, opt_mesh_size }, { "texture-quality", 1, 0, opt_texture_quality },
     { "hints", 1, 0, opt_hints }, { "dither", 0, 0, opt_dither },
     { "no-dither", 0, 0, opt_no_dither }, { "shade", 0, 0, opt_shade },
-    { "no-shade", 0, 0, opt_no_shade }, { "smooth", 0, 0, opt_shade },
-    { "flat", 0, 0, opt_no_shade }, { "no-smooth", 0, 0, opt_no_shade },
-    { "no-flat", 0, 0, opt_shade }, { "background", 1, 0, opt_background },
+    { "no-shade", 0, 0, opt_no_shade }, { "background", 1, 0, opt_background },
     { "no-background", 0, 0, opt_no_background }, { "fly", 1, 0, opt_fly },
     { "no-fly", 0, 0, opt_no_fly }, { "full-screen", 0, &fullScreen, 1 },
-    { "no-full-screen", 0, &fullScreen, 0 }, { "window", 0, &fullScreen, 0 },
-    { "no-window", 0, &fullScreen, 1 },
+    { "no-full-screen", 0, &fullScreen, 0 },
 #endif
 
     // general options
@@ -228,7 +208,7 @@ struct option long_options[] = {
     { "prt-file", 1, 0, opt_prt_file },
 #endif
     { "joystick", 0, &Joystick::useJoystick, 1 }, { "no-joystick", 0, &Joystick::useJoystick, 0 },
-    { "no-js", 0, &Joystick::useJoystick, 0 }, { "esc", 0, &key_esc, 1 },
+    { "esc", 0, &key_esc, 1 },
     { "no-esc", 0, &key_esc, 0 }, { "verbose", 2, 0, opt_verbose },
     { "no-verbose", 1, &cthugha_verbose.value, 0 }, { "help", 0, 0, '?' },
 

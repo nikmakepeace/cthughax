@@ -151,14 +151,30 @@ static int ini_entry_name(const char* line, char* entry, int entry_size, int* ma
     return 1;
 }
 
-static int is_long_option_ini_entry(const char* entry) {
+static const char* canonical_long_option_name(const struct option* opt) {
+    struct option* other;
+
+    for (other = long_options; other->name != NULL; other++) {
+        if ((other->flag == opt->flag) && (other->val == opt->val)
+            && (other->has_arg == opt->has_arg)) {
+            return other->name;
+        }
+    }
+
+    return opt->name;
+}
+
+static int is_long_option_ini_entry(const char* entry, const char** canonical) {
     struct option* opt;
 
     for (opt = long_options; opt->name != NULL; opt++) {
-        if (strcasecmp(entry, opt->name) == 0)
-            return 1;
+        if (strcasecmp(entry, opt->name) == 0) {
+            *canonical = canonical_long_option_name(opt);
+            return strcasecmp(entry, *canonical) == 0;
+        }
     }
 
+    *canonical = NULL;
     return 0;
 }
 
@@ -173,6 +189,7 @@ static void warn_unknown_ini_entries() {
     while (!feof(ini_file)) {
         char line[256];
         char entry[256];
+        const char* canonical;
         int malformed;
 
         line_nr++;
@@ -188,7 +205,17 @@ static void warn_unknown_ini_entries() {
             continue;
         }
 
-        if (!is_long_option_ini_entry(entry) && !CoreOption::isIniEntry(entry)) {
+        if (!is_long_option_ini_entry(entry, &canonical)) {
+            if (canonical) {
+                CTH_WARN("Unsupported ini directive `cthugha.%s' in `%s' line %d; use `cthugha.%s' instead.\n",
+                    entry, ini_file_path, line_nr, canonical);
+                continue;
+            }
+        } else {
+            continue;
+        }
+
+        if (!CoreOption::isIniEntry(entry)) {
             CTH_WARN("Unknown ini directive `cthugha.%s' in `%s' line %d.\n",
                 entry, ini_file_path, line_nr);
         }
@@ -349,6 +376,9 @@ int read_ini() {
     while (open_ini_file() == 0) {
 
         for (opt = long_options; opt->name != NULL; opt++) {
+            if (strcasecmp(opt->name, canonical_long_option_name(opt)) != 0)
+                continue;
+
             if ((opt->flag == 0) || // no variable, must pass it to do_param
                 (opt->has_arg != 0)) { // has argument, must pass it to do_param
                 if (getini(opt->name, str) == 0) { // there is an entry in the ini-file

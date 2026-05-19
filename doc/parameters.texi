@@ -54,9 +54,9 @@ This causes Cthugha to only read the sound data when using
 @code{--play}, but not to play it.
 
 
-@item --once, --loop
-Play the sound file only once and exit afterwards, or start playing the
-file over and over again.
+@item --loop, --no-loop
+Start playing the sound file over and over again, or play it only once
+and exit afterwards.
 
 @end table
 
@@ -69,7 +69,7 @@ file over and over again.
 @item -v, --rate N
 Set sample rate to @code{N}. The default rate is set to 44000Hz.
 
-@item -2, --stereo, -1, --mono
+@item -2, --stereo, -1, --no-stereo
 Set the number of sound channels to use. (stereo by default).
 
 @item --snd-format FMT
@@ -277,7 +277,7 @@ Once a translation table is loaded, it is kept in memory, so
 each translation
 table is loaded only once. This can save a lot of time when starting Cthugha.
 
-@item -X, --no-use-pcx
+@item -X, --no-pcx
 Disable usage of PCX image files. 
 
 @item -i, --no-ipal
@@ -502,4 +502,3 @@ You can use this option to use more than one client on one machine
 (e.g. @code{xcthugha-saver} and @code{xcthugha} at the same time).
 
 @end table
-

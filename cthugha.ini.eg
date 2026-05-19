@@ -24,7 +24,7 @@
 # The settings are saved to '~/.cthugha.auto'
 #
 
-cthugha.sound-method    : 4                     # directly use DMA for sound
+cthugha.snd-method      : 4                     # directly use DMA for sound
 
 cthugha.disp-mode	: 2			# this is 800x600
 cthugha.buff-size	: 2
@@ -36,6 +36,5 @@ cthugha.flashlight.?	: locked:off		# I don't like this, so I turn it off
 						#  for all buffers
 
 cthugha.font            : -adobe-courier-bold-r-*-*-24-*-*-*-*-*-*-*
-
 
 
