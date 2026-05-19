@@ -124,9 +124,10 @@ CVS/
 
 # Test files
 *.mp3
+*.wav
 
 # compiled object files
 /obj/*.obj
 
 # customised ini file
-/
+/cthugha.ini
