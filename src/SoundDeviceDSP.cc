@@ -357,6 +357,26 @@ int SoundDeviceDSPIn::read() {
 
 int SoundDeviceDSPOut::write(const void* data, int size) { return ::write(handle, data, size); }
 
+int SoundDeviceDSPOut::outputDelayBytes() const {
+    int delay = 0;
+
+#ifdef SNDCTL_DSP_GETODELAY
+    if (ioctl(handle, SNDCTL_DSP_GETODELAY, &delay) == 0)
+        return max(0, delay);
+#endif
+
+#ifdef SNDCTL_DSP_GETOSPACE
+    {
+        audio_buf_info bi;
+
+        if (ioctl(handle, SNDCTL_DSP_GETOSPACE, &bi) == 0)
+            return max(0, bi.fragstotal * bi.fragsize - bi.bytes);
+    }
+#endif
+
+    return 0;
+}
+
 SoundDeviceDSP::~SoundDeviceDSP() { close(handle); }
 
 #else
@@ -380,6 +400,7 @@ void SoundDeviceDSP::setFormat() { }
 void SoundDeviceDSP::update() { }
 int SoundDeviceDSPIn::read() { return 0; }
 int SoundDeviceDSPOut::write(const void*, int) { return 0; }
+int SoundDeviceDSPOut::outputDelayBytes() const { return 0; }
 SoundDeviceDSP::~SoundDeviceDSP() { }
 
 #endif

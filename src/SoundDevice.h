@@ -113,6 +113,7 @@ public:
         : SoundDeviceDSP(O_WRONLY) { }
 
     int write(const void* buffer, int size);
+    int outputDelayBytes() const;
 
     int getHandle() const { return handle; }
 };
@@ -155,6 +156,10 @@ protected:
     int bufferPos;
     int bufferFill;
 
+    unsigned char* playbackHistory;
+    int playbackHistorySize;
+    long long playbackHistoryWritten;
+
     int playNext();
 
     int open();
@@ -163,11 +168,18 @@ protected:
     int openProg(char*);
     int close();
     int wavHeader();
+    void rememberPlayback(const unsigned char* data, int n);
+    int copyPlaybackAtOutputTime(int n);
+    void copyPlaybackHistory(long long pos, unsigned char* dst, int n);
+    void fillRawSilence(unsigned char* dst, int n);
 
     SoundDeviceFile(int /*dummy*/)
         : SoundDevice()
         , dsp(NULL)
-        , bufferPid(-1) { }
+        , bufferPid(-1)
+        , playbackHistory(NULL)
+        , playbackHistorySize(0)
+        , playbackHistoryWritten(0) { }
 
 public:
     static char name[];

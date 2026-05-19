@@ -65,7 +65,10 @@ SoundDeviceFile::SoundDeviceFile()
     , file(NULL)
     , dsp(NULL)
     , bufferPid(-1)
-    , childPid(-1) {
+    , childPid(-1)
+    , playbackHistory(NULL)
+    , playbackHistorySize(0)
+    , playbackHistoryWritten(0) {
 
     strncpy(fifoDir, "/tmp/cthugha.XXXXXX", PATH_MAX);
     fifoDir[PATH_MAX - 1] = '\0';
@@ -93,6 +96,103 @@ SoundDeviceFile::SoundDeviceFile()
     } else {
         buffer = new unsigned char[bufferSize + bufferChunkSize];
     }
+}
+
+void SoundDeviceFile::fillRawSilence(unsigned char* dst, int n) {
+    switch (soundFormat) {
+    case SF_u8:
+        memset(dst, 128, n);
+        break;
+    case SF_u16_le:
+        for (int i = 0; i + 1 < n; i += 2) {
+            dst[i] = 0;
+            dst[i + 1] = 128;
+        }
+        break;
+    case SF_u16_be:
+        for (int i = 0; i + 1 < n; i += 2) {
+            dst[i] = 128;
+            dst[i + 1] = 0;
+        }
+        break;
+    default:
+        memset(dst, 0, n);
+    }
+}
+
+void SoundDeviceFile::rememberPlayback(const unsigned char* data, int n) {
+    int written = 0;
+
+    if (n <= 0)
+        return;
+
+    if (playbackHistory == NULL) {
+        playbackHistorySize = max(int(soundBuffer) * 1024, rawSize * 64);
+        playbackHistorySize = max(playbackHistorySize, 256 * 1024);
+        playbackHistory = new unsigned char[playbackHistorySize];
+        fillRawSilence(playbackHistory, playbackHistorySize);
+        playbackHistoryWritten = 0;
+    }
+
+    while (written < n) {
+        int pos = playbackHistoryWritten % playbackHistorySize;
+        int chunk = min(n - written, playbackHistorySize - pos);
+
+        memcpy(playbackHistory + pos, data + written, chunk);
+        playbackHistoryWritten += chunk;
+        written += chunk;
+    }
+}
+
+void SoundDeviceFile::copyPlaybackHistory(long long pos, unsigned char* dst, int n) {
+    int copied = 0;
+
+    while (copied < n) {
+        int historyPos = pos % playbackHistorySize;
+        int chunk = min(n - copied, playbackHistorySize - historyPos);
+
+        memcpy(dst + copied, playbackHistory + historyPos, chunk);
+        pos += chunk;
+        copied += chunk;
+    }
+}
+
+int SoundDeviceFile::copyPlaybackAtOutputTime(int n) {
+    int delay;
+    long long played;
+    long long start;
+    int silence;
+
+    if ((dsp == NULL) || (playbackHistory == NULL) || (n <= 0))
+        return 0;
+
+    delay = dsp->outputDelayBytes();
+    if (delay <= 0)
+        return 0;
+
+    delay -= delay % bytesPerSample;
+    n -= n % bytesPerSample;
+
+    played = playbackHistoryWritten - delay;
+    start = played - n;
+
+    if (played <= 0) {
+        fillRawSilence((unsigned char*)tmpData, n);
+        return n;
+    }
+
+    if (start < playbackHistoryWritten - playbackHistorySize)
+        return 0;
+
+    if (start < 0) {
+        silence = min(n, int(-start));
+        fillRawSilence((unsigned char*)tmpData, silence);
+        copyPlaybackHistory(0, (unsigned char*)tmpData + silence, n - silence);
+    } else {
+        copyPlaybackHistory(start, (unsigned char*)tmpData, n);
+    }
+
+    return n;
 }
 
 //
@@ -367,6 +467,7 @@ int SoundDeviceFile::wavHeader() {
 
 int SoundDeviceFile::read() {
     int r = 0, w = 0;
+    int visualBytes = 0;
 
     //
     // an error occured earlier, do nothing
@@ -395,7 +496,14 @@ int SoundDeviceFile::read() {
             unsigned char* writePos = buffer + bufferPos;
 
             w = dsp ? dsp->write(writePos, w) : w; // to soundcard
-            memcpy(tmpData, writePos, w); // to shared memory
+            if (dsp && (w > 0)) {
+                rememberPlayback(writePos, w);
+                visualBytes = copyPlaybackAtOutputTime(rawSize);
+            }
+            if (visualBytes <= 0) {
+                memcpy(tmpData, writePos, w); // to shared memory
+                visualBytes = w;
+            }
 
             bufferPos = (bufferPos + w) % bufferSize;
             bufferFill = bufferFill - w;
@@ -410,6 +518,7 @@ int SoundDeviceFile::read() {
         // playing silently -> no buffering needed
         //
         w = fread(tmpData, 1, rawSize, file);
+        visualBytes = w;
 
     } else if (bufferSize == 0) {
         //
@@ -417,6 +526,12 @@ int SoundDeviceFile::read() {
         //
         w = fread(tmpData, 1, rawSize, file);
         w = dsp->write(tmpData, w);
+        if (w > 0) {
+            rememberPlayback((unsigned char*)tmpData, w);
+            visualBytes = copyPlaybackAtOutputTime(rawSize);
+        }
+        if (visualBytes <= 0)
+            visualBytes = w;
 
     } else {
         //
@@ -436,7 +551,14 @@ int SoundDeviceFile::read() {
         } else if ((bufferFill + bufferChunkSize) >= bufferSize) { // buffer full
 
             w = dsp->write(writePos, rawSize); // to soundcard, in visual-slice-sized chunks
-            memcpy(tmpData, writePos, w); // to shared memory for visual analysis
+            if (w > 0) {
+                rememberPlayback(writePos, w);
+                visualBytes = copyPlaybackAtOutputTime(rawSize);
+            }
+            if (visualBytes <= 0) {
+                memcpy(tmpData, writePos, w); // to shared memory for visual analysis
+                visualBytes = w;
+            }
 
         } else {
             fd_set rfds, wfds;
@@ -457,7 +579,14 @@ int SoundDeviceFile::read() {
                     r = fread(readPos, 1, bufferChunkSize, file);
                 if (FD_ISSET(dsp->getHandle(), &wfds)) { // write possible
                     w = dsp->write(writePos, rawSize); // to soundcard, in visual-slice-sized chunks
-                    memcpy(tmpData, writePos, w); // to shared memory for visual analysis
+                    if (w > 0) {
+                        rememberPlayback(writePos, w);
+                        visualBytes = copyPlaybackAtOutputTime(rawSize);
+                    }
+                    if (visualBytes <= 0) {
+                        memcpy(tmpData, writePos, w); // to shared memory for visual analysis
+                        visualBytes = w;
+                    }
                 }
             }
         }
@@ -473,7 +602,7 @@ int SoundDeviceFile::read() {
         bufferFill = bufferFill + r - w;
     }
 
-    return w / bytesPerSample;
+    return visualBytes / bytesPerSample;
 }
 
 void SoundDeviceFile::update() {
@@ -512,6 +641,8 @@ SoundDeviceFile::~SoundDeviceFile() {
     dsp = NULL;
     delete[] buffer;
     buffer = NULL;
+    delete[] playbackHistory;
+    playbackHistory = NULL;
 
     close();
     if (fifo[0] != '\0')
