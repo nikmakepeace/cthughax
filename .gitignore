@@ -127,3 +127,6 @@ CVS/
 
 # compiled object files
 /obj/*.obj
+
+# personal ini
+/cthugha.ini
