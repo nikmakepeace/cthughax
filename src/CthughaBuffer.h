@@ -12,6 +12,8 @@
 #include "flames.h"
 #include "translate.h"
 
+extern double paletteSmoothingChance;
+
 class CthughaBuffer {
 public:
     int palChanged;

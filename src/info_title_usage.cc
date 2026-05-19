@@ -139,6 +139,8 @@ void usage() {
     PH(" -X, --no-use-pcx    Disable PCX image files");
     PH(" -i, --no-ipal       Disable inbuilt palettes");
     PH(" -e, --no-epal       Do not load external palettes");
+    PH(" --palette-smoothing F  Chance palette changes smooth, 0..1", "1");
+    PH(" --no-palette-smoothing Disable palette smoothing");
     PH(" --no-object         Disable 3-D objects");
     PH(" -s, --no-flashlight Diable usage of flashlights (changing palette on beats)");
     PH("");

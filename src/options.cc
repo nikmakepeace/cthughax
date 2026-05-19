@@ -77,6 +77,8 @@ enum option_nr {
     opt_keymap,
     opt_shade,
     opt_no_shade,
+    opt_palette_smoothing,
+    opt_no_palette_smoothing,
 };
 
 struct option long_options[] = {
@@ -169,6 +171,8 @@ struct option long_options[] = {
     { "no-pcx", 0, &display_use_pcx, 0 }, { "no-use-pcx", 0, &display_use_pcx, 0 },
     { "ipal", 0, &display_internal_pal, 1 }, { "no-ipal", 0, &display_internal_pal, 0 },
     { "epal", 0, &display_external_pal, 1 }, { "no-epal", 0, &display_external_pal, 0 },
+    { "palette-smoothing", 1, 0, opt_palette_smoothing },
+    { "no-palette-smoothing", 0, 0, opt_no_palette_smoothing },
     { "test", 0, 0, opt_test }, { "max-fps", 1, 0, opt_maxfps }, { "maxfps", 1, 0, opt_maxfps },
     { "zoom", 1, 0, opt_zoom },
 #endif
@@ -277,6 +281,13 @@ int do_param(int c, int value, char* str) {
 
     case 'p':
         CthughaBuffer::current->palette.setInitialEntry(str);
+        break;
+
+    case opt_palette_smoothing:
+        paletteSmoothingChance = atof(str);
+        break;
+    case opt_no_palette_smoothing:
+        paletteSmoothingChance = 0.0;
         break;
 
     case 'd':

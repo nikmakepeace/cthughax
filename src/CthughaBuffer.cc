@@ -18,6 +18,7 @@ int BUFF_HEIGHT = 100;
 int CthughaBuffer::maxNBuffers = 1;
 int CthughaBuffer::nBuffers = 1;
 int CthughaBuffer::nInit = 0;
+double paletteSmoothingChance = 1.0;
 
 CthughaBuffer CthughaBuffer::buffers[MAX_BUFFERS];
 
@@ -200,10 +201,17 @@ void CthughaBuffer::smoothPalette() {
 
     if ((lastPalette == palette.currentN()) && (palChanged == 0))
         return;
-    lastPalette = palette.currentN();
 
     // this is the palette that should be displayed
     Palette* desiredPal = &(((PaletteEntry*)palette.current())->pal);
+
+    if (lastPalette != palette.currentN()) {
+        lastPalette = palette.currentN();
+        if (((double)rand() / ((double)RAND_MAX + 1.0)) >= paletteSmoothingChance) {
+            setPalette(*desiredPal);
+            return;
+        }
+    }
 
     const int PALETTE_CHANNEL_RANGE = 256;
     const int PALETTE_SMOOTH_SECONDS = 2;
