@@ -29,11 +29,15 @@
 #include <X11/Xaw/Cardinals.h>
 #include <X11/Xatom.h>
 #include <signal.h>
+#include <errno.h>
+#include <limits.h>
 #include <sys/ipc.h>
 #include <sys/shm.h>
+#include <sys/stat.h>
 
 #include "vroot.h"
 
+#include <X11/Xutil.h>
 #include <X11/extensions/XShm.h>
 
 xy screenSizes[]
@@ -57,6 +61,125 @@ Display* xcth_display;
 
 static XtAppContext xcth_app_con;
 Widget DisplayDeviceX11::xcth_toplevel;
+
+static int mask_shift(unsigned long mask) {
+    int shift = 0;
+
+    if (mask == 0)
+        return 0;
+
+    while ((mask & 1) == 0) {
+        mask >>= 1;
+        shift++;
+    }
+
+    return shift;
+}
+
+static int mask_bits(unsigned long mask) {
+    int bits = 0;
+
+    while (mask) {
+        if (mask & 1)
+            bits++;
+        mask >>= 1;
+    }
+
+    return bits;
+}
+
+static unsigned char scale_mask_value(unsigned long pixel, unsigned long mask) {
+    int shift;
+    int bits;
+    unsigned long value;
+    unsigned long maxValue;
+
+    if (mask == 0)
+        return 0;
+
+    shift = mask_shift(mask);
+    bits = mask_bits(mask >> shift);
+    value = (pixel & mask) >> shift;
+    maxValue = (1UL << bits) - 1;
+
+    return (unsigned char)((value * 255UL) / maxValue);
+}
+
+static void dump_x11_frame(XImage* image) {
+    static int initialized = 0;
+    static int enabled = 0;
+    static int frame = 0;
+    static int dumped = 0;
+    static int limit = 1;
+    static int every = 1;
+    static char directory[PATH_MAX];
+
+    const char* env;
+
+    if (!initialized) {
+        initialized = 1;
+        env = getenv("CTHUGHA_DUMP_X11_FRAMES");
+        if (env && env[0]) {
+            strncpy(directory, env, PATH_MAX - 1);
+            directory[PATH_MAX - 1] = '\0';
+            enabled = 1;
+
+            env = getenv("CTHUGHA_DUMP_X11_FRAME_LIMIT");
+            if (env && env[0])
+                limit = max(1, atoi(env));
+
+            env = getenv("CTHUGHA_DUMP_X11_FRAME_EVERY");
+            if (env && env[0])
+                every = max(1, atoi(env));
+
+            if ((mkdir(directory, 0777) != 0) && (errno != EEXIST)) {
+                CTH_ERRNO(errno, "Can not create X11 frame dump directory");
+                enabled = 0;
+            }
+        }
+    }
+
+    if (!enabled || (image == NULL))
+        return;
+
+    frame++;
+    if ((frame % every) != 0)
+        return;
+    if (dumped >= limit)
+        return;
+
+    char path[PATH_MAX];
+    snprintf(path, PATH_MAX, "%s/frame-%06d.ppm", directory, frame);
+
+    FILE* out = fopen(path, "wb");
+    if (out == NULL) {
+        CTH_ERRNO(errno, "Can not create X11 frame dump");
+        enabled = 0;
+        return;
+    }
+
+    fprintf(out, "P6\n%d %d\n255\n", image->width, image->height);
+
+    for (int y = 0; y < image->height; y++) {
+        for (int x = 0; x < image->width; x++) {
+            unsigned long pixel = XGetPixel(image, x, y);
+            unsigned char rgb[3];
+
+            if (image->red_mask || image->green_mask || image->blue_mask) {
+                rgb[0] = scale_mask_value(pixel, image->red_mask);
+                rgb[1] = scale_mask_value(pixel, image->green_mask);
+                rgb[2] = scale_mask_value(pixel, image->blue_mask);
+            } else {
+                rgb[0] = rgb[1] = rgb[2] = (unsigned char)pixel;
+            }
+
+            fwrite(rgb, 1, 3, out);
+        }
+    }
+
+    fclose(out);
+    dumped++;
+}
 
 int cth_init(int* argc, char* argv[]) {
 #if HAVE_NCURSES == 1
@@ -588,6 +711,7 @@ void DisplayDeviceX11::clearBox(int x, int y, int width, int height) {
 void DisplayDeviceX11::postDraw() {
 
     this->setGlobalPalette();
+    dump_x11_frame(image);
 
     if (copyText) {
 

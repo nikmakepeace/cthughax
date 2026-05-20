@@ -580,6 +580,14 @@ void putat_cut(int x, int y, int val) {
     putat(x, y, val);
 }
 
+void putpixel_cut(int x, int y, int val) {
+    if ((x < 0) || (x >= BUFF_WIDTH))
+        return;
+    if ((y < 0) || (y >= BUFF_HEIGHT))
+        return;
+    active_buffer[addr(x, y)] = val;
+}
+
 void draw_line(int x1, int y1, int x2, int y2, int c) {
     register int lx, ly, dx, dy;
     register int i, j, k;
@@ -749,10 +757,10 @@ void wave_dotHor() { /* dot horizontal */
 
     for (x = 0; x < BUFF_WIDTH; x++) {
         tmp = data[x][0];
-        putat_cut(x >> 1, LOW_LINE - (tmp >> int(CthughaBuffer::current->waveScale)), tcolor(tmp));
+        putpixel_cut(x >> 1, LOW_LINE - (tmp >> int(CthughaBuffer::current->waveScale)), tcolor(tmp));
 
         tmp = data[x][1];
-        putat_cut((x + BUFF_WIDTH) >> 1, LOW_LINE - (tmp >> int(CthughaBuffer::current->waveScale)),
+        putpixel_cut((x + BUFF_WIDTH) >> 1, LOW_LINE - (tmp >> int(CthughaBuffer::current->waveScale)),
             tcolor(tmp));
     }
 }
@@ -768,10 +776,10 @@ void wave_dotVert() { /* dot vertical */
 
     for (x = 0; x < BOTTOM; x++) {
         tmp = data[x][0];
-        putat_cut(MID_X - (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        putpixel_cut(MID_X - (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
 
         tmp = data[x][1];
-        putat_cut(MID_X + (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        putpixel_cut(MID_X + (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
     }
 }
 

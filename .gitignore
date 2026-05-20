@@ -134,3 +134,6 @@ CVS/
 
 # External dependencies
 /external
+
+# build dumps
+/dumps

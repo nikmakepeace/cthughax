@@ -8,7 +8,77 @@
 #include "imath.h"
 #include "cth_buffer.h"
 
+#include <errno.h>
+#include <limits.h>
+#include <sys/stat.h>
+
 int bytesPerSample = 0;
+
+static void dump_audio_frame(const char2* data, int samplesRead, int requestedSamples) {
+    static int initialized = 0;
+    static int enabled = 0;
+    static int frame = 0;
+    static int dumped = 0;
+    static int limit = 1;
+    static int every = 1;
+    static char directory[PATH_MAX];
+
+    const char* env;
+
+    if (!initialized) {
+        initialized = 1;
+        env = getenv("CTHUGHA_DUMP_AUDIO_FRAMES");
+        if (env && env[0]) {
+            strncpy(directory, env, PATH_MAX - 1);
+            directory[PATH_MAX - 1] = '\0';
+            enabled = 1;
+
+            env = getenv("CTHUGHA_DUMP_AUDIO_FRAME_LIMIT");
+            if (env && env[0])
+                limit = max(1, atoi(env));
+
+            env = getenv("CTHUGHA_DUMP_AUDIO_FRAME_EVERY");
+            if (env && env[0])
+                every = max(1, atoi(env));
+
+            if ((mkdir(directory, 0777) != 0) && (errno != EEXIST)) {
+                CTH_ERRNO(errno, "Can not create audio frame dump directory");
+                enabled = 0;
+            }
+        }
+    }
+
+    if (!enabled || (data == NULL))
+        return;
+
+    frame++;
+    if ((frame % every) != 0)
+        return;
+    if (dumped >= limit)
+        return;
+
+    char path[PATH_MAX];
+    snprintf(path, PATH_MAX, "%s/audio-%06d.csv", directory, frame);
+
+    FILE* out = fopen(path, "w");
+    if (out == NULL) {
+        CTH_ERRNO(errno, "Can not create audio frame dump");
+        enabled = 0;
+        return;
+    }
+
+    fprintf(out, "# frame,%d\n", frame);
+    fprintf(out, "# samples_read,%d\n", samplesRead);
+    fprintf(out, "# requested_samples,%d\n", requestedSamples);
+    fprintf(out, "# bytes_per_sample,%d\n", bytesPerSample);
+    fprintf(out, "sample,left,right\n");
+
+    for (int i = 0; i < 1024; i++)
+        fprintf(out, "%d,%d,%d\n", i, (int)data[i][0], (int)data[i][1]);
+
+    fclose(out);
+    dumped++;
+}
 
 SoundDevice::SoundDevice() {
 
@@ -16,6 +86,8 @@ SoundDevice::SoundDevice() {
 
     size = 1 << ilog2(max(BUFF_WIDTH, BUFF_HEIGHT));
     data = new char2[1024];
+    memset(data, 0, 1024 * sizeof(char2));
+    memset(dataProc, 0, 1024 * sizeof(char2));
 
     tmpData = NULL;
     tmpDataOwned = 0;
@@ -51,6 +123,8 @@ void SoundDevice::operator()() {
         memcpy(data, data + r, sizeof(char2) * (1024 - r));
         convert(data + 1024 - r, tmpData, r);
     }
+
+    dump_audio_frame(data, r, size);
 }
 
 int SoundDevice::read() {
