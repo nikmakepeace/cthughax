@@ -17,6 +17,7 @@
 #include <ctype.h>
 #include <string.h>
 #include <stdarg.h>
+#include <unistd.h>
 
 void skipSpace(const char*& str) {
     while (isspace(*str))
@@ -322,6 +323,13 @@ ACTION(soundProcessChg) { CthughaBuffer::current->soundProcess.change(int(v), 0)
 ACTION(borderChg) { CthughaBuffer::current->border.change(int(v), 0); }
 ACTION(flashlightChg) { CthughaBuffer::current->flashlight.change(int(v), 0); }
 ACTION(paletteChg) { CthughaBuffer::current->palette.change(int(v), 0); }
+ACTION(deletePaletteChg) {
+    PaletteEntry* palette = (PaletteEntry*)CthughaBuffer::current->palette.current();
+    if ((palette != NULL) && (palette->sourcePath[0] != '\0'))
+        unlink(palette->sourcePath);
+
+    CthughaBuffer::current->palette.change(int(v), 0);
+}
 ACTION(tableChg) { CthughaBuffer::current->table.change(int(v), 0); }
 ACTION(pcxChg) { CthughaBuffer::current->pcx.change(int(v), 0); }
 ACTION(lockChg) { lock.change(+1); }

@@ -77,6 +77,7 @@ KeyAssoc keyAssoc[] = {
     { "Home", CK_HOME },
     { "Print", CK_PRINT },
     { "BackSpace", CK_BACK },
+    { "Delete", CK_DELETE },
 
     { "KP_0", '0' },
     { "KP_1", '1' },
@@ -237,6 +238,9 @@ int translate_key(int key) {
 
     case KEY_PRINT:
         return CK_PRINT;
+
+    case KEY_DC:
+        return CK_DELETE;
 
     case 8:
     case KEY_BACKSPACE:

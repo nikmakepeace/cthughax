@@ -40,8 +40,10 @@ extern int nKeyAssoc;
 
 #define CK_BACK (CK_BASE + 37)
 
+#define CK_DELETE (CK_BASE + 38)
+
 /* shifted number */
-#define CK_SHIFT(x) (CK_BASE + 38 + x)
+#define CK_SHIFT(x) (CK_BASE + 39 + x)
 
 #define CK_OTHER (CK_BASE + 99)
 

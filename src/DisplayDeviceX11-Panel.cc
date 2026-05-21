@@ -459,7 +459,7 @@ Widget DisplayDeviceX11::add_menu(
 void DisplayDeviceX11::xcth_create_panel() {
     Widget panel;
     Widget quit_button, change_button, delete_palette_button;
-    Widget menu[7];
+    Widget menu[8];
     Arg wargs[3];
 
     /* create the panel formWidget */
@@ -489,8 +489,9 @@ void DisplayDeviceX11::xcth_create_panel() {
     menu[3]
         = add_menu("Translation", &CthughaBuffer::current->translate, panel, quit_button, menu[2]);
     menu[4] = add_menu("Palette", &CthughaBuffer::current->palette, panel, quit_button, menu[3]);
-    menu[5] = add_menu("PCX", &CthughaBuffer::current->pcx, panel, quit_button, menu[4]);
-    menu[6] = add_menu("Objects", &CthughaBuffer::current->object, panel, quit_button, menu[5]);
+    menu[5] = add_menu("Table", &CthughaBuffer::current->table, panel, quit_button, menu[4]);
+    menu[6] = add_menu("PCX", &CthughaBuffer::current->pcx, panel, quit_button, menu[5]);
+    menu[7] = add_menu("Objects", &CthughaBuffer::current->object, panel, quit_button, menu[6]);
 
     // create the panelText Widget
     text_size.x = 80;

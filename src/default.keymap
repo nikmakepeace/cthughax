@@ -4,7 +4,7 @@ q setInterface(main)
 o   setInterface(CoreOptions)
 O   setInterface(Options)
 ?   setInterface(Help)
-ß   setInterface(Help)
+ï¿½   setInterface(Help)
 F1  setInterface(Help)
 F2  setInterface(CoreOptions)
 F3  setInterface(Options)
@@ -124,7 +124,7 @@ up   scrollUp()
 down scrollDown()
 \\   toggleScrolling()
 ?    setInterface(main)
-ß    setInterface(main)
+ï¿½    setInterface(main)
 F1   setInterface(main)
 
 
@@ -191,12 +191,8 @@ Left   toggleUse()
 Return setInterface(main) activate()
 \\     activate()
 
-
-
-
-
-
-
+# only used for thinning palettes out
+k deletePaletteChg(+1)
 
 
 
