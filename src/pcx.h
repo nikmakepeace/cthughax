@@ -44,10 +44,6 @@ public:
         CoreOption::change(to, doSave);
         show_pcx();
     }
-    void changeRandom(int doSave) {
-        CoreOption::changeRandom(doSave); // business as usuall
-        show_pcx();
-    }
 };
 
 #endif

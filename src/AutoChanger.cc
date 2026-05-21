@@ -77,6 +77,8 @@ void AutoChanger::operator()() {
     /* Check for enough fire to change */
     if (int(changeFireLevel))
         if (soundAnalyze.fireLevel > int(changeFireLevel)) {
+            CTH_DEBUG("autochange: fire threshold reached fireLevel=%d threshold=%d\n",
+                soundAnalyze.fireLevel, int(changeFireLevel));
             soundAnalyze.fireLevel = 0;
             change();
             return;

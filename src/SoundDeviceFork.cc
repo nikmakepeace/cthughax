@@ -94,9 +94,11 @@ int sound_comm_read() {
  * fork the sound reading process
  */
 SoundDeviceFork::SoundDeviceFork() {
+    int sharedRawSize = 4 * size;
+
     CTH_DEBUG("    starting sound reading process...\n");
     if ((sound_shm_key
-            = shmget(IPC_PRIVATE, rawSize + sizeof(sound_Communicator), IPC_CREAT | 0777))
+            = shmget(IPC_PRIVATE, sharedRawSize + sizeof(sound_Communicator), IPC_CREAT | 0777))
         == -1) {
         CTH_ERRNO(errno, "Can not create shared memory segment.");
         error = 1;

@@ -53,6 +53,10 @@ void SoundAnalyze::operator()() {
         fire = attackLevel;
         attackLevel = 0;
 
+        if (fire > 0)
+            CTH_DEBUG("sound fire: fire=%d fireLevel=%d amplitude=%d lastamp=%d speed=%.2f\n",
+                fire, fireLevel + fire, amplitude, lastamp, speed);
+
         lastFires[lastFiresP] = now;
         lastFiresP = (lastFiresP + 1) % 16;
     } else

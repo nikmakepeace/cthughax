@@ -220,6 +220,11 @@ int SoundDeviceFile::playNext() {
         return 1;
     }
 
+    bytesPerSample = (soundFormat < 2) ? soundChannels : 2 * soundChannels;
+    rawSize = bytesPerSample * size;
+    if (tmpDataOwned)
+        setTmpData();
+
     if (dsp)
         dsp->update();
     sound_communicate(0);
