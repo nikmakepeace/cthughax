@@ -46,7 +46,7 @@ static CoreOptionEntry* _screens[] = {
     new ScreenEntry(screen_bent, "bent", "A bending plane", xy(2, 2)),      // 11
     new ScreenEntry(screen_plate, "plate", "A rotating plate", xy(2, 2)),   // 12
 
-    new ScreenEntry(screen_scale2, "scalexy", "Scale 2x", xy(2, 2), 0),     // 13
+    new ScreenEntry(screen_scale2, "scalexy", "Double", xy(2, 2), 0),     // 13
     new ScreenEntry(screen_vscale_hmirror, "scaley", "Scale vertical, mirror horizontal", xy(1, 2)), // 14
     new ScreenEntry(screen_hscale_vmirror, "scalex", "Scale horizontal, mirror vertical", xy(2, 1)), // 15
 };

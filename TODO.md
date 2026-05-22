@@ -123,6 +123,8 @@
   files.
 - Add AddressSanitizer and UBSan build options early.
 - Add a few deterministic test scenarios for display transitions.
+- Load/generate all translation tables in the background after startup, staging each table
+  invisibly and activating cached tables only once complete.
 - Rationalize ini file naming: accept unprefixed keys like `lock: yes` in addition to
   legacy `cthugha.lock: yes`, warn on likely misspellings such as `chuthga.*`, and decide
   whether future auto-written ini files should keep the old prefix for compatibility.

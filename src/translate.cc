@@ -516,6 +516,8 @@ int TranslateOption::operator()() {
                 memcpy(current->trans, lodCommonTrans, BUFF_SIZE * sizeof(int));
                 // do not load again
                 current->command[0] = '\0';
+            } else {
+                current->trans = lodCommonTrans;
             }
         }
     }
@@ -523,6 +525,9 @@ int TranslateOption::operator()() {
     //
     // do the translation
     //
+    if (lodPipe != NULL)
+        return 0;
+
     return (entries[value]->operator()());
 }
 

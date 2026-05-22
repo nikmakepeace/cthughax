@@ -123,7 +123,6 @@ up   scrollUp()
 down scrollDown()
 \\   toggleScrolling()
 ?    setInterface(main)
-�    setInterface(main)
 F1   setInterface(main)
 
 
