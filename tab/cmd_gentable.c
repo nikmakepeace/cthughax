@@ -65,12 +65,12 @@ int dir[MAX_NR_SPIRALS];
 
 int main(int argc, char** argv) {
     int x, y, map_x, map_y, i;
-    int closest;
     double dist;
     double polar_r, polar_a;
     double delta_r = 2.0, delta_a = 0.1;
     double temp_y, temp_x;
     double cent_y, cent_x;
+    double mapped_x, mapped_y, total_weight;
     long l;
     int nr_spirals = 1;
     int yinyang = 0;
@@ -157,32 +157,24 @@ int main(int argc, char** argv) {
     for (y = 0; y < BUFF_HEIGHT; y++) {
 
         for (x = 0; x < BUFF_WIDTH; x++) {
-            closest = 0;
-            dist = 9999999.0;
+            mapped_x = 0.0;
+            mapped_y = 0.0;
+            total_weight = 0.0;
 
-            temp_x = x;
-            temp_y = y;
             for (i = 0; i < nr_spirals; i++) {
-                if (dist > (sqrt((temp_x - centersX[i]) * (temp_x - centersX[i])
-                        + (temp_y - centersY[i]) * (temp_y - centersY[i])))) {
-                    closest = i;
-                    dist = sqrt((temp_x - centersX[i]) * (temp_x - centersX[i])
-                        + (temp_y - centersY[i]) * (temp_y - centersY[i]));
-                }
-            }
+                double weight;
+                double source_x;
+                double source_y;
 
-            if ((x == centersX[closest]) && (y == centersY[closest])) {
-                map = 0;
-            } else {
-                cent_y = centersY[closest];
-                cent_x = centersX[closest];
+                cent_y = centersY[i];
+                cent_x = centersX[i];
                 temp_x = fabs(x - cent_x);
                 temp_y = fabs(y - cent_y);
 
                 polar_r = sqrt(temp_x * temp_x + temp_y * temp_y);
                 polar_a = atan2((double)(x - cent_x), (double)(y - cent_y));
 
-                polar_r += (delta_r + (rand() % 10) * 0.01) * (double)dir[closest];
+                polar_r += (delta_r + (rand() % 10) * 0.01) * (double)dir[i];
 
                 if (polar_r < 0)
                     polar_r = 0.0;
@@ -198,25 +190,33 @@ int main(int argc, char** argv) {
                     }
                 } else {
 
-                    polar_a += (delta_a + (rand() % 10) * 0.01) * (double)dir[closest];
+                    polar_a += (delta_a + (rand() % 10) * 0.01) * (double)dir[i];
                 }
 
-                temp_y = polar_r * (cos(polar_a));
-                temp_x = polar_r * (sin(polar_a));
+                source_y = polar_r * cos(polar_a) + cent_y;
+                source_x = polar_r * sin(polar_a) + cent_x;
 
-                map_x = temp_x + cent_x;
-                map_y = temp_y + cent_y;
+                dist = sqrt(((double)x - cent_x) * ((double)x - cent_x)
+                    + ((double)y - cent_y) * ((double)y - cent_y));
+                weight = 1.0 / (dist * dist + 1.0);
 
-                if ((map_y >= BUFF_HEIGHT) || (map_y < 0) || (map_x >= BUFF_WIDTH) || (map_x < 0)) {
-                    map_x = 0;
-                    map_y = 0;
-                }
-
-                map_x = max(map_x, 0);
-                map_y = max(map_y, 0);
-
-                map = map_y * BUFF_WIDTH + map_x;
+                mapped_x += weight * source_x;
+                mapped_y += weight * source_y;
+                total_weight += weight;
             }
+
+            map_x = (int)(mapped_x / total_weight);
+            map_y = (int)(mapped_y / total_weight);
+
+            if ((map_y >= BUFF_HEIGHT) || (map_y < 0) || (map_x >= BUFF_WIDTH) || (map_x < 0)) {
+                map_x = 0;
+                map_y = 0;
+            }
+
+            map_x = max(map_x, 0);
+            map_y = max(map_y, 0);
+
+            map = map_y * BUFF_WIDTH + map_x;
             fwrite(&map, sizeof(int), 1, stdout);
         }
     }
