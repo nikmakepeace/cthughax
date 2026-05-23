@@ -38,7 +38,7 @@ int BUFF_HEIGHT;
 
 #define BSIZE (BUFF_WIDTH * BUFF_HEIGHT)
 
-main(int argc, char* argv[]) {
+int main(int argc, char* argv[]) {
     int i, j, k, dx, dy, size, dist, q;
     ptType* nline;
     int *theTab, llen, cl, x, y, u, p, ox, oy, m, n, a, b;

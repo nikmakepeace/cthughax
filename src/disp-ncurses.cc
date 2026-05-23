@@ -1,7 +1,8 @@
 #include "cthugha.h"
 #include "DisplayDevice.h"
 
-#ifdef HAVE_NCURSES_H
+#if HAVE_NCURSES == 1
+#if HAVE_NCURSES_H
 #include <ncurses.h>
 #else
 #if HAVE_NCURSES_NCURSES_H
@@ -16,14 +17,20 @@
 #endif
 #endif
 #endif
+#endif
 
+#if HAVE_NCURSES == 1
 int ncurses_use = 1;
+#else
+int ncurses_use = 0;
+#endif
 
 /*
  * Initialization of ncurses
  */
 int init_ncurses() {
 
+#if HAVE_NCURSES == 1
     if (!initscr()) {
         CTH_ERROR("Can not initialize ncurses.\n");
         return 1;
@@ -39,12 +46,18 @@ int init_ncurses() {
     text_size.y = LINES;
 
     return 0;
+#else
+    CTH_ERROR("ncurses support is not available in this build.\n");
+    return 1;
+#endif
 }
 
 /*
  * Cleanup of ncurses (makes cursor visible again)
  */
 void exit_ncurses() {
+#if HAVE_NCURSES == 1
     echo();
     endwin();
+#endif
 }

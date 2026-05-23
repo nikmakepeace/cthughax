@@ -1,6 +1,10 @@
 ## -*- Makefile -*-
 
-SUBDIRS = src tab doc 
+SUBDIRS = src tab
+if BUILD_DOCS
+SUBDIRS += doc
+endif
+DIST_SUBDIRS = src tab doc
 
 EXTRA_DIST = cthugha-L.lsm Makefile.pre  cthugha.ini.eg tga2jpeg
 
@@ -21,4 +25,3 @@ install-data-local: ${noinst_PROGRAMS} ${noinst_DATA}
 
 
 AUTOMAKE_OPTIONS = foreign
-

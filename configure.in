@@ -187,6 +187,20 @@ AC_MSG_RESULT(${CXXFLAGS})
 
 
 AC_PATH_XTRA
+if test x$xwin = x1; then
+	AC_CHECK_HEADERS([X11/Intrinsic.h], [], [xwin=0])
+	if test x$xwin = x1; then
+		AC_CHECK_HEADERS([X11/extensions/XShm.h], [], [xwin=0],
+			[[#include <X11/Intrinsic.h>]])
+	fi
+	if test x$xwin = x1; then
+		AC_CHECK_HEADERS([X11/Xaw/Form.h], [], [xwin=0],
+			[[#include <X11/Intrinsic.h>]])
+	fi
+	if test x$xwin = x1; then
+		AC_CHECK_HEADERS([zlib.h], [], [xwin=0])
+	fi
+fi
 AC_HEADER_DIRENT
 
 dnl The sys/wait.h test fails when using C++.
@@ -337,6 +351,9 @@ if test x${MOD_xmp} != x; then
 	AC_DEFINE_UNQUOTED([MOD_PATH],   ["${MOD_xmp}"], [mod path])
 fi
 
+AC_CHECK_PROG([HAVE_MAKEINFO], [makeinfo], [yes], [no])
+AM_CONDITIONAL([BUILD_DOCS], [test x$HAVE_MAKEINFO = xyes])
+
 if test x$with_network = x0; then
 	serv=0;
 fi
@@ -425,4 +442,3 @@ if test x${MOD_xmp} != x; then
 else
 	echo "MOD player     : none"
 fi
-

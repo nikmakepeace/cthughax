@@ -4,7 +4,8 @@
 #include "CthughaDisplay.h"
 #include "imath.h"
 
-#ifdef HAVE_NCURSES_H
+#if HAVE_NCURSES == 1
+#if HAVE_NCURSES_H
 #include <ncurses.h>
 #else
 #if HAVE_NCURSES_NCURSES_H
@@ -15,6 +16,7 @@
 #else
 #if HAVE_NCURSES_CURSES_H
 #include <ncurses/curses.h>
+#endif
 #endif
 #endif
 #endif
@@ -85,8 +87,10 @@ void DisplayDevice::prePrint() {
 
 void DisplayDevice::postPrint() {
 
+#if HAVE_NCURSES == 1
     if (text_on_term)
         refresh();
+#endif
 }
 
 void DisplayDevice::printString(
@@ -96,8 +100,13 @@ double DisplayDevice::print(const char* text, double y, int justify, int color, 
 
     if (text_size.x == 0) {
         if (text_on_term) {
+#if HAVE_NCURSES == 1
             text_size.x = COLS;
             text_size.y = LINES;
+#else
+            text_size.x = disp_size.x / fontSize.x;
+            text_size.y = disp_size.y / fontSize.y;
+#endif
         } else {
             text_size.x = disp_size.x / fontSize.x;
             text_size.y = disp_size.y / fontSize.y;
@@ -130,9 +139,14 @@ double DisplayDevice::print(const char* text, double y, int justify, int color, 
         }
 
         if (text_on_term) {
+#if HAVE_NCURSES == 1
             attrset(color ? A_BOLD : A_NORMAL);
             mvaddnstr(
                 (y >= 0) ? int(y) : int(text_size.y + y), x / fontSize.x, (char*)lineStart, len);
+#else
+            printString(x, (y >= 0) ? int(y * fontSize.y) : int(fontSize.y * (text_size.y + y)),
+                lineStart, color, len, noDarken);
+#endif
         } else {
             printString(x, (y >= 0) ? int(y * fontSize.y) : int(fontSize.y * (text_size.y + y)),
                 lineStart, color, len, noDarken);

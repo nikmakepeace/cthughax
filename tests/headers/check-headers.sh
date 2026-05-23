@@ -33,6 +33,18 @@ else
     have_glut=0
 fi
 
+x11_probe="$build_dir/x11-probe.cc"
+cat > "$x11_probe" <<EOF
+#include <X11/Intrinsic.h>
+#include <X11/extensions/XShm.h>
+int main() { return 0; }
+EOF
+if "$cxx" -DHAVE_CONFIG_H -I"$repo_root" -I"$repo_root/src" $cxxflags -c "$x11_probe" -o "$build_dir/x11-probe.o" > "$build_dir/x11-probe.log" 2>&1; then
+    have_x11=1
+else
+    have_x11=0
+fi
+
 failures=0
 skipped=0
 total=0
@@ -51,6 +63,16 @@ for header in "$repo_root"/src/*.h; do
         {
             echo "==== $rel ===="
             echo "skipped: GL/glut.h is not available in this configured build environment."
+            echo
+        } >> "$report"
+        continue
+    fi
+
+    if test "$rel" = "src/xcthugha.h" && test "$have_x11" -eq 0; then
+        skipped=`expr "$skipped" + 1`
+        {
+            echo "==== $rel ===="
+            echo "skipped: X11/Intrinsic.h or X11/extensions/XShm.h is not available in this configured build environment."
             echo
         } >> "$report"
         continue

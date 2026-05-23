@@ -154,7 +154,7 @@ int getkey_x11() {
 
 #if HAVE_NCURSES == 1
 
-#ifdef HAVE_NCURSES_H
+#if HAVE_NCURSES_H
 #include <ncurses.h>
 #else
 #if HAVE_NCURSES_NCURSES_H
