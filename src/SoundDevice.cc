@@ -15,16 +15,6 @@
 
 int bytesPerSample = 0;
 
-static int file_playback_has_sound_output() {
-#if WITH_DSP == 1
-    if (SoundDeviceDSP::dev_dsp[0] == '\0')
-        return 0;
-    return access(SoundDeviceDSP::dev_dsp, W_OK) == 0;
-#else
-    return 0;
-#endif
-}
-
 static void dump_audio_frame(const char2* data, int samplesRead, int requestedSamples) {
     static int initialized = 0;
     static int enabled = 0;
@@ -94,6 +84,73 @@ static void dump_audio_frame(const char2* data, int samplesRead, int requestedSa
 
     fclose(out);
     dumped++;
+}
+
+enum SoundInputContext {
+    SIC_MainProcess,
+    SIC_FileChild
+};
+
+static SoundDevice* newSoundInputDevice(SoundInputContext context) {
+    const char* contextName = (context == SIC_FileChild) ? "file child" : "main process";
+
+    // File input has a second strategy decision: whether decoded samples should
+    // also be written to an output device. If not, use the direct silent path.
+    if ((context == SIC_MainProcess) && (soundDeviceNr == SDN_File) && !soundSilent
+        && !SoundDeviceFile::hasSoundOutputDevice()) {
+        CTH_WARN("  No usable sound output device; playing file silently.\n");
+        CTH_DEBUG("    sound input strategy: direct file input in %s, because output device is unavailable\n",
+            contextName);
+        soundSilent.setValue(1);
+    }
+
+    switch (soundDeviceNr) {
+    case SDN_DSPIn:
+        CTH_DEBUG("    sound input strategy: OSS DSP input in %s, because sound-device-number=%d\n",
+            contextName, int(soundDeviceNr));
+        return ::new SoundDeviceDSPIn();
+    case SDN_Net:
+        CTH_DEBUG("    sound input strategy: network input in %s, because sound-device-number=%d\n",
+            contextName, int(soundDeviceNr));
+        return ::new SoundDeviceNet();
+    case SDN_Random:
+        CTH_DEBUG("    sound input strategy: random input in %s, because sound-device-number=%d\n",
+            contextName, int(soundDeviceNr));
+        return ::new SoundDeviceRandom();
+    case SDN_File:
+        if ((context == SIC_MainProcess) && !soundSilent) {
+            CTH_DEBUG("    sound input strategy: forked file input in %s, because audio passthrough is enabled\n",
+                contextName);
+            return ::new SoundDeviceFork();
+        }
+        CTH_DEBUG("    sound input strategy: direct file input in %s, because %s\n",
+            contextName,
+            (context == SIC_FileChild) ? "this process owns the file reader"
+                                       : "playback is silent");
+        return ::new SoundDeviceFile();
+    default:
+        CTH_ERROR("Illegal SoundDeviceNr %d.\n", int(soundDeviceNr));
+        exit(0);
+    }
+}
+
+void SoundDevice::finishNewSD() {
+    CTH_DEBUG("    channels           : %s\n", soundChannels.text());
+    CTH_DEBUG("    sound format       : %s\n", soundFormat.text());
+    CTH_DEBUG("    sample rate        : %d Hz\n", int(soundSampleRate));
+    CTH_DEBUG("    DSP method         : %d\n", int(soundDSPMethod));
+    CTH_DEBUG("    DSP fragments      : %d\n", int(soundDSPFragments));
+    CTH_DEBUG("    DSP fragment size  : %d\n", int(soundDSPFragmentSize));
+    CTH_DEBUG("    DSP sync.          : %d\n", int(soundDSPSync));
+
+    if ((soundDevice == NULL) || (soundDevice->error != 0)) {
+        delete soundDevice;
+
+        CTH_ERROR("Can not use requested sound device. Using random noise.\n");
+        soundDevice = ::new SoundDeviceRandom;
+    }
+
+    soundDevice->setTmpData();
 }
 
 SoundDevice::SoundDevice() {
@@ -267,51 +324,11 @@ void SoundDevice::convert(char2* dst, void* src, int n) {
 }
 
 void SoundDevice::newSD() {
-    static int forked = 0;
+    soundDevice = newSoundInputDevice(SIC_MainProcess);
+    finishNewSD();
+}
 
-    // soundDevice is the global strategy slot. File playback normally goes
-    // through SoundDeviceFork once so the child can keep blocking reads away
-    // from the visual frame loop; the child then creates SoundDeviceFile.
-    switch (soundDeviceNr) {
-    case SDN_DSPIn:
-        soundDevice = ::new SoundDeviceDSPIn();
-        break;
-    case SDN_Net:
-        soundDevice = ::new SoundDeviceNet();
-        break;
-    case SDN_Random:
-        soundDevice = ::new SoundDeviceRandom();
-        break;
-    case SDN_File:
-        if (!soundSilent && !file_playback_has_sound_output()) {
-            CTH_WARN("  No usable sound output device; playing file silently.\n");
-            soundSilent.setValue(1);
-        }
-        if (!soundSilent && !forked) {
-            forked++;
-            soundDevice = ::new SoundDeviceFork();
-        } else
-            soundDevice = ::new SoundDeviceFile();
-        break;
-    default:
-        CTH_ERROR("Illegal SoundDeviceNr %d.\n", int(soundDeviceNr));
-        exit(0);
-    }
-
-    CTH_DEBUG("    channels           : %s\n", soundChannels.text());
-    CTH_DEBUG("    sound format       : %s\n", soundFormat.text());
-    CTH_DEBUG("    sample rate        : %d Hz\n", int(soundSampleRate));
-    CTH_DEBUG("    DSP method         : %d\n", int(soundDSPMethod));
-    CTH_DEBUG("    DSP fragments      : %d\n", int(soundDSPFragments));
-    CTH_DEBUG("    DSP fragment size  : %d\n", int(soundDSPFragmentSize));
-    CTH_DEBUG("    DSP sync.          : %d\n", int(soundDSPSync));
-
-    if ((soundDevice == NULL) || (soundDevice->error != 0)) {
-        delete soundDevice;
-
-        CTH_ERROR("Can not use requested sound device. Using random noise.\n");
-        soundDevice = ::new SoundDeviceRandom;
-    }
-
-    soundDevice->setTmpData();
+void SoundDevice::newFileChildSD() {
+    soundDevice = newSoundInputDevice(SIC_FileChild);
+    finishNewSD();
 }

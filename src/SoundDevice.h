@@ -48,6 +48,7 @@ protected:
     void borrowTmpData(char* data);
 
     void convert(char2* dst, void* src, int n);
+    static void finishNewSD();
 public:
     int size; // Samples requested from read().
     char2* data; // Last 1024 converted stereo samples.
@@ -57,6 +58,7 @@ public:
     virtual ~SoundDevice();
 
     static void newSD();
+    static void newFileChildSD();
 
     // Per-frame tick: read backend data, then convert it into data.
     void operator()();
@@ -146,7 +148,7 @@ public:
 class SoundDeviceFile : public SoundDevice {
 protected:
     FILE* file;
-    SoundDeviceDSPOut* dsp;
+    SoundDeviceDSPOut* output;
     int bufferPid;
     int childPid;
 
@@ -168,6 +170,7 @@ protected:
     int openProg(char*);
     int close();
     int wavHeader();
+    static SoundDeviceDSPOut* newOutputDevice();
     void rememberPlayback(const unsigned char* data, int n);
     int copyPlaybackAtOutputTime(int n);
     void copyPlaybackHistory(long long pos, unsigned char* dst, int n);
@@ -175,7 +178,7 @@ protected:
 
     SoundDeviceFile(int /*dummy*/)
         : SoundDevice()
-        , dsp(NULL)
+        , output(NULL)
         , bufferPid(-1)
         , playbackHistory(NULL)
         , playbackHistorySize(0)
@@ -185,6 +188,8 @@ public:
     static char name[];
     static char fifo[];
     static char fifoDir[];
+
+    static int hasSoundOutputDevice();
 
     SoundDeviceFile();
     virtual ~SoundDeviceFile();

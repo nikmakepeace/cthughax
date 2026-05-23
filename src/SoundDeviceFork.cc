@@ -126,7 +126,7 @@ SoundDeviceFork::SoundDeviceFork() {
         return;
 
     case 0: /* child */
-        SoundDevice::newSD();
+        SoundDevice::newFileChildSD();
 
         sound_communicate(0); // and send the new values back
 

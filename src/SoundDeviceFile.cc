@@ -74,10 +74,50 @@ static uint32_t read_le32(uint32_t value) {
         | ((uint32_t)p[3] << 24);
 }
 
+int SoundDeviceFile::hasSoundOutputDevice() {
+#if WITH_DSP == 1
+    if (SoundDeviceDSP::dev_dsp[0] == '\0') {
+        CTH_DEBUG("    sound output strategy: none, because no OSS DSP device is configured\n");
+        return 0;
+    }
+    if (access(SoundDeviceDSP::dev_dsp, W_OK) != 0) {
+        CTH_DEBUG("    sound output strategy: none, because `%s' is not writable\n",
+            SoundDeviceDSP::dev_dsp);
+        return 0;
+    }
+    CTH_DEBUG("    sound output strategy: OSS DSP output, because `%s' is writable\n",
+        SoundDeviceDSP::dev_dsp);
+    return 1;
+#else
+    CTH_DEBUG("    sound output strategy: none, because OSS DSP support is not compiled in\n");
+    return 0;
+#endif
+}
+
+SoundDeviceDSPOut* SoundDeviceFile::newOutputDevice() {
+    if (soundSilent) {
+        CTH_DEBUG("    sound output strategy: none, because silent playback is enabled\n");
+        return NULL;
+    }
+
+    if (!hasSoundOutputDevice())
+        return NULL;
+
+    SoundDeviceDSPOut* device = ::new SoundDeviceDSPOut;
+    if (device->getHandle() < 0) {
+        CTH_DEBUG("    sound output strategy: none, because OSS DSP output failed to open\n");
+        delete device;
+        return NULL;
+    }
+
+    CTH_DEBUG("    sound output strategy: OSS DSP output opened successfully\n");
+    return device;
+}
+
 SoundDeviceFile::SoundDeviceFile()
     : SoundDevice()
     , file(NULL)
-    , dsp(NULL)
+    , output(NULL)
     , bufferPid(-1)
     , childPid(-1)
     , playbackHistory(NULL)
@@ -97,13 +137,7 @@ SoundDeviceFile::SoundDeviceFile()
         }
     }
 
-    if (!soundSilent) {
-        dsp = ::new SoundDeviceDSPOut;
-        if (dsp->getHandle() < 0) {
-            delete dsp;
-            dsp = NULL;
-        }
-    }
+    output = newOutputDevice();
 
     //
     // set up memory for sound buffer
@@ -186,10 +220,10 @@ int SoundDeviceFile::copyPlaybackAtOutputTime(int n) {
     long long start;
     int silence;
 
-    if ((dsp == NULL) || (playbackHistory == NULL) || (n <= 0))
+    if ((output == NULL) || (playbackHistory == NULL) || (n <= 0))
         return 0;
 
-    delay = dsp->outputDelayBytes();
+    delay = output->outputDelayBytes();
     if (delay <= 0)
         return 0;
 
@@ -248,8 +282,8 @@ int SoundDeviceFile::playNext() {
     if (tmpDataOwned)
         setTmpData();
 
-    if (dsp)
-        dsp->update();
+    if (output)
+        output->update();
     sound_communicate(0);
 
     return 0;
@@ -440,8 +474,8 @@ int SoundDeviceFile::openProg(char* prog) {
         error = 1;
         return 1;
     case 0: {
-        if (dsp)
-            delete dsp;
+        if (output)
+            delete output;
 
         CTH_DEBUG("    starting sound reader `%s'.\n", prog);
 
@@ -537,8 +571,8 @@ int SoundDeviceFile::read() {
 
             unsigned char* writePos = buffer + bufferPos;
 
-            w = dsp ? dsp->write(writePos, w) : w; // to soundcard
-            if (dsp && (w > 0)) {
+            w = output ? output->write(writePos, w) : w; // to soundcard
+            if (output && (w > 0)) {
                 rememberPlayback(writePos, w);
                 visualBytes = copyPlaybackAtOutputTime(rawSize);
             }
@@ -555,7 +589,7 @@ int SoundDeviceFile::read() {
             //
             close();
         }
-    } else if (dsp == NULL) {
+    } else if (output == NULL) {
         //
         // playing silently -> no buffering needed
         //
@@ -567,7 +601,7 @@ int SoundDeviceFile::read() {
         // play without bufferering
         //
         w = fread(tmpData, 1, rawSize, file);
-        w = dsp->write(tmpData, w);
+        w = output->write(tmpData, w);
         if (w > 0) {
             rememberPlayback((unsigned char*)tmpData, w);
             visualBytes = copyPlaybackAtOutputTime(rawSize);
@@ -592,7 +626,7 @@ int SoundDeviceFile::read() {
 
         } else if ((bufferFill + bufferChunkSize) >= bufferSize) { // buffer full
 
-            w = dsp->write(writePos, rawSize); // to soundcard, in visual-slice-sized chunks
+            w = output->write(writePos, rawSize); // to soundcard, in visual-slice-sized chunks
             if (w > 0) {
                 rememberPlayback(writePos, w);
                 visualBytes = copyPlaybackAtOutputTime(rawSize);
@@ -605,9 +639,9 @@ int SoundDeviceFile::read() {
         } else {
             fd_set rfds, wfds;
             int fileHandle = fileno(file);
-            int dspHandle = dsp->getHandle();
+            int outputHandle = output->getHandle();
 
-            if ((fileHandle < 0) || (dspHandle < 0)) {
+            if ((fileHandle < 0) || (outputHandle < 0)) {
                 CTH_ERROR("Invalid sound file or DSP handle.\n");
                 error = 1;
                 return 1;
@@ -617,7 +651,7 @@ int SoundDeviceFile::read() {
             FD_ZERO(&wfds);
 
             FD_SET(fileHandle, &rfds);
-            FD_SET(dspHandle, &wfds);
+            FD_SET(outputHandle, &wfds);
 
             switch (select(FD_SETSIZE, &rfds, &wfds, NULL, NULL)) {
             case -1:
@@ -628,8 +662,8 @@ int SoundDeviceFile::read() {
             default:
                 if (FD_ISSET(fileHandle, &rfds)) // reading possible
                     r = fread(readPos, 1, bufferChunkSize, file);
-                if (FD_ISSET(dspHandle, &wfds)) { // write possible
-                    w = dsp->write(writePos, rawSize); // to soundcard, in visual-slice-sized chunks
+                if (FD_ISSET(outputHandle, &wfds)) { // write possible
+                    w = output->write(writePos, rawSize); // to soundcard, in visual-slice-sized chunks
                     if (w > 0) {
                         rememberPlayback(writePos, w);
                         visualBytes = copyPlaybackAtOutputTime(rawSize);
@@ -657,8 +691,8 @@ int SoundDeviceFile::read() {
 }
 
 void SoundDeviceFile::update() {
-    if (dsp)
-        dsp->update();
+    if (output)
+        output->update();
 }
 
 int SoundDeviceFile::close() {
@@ -688,8 +722,8 @@ int SoundDeviceFile::close() {
 }
 
 SoundDeviceFile::~SoundDeviceFile() {
-    delete dsp;
-    dsp = NULL;
+    delete output;
+    output = NULL;
     delete[] buffer;
     buffer = NULL;
     delete[] playbackHistory;
