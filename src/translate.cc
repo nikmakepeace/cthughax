@@ -11,6 +11,7 @@
 #include <sys/types.h>
 #include <sys/wait.h>
 #include <signal.h>
+#include <stdint.h>
 
 OptionOnOff use_translates("use-translate", 1); /* allow translations */
 OptionOnOff trans_stretch("stretching", 1); /* allow stretching */
@@ -55,18 +56,18 @@ int init_translate() {
 //
 static int* read_trans_data(FILE* file, const tab_header& header, int BSize, const char* name) {
     union data {
-        unsigned long* l;
-        unsigned short* s;
+        uint32_t* l;
+        uint16_t* s;
     } D;
     int i, j;
 
-    int size = (BSize > 65535) ? sizeof(long) : sizeof(short);
+    int size = (BSize > 65535) ? sizeof(uint32_t) : sizeof(uint16_t);
 
     int* trans = new int[BSize];
     int* dst = trans;
 
     /* allocate memory for read buffer */
-    D.l = new unsigned long[header.size_x];
+    D.l = new uint32_t[header.size_x];
     if ((void*)D.l != (void*)D.s) {
         CTH_ERROR("Wackiness afoot at %d in %s\n", __LINE__, __FILE__);
         exit(1);
@@ -83,7 +84,7 @@ static int* read_trans_data(FILE* file, const tab_header& header, int BSize, con
         for (j = 0; j < header.size_x; j++) {
             if (BSize > 65535) {
                 if (D.l[j] >= (unsigned int)(BSize)) {
-                    CTH_ERROR("  High-translate (value: %ld) in %s.\n", D.l[j], name);
+                    CTH_ERROR("  High-translate (value: %u) in %s.\n", D.l[j], name);
                     delete[] D.l;
                     delete[] trans;
                     return NULL;
@@ -163,7 +164,7 @@ CoreOptionEntry* TranslateEntry::loaderTab(
     }
 
     /* check header ID */
-    if (header.id != *((long*)"HDKB")) {
+    if (!tab_header_has_id(&header)) {
         CTH_WARN("\n  Header ID-mismatch. Trying without header.");
 
         rewind(file); // back to start of file
@@ -259,10 +260,14 @@ CoreOptionEntry* TranslateEntry::loaderCmd(
 
     /* generate the command line */
     char cmd2[PATH_MAX];
-    strncpy(cmd2, dir, PATH_MAX);
-    strncat(cmd2, "/", PATH_MAX);
-    strncat(cmd2, line, PATH_MAX);
-    sprintf(command, cmd2, BUFF_WIDTH, BUFF_HEIGHT);
+    if (snprintf(cmd2, sizeof(cmd2), "%s/%s", dir, line) >= (int)sizeof(cmd2)) {
+        CTH_ERROR("  Translation command path too long in %s.\n", name);
+        return NULL;
+    }
+    if (snprintf(command, sizeof(command), cmd2, BUFF_WIDTH, BUFF_HEIGHT) >= (int)sizeof(command)) {
+        CTH_ERROR("  Translation command too long in %s.\n", name);
+        return NULL;
+    }
 
     if (strchr(command, '\n') != NULL) { // delete trailing '\n`
         *(strchr(command, '\n')) = '\0';
@@ -309,8 +314,8 @@ char TranslateEntry::cmdRead[PATH_MAX] = "";
 int TranslateEntry::loadLine(FILE* in, int n) {
 
     // load line into temporary buffer
-    long line[BUFF_WIDTH];
-    if (fread(line, sizeof(long), BUFF_WIDTH, in) != (size_t)BUFF_WIDTH) {
+    uint32_t line[BUFF_WIDTH];
+    if (fread(line, sizeof(uint32_t), BUFF_WIDTH, in) != (size_t)BUFF_WIDTH) {
         CTH_ERRNO(errno, "  reading translation table %s. failed at line %d.", name, n);
         return 1;
     }
@@ -319,11 +324,11 @@ int TranslateEntry::loadLine(FILE* in, int n) {
     // copy into the real buffer
     int* d = trans + BUFF_WIDTH * n;
     for (int i = 0; i < BUFF_WIDTH; i++, d++) {
-        if ((line[i] >= BUFF_SIZE) || (line[i] < 0)) {
+        if (line[i] >= (uint32_t)BUFF_SIZE) {
             CTH_ERROR("  illegal value in translation table %s.\n", name);
             return 1;
         }
-        *d = line[i];
+        *d = (int)line[i];
     }
 
     return 0;
@@ -402,7 +407,7 @@ int TranslateOption::openPipe(const char* command) {
     case -1:
         CTH_ERRNO(errno, "Can not fork for translation reading program.");
         return 1;
-    case 0:
+    case 0: {
         close(pipeDes[0]); // close writing side of pipe
 
         nice(99); // be very nice
@@ -415,9 +420,11 @@ int TranslateOption::openPipe(const char* command) {
 
         dup2(pipeDes[1], fileno(stdout)); // make new stdout
 
+        char sh[] = "sh";
+        char flag[] = "-c";
         char* argv[4];
-        argv[0] = "sh";
-        argv[1] = "-c";
+        argv[0] = sh;
+        argv[1] = flag;
         argv[2] = (char*)command;
         argv[3] = 0;
         execv("/bin/sh", argv);
@@ -425,6 +432,7 @@ int TranslateOption::openPipe(const char* command) {
         CTH_ERRNO(errno, "Could not execute translation table program.");
         close(pipeDes[0]);
         abort();
+    }
 
     default:
         close(pipeDes[1]); // close reading side of pipe

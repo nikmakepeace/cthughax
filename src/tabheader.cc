@@ -36,14 +36,14 @@ int main(int argc, char* argv[]) {
         fclose(file);
         return 1;
     }
-    if (header.id == *((long*)"HDKB")) {
+    if (tab_header_has_id(&header)) {
         fprintf(stderr, "This file contains a tab-id. Replacing old.\n");
     } else {
         rewind(file);
     }
 
     /* write new header */
-    header.id = *((long*)"HDKB");
+    tab_header_set_id(&header);
     header.size_x = BUFF_WIDTH;
     header.size_y = BUFF_HEIGHT;
     header.description[0] = '\0'; /* init descr. */

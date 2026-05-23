@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
         return 1;
     }
     /* check ID */
-    if (header.id != *((long*)"HDKB")) {
+    if (!tab_header_has_id(&header)) {
         fprintf(stderr, "No new-style tab-file.\n");
         fclose(file);
         return 1;
