@@ -7,6 +7,7 @@
 #include "imath.h"
 #include "Interface.h"
 
+#include <stdint.h>
 #include <unistd.h>
 
 // The active display coordinator.  The selected frontend supplies
@@ -108,11 +109,11 @@ int CthughaDisplay::clearBorder() {
 void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
     unsigned char* b1 = expandedBuffer;
     unsigned short* b2 = (unsigned short*)(expandedBuffer);
-    unsigned long* b4 = (unsigned long*)(expandedBuffer);
+    uint32_t* b4 = (uint32_t*)(expandedBuffer);
 
     unsigned char* s1 = (unsigned char*)(scrn);
     unsigned short* s2 = (unsigned short*)(scrn);
-    unsigned long* s4 = (unsigned long*)(scrn);
+    uint32_t* s4 = (uint32_t*)(scrn);
 
     int bpl2 = bytesPerLine / 2;
     int bpl4 = bytesPerLine / 4;
@@ -164,7 +165,7 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
             break;
         case 4:
             for (int i = 0; i < disp_size.y; i++) {
-                b4 = (unsigned long*)(expandedBuffer + int(dy * double(i)) * expandedBufferWidth);
+                b4 = (uint32_t*)(expandedBuffer + int(dy * double(i)) * expandedBufferWidth);
                 int x = 0;
 
                 for (int j = disp_size.x; j != 0; j--) {
@@ -210,7 +211,7 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
         case 2:
             for (int i = 2 * BUFF_HEIGHT; i != 0; i--) {
                 for (int j = 2 * BUFF_WIDTH; j != 0; j--) {
-                    unsigned long s = (*b2) | ((*b2) << 16);
+                    uint32_t s = (*b2) | ((uint32_t)(*b2) << 16);
                     *s4 = s;
                     *(s4 + bpl4) = s;
                     s4++;
@@ -223,7 +224,7 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
         case 4:
             for (int i = 2 * BUFF_HEIGHT; i != 0; i--) {
                 for (int j = 2 * BUFF_WIDTH; j != 0; j--) {
-                    unsigned long s = *b4;
+                    uint32_t s = *b4;
                     *s4 = s;
                     *(s4 + 1) = s;
                     *(s4 + bpl4) = s;

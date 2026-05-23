@@ -81,8 +81,10 @@ public:
 //
 class CthughaDisplayX11 : public CthughaDisplay {
     unsigned char* expandedBuffer0;
+    int expandedBufferBypp;
     virtual void expandPalette(int);
     virtual void expandPaletteMirrorHV();
+    void prepareExpandedBuffer();
 
 public:
     CthughaDisplayX11();

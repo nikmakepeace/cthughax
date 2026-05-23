@@ -8,13 +8,34 @@
 #include "imath.h"
 #include "Interface.h"
 
+#include <stdint.h>
+
 void newCthughaDisplay() { cthughaDisplay = new CthughaDisplayX11(); }
 
 CthughaDisplayX11::CthughaDisplayX11()
-    : CthughaDisplay() {
-    // 8-bit X visuals can draw straight from the indexed buffer.  Higher
-    // depths need a separate native-pixel buffer for palette expansion.
-    expandedBuffer0 = (bypp == 1) ? buffer0 : new unsigned char[4 * BUFF_SIZE * bypp];
+    : CthughaDisplay()
+    , expandedBuffer0(NULL)
+    , expandedBufferBypp(0) {
+}
+
+void CthughaDisplayX11::prepareExpandedBuffer() {
+    // bypp is not known until DisplayDeviceX11::allocImage() has queried the
+    // X server. Allocate this lazily so true-color visuals do not overwrite
+    // the 8-bit indexed scratch buffer.
+    if (bypp == 1) {
+        if (expandedBuffer0 && (expandedBuffer0 != buffer0))
+            delete[] expandedBuffer0;
+        expandedBuffer0 = buffer0;
+        expandedBufferBypp = bypp;
+        return;
+    }
+
+    if ((expandedBuffer0 == NULL) || (expandedBuffer0 == buffer0) || (expandedBufferBypp != bypp)) {
+        if (expandedBuffer0 && (expandedBuffer0 != buffer0))
+            delete[] expandedBuffer0;
+        expandedBuffer0 = new unsigned char[4 * BUFF_SIZE * bypp];
+        expandedBufferBypp = bypp;
+    }
 }
 
 /*
@@ -28,12 +49,12 @@ void CthughaDisplayX11::expandPalette(int narrow) {
     case DM_mapped1:
     case DM_tmp_mapped:
         for (int i = height; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* scrn = (uint32_t*)dst;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long b = *buff;
+                uint32_t b = *buff;
                 buff++;
-                unsigned long a;
+                uint32_t a;
                 a = bitmap_colors0[b & 0xff];
                 b >>= 8;
                 a |= bitmap_colors1[b & 0xff];
@@ -50,12 +71,12 @@ void CthughaDisplayX11::expandPalette(int narrow) {
         break;
     case DM_mapped2:
         for (int i = height; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* scrn = (uint32_t*)dst;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long b = *buff;
+                uint32_t b = *buff;
                 buff++;
-                unsigned long a;
+                uint32_t a;
                 a = bitmap_colors0[b & 0xff];
                 b >>= 8;
                 a |= bitmap_colors1[b & 0xff];
@@ -74,11 +95,11 @@ void CthughaDisplayX11::expandPalette(int narrow) {
         break;
     case DM_mapped3:
         for (int i = height; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* scrn = (uint32_t*)dst;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long a, b;
-                unsigned long c = *buff;
+                uint32_t a, b;
+                uint32_t c = *buff;
                 buff++;
                 a = bitmap_colors0[c & 0xff];
                 c >>= 8;
@@ -104,10 +125,10 @@ void CthughaDisplayX11::expandPalette(int narrow) {
         break;
     case DM_mapped4:
         for (int i = height; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* scrn = (uint32_t*)dst;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long b = *buff;
+                uint32_t b = *buff;
                 buff++;
                 *scrn = bitmap_colors0[b & 0xff];
                 b >>= 8;
@@ -139,13 +160,13 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
     case DM_mapped1:
     case DM_tmp_mapped:
         for (int i = BUFF_HEIGHT; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
+            uint32_t* scrn = (uint32_t*)dst;
 
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long b = *buff;
+                uint32_t b = *buff;
                 buff++;
-                unsigned long a;
+                uint32_t a;
                 a = bitmap_colors0[b & 0xff];
                 b >>= 8;
                 a |= bitmap_colors1[b & 0xff];
@@ -163,12 +184,12 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
         break;
     case DM_mapped2:
         for (int i = BUFF_HEIGHT; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* scrn = (uint32_t*)dst;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long b = *buff;
+                uint32_t b = *buff;
                 buff++;
-                unsigned long a;
+                uint32_t a;
                 a = bitmap_colors0[b & 0xff];
                 b >>= 8;
                 a |= bitmap_colors1[b & 0xff];
@@ -187,11 +208,11 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
         break;
     case DM_mapped3:
         for (int i = BUFF_HEIGHT; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* scrn = (uint32_t*)dst;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long a, b;
-                unsigned long c = *buff;
+                uint32_t a, b;
+                uint32_t c = *buff;
                 buff++;
                 a = bitmap_colors0[c & 0xff];
                 c >>= 8;
@@ -217,20 +238,20 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
         break;
     case DM_mapped4: {
         for (int i = 0; i < BUFF_HEIGHT; i++) {
-            unsigned long* scrn1 = (unsigned long*)(expandedBuffer + i * expandedBufferWidth);
-            unsigned long* scrn2 = scrn1 + 2 * BUFF_WIDTH - 1;
-            unsigned long* scrn3
-                = (unsigned long*)(expandedBuffer + (2 * BUFF_HEIGHT - i) * expandedBufferWidth);
+            uint32_t* scrn1 = (uint32_t*)(expandedBuffer + i * expandedBufferWidth);
+            uint32_t* scrn2 = scrn1 + 2 * BUFF_WIDTH - 1;
+            uint32_t* scrn3
+                = (uint32_t*)(expandedBuffer + (2 * BUFF_HEIGHT - i) * expandedBufferWidth);
 
-            unsigned long* scrn4 = scrn3 + 2 * BUFF_WIDTH - 1;
+            uint32_t* scrn4 = scrn3 + 2 * BUFF_WIDTH - 1;
 
-            unsigned long* buff = (unsigned long*)(buffer + i * 2 * BUFF_WIDTH);
+            uint32_t* buff = (uint32_t*)(buffer + i * 2 * BUFF_WIDTH);
 
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long b = *buff;
+                uint32_t b = *buff;
                 buff++;
 
-                unsigned long a = bitmap_colors0[b & 0xff];
+                uint32_t a = bitmap_colors0[b & 0xff];
                 b >>= 8;
                 *scrn1 = a;
                 scrn1++;
@@ -292,6 +313,7 @@ void CthughaDisplayX11::operator()() {
      * prepare the display device
      */
     unsigned char* display_base = displayDevice->preDraw();
+    prepareExpandedBuffer();
 
     /*
      * Choose the buffer that screen() should draw into.  Direct mode draws

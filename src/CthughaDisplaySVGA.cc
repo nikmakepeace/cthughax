@@ -8,6 +8,7 @@
 #include "imath.h"
 #include "Interface.h"
 
+#include <stdint.h>
 #include <unistd.h>
 
 void newCthughaDisplay() { cthughaDisplay = new CthughaDisplaySVGA(); }
@@ -24,12 +25,12 @@ void CthughaDisplaySVGA::expandPalette(int narrow) {
 
     if (draw_mode != DM_direct) {
         for (int i = height; i != 0; i--) {
-            unsigned long* scrn = (unsigned long*)dst;
-            unsigned long* buff = (unsigned long*)buffer;
+            uint32_t* scrn = (uint32_t*)dst;
+            uint32_t* buff = (uint32_t*)buffer;
             for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
-                unsigned long b = *buff;
+                uint32_t b = *buff;
                 buff++;
-                unsigned long a;
+                uint32_t a;
                 a = bitmap_colors0[b & 0xff];
                 b >>= 8;
                 a |= bitmap_colors1[b & 0xff];
