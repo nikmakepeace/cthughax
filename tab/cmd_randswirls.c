@@ -9,6 +9,7 @@
 #include <string.h>
 #include <errno.h>
 #include <time.h>
+#include <stdint.h>
 
 typedef struct {
     int x, y;
@@ -42,7 +43,7 @@ int main(int argc, char* argv[]) {
     int i, j, k, dx, dy, size, dist, q;
     ptType* nline;
     int *theTab, llen, cl, x, y, u, p, ox, oy, m, n, a, b;
-    int lineOut[65536];
+    uint32_t lineOut[65536];
     double ang, cx, cy, s, c, xf, yf, stepInc;
 
     srand(time(0));
@@ -162,6 +163,7 @@ int main(int argc, char* argv[]) {
         for (i = 0; i < BUFF_WIDTH; i++)
             lineOut[i] = theTab[i + j * BUFF_WIDTH];
 
-        fwrite(lineOut, sizeof(int) * BUFF_WIDTH, 1, stdout);
+        fwrite(lineOut, sizeof(uint32_t) * BUFF_WIDTH, 1, stdout);
     }
+    return 0;
 }

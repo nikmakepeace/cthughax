@@ -36,6 +36,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "../src/cthugha.h"
 #include "../src/cth_buffer.h"
@@ -108,7 +109,7 @@ int main(int argc, char** argv) {
     int slowX = 0;
     int slowY = 1;
     int reverse;
-    unsigned int map;
+    uint32_t map;
     int i;
 
     /* get width and height */
@@ -190,7 +191,7 @@ int main(int argc, char** argv) {
 
             map = map_y * BUFF_WIDTH + map_x;
 
-            if (fwrite(&map, sizeof(int), 1, stdout) != 1) {
+            if (fwrite(&map, sizeof(uint32_t), 1, stdout) != 1) {
                 fprintf(stderr, "\n*** Error while writing to output\n");
                 return 3;
             }

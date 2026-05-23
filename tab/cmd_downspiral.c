@@ -14,6 +14,7 @@
 #include <math.h>
 #include <string.h>
 #include <errno.h>
+#include <stdint.h>
 
 #include "../src/cthugha.h"
 #include "../src/cth_buffer.h"
@@ -25,7 +26,7 @@ int BUFF_HEIGHT;
 #define YSIZE BUFF_HEIGHT
 #define BSIZE (XSIZE * YSIZE)
 
-typedef long tType;
+typedef uint32_t tType;
 #define MS SL
 
 typedef int* trans_map;

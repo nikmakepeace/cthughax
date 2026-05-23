@@ -39,6 +39,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <stdint.h>
 
 #include "../src/cthugha.h"
 #include "../src/cth_buffer.h"
@@ -57,7 +58,7 @@ int main(int argc, char** argv) {
     int x, y, dx, dy, map_x, map_y;
     int speed, Randomness;
     int reverse;
-    unsigned int map;
+    uint32_t map;
 
     if (argc < 3 || argc > 6) {
         char* p = strrchr(argv[0], '\\');
@@ -120,7 +121,7 @@ int main(int argc, char** argv) {
 
             map = map_y * BUFF_WIDTH + map_x;
 
-            if (fwrite(&map, sizeof(int), 1, stdout) != 1) {
+            if (fwrite(&map, sizeof(uint32_t), 1, stdout) != 1) {
                 fprintf(stderr, "\n*** Error while writing to output file (disk full?)\n");
                 return 3;
             }

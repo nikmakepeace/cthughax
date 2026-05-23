@@ -43,6 +43,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <time.h>
+#include <stdint.h>
 
 #include "../src/cthugha.h"
 #include "../src/cth_buffer.h"
@@ -51,7 +52,7 @@
 int BUFF_WIDTH;
 int BUFF_HEIGHT;
 
-unsigned int map;
+uint32_t map;
 
 #define M_PI 3.14159265358979323846
 #define RADEG (180.0 / M_PI)
@@ -217,7 +218,7 @@ int main(int argc, char** argv) {
             map_y = max(map_y, 0);
 
             map = map_y * BUFF_WIDTH + map_x;
-            fwrite(&map, sizeof(int), 1, stdout);
+            fwrite(&map, sizeof(uint32_t), 1, stdout);
         }
     }
     return 0;

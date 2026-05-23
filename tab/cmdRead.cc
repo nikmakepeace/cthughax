@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdint.h>
 
 #include "../src/cthugha.h"
 #include "../src/cth_buffer.h"
@@ -17,16 +18,16 @@
 int BUFF_WIDTH = 0;
 int BUFF_HEIGHT = 0;
 
-int readLine(long* line, int n, int big, FILE* in) {
+int readLine(uint32_t* line, int n, int big, FILE* in) {
 
     union data {
-        long* l;
-        short* s;
+        uint32_t* l;
+        uint16_t* s;
     } D;
 
-    int size = big ? sizeof(long) : sizeof(short);
+    int size = big ? sizeof(uint32_t) : sizeof(uint16_t);
 
-    long tmp[n];
+    uint32_t tmp[n];
     D.l = tmp;
 
     /* read data */
@@ -103,7 +104,7 @@ int main(int argc, char* argv[]) {
     }
 
     /* check header ID */
-    if (header.id != *((long*)"HDKB")) {
+    if (!tab_header_has_id(&header)) {
         fprintf(stderr, "cmdRead: Old style .tab file without header.\n");
 
         rewind(in); // back to start of file
@@ -121,12 +122,12 @@ int main(int argc, char* argv[]) {
     if ((header.size_x == BUFF_WIDTH) && (header.size_y == BUFF_HEIGHT)) {
         // size matches
 
-        long line[BUFF_WIDTH];
+        uint32_t line[BUFF_WIDTH];
 
         for (int i = 0; i < BUFF_HEIGHT; i++) {
             if (readLine(line, BUFF_WIDTH, big, in))
                 return 1;
-            if (fwrite(line, sizeof(long), BUFF_WIDTH, out) != (size_t)BUFF_WIDTH) {
+            if (fwrite(line, sizeof(uint32_t), BUFF_WIDTH, out) != (size_t)BUFF_WIDTH) {
                 fprintf(stderr, "cmdRead: writing failed.\n");
                 return 1;
             }
@@ -141,7 +142,7 @@ int main(int argc, char* argv[]) {
     } else if (stretch) {
         // size differs, but stretching is allowed
 
-        long buff[header.size_x * header.size_y];
+        uint32_t buff[header.size_x * header.size_y];
         if (readLine(buff, header.size_x * header.size_y, big, in))
             return 1;
 
@@ -154,14 +155,14 @@ int main(int argc, char* argv[]) {
             if (y >= header.size_y)
                 y = header.size_y - 1;
 
-            long line[BUFF_WIDTH];
+            uint32_t line[BUFF_WIDTH];
             for (int i = 0; i < BUFF_WIDTH; i++) {
 
                 int x = int((double)i * xs);
                 if (x >= header.size_x)
                     x = header.size_x - 1;
 
-                long tp = buff[x + y * header.size_x];
+                uint32_t tp = buff[x + y * header.size_x];
                 int ox = tp % header.size_x;
                 int oy = tp / header.size_x;
                 int dx = int((double)(ox - x) / xs);
@@ -169,7 +170,7 @@ int main(int argc, char* argv[]) {
 
                 line[i] = abs(i + dx + (j + dy) * BUFF_WIDTH) % BUFF_SIZE;
             }
-            if (fwrite(line, sizeof(long), BUFF_WIDTH, out) != (size_t)BUFF_WIDTH) {
+            if (fwrite(line, sizeof(uint32_t), BUFF_WIDTH, out) != (size_t)BUFF_WIDTH) {
                 fprintf(stderr, "cmdRead: writing failed.\n");
                 return 1;
             }
