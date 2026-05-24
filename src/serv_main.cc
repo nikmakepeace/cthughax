@@ -1,5 +1,6 @@
 #include "cthugha.h"
 #include "Sound.h"
+#include "AudioFrame.h"
 #include "Interface.h"
 #include "SoundServer.h"
 #include "CDPlayer.h"
@@ -38,7 +39,7 @@ int serv_sound_read() {
 
     init_sound(); /* make sure we have the sound dev */
 
-    (*soundDevice)();
+    audioFrameTick();
 
     return 0;
 }

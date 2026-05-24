@@ -1,6 +1,6 @@
 #include "cthugha.h"
 #include "SoundServer.h"
-#include "SoundDevice.h"
+#include "AudioFrame.h"
 #include "network.h"
 #include "Interface.h"
 #include "DisplayDevice.h"
@@ -75,7 +75,7 @@ void SoundServer::operator()() {
     // breadcast sound
     for (int i = 0; i < nClients; i++) {
 
-        if (sendto(bcast_socket, soundDevice->data, soundDevice->rawSize, 0, &(clientAddrs[i]),
+        if (sendto(bcast_socket, audioFrameData(), audioFrameBroadcastBytes(), 0, &(clientAddrs[i]),
                 clientSizes[i])
             == -1) {
             if (errno != ECONNREFUSED)

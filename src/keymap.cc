@@ -3,6 +3,7 @@
 #include "Interface.h"
 #include "keys.h"
 #include "Sound.h"
+#include "AudioFrame.h"
 #include "display.h"
 #include "disp-sys.h"
 #include "options.h"
@@ -357,7 +358,7 @@ ACTION(background) { background.change(p, 0); }
 ACTION(fly) { fly.change(p, 0); }
 
 ACTION(writeIni) { write_ini(); } // when net-sound: re-sent request to server
-ACTION(soundReset) { soundDevice->change(); }
+ACTION(soundReset) { audioFrameChange(); }
 ACTION(printScreen) { displayDevice->printScreen(); }
 
 ACTION(restore) { CoreOption::restore(); }

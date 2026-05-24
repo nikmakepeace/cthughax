@@ -6,6 +6,7 @@
 #include "CthughaBuffer.h"
 #include "SoundAnalyze.h"
 #include "CthughaDisplay.h"
+#include "AudioFrame.h"
 
 #include <math.h>
 
@@ -24,7 +25,7 @@ void SoundAnalyze::operator()() {
     int al = 0, ar = 0;
 
     /* get the amplitude of this sound frame (root mean squared) */
-    char* d = (char*)soundDevice->data;
+    char* d = (char*)audioFrameData();
     for (int i = 1024; i != 0; i--) {
         al += *d * *d;
         d++;

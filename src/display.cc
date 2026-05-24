@@ -2,6 +2,7 @@
 #include "display.h"
 #include "options.h"
 #include "Sound.h"
+#include "AudioFrame.h"
 #include "SoundAnalyze.h"
 #include "translate.h"
 #include "disp-sys.h"
@@ -622,7 +623,7 @@ int screen_zick() {
     }
 
     for (i = BUFF_HEIGHT; i != 0; i--) {
-        zicks[i] = ((soundDevice->dataProc[i][0]) + ZICK_SMOOTH * zicks[i]) / (ZICK_SMOOTH + 1);
+        zicks[i] = ((audioFrameProcessedData()[i][0]) + ZICK_SMOOTH * zicks[i]) / (ZICK_SMOOTH + 1);
         d = (d + zicks[i]) / 2;
         if (d == 0) {
             memcpy(scrn, src, BUFF_WIDTH);

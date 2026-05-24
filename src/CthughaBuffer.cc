@@ -4,7 +4,7 @@
 #include "translate.h"
 #include "waves.h"
 #include "display.h"
-#include "SoundDevice.h"
+#include "AudioFrame.h"
 #include "SoundAnalyze.h"
 #include "SoundProcess.h"
 #include "CthughaDisplay.h"
@@ -152,8 +152,8 @@ void CthughaBuffer::run() {
             break;
         case 1:
             for (int i = 0; i < 3; i++) {
-                memcpy(active_buffer - (i + 1) * BUFF_WIDTH, soundDevice->data, BUFF_WIDTH);
-                memcpy(active_buffer + BUFF_SIZE + i * BUFF_WIDTH, soundDevice->data, BUFF_WIDTH);
+                memcpy(active_buffer - (i + 1) * BUFF_WIDTH, audioFrameData(), BUFF_WIDTH);
+                memcpy(active_buffer + BUFF_SIZE + i * BUFF_WIDTH, audioFrameData(), BUFF_WIDTH);
             }
             break;
         case 2:

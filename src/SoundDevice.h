@@ -69,6 +69,8 @@ public:
     virtual void update() { };
     virtual int initInputControls() { return 0; }
 
+    int frameRawSize() const { return rawSize; }
+
     friend class SoundDeviceFork;
     friend class SoundServer;
 };

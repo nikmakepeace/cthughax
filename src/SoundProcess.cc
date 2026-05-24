@@ -1,5 +1,5 @@
 #include "cthugha.h"
-#include "SoundDevice.h"
+#include "AudioFrame.h"
 #include "Interface.h"
 #include "display.h"
 #include "cth_buffer.h"
@@ -75,7 +75,7 @@ public:
 
         for (k = 0; k < 1024; k++) { /* feed input */
             // use sound data as input (left -> real, right -> imag)
-            c[k] = complex(soundDevice->data[k][0], soundDevice->data[k][1]);
+            c[k] = complex(audioFrameData()[k][0], audioFrameData()[k][1]);
         }
 
         /* the algorithm I use here is from:
@@ -107,8 +107,8 @@ public:
         float a = 2.0 / sqrt(1024); /* normalize result, store back */
         for (k = 0; k < 1024; k++) {
             // get back FFTed sound data (real -> left, imag -> right)
-            soundDevice->dataProc[R[k]][0] = int(c[k].real() * a);
-            soundDevice->dataProc[R[k]][1] = int(c[k].imag() * a);
+            audioFrameProcessedData()[R[k]][0] = int(c[k].real() * a);
+            audioFrameProcessedData()[R[k]][1] = int(c[k].imag() * a);
         }
         return 0;
     }
@@ -123,23 +123,23 @@ public:
         : CoreOptionEntry("Filter1", "", 1) { }
 
     int operator()() {
-        memcpy(soundDevice->dataProc, soundDevice->data, 1024 * sizeof(char2));
+        memcpy(audioFrameProcessedData(), audioFrameData(), 1024 * sizeof(char2));
 
-        int temp = soundDevice->dataProc[0][1];
-        int temp2 = soundDevice->dataProc[0][0];
+        int temp = audioFrameProcessedData()[0][1];
+        int temp2 = audioFrameProcessedData()[0][0];
         for (int x = 1; x < 1024; x++) {
-            if ((soundDevice->dataProc[x][1] - temp) > 10) {
-                soundDevice->dataProc[x][1] = temp + 10;
-            } else if ((soundDevice->dataProc[x][1] - temp) < -10) {
-                soundDevice->dataProc[x][1] = temp - 10;
+            if ((audioFrameProcessedData()[x][1] - temp) > 10) {
+                audioFrameProcessedData()[x][1] = temp + 10;
+            } else if ((audioFrameProcessedData()[x][1] - temp) < -10) {
+                audioFrameProcessedData()[x][1] = temp - 10;
             }
-            if ((soundDevice->dataProc[x][0] - temp2) > 10) {
-                soundDevice->dataProc[x][0] = temp2 + 10;
-            } else if ((soundDevice->dataProc[x][0] - temp2) < -10) {
-                soundDevice->dataProc[x][0] = temp2 - 10;
+            if ((audioFrameProcessedData()[x][0] - temp2) > 10) {
+                audioFrameProcessedData()[x][0] = temp2 + 10;
+            } else if ((audioFrameProcessedData()[x][0] - temp2) < -10) {
+                audioFrameProcessedData()[x][0] = temp2 - 10;
             }
-            temp = soundDevice->dataProc[x][1];
-            temp2 = soundDevice->dataProc[x][0];
+            temp = audioFrameProcessedData()[x][1];
+            temp2 = audioFrameProcessedData()[x][0];
         }
         return 0;
     }
@@ -151,15 +151,15 @@ public:
         : CoreOptionEntry("Filter2", "low pass filter", 1) { }
 
     int operator()() {
-        int temp = soundDevice->data[0][1];
-        int temp2 = soundDevice->data[0][0];
+        int temp = audioFrameData()[0][1];
+        int temp2 = audioFrameData()[0][0];
         for (int x = 1; x < 1024; x++) {
-            soundDevice->dataProc[x][1]
-                = soundDevice->dataProc[x - 1][1] + (soundDevice->data[x][1] - temp) / 16;
-            soundDevice->dataProc[x][0]
-                = soundDevice->dataProc[x - 1][0] + (soundDevice->data[x][0] - temp2) / 16;
-            temp2 = soundDevice->dataProc[x][0];
-            temp = soundDevice->dataProc[x][1];
+            audioFrameProcessedData()[x][1]
+                = audioFrameProcessedData()[x - 1][1] + (audioFrameData()[x][1] - temp) / 16;
+            audioFrameProcessedData()[x][0]
+                = audioFrameProcessedData()[x - 1][0] + (audioFrameData()[x][0] - temp2) / 16;
+            temp2 = audioFrameProcessedData()[x][0];
+            temp = audioFrameProcessedData()[x][1];
         }
         return 0;
     }
@@ -171,7 +171,7 @@ public:
         : CoreOptionEntry("none", "", 1) { }
 
     int operator()() {
-        memcpy(soundDevice->dataProc, soundDevice->data, 1024 * sizeof(char2));
+        memcpy(audioFrameProcessedData(), audioFrameData(), 1024 * sizeof(char2));
         return 0;
     }
 };

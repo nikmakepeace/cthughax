@@ -6,6 +6,7 @@
 #include "information.h"
 #include "display.h"
 #include "Sound.h"
+#include "AudioFrame.h"
 #include "translate.h"
 #include "options.h"
 #include "keys.h"
@@ -144,7 +145,7 @@ void run(int doDisplay) {
     cthughaDisplay->nextFrame();
 
     PROFILING();
-    (*soundDevice)();
+    audioFrameTick();
 
     PROFILING();
     soundAnalyze();

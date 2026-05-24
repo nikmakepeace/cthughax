@@ -1,5 +1,6 @@
 #include "cthugha.h"
 #include "Sound.h"
+#include "AudioFrame.h"
 #include "display.h"
 #include "Interface.h"
 #include "information.h"
@@ -132,27 +133,27 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  * - Does: plots left/right channel dots across the width, with height driven by
  *   each resampled sample value.
  * - Colours: tcolor(sample), so sample value selects a table entry.
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_dotVert
  * - Entry: DotVert (Dots Vertical)
  * - Does: plots left/right channel dots down the screen, displaced left/right
  *   from the center by sample value.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BOTTOM) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_lineHor
  * - Entry: LineHor (Lines Horizontal)
  * - Does: draws connected horizontal-scan oscilloscope traces, split into left
  *   and right halves.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_lineVert
  * - Entry: LineVert (Lines Vertical)
  * - Does: draws connected vertical traces, one channel to each side of center.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BOTTOM) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_spike
  * - Entry: Spike (Spikes)
@@ -160,104 +161,104 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  *   channels split across the screen.
  * - Colours: tcolor(height), so colour follows distance up the spike rather
  *   than the original sample value.
- * - Sound: prepareSoundData(BUFF_WIDTH, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_spikeH
  * - Entry: SpikeH (Spikes Hollow)
  * - Does: draws only the moving outline of spike heights.
  * - Colours: tcolor(scaled absolute amplitude).
- * - Sound: prepareSoundData(BUFF_WIDTH, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_buff9
  * - Entry: Walking (Walking)
  * - Does: draws two vertical traces around a horizontally walking center
  *   column.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BOTTOM) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_buff10
  * - Entry: Falling (Falling)
  * - Does: writes channel sample dots into a row that advances downward.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(2 * MID_X) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(2 * MID_X) from audioFrameProcessedData().
  *
  * wave_buff11
  * - Entry: Lissa (Lissa)
  * - Does: draws a Lissajous-style point cloud, using right channel for x and
  *   left channel for y.
  * - Colours: tcolor(left sample).
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_buff14
  * - Entry: LineX (Line X)
  * - Does: draws two horizontal traces with different center offsets.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BOTTOM) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_buff15
  * - Entry: Light1 (Lightning 1)
  * - Does: draws jagged lightning paths for each channel.
  * - Colours: raw palette index 255 for every segment.
- * - Sound: prepareSoundData(BOTTOM, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BOTTOM, 0) from audioFrameProcessedData().
  *
  * wave_buff16
  * - Entry: Light2 (Lightning 2)
  * - Does: draws a second jagged lightning variant with gentler sample scaling.
  * - Colours: raw palette index 255 for every segment.
- * - Sound: prepareSoundData(BUFF_WIDTH, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_pete0
  * - Entry: Pete0 (FireFlies)
  * - Does: draws two drifting point clusters whose offsets wander with the
  *   first few samples.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_pete1
  * - Entry: Pete1 (Pete)
  * - Does: draws two sine-shaped rows scaled by average channel energy.
  * - Colours: tcolor(signed sample).
- * - Sound: prepareSoundData(BUFF_WIDTH, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_pete2
  * - Entry: Pete2 (Dot VS sine)
  * - Does: plots vertical dots displaced by sample, one channel on each side.
  * - Colours: tcolor(sine[sample]), so colour uses a sine lookup of the sample.
- * - Sound: prepareSoundData(BUFF_HEIGHT) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_HEIGHT) from audioFrameProcessedData().
  *
  * wave_fract1
  * - Entry: Fract1 (Zippy 1)
  * - Does: walks two persistent points around the buffer using half-sized
  *   differences between neighboring samples.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_fract2
  * - Entry: Fract2 (Zippy 2)
  * - Does: like Fract1, but uses full sample differences for a sharper walk.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_test
  * - Entry: Test (Test)
  * - Does: draws sine-shaped rows scaled by average channel energy, similar to
  *   Pete1 but with unsigned colour lookup.
  * - Colours: tcolor(sample + 128).
- * - Sound: prepareSoundData(BUFF_WIDTH, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_aaron
  * - Entry: Aaron (Rings of Fire)
  * - Does: draws two moving ring/rosette point sets when the buffer is large
  *   enough, otherwise advances to the next wave.
  * - Colours: tcolor(sample).
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_wire1
  * - Entry: Wire1 (Wire frame 1)
  * - Does: rotates the selected object; each edge endpoint can scale
  *   independently, giving a fractured audio-reactive wireframe.
  * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
- * - Sound: directly averages slices of soundDevice->dataProc per object edge.
+ * - Sound: directly averages slices of audioFrameProcessedData() per object edge.
  *
  * wave_wire1dot5
  * - Entry: Wire1dot5 (Wire frame 1.5)
@@ -265,14 +266,14 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  *   axis with one frame-wide audio scale.
  * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
  * - Sound: wire_sound_scale() averages all 1024 samples from
- *   soundDevice->dataProc.
+ *   audioFrameProcessedData().
  *
  * wave_wire1dot55
  * - Entry: Wire1dot55 (Wire frame 1.55)
  * - Does: Wire1dot5 plus a precessing rotation axis.
  * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
  * - Sound: wire_sound_scale() averages all 1024 samples from
- *   soundDevice->dataProc.
+ *   audioFrameProcessedData().
  *
  * wave_wire1dot6
  * - Entry: Wire1dot6 (Wire frame 1.6)
@@ -280,7 +281,7 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  *   according to a stable audio slice.
  * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
  * - Sound: vertex_sound_stretch() hashes object-space vertices into small
- *   slices of soundDevice->dataProc.
+ *   slices of audioFrameProcessedData().
  *
  * wave_wire2
  * - Entry: Wire2 (Wire frame 2)
@@ -300,7 +301,7 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  * - Does: draws one horizontal trace from the left-minus-right channel
  *   difference.
  * - Colours: tcolor(left - right + 128).
- * - Sound: prepareSoundData(BUFF_WIDTH, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_spiral
  * - Entry: Spiral (Spirograph)
@@ -327,7 +328,7 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  *   sample differences.
  * - Colours: table-mapped channel intensity, so louder samples use higher
  *   palette table entries.
- * - Sound: prepareSoundData((BUFF_WIDTH / 10) + 1, 0) from soundDevice->dataProc.
+ * - Sound: prepareSoundData((BUFF_WIDTH / 10) + 1, 0) from audioFrameProcessedData().
  *
  * wave_corner
  * - Entry: Corner (Corner)
@@ -339,7 +340,7 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  * - Entry: Jump (Jumping points)
  * - Does: per-column points jump away from the vertical center with inertia.
  * - Colours: raw palette index 255.
- * - Sound: prepareSoundData(BUFF_WIDTH) from soundDevice->dataProc; left and
+ * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData(); left and
  *   right samples are summed per column.
  *
  * wave_sticks
@@ -651,8 +652,8 @@ static double vertex_sound_stretch(int x, int y, int z) {
 
     for (i = 0; i < samples; i++) {
         int sample = (slice + i) & 1023;
-        sound += abs(soundDevice->dataProc[sample][0]);
-        sound += abs(soundDevice->dataProc[sample][1]);
+        sound += abs(audioFrameProcessedData()[sample][0]);
+        sound += abs(audioFrameProcessedData()[sample][1]);
     }
 
     double amp = (double)sound / (double)(samples * 2 * 128);
@@ -732,8 +733,8 @@ static double wire_sound_scale(double screenScale) {
     int sound = 0;
 
     for (i = 0; i < 1024; i++) {
-        sound += abs(soundDevice->dataProc[i][0]);
-        sound += abs(soundDevice->dataProc[i][1]);
+        sound += abs(audioFrameProcessedData()[i][0]);
+        sound += abs(audioFrameProcessedData()[i][1]);
     }
 
     return screenScale * (0.60 + 1.40 * ((double)sound / (double)(1024 * 2 * 128)));
@@ -907,8 +908,8 @@ void prepareSoundData(int n, int add = 128) {
     int s = (1024 << 16) / n;
 
     for (int i = 0; i < n; i++) {
-        data[i][0] = soundDevice->dataProc[p >> 16][0] + add;
-        data[i][1] = soundDevice->dataProc[p >> 16][1] + add;
+        data[i][0] = audioFrameProcessedData()[p >> 16][0] + add;
+        data[i][1] = audioFrameProcessedData()[p >> 16][1] + add;
 
         p += s;
     }
@@ -1586,8 +1587,8 @@ void wave_wire1() {
         sampleCount = max(1024 / frame.n, 1);
         for (j = 0; j < sampleCount; j++) {
             int sample = min(i * sampleCount + j, 1023);
-            s[0] += abs(soundDevice->dataProc[sample][0]);
-            s[1] += abs(soundDevice->dataProc[sample][1]);
+            s[0] += abs(audioFrameProcessedData()[sample][0]);
+            s[1] += abs(audioFrameProcessedData()[sample][1]);
         }
 
         scale0 = frame.screenScale * (0.60 + 1.40 * ((double)s[0] / (double)(sampleCount * 128)));

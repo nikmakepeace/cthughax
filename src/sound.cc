@@ -4,6 +4,7 @@
 
 #include "cthugha.h"
 #include "Sound.h"
+#include "AudioFrame.h"
 #include "display.h"
 #include "information.h"
 #include "Interface.h"
@@ -19,8 +20,7 @@ public:
     virtual void change(int by) {
         OptionInt::change(by);
 
-        if (soundDevice)
-            soundDevice->change();
+        audioFrameChange();
 
         bytesPerSample = (soundFormat < 2) ? soundChannels : 2 * soundChannels;
     }
@@ -35,8 +35,7 @@ public:
     virtual void change(int by) {
         OptionOnOff::change(by);
 
-        if (soundDevice)
-            soundDevice->change();
+        audioFrameChange();
 
         bytesPerSample = (soundFormat < 2) ? soundChannels : 2 * soundChannels;
     }
