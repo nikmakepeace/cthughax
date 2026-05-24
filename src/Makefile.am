@@ -2,6 +2,7 @@
 
 ## general source files
 GENSRC = Option.cc OptionInt.cc CoreOption.cc CoreOptionEntry.cc	\
+	Audio.cc RuntimeFactory.cc					\
 	SoundDeviceDSP.cc SoundDeviceFile.cc SoundDeviceFork.cc		\
 	SoundDeviceNet.cc SoundDeviceRandom.cc				\
 	Mixer.cc CDPlayer.cc imath.cc sound.cc	IniFiles.cc		\
@@ -59,7 +60,7 @@ tabinfo_SOURCES = tabinfo.cc
 #removed  getopt.h
 ## all the header files
 noinst_HEADERS = 	\
-	AutoChanger.h     SoundAnalyze.h    flames.h          pcx.h		\
+	Audio.h           RuntimeFactory.h  AutoChanger.h     SoundAnalyze.h    flames.h          pcx.h		\
         CDPlayer.h        SoundDevice.h  \
 	CoreOption.h      SoundProcess.h    imath.h           tab_header.h	\
 	CthughaBuffer.h   SoundServer.h     information.h     translate.h	\

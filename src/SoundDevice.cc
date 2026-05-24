@@ -5,6 +5,7 @@
 #include "cthugha.h"
 
 #include "SoundDevice.h"
+#include "RuntimeFactory.h"
 #include "imath.h"
 #include "cth_buffer.h"
 
@@ -84,54 +85,6 @@ static void dump_audio_frame(const char2* data, int samplesRead, int requestedSa
 
     fclose(out);
     dumped++;
-}
-
-enum SoundInputContext {
-    SIC_MainProcess,
-    SIC_FileChild
-};
-
-static SoundDevice* newSoundInputDevice(SoundInputContext context) {
-    const char* contextName = (context == SIC_FileChild) ? "file child" : "main process";
-
-    // File input has a second strategy decision: whether decoded samples should
-    // also be passed through to an audio output. If not, use the direct silent path.
-    if ((context == SIC_MainProcess) && (soundDeviceNr == SDN_File) && !soundSilent
-        && !SoundDeviceFile::hasSoundOutputDevice()) {
-        CTH_WARN("  No usable audio passthrough device; playing file silently.\n");
-        CTH_DEBUG("    sound input strategy: direct file input in %s, because audio passthrough is unavailable\n",
-            contextName);
-        soundSilent.setValue(1);
-    }
-
-    switch (soundDeviceNr) {
-    case SDN_DSPIn:
-        CTH_DEBUG("    sound input strategy: OSS DSP input in %s, because sound-device-number=%d\n",
-            contextName, int(soundDeviceNr));
-        return ::new SoundDeviceDSPIn();
-    case SDN_Net:
-        CTH_DEBUG("    sound input strategy: network input in %s, because sound-device-number=%d\n",
-            contextName, int(soundDeviceNr));
-        return ::new SoundDeviceNet();
-    case SDN_Random:
-        CTH_DEBUG("    sound input strategy: random input in %s, because sound-device-number=%d\n",
-            contextName, int(soundDeviceNr));
-        return ::new SoundDeviceRandom();
-    case SDN_File:
-        if ((context == SIC_MainProcess) && !soundSilent) {
-            CTH_DEBUG("    sound input strategy: forked file input in %s, because audio passthrough is enabled\n",
-                contextName);
-            return ::new SoundDeviceFork();
-        }
-        CTH_DEBUG("    sound input strategy: direct file input in %s, because %s\n",
-            contextName,
-            (context == SIC_FileChild) ? "this process owns the file reader"
-                                       : "playback is silent");
-        return ::new SoundDeviceFile();
-    default:
-        CTH_ERROR("Illegal SoundDeviceNr %d.\n", int(soundDeviceNr));
-        exit(0);
-    }
 }
 
 void SoundDevice::finishNewSD(int initializeInputControls) {
@@ -327,11 +280,13 @@ void SoundDevice::convert(char2* dst, void* src, int n) {
 }
 
 void SoundDevice::newSD() {
-    soundDevice = newSoundInputDevice(SIC_MainProcess);
+    RuntimeFactory runtimeFactory(Settings::fromCurrentOptions(), Environment::detect());
+    soundDevice = runtimeFactory.createLegacySoundDevice(RSIC_MainProcess);
     finishNewSD(1);
 }
 
 void SoundDevice::newFileChildSD() {
-    soundDevice = newSoundInputDevice(SIC_FileChild);
+    RuntimeFactory runtimeFactory(Settings::fromCurrentOptions(), Environment::detect());
+    soundDevice = runtimeFactory.createLegacySoundDevice(RSIC_FileChild);
     finishNewSD(0);
 }
