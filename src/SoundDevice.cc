@@ -5,7 +5,6 @@
 #include "cthugha.h"
 
 #include "SoundDevice.h"
-#include "RuntimeFactory.h"
 #include "imath.h"
 #include "cth_buffer.h"
 
@@ -100,13 +99,19 @@ void SoundDevice::finishNewSD(int initializeInputControls) {
         delete soundDevice;
 
         CTH_ERROR("Can not use requested sound device. Using random noise.\n");
+        CTH_TRACE("sound device install: requested device unavailable; falling back to SoundDeviceRandom\n");
         soundDevice = ::new SoundDeviceRandom;
     }
 
     soundDevice->setTmpData();
 
-    if (initializeInputControls && soundDevice->initInputControls())
+    if (initializeInputControls && soundDevice->initInputControls()) {
+        CTH_TRACE("sound device install: input control initialization failed\n");
         exit(0);
+    }
+
+    CTH_TRACE("sound device install: completed initialize-input-controls=%d\n",
+        initializeInputControls);
 }
 
 SoundDevice::SoundDevice() {
@@ -279,17 +284,9 @@ void SoundDevice::convert(char2* dst, void* src, int n) {
     }
 }
 
-void SoundDevice::newSD() {
-    RuntimeFactory runtimeFactory(Settings::fromCurrentOptions(), Environment::detect());
-    install(runtimeFactory.createLegacySoundDevice(RSIC_MainProcess), 1);
-}
-
-void SoundDevice::newFileChildSD() {
-    RuntimeFactory runtimeFactory(Settings::fromCurrentOptions(), Environment::detect());
-    install(runtimeFactory.createLegacySoundDevice(RSIC_FileChild), 0);
-}
-
 void SoundDevice::install(SoundDevice* device, int initializeInputControls) {
+    CTH_TRACE("sound device install: requested device=%p initialize-input-controls=%d\n",
+        device, initializeInputControls);
     soundDevice = device;
     finishNewSD(initializeInputControls);
 }

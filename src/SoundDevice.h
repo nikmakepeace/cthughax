@@ -56,8 +56,6 @@ public:
     SoundDevice();
     virtual ~SoundDevice();
 
-    static void newSD();
-    static void newFileChildSD();
     static void install(SoundDevice* device, int initializeInputControls);
 
     // Per-frame tick: read backend data, then convert it into data.
