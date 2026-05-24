@@ -5,7 +5,9 @@ static AudioProcessor* audioProcessor = NULL;
 static AudioInput* audioInput = NULL;
 static AudioOutput* audioOutput = NULL;
 static AudioBuffer* audioBuffer = NULL;
+static AudioFrameBuilder* audioFrameBuilder = NULL;
 static char* audioRuntimeChunk = NULL;
+static AudioFrame audioRuntimeFrame;
 static int audioRuntimeChunkSize = 0;
 static int audioRuntimeTargetLatencyMs = 250;
 static int audioRuntimeInputFinished = 0;
@@ -167,6 +169,13 @@ static void audioRuntimePumpPipeline() {
     }
 }
 
+static void audioRuntimeBuildFrame() {
+    if ((audioFrameBuilder == NULL) || (audioBuffer == NULL))
+        return;
+
+    audioFrameBuilder->build(audioRuntimeFrame, *audioBuffer, audioRuntimeAudibleBytePosition());
+}
+
 void audioRuntimeInit(RuntimeSoundInputContext context, int initializeInputControls) {
     CTH_TRACE("audio runtime: init requested context=%s initialize-input-controls=%d\n",
         audioRuntimeContextName(context), initializeInputControls);
@@ -204,9 +213,11 @@ void audioRuntimeInit(RuntimeSoundInputContext context, int initializeInputContr
 
         audioRuntimeChunkSize = audioRuntimeStrategyChunkSize();
         audioBuffer = new AudioBuffer(audioRuntimeStrategyBufferSize(), audioRuntimeStrategyHistorySize());
+        audioFrameBuilder = new AudioFrameBuilder();
         audioRuntimeChunk = new char[audioRuntimeChunkSize];
-        CTH_TRACE("audio runtime: installed native WAV pipeline input=%p buffer=%p output=%p chunk=%d target-latency-ms=%d\n",
-            audioInput, audioBuffer, audioOutput, audioRuntimeChunkSize,
+        audioRuntimeFrame.clear();
+        CTH_TRACE("audio runtime: installed native WAV pipeline input=%p buffer=%p output=%p frame-builder=%p chunk=%d target-latency-ms=%d\n",
+            audioInput, audioBuffer, audioOutput, audioFrameBuilder, audioRuntimeChunkSize,
             audioRuntimeTargetLatencyMs);
     } else {
         audioProcessor = runtimeFactory.createAudioProcessor();
@@ -228,6 +239,7 @@ void audioRuntimeInit(RuntimeSoundInputContext context, int initializeInputContr
 void audioRuntimeTick() {
     if (audioBuffer != NULL) {
         audioRuntimePumpPipeline();
+        audioRuntimeBuildFrame();
         return;
     }
 
@@ -248,6 +260,10 @@ void audioRuntimeShutdown() {
 
     delete audioBuffer;
     audioBuffer = NULL;
+
+    delete audioFrameBuilder;
+    audioFrameBuilder = NULL;
+    audioRuntimeFrame.clear();
 
     delete audioOutput;
     audioOutput = NULL;
@@ -273,6 +289,10 @@ int audioRuntimeIsInitialized() {
 
 AudioProcessor* audioRuntimeProcessor() {
     return audioProcessor;
+}
+
+AudioFrame* audioRuntimeCurrentFrame() {
+    return audioFrameBuilder ? &audioRuntimeFrame : NULL;
 }
 
 int audioRuntimeIsComplete() {

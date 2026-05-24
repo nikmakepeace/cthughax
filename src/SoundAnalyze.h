@@ -10,7 +10,35 @@
 
 extern OptionInt sound_minnoise; /* quiet is below this */
 
+struct AudioAnalysis {
+    int amplitude;
+    int amplitudeLeft;
+    int amplitudeRight;
+    int noisy;
+    int attackLevel;
+    int fire;
+    double intensity;
+    double speed;
+
+    AudioAnalysis();
+};
+
+class AudioAnalyzer {
+    double lastFires[16];
+    int lastFiresP;
+    int lastamp;
+    int attackLevel;
+    double intensity;
+    double speed;
+
+public:
+    AudioAnalyzer();
+
+    AudioAnalysis analyze(const char2* frame);
+};
+
 class SoundAnalyze {
+    AudioAnalyzer analyzer;
 
 public:
     SoundAnalyze();

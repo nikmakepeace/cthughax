@@ -8,9 +8,23 @@
 
 #include "SoundDevice.h"
 
+class AudioFrame {
+public:
+    long long centerByte;
+    int samples;
+    int rawBytes;
+    char2 data[1024];
+    char2 processed[1024];
+
+    AudioFrame();
+
+    void clear();
+};
+
 void audioFrameTick();
 void audioFrameChange();
 
+AudioFrame* audioFrameCurrent();
 char2* audioFrameData();
 char2* audioFrameProcessedData();
 int audioFrameBroadcastBytes();

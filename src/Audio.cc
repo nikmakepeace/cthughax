@@ -487,6 +487,153 @@ int AudioBuffer::readAt(long long bytePosition, char* dst, int bytes) const {
     return copyAt(bytePosition, dst, bytes);
 }
 
+AudioFrameBuilder::AudioFrameBuilder()
+    : rawData(NULL)
+    , rawCapacity(0) { }
+
+AudioFrameBuilder::~AudioFrameBuilder() {
+    delete[] rawData;
+    rawData = NULL;
+    rawCapacity = 0;
+}
+
+void AudioFrameBuilder::setRawCapacity(int rawBytes) {
+    if (rawCapacity >= rawBytes)
+        return;
+
+    delete[] rawData;
+    rawCapacity = rawBytes;
+    rawData = new char[rawCapacity];
+    CTH_TRACE("audio frame builder: resized raw buffer to %d bytes\n", rawCapacity);
+}
+
+void AudioFrameBuilder::build(AudioFrame& frame, const AudioBuffer& buffer, long long centerByte) {
+    int bytesPerSample = (soundFormat < 2) ? int(soundChannels) : 2 * int(soundChannels);
+    int rawBytes;
+    long long startByte;
+    int bytesRead;
+    int sampleOffset;
+    int samplesRead;
+
+    frame.clear();
+    frame.centerByte = centerByte;
+
+    if (bytesPerSample <= 0)
+        return;
+
+    rawBytes = 1024 * bytesPerSample;
+    setRawCapacity(rawBytes);
+    memset(rawData, 0, rawBytes);
+
+    startByte = centerByte - rawBytes;
+    sampleOffset = 0;
+    if (startByte < 0) {
+        sampleOffset = int((-startByte) / bytesPerSample);
+        startByte = 0;
+    }
+
+    bytesRead = buffer.readAt(startByte, rawData + sampleOffset * bytesPerSample,
+        rawBytes - sampleOffset * bytesPerSample);
+    samplesRead = bytesRead / bytesPerSample;
+    if (samplesRead <= 0) {
+        CTH_TRACE("audio frame builder: no samples center-byte=%lld start-byte=%lld\n",
+            centerByte, startByte);
+        return;
+    }
+
+    convert(frame.data + sampleOffset, rawData + sampleOffset * bytesPerSample, samplesRead);
+    memcpy(frame.processed, frame.data, sizeof(frame.processed));
+    frame.samples = sampleOffset + samplesRead;
+    frame.rawBytes = frame.samples * bytesPerSample;
+
+    CTH_TRACE("audio frame builder: built frame center-byte=%lld start-byte=%lld samples=%d raw-bytes=%d\n",
+        frame.centerByte, startByte, frame.samples, frame.rawBytes);
+}
+
+void AudioFrameBuilder::convert(char2* dst, void* src, int n) {
+    unsigned char* data_u8 = (unsigned char*)src;
+    char* data_s8 = (char*)src;
+    unsigned short* data_u16 = (unsigned short*)src;
+    short* data_s16 = (short*)src;
+
+    int cInc = (soundChannels == 1) ? 0 : 1;
+
+    switch (soundFormat) {
+    case SF_u8:
+        for (int i = 0; i < n; i++) {
+            dst[i][1] = int(*data_u8) - 128;
+            data_u8 += cInc;
+            dst[i][0] = int(*data_u8) - 128;
+            data_u8++;
+        }
+        break;
+
+    case SF_s8:
+        for (int i = 0; i < n; i++) {
+            dst[i][1] = int(*data_s8);
+            data_s8 += cInc;
+            dst[i][0] = int(*data_s8);
+            data_s8++;
+        }
+        break;
+
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+    case SF_s16_be:
+#elif (__BYTE_ORDER == __LITTLE_ENDIAN)
+    case SF_s16_le:
+#endif
+        for (int i = 0; i < n; i++) {
+            dst[i][1] = int(*data_u16) >> 8;
+            data_u16 += cInc;
+            dst[i][0] = int(*data_u16) >> 8;
+            data_u16++;
+        }
+        break;
+
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+    case SF_s16_le:
+#elif (__BYTE_ORDER == __LITTLE_ENDIAN)
+    case SF_s16_be:
+#endif
+        for (int i = 0; i < n; i++) {
+            dst[i][1] = int(*data_u16) & 255;
+            data_u16 += cInc;
+            dst[i][0] = int(*data_u16) & 255;
+            data_u16++;
+        }
+        break;
+
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+    case SF_u16_be:
+#elif (__BYTE_ORDER == __LITTLE_ENDIAN)
+    case SF_u16_le:
+#endif
+        for (int i = 0; i < n; i++) {
+            dst[i][1] = (int(*data_s16) >> 8) - 128;
+            data_s16 += cInc;
+            dst[i][0] = (int(*data_s16) >> 8) - 128;
+            data_s16++;
+        }
+        break;
+
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+    case SF_u16_le:
+#elif (__BYTE_ORDER == __LITTLE_ENDIAN)
+    case SF_u16_be:
+#endif
+        for (int i = 0; i < n; i++) {
+            dst[i][1] = (int(*data_s16) & 255) - 128;
+            data_s16 += cInc;
+            dst[i][0] = (int(*data_s16) & 255) - 128;
+            data_s16++;
+        }
+        break;
+
+    default:
+        CTH_ERROR("internal error: wrong sound format.\n");
+    }
+}
+
 PcmSource::PcmSource()
     : error(0) { }
 

@@ -10,6 +10,7 @@ void audioRuntimeTick();
 void audioRuntimeShutdown();
 int audioRuntimeIsInitialized();
 AudioProcessor* audioRuntimeProcessor();
+AudioFrame* audioRuntimeCurrentFrame();
 int audioRuntimeIsComplete();
 long long audioRuntimeDecodedBytePosition();
 long long audioRuntimeOutputBytePosition();

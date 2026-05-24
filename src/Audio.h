@@ -8,6 +8,7 @@
 #define __AUDIO_H
 
 #include "SoundDevice.h"
+#include "AudioFrame.h"
 
 #include <stdio.h>
 #include <limits.h>
@@ -114,6 +115,20 @@ public:
     int write(const char* src, int bytes);
     int read(char* dst, int bytes);
     int readAt(long long bytePosition, char* dst, int bytes) const;
+};
+
+class AudioFrameBuilder {
+    char* rawData;
+    int rawCapacity;
+
+    void setRawCapacity(int rawBytes);
+    void convert(char2* dst, void* src, int n);
+
+public:
+    AudioFrameBuilder();
+    ~AudioFrameBuilder();
+
+    void build(AudioFrame& frame, const AudioBuffer& buffer, long long centerByte);
 };
 
 struct PcmFormat {

@@ -14,18 +14,31 @@ OptionInt sound_minnoise("minnoise", 5, 256); /* quiet is below this */
 
 SoundAnalyze soundAnalyze;
 
-SoundAnalyze::SoundAnalyze() { intensity = 0.0; }
+AudioAnalysis::AudioAnalysis()
+    : amplitude(0)
+    , amplitudeLeft(0)
+    , amplitudeRight(0)
+    , noisy(0)
+    , attackLevel(0)
+    , fire(0)
+    , intensity(0.0)
+    , speed(0.0) { }
 
-void SoundAnalyze::operator()() {
+AudioAnalyzer::AudioAnalyzer()
+    : lastFiresP(0)
+    , lastamp(0)
+    , attackLevel(0)
+    , intensity(0.0)
+    , speed(0.0) {
+    memset(lastFires, 0, sizeof(lastFires));
+}
 
-    static double lastFires[16];
-    static int lastFiresP = 0;
-
-    static int lastamp = 0;
+AudioAnalysis AudioAnalyzer::analyze(const char2* frame) {
+    AudioAnalysis analysis;
     int al = 0, ar = 0;
 
     /* get the amplitude of this sound frame (root mean squared) */
-    char* d = (char*)audioFrameData();
+    char* d = (char*)frame;
     for (int i = 1024; i != 0; i--) {
         al += *d * *d;
         d++;
@@ -36,40 +49,72 @@ void SoundAnalyze::operator()() {
     al = int(sqrt(double(al) / 1024));
     ar = int(sqrt(double(ar) / 1024));
 
-    amplitude = (al + ar) / 2;
-    amplitudeLeft = al;
-    amplitudeRight = ar;
+    analysis.amplitude = (al + ar) / 2;
+    analysis.amplitudeLeft = al;
+    analysis.amplitudeRight = ar;
 
-    if (amplitude < lastamp - 9) /* ignore such a small decrease */
-        amplitude = lastamp - 9;
+    if (analysis.amplitude < lastamp - 9) /* ignore such a small decrease */
+        analysis.amplitude = lastamp - 9;
 
-    if (amplitude > lastamp)
-        attackLevel += amplitude - lastamp;
+    if (analysis.amplitude > lastamp)
+        attackLevel += analysis.amplitude - lastamp;
 
     if ((now - lastFires[lastFiresP]) > 0.001)
         speed = 16.0 / (now - lastFires[lastFiresP]);
 
     /* if the attack is finally over, then fire at the intensity of the attack */
-    if (amplitude < lastamp) {
-        fire = attackLevel;
+    if (analysis.amplitude < lastamp) {
+        analysis.fire = attackLevel;
         attackLevel = 0;
 
-        if (fire > 0)
-            CTH_DEBUG("sound fire: fire=%d fireLevel=%d amplitude=%d lastamp=%d speed=%.2f\n",
-                fire, fireLevel + fire, amplitude, lastamp, speed);
+        if (analysis.fire > 0)
+            CTH_DEBUG("sound fire: fire=%d amplitude=%d lastamp=%d speed=%.2f\n",
+                analysis.fire, analysis.amplitude, lastamp, speed);
 
         lastFires[lastFiresP] = now;
         lastFiresP = (lastFiresP + 1) % 16;
     } else
-        fire = 0;
-    fireLevel += fire;
+        analysis.fire = 0;
 
-    lastamp = amplitude;
+    lastamp = analysis.amplitude;
+    analysis.attackLevel = attackLevel;
 
     /* check for silence */
-    noisy = ((amplitudeLeft >= sound_minnoise) || (amplitudeRight >= sound_minnoise));
+    analysis.noisy = ((analysis.amplitudeLeft >= sound_minnoise)
+        || (analysis.amplitudeRight >= sound_minnoise));
 
-    intensity = intensity * 0.95 + (amplitude / 128.0) * 0.05;
+    intensity = intensity * 0.95 + (analysis.amplitude / 128.0) * 0.05;
+    analysis.intensity = intensity;
+    analysis.speed = speed;
+
+    return analysis;
+}
+
+SoundAnalyze::SoundAnalyze()
+    : analyzer() {
+    amplitude = 0;
+    amplitudeLeft = 0;
+    amplitudeRight = 0;
+    noisy = 0;
+    attackLevel = 0;
+    fire = 0;
+    fireLevel = 0;
+    intensity = 0.0;
+    speed = 0.0;
+}
+
+void SoundAnalyze::operator()() {
+    AudioAnalysis analysis = analyzer.analyze(audioFrameData());
+
+    amplitude = analysis.amplitude;
+    amplitudeLeft = analysis.amplitudeLeft;
+    amplitudeRight = analysis.amplitudeRight;
+    noisy = analysis.noisy;
+    attackLevel = analysis.attackLevel;
+    fire = analysis.fire;
+    fireLevel += fire;
+    intensity = analysis.intensity;
+    speed = analysis.speed;
 
 #if 0
     /* compute beats/minute, not working as it should */

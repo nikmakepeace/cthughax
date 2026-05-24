@@ -5,6 +5,18 @@
 static char2 silentAudioFrameData[1024];
 static char2 silentAudioFrameProcessedData[1024];
 
+AudioFrame::AudioFrame() {
+    clear();
+}
+
+void AudioFrame::clear() {
+    centerByte = 0;
+    samples = 0;
+    rawBytes = 0;
+    memset(data, 0, sizeof(data));
+    memset(processed, 0, sizeof(processed));
+}
+
 void audioFrameTick() {
     audioRuntimeTick();
 }
@@ -19,7 +31,14 @@ void audioFrameChange() {
         soundDevice->change();
 }
 
+AudioFrame* audioFrameCurrent() {
+    return audioRuntimeCurrentFrame();
+}
+
 char2* audioFrameData() {
+    if (audioRuntimeCurrentFrame())
+        return audioRuntimeCurrentFrame()->data;
+
     if (audioRuntimeProcessor())
         return audioRuntimeProcessor()->data;
 
@@ -27,6 +46,9 @@ char2* audioFrameData() {
 }
 
 char2* audioFrameProcessedData() {
+    if (audioRuntimeCurrentFrame())
+        return audioRuntimeCurrentFrame()->processed;
+
     if (audioRuntimeProcessor())
         return audioRuntimeProcessor()->dataProc;
 
@@ -34,6 +56,9 @@ char2* audioFrameProcessedData() {
 }
 
 int audioFrameBroadcastBytes() {
+    if (audioRuntimeCurrentFrame())
+        return audioRuntimeCurrentFrame()->rawBytes;
+
     if (audioRuntimeProcessor())
         return audioRuntimeProcessor()->frameRawSize();
 
