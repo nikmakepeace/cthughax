@@ -45,6 +45,7 @@ AudioOutput::~AudioOutput() { }
 int AudioNullOutput::write(const void*, int size) { return size; }
 int AudioNullOutput::outputDelayBytes() const { return 0; }
 int AudioNullOutput::isOpen() const { return 1; }
+int AudioNullOutput::isRealtime() const { return 0; }
 
 #if WITH_PULSE == 1
 
@@ -134,6 +135,7 @@ int AudioPulseOutput::outputDelayBytes() const {
 }
 
 int AudioPulseOutput::isOpen() const { return pulse != NULL; }
+int AudioPulseOutput::isRealtime() const { return 1; }
 
 #else
 
@@ -147,14 +149,16 @@ AudioPulseOutput::~AudioPulseOutput() { }
 int AudioPulseOutput::write(const void*, int) { return 0; }
 int AudioPulseOutput::outputDelayBytes() const { return 0; }
 int AudioPulseOutput::isOpen() const { return 0; }
+int AudioPulseOutput::isRealtime() const { return 1; }
 void AudioPulseOutput::update() { }
 
 #endif
 
 #if WITH_DSP == 1
 
-AudioDSPOutput::AudioDSPOutput()
-    : handle(-1) {
+AudioDSPOutput::AudioDSPOutput(int method_)
+    : handle(-1)
+    , method(method_) {
     init();
 }
 
@@ -241,7 +245,8 @@ void AudioDSPOutput::setFormat() {
 
 void AudioDSPOutput::init() {
     CTH_DEBUG("  setting %s for writing...\n", SoundDeviceDSP::dev_dsp);
-    CTH_TRACE("audio dsp output: init device=`%s'\n", SoundDeviceDSP::dev_dsp);
+    CTH_TRACE("audio dsp output: init device=`%s' method=%d\n", SoundDeviceDSP::dev_dsp,
+        method);
 
     if (handle >= 0)
         close(handle);
@@ -252,10 +257,81 @@ void AudioDSPOutput::init() {
         return;
     }
 
-    setFragment();
-    setChannels();
-    setSampleRate();
-    setFormat();
+    switch (method) {
+    case 0: {
+        int sampleWindow = 1 << ilog2(max(BUFF_WIDTH, BUFF_HEIGHT));
+        CTH_INFO("   Using sound method 0 - optimal fragment size\n");
+        soundDSPFragmentSize.setValue(ilog2(sampleWindow) - 1);
+        setFragment();
+        setChannels();
+        setSampleRate();
+        setFormat();
+        break;
+    }
+
+    case 1:
+        CTH_INFO("   Using sound method 1 - small fragment size\n");
+        soundDSPFragments.setValue(2);
+        soundDSPFragmentSize.setValue(4);
+        setFragment();
+        setChannels();
+        setSampleRate();
+        setFormat();
+        break;
+
+    case 2: {
+        CTH_INFO("   Using sound method 2 - old version\n");
+        int sound_div = 4;
+        if (ioctl(handle, SNDCTL_DSP_SUBDIVIDE, &sound_div) < 0)
+            CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_SUBDIVIDE failed.");
+
+        int dummy = 0;
+        if (ioctl(handle, SNDCTL_DSP_STEREO, &dummy) < 0)
+            CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_STEREO failed.");
+
+        dummy = 0;
+        if (ioctl(handle, SNDCTL_DSP_SPEED, &dummy) < 0)
+            CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_SPEED failed.");
+
+        int sound_blkSize;
+        if (ioctl(handle, SNDCTL_DSP_GETBLKSIZE, &sound_blkSize) < 0)
+            CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_GETBLKSIZE failed.");
+
+        setChannels();
+        setSampleRate();
+        setFormat();
+
+        if (ioctl(handle, SNDCTL_DSP_GETBLKSIZE, &sound_blkSize) < 0)
+            CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_GETBLKSIZE");
+        break;
+    }
+
+    case 3:
+        CTH_INFO("   Using sound method 3 - primitiv version\n");
+        setFormat();
+        setChannels();
+        setSampleRate();
+        break;
+
+    case 4:
+        CTH_ERROR("Sound method 4 is only available for reading sound data.\n"
+                "Please use a different sound method.\n");
+        close(handle);
+        handle = -1;
+        break;
+
+    default:
+        CTH_ERROR("Unknown sound method %d.", method);
+        CTH_ERROR("   available sound methods:\n"
+                "   0: sophisticated 1 (optimal fragment size)\n"
+                "   1: sophisticated 2 (small fragments)\n"
+                "   2: simple (small DMA buffer)\n"
+                "   3: primitiv\n"
+                "   4: directly use DMA buffer\n");
+        close(handle);
+        handle = -1;
+        break;
+    }
 }
 
 int AudioDSPOutput::write(const void* buffer, int size) {
@@ -298,9 +374,11 @@ AudioDSPOutput::~AudioDSPOutput() {
 
 #else
 
-AudioDSPOutput::AudioDSPOutput()
-    : handle(-1) {
+AudioDSPOutput::AudioDSPOutput(int method_)
+    : handle(-1)
+    , method(method_) {
     CTH_DEBUG("    audio output strategy: OSS DSP unavailable because support is not compiled in\n");
+    CTH_TRACE("audio dsp output: unavailable method=%d\n", method);
 }
 
 AudioDSPOutput::~AudioDSPOutput() { }
@@ -316,6 +394,59 @@ int AudioDSPOutput::isOpen() const { return 0; }
 void AudioDSPOutput::update() { }
 
 #endif
+
+AudioBuffer::AudioBuffer(int capacity_)
+    : data(NULL)
+    , capacity(capacity_)
+    , readPos(0)
+    , writePos(0)
+    , fill(0) {
+    if (capacity < 1)
+        capacity = 1;
+    data = new char[capacity];
+    CTH_TRACE("audio buffer: created capacity=%d\n", capacity);
+}
+
+AudioBuffer::~AudioBuffer() {
+    delete[] data;
+    data = NULL;
+}
+
+void AudioBuffer::clear() {
+    readPos = 0;
+    writePos = 0;
+    fill = 0;
+}
+
+int AudioBuffer::write(const char* src, int bytes) {
+    int written = 0;
+    int wanted = min(bytes, freeSpace());
+
+    while (written < wanted) {
+        int chunk = min(wanted - written, capacity - writePos);
+        memcpy(data + writePos, src + written, chunk);
+        writePos = (writePos + chunk) % capacity;
+        fill += chunk;
+        written += chunk;
+    }
+
+    return written;
+}
+
+int AudioBuffer::read(char* dst, int bytes) {
+    int copied = 0;
+    int wanted = min(bytes, available());
+
+    while (copied < wanted) {
+        int chunk = min(wanted - copied, capacity - readPos);
+        memcpy(dst + copied, data + readPos, chunk);
+        readPos = (readPos + chunk) % capacity;
+        fill -= chunk;
+        copied += chunk;
+    }
+
+    return copied;
+}
 
 PcmSource::PcmSource()
     : error(0) { }

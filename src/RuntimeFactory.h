@@ -25,6 +25,7 @@ enum AudioSourceStrategy {
 class Settings {
 public:
     int soundDeviceNumber;
+    int soundDSPMethod;
     int silent;
     char fileName[PATH_MAX];
 
@@ -37,6 +38,7 @@ class Environment {
 public:
     int ossInputAvailable;
     int ossOutputAvailable;
+    int pulseOutputAvailable;
 
     Environment();
 

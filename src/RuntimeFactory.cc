@@ -7,6 +7,7 @@
 
 Settings::Settings()
     : soundDeviceNumber(SDN_DSPIn)
+    , soundDSPMethod(0)
     , silent(0) {
     fileName[0] = '\0';
 }
@@ -15,12 +16,13 @@ Settings Settings::fromCurrentOptions() {
     Settings settings;
 
     settings.soundDeviceNumber = int(soundDeviceNr);
+    settings.soundDSPMethod = int(::soundDSPMethod);
     settings.silent = int(soundSilent);
     strncpy(settings.fileName, SoundDeviceFile::name, PATH_MAX);
     settings.fileName[PATH_MAX - 1] = '\0';
 
-    CTH_TRACE("runtime settings: sound-device-number=%d silent=%d file=`%s'\n",
-        settings.soundDeviceNumber, settings.silent, settings.fileName);
+    CTH_TRACE("runtime settings: sound-device-number=%d sound-dsp-method=%d silent=%d file=`%s'\n",
+        settings.soundDeviceNumber, settings.soundDSPMethod, settings.silent, settings.fileName);
 
     return settings;
 }
@@ -62,7 +64,8 @@ static int filenameEndsWith(const char* name, const char* suffix) {
 
 Environment::Environment()
     : ossInputAvailable(0)
-    , ossOutputAvailable(0) { }
+    , ossOutputAvailable(0)
+    , pulseOutputAvailable(0) { }
 
 Environment Environment::detect() {
     Environment environment;
@@ -72,8 +75,13 @@ Environment Environment::detect() {
         environment.ossOutputAvailable = (access(SoundDeviceDSP::dev_dsp, W_OK) == 0);
     }
 
-    CTH_TRACE("runtime environment: dev-dsp=`%s' oss-input=%d oss-output=%d\n",
-        SoundDeviceDSP::dev_dsp, environment.ossInputAvailable, environment.ossOutputAvailable);
+#if WITH_PULSE == 1
+    environment.pulseOutputAvailable = 1;
+#endif
+
+    CTH_TRACE("runtime environment: dev-dsp=`%s' oss-input=%d oss-output=%d pulse-output=%d\n",
+        SoundDeviceDSP::dev_dsp, environment.ossInputAvailable, environment.ossOutputAvailable,
+        environment.pulseOutputAvailable);
 
     return environment;
 }
@@ -81,9 +89,10 @@ Environment Environment::detect() {
 RuntimeFactory::RuntimeFactory(const Settings& settings_, const Environment& environment_)
     : settings(settings_)
     , environment(environment_) {
-    CTH_TRACE("runtime factory: created with sound-device-number=%d silent=%d oss-input=%d oss-output=%d\n",
-        settings.soundDeviceNumber, settings.silent,
-        environment.ossInputAvailable, environment.ossOutputAvailable);
+    CTH_TRACE("runtime factory: created with sound-device-number=%d sound-dsp-method=%d silent=%d oss-input=%d oss-output=%d pulse-output=%d\n",
+        settings.soundDeviceNumber, settings.soundDSPMethod, settings.silent,
+        environment.ossInputAvailable, environment.ossOutputAvailable,
+        environment.pulseOutputAvailable);
 }
 
 AudioSourceStrategy RuntimeFactory::selectAudioSourceStrategy() const {
@@ -145,8 +154,8 @@ AudioInput* RuntimeFactory::createAudioInput() const {
         return new AudioRandomInput();
 
     case SDN_File:
-        if ((sourceStrategy == ASS_WavFile) && settings.silent) {
-            CTH_DEBUG("    audio input strategy: native silent WAV file input\n");
+        if (sourceStrategy == ASS_WavFile) {
+            CTH_DEBUG("    audio input strategy: native WAV file input\n");
             CTH_TRACE("runtime factory: selected AudioPcmInput with WavAudioSource\n");
             return new AudioPcmInput(new WavAudioSource(settings.fileName));
         }
@@ -166,8 +175,8 @@ AudioInput* RuntimeFactory::createAudioInput() const {
 }
 
 AudioOutput* RuntimeFactory::createAudioOutput() const {
-    CTH_TRACE("runtime factory: selecting AudioOutput silent=%d oss-output=%d\n",
-        settings.silent, environment.ossOutputAvailable);
+    CTH_TRACE("runtime factory: selecting AudioOutput silent=%d pulse-output=%d oss-output=%d\n",
+        settings.silent, environment.pulseOutputAvailable, environment.ossOutputAvailable);
 
     if (settings.silent) {
         CTH_DEBUG("    audio output strategy: null output, because playback is silent\n");
@@ -175,19 +184,25 @@ AudioOutput* RuntimeFactory::createAudioOutput() const {
         return new AudioNullOutput();
     }
 
-    CTH_DEBUG("    audio output strategy: trying Pulse output\n");
-    AudioPulseOutput* pulse = new AudioPulseOutput();
-    if (pulse->isOpen()) {
-        CTH_TRACE("runtime factory: selected AudioPulseOutput\n");
-        return pulse;
+    if (environment.pulseOutputAvailable) {
+        CTH_DEBUG("    audio output strategy: trying Pulse output\n");
+        AudioPulseOutput* pulse = new AudioPulseOutput();
+        if (pulse->isOpen()) {
+            CTH_TRACE("runtime factory: selected AudioPulseOutput\n");
+            return pulse;
+        }
+        delete pulse;
+    } else {
+        CTH_DEBUG("    audio output strategy: skipping Pulse output because support is unavailable\n");
     }
-    delete pulse;
 
     if (environment.ossOutputAvailable) {
-        CTH_DEBUG("    audio output strategy: trying OSS DSP output\n");
-        AudioDSPOutput* dsp = new AudioDSPOutput();
+        CTH_DEBUG("    audio output strategy: trying OSS DSP output with method %d\n",
+            settings.soundDSPMethod);
+        AudioDSPOutput* dsp = new AudioDSPOutput(settings.soundDSPMethod);
         if (dsp->isOpen()) {
-            CTH_TRACE("runtime factory: selected AudioDSPOutput\n");
+            CTH_TRACE("runtime factory: selected AudioDSPOutput method=%d\n",
+                settings.soundDSPMethod);
             return dsp;
         }
         delete dsp;

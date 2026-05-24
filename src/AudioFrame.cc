@@ -2,14 +2,11 @@
 #include "AudioFrame.h"
 #include "AudioRuntime.h"
 
-void audioFrameTick() {
-    if (audioRuntimeProcessor()) {
-        (*audioRuntimeProcessor())();
-        return;
-    }
+static char2 silentAudioFrameData[1024];
+static char2 silentAudioFrameProcessedData[1024];
 
-    if (soundDevice)
-        (*soundDevice)();
+void audioFrameTick() {
+    audioRuntimeTick();
 }
 
 void audioFrameChange() {
@@ -26,14 +23,14 @@ char2* audioFrameData() {
     if (audioRuntimeProcessor())
         return audioRuntimeProcessor()->data;
 
-    return soundDevice ? soundDevice->data : NULL;
+    return soundDevice ? soundDevice->data : silentAudioFrameData;
 }
 
 char2* audioFrameProcessedData() {
     if (audioRuntimeProcessor())
         return audioRuntimeProcessor()->dataProc;
 
-    return soundDevice ? soundDevice->dataProc : NULL;
+    return soundDevice ? soundDevice->dataProc : silentAudioFrameProcessedData;
 }
 
 int audioFrameBroadcastBytes() {

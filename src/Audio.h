@@ -39,6 +39,7 @@ public:
     virtual int outputDelayBytes() const = 0;
     virtual int getHandle() const { return -1; }
     virtual int isOpen() const = 0;
+    virtual int isRealtime() const { return 1; }
     virtual void update() { }
 };
 
@@ -47,6 +48,7 @@ public:
     virtual int write(const void* buffer, int size);
     virtual int outputDelayBytes() const;
     virtual int isOpen() const;
+    virtual int isRealtime() const;
 };
 
 class AudioPulseOutput : public AudioOutput {
@@ -60,11 +62,13 @@ public:
     virtual int write(const void* buffer, int size);
     virtual int outputDelayBytes() const;
     virtual int isOpen() const;
+    virtual int isRealtime() const;
     virtual void update();
 };
 
 class AudioDSPOutput : public AudioOutput {
     int handle;
+    int method;
 
     void setFragment();
     void setChannels();
@@ -73,7 +77,7 @@ class AudioDSPOutput : public AudioOutput {
     void init();
 
 public:
-    AudioDSPOutput();
+    AudioDSPOutput(int method);
     virtual ~AudioDSPOutput();
 
     virtual int write(const void* buffer, int size);
@@ -81,6 +85,26 @@ public:
     virtual int getHandle() const;
     virtual int isOpen() const;
     virtual void update();
+};
+
+class AudioBuffer {
+    char* data;
+    int capacity;
+    int readPos;
+    int writePos;
+    int fill;
+
+public:
+    AudioBuffer(int capacity);
+    ~AudioBuffer();
+
+    int available() const { return fill; }
+    int freeSpace() const { return capacity - fill; }
+    int size() const { return capacity; }
+    void clear();
+
+    int write(const char* src, int bytes);
+    int read(char* dst, int bytes);
 };
 
 struct PcmFormat {
