@@ -1,5 +1,7 @@
 #include "cthugha.h"
 #include "Sound.h"
+#include "AudioFrame.h"
+#include "AudioRuntime.h"
 
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -126,7 +128,7 @@ SoundDeviceFork::SoundDeviceFork() {
         return;
 
     case 0: /* child */
-        SoundDevice::newFileChildSD();
+        audioRuntimeInit(RSIC_FileChild, 0);
 
         sound_communicate(0); // and send the new values back
 

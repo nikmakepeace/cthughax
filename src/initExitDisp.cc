@@ -7,6 +7,7 @@
 #include "display.h"
 #include "Sound.h"
 #include "AudioFrame.h"
+#include "AudioRuntime.h"
 #include "translate.h"
 #include "options.h"
 #include "keys.h"
@@ -80,7 +81,7 @@ int main(int argc, char* argv[]) {
     }
 
     CTH_INFO("Initializing the sound device...\n");
-    SoundDevice::newSD();
+    audioRuntimeInit(RSIC_MainProcess, 1);
 
     CTH_INFO("Initializing the sound server...\n");
     soundServer = new SoundServer;

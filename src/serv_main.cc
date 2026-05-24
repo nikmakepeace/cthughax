@@ -1,6 +1,7 @@
 #include "cthugha.h"
 #include "Sound.h"
 #include "AudioFrame.h"
+#include "AudioRuntime.h"
 #include "Interface.h"
 #include "SoundServer.h"
 #include "CDPlayer.h"
@@ -71,7 +72,7 @@ int main(int argc, char* argv[]) {
     atexit(exit_ncurses);
 
     CTH_INFO("Initializing the sound device...\n");
-    SoundDevice::newSD();
+    audioRuntimeInit(RSIC_MainProcess, 1);
 
     CTH_INFO("Initializing the sound server...\n");
     soundServer = new SoundServer;

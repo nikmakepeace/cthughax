@@ -1,10 +1,11 @@
-// Sound option registry and lifecycle wrapper for the global sound device.
-// The current backend is chosen at runtime by SoundDevice::newSD(); option
-// changes notify the existing backend so it can reconfigure device buffers.
+// Sound option registry and lifecycle wrapper for the current audio frame.
+// Backend selection now enters through AudioRuntime/RuntimeFactory; option
+// changes notify the active backend so it can reconfigure device buffers.
 
 #include "cthugha.h"
 #include "Sound.h"
 #include "AudioFrame.h"
+#include "AudioRuntime.h"
 #include "display.h"
 #include "information.h"
 #include "Interface.h"
@@ -147,14 +148,13 @@ int init_sound() {
     if (soundDevice != NULL)
         return 0;
 
-    SoundDevice::newSD();
+    audioRuntimeInit(RSIC_MainProcess, 1);
 
     return 0;
 }
 
 int exit_sound() {
-    delete soundDevice;
-    soundDevice = NULL;
+    audioRuntimeShutdown();
     return 0;
 }
 

@@ -45,7 +45,6 @@ protected:
     int rawSize; // Bytes requested from the backend for one frame.
     int tmpSize; // Allocated bytes in tmpData.
     void setTmpData();
-    void borrowTmpData(char* data);
 
     void convert(char2* dst, void* src, int n);
     static void finishNewSD(int initializeInputControls);
@@ -59,6 +58,7 @@ public:
 
     static void newSD();
     static void newFileChildSD();
+    static void install(SoundDevice* device, int initializeInputControls);
 
     // Per-frame tick: read backend data, then convert it into data.
     void operator()();
@@ -70,9 +70,7 @@ public:
     virtual int initInputControls() { return 0; }
 
     int frameRawSize() const { return rawSize; }
-
-    friend class SoundDeviceFork;
-    friend class SoundServer;
+    void borrowTmpData(char* data);
 };
 
 extern SoundDevice* soundDevice;

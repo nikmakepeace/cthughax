@@ -281,12 +281,15 @@ void SoundDevice::convert(char2* dst, void* src, int n) {
 
 void SoundDevice::newSD() {
     RuntimeFactory runtimeFactory(Settings::fromCurrentOptions(), Environment::detect());
-    soundDevice = runtimeFactory.createLegacySoundDevice(RSIC_MainProcess);
-    finishNewSD(1);
+    install(runtimeFactory.createLegacySoundDevice(RSIC_MainProcess), 1);
 }
 
 void SoundDevice::newFileChildSD() {
     RuntimeFactory runtimeFactory(Settings::fromCurrentOptions(), Environment::detect());
-    soundDevice = runtimeFactory.createLegacySoundDevice(RSIC_FileChild);
-    finishNewSD(0);
+    install(runtimeFactory.createLegacySoundDevice(RSIC_FileChild), 0);
+}
+
+void SoundDevice::install(SoundDevice* device, int initializeInputControls) {
+    soundDevice = device;
+    finishNewSD(initializeInputControls);
 }
