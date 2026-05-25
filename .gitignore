@@ -134,6 +134,10 @@ CVS/
 
 # External dependencies
 /external
+!/external/
+/external/*
+!/external/minimp3/
+!/external/minimp3/*
 
 # build dumps
 /dumps

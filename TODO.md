@@ -37,6 +37,9 @@
    - Decouple file playback output from visual-analysis sampling: read/decode into a
      buffer, write to `/dev/dsp` in backend-friendly chunks, and feed only the required
      visual window into Cthugha.
+   - Address MP3 playback next. Avoid preserving the legacy `mpg123` tmp-file path as the
+     long-term model; design it as an `AudioInput` decoder/source that produces PCM for
+     the same buffer/output/frame pipeline as WAV.
    - Document `--play FILE --silent` as the preferred fixture path for analysis-only
      runs, and `--snd-method 3` as the current smoother OSS/QEMU playback workaround.
 
@@ -116,6 +119,52 @@
      and actual window size can vary independently where useful.
    - Use SDL to cover Wayland/X11/fullscreen/input for modern users before considering a
      native Wayland implementation.
+
+11. Refactor the internal visual engine pipeline.
+   - Keep this scoped to internal visual-buffer operations, not audio source selection or
+     display presentation.
+   - Target responsibilities:
+     - The visual engine knows nothing about the audio source or PCM file/device format.
+     - The visual engine knows nothing about the display backend or display pixel format.
+     - `CthughaFrameBuffer` owns long-lived internal indexed buffers, dimensions, pitch,
+       border storage, active/passive buffers, and swap/clear/pixel/span access.
+     - `CthughaFrameBuffer` should be state, not choreography; it should not run or write
+       itself.
+     - The engine consumes pre-processed audio through a stable per-frame context:
+       raw `AudioFrame`, FFT/spectrum data, future frequency bands/features, and
+       `AcousticContext`.
+   - Proposed objects:
+     - `VisualDirector`: decides which kinds of modules/stages are needed to mutate the
+       internal buffer.
+     - `VisualPipelineFactory`: consumes settings/environment/current options, resolves
+       concrete modules, and builds or refreshes the pipeline. This may initially be the
+       same class as the director.
+     - `VisualPipeline`: long-lived ordered executor for visual modules.
+     - `VisualModule`: small interface for one buffer mutation stage.
+     - `VisualFrameContext`: read-only per-frame inputs such as `AudioFrame`,
+       `AudioAnalysis`, `AcousticContext`, `now`, and `deltaT`.
+   - Current `CthughaBuffer::run()` maps roughly to:
+     - `SoundProcessStage`
+     - `FlashlightStage`
+     - `BorderStage`
+     - `FlameStage`
+     - `TranslateStage`
+     - `WaveStage`
+     - `PaletteSmoothingStage`
+     - `SwapBuffersStage`
+   - Pipeline construction happens once per session, and module refresh/rebuild happens
+     when startup settings or `AutoChanger` alter selected visual options.
+   - Treat legacy `screen` functions carefully:
+     - If a screen function mutates the internal indexed frame as an artistic transform,
+       it belongs in the visual pipeline.
+     - If it copies/converts into `cthughaDisplay->buffer` or knows display memory layout,
+       it belongs in the display/presentation layer, not the internal visual engine.
+   - First practical slice:
+     - Add `CthughaFrameBuffer`, `VisualFrameContext`, `VisualModule`, and
+       `VisualPipeline` scaffolding.
+     - Make `CthughaBuffer::run()` delegate to the pipeline while using adapters around
+       existing `CoreOptionEntry` modules.
+     - Move individual wave/flame/translate modules off globals incrementally afterward.
 
 ## Short-Term Extras
 

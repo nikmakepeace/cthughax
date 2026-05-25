@@ -172,20 +172,34 @@ struct PcmFormat {
         , sampleFormat(SF_u8) { }
 };
 
-class PcmSource {
+class PcmDriver {
 protected:
     int error;
     PcmFormat pcmFormat;
 
 public:
-    PcmSource();
-    virtual ~PcmSource();
+    PcmDriver();
+    virtual ~PcmDriver();
 
     int hasError() const { return error; }
     const PcmFormat& format() const { return pcmFormat; }
 
     virtual int read(char* dst, int bytes) = 0;
     virtual void rewind() = 0;
+};
+
+class PcmSource {
+    PcmDriver* driver;
+    int driverOwned;
+
+public:
+    PcmSource(PcmDriver* driver, int takeOwnership = 1);
+    ~PcmSource();
+
+    int hasError() const;
+    const PcmFormat& format() const;
+    int read(char* dst, int bytes);
+    void rewind();
 };
 
 class AudioPcmInput : public AudioInput {
@@ -204,7 +218,7 @@ public:
     virtual void update();
 };
 
-class WavAudioSource : public PcmSource {
+class WavPcmDriver : public PcmDriver {
     char name[PATH_MAX];
     FILE* file;
     long dataStart;
@@ -216,8 +230,35 @@ class WavAudioSource : public PcmSource {
     int parseHeader();
 
 public:
-    WavAudioSource(const char* name);
-    virtual ~WavAudioSource();
+    WavPcmDriver(const char* name);
+    virtual ~WavPcmDriver();
+
+    virtual int read(char* dst, int bytes);
+    virtual void rewind();
+};
+
+class Minimp3PcmDriver : public PcmDriver {
+    char name[PATH_MAX];
+    void* decoder;
+
+    int open();
+    int applyFormat();
+
+public:
+    Minimp3PcmDriver(const char* name);
+    virtual ~Minimp3PcmDriver();
+
+    virtual int read(char* dst, int bytes);
+    virtual void rewind();
+};
+
+class RandomNoisePcmDriver : public PcmDriver {
+    int v1;
+    int v2;
+    int maxdv;
+
+public:
+    RandomNoisePcmDriver();
 
     virtual int read(char* dst, int bytes);
     virtual void rewind();
@@ -261,18 +302,6 @@ public:
     void operator()();
     void change();
     int frameRawSize() const { return rawSize; }
-};
-
-class AudioRandomInput : public AudioInput {
-    int v1;
-    int v2;
-    int maxdv;
-
-public:
-    AudioRandomInput();
-
-    virtual int read(char* dst, int rawSize, int samplesRequested);
-    virtual void update();
 };
 
 class AudioNetInput : public AudioInput {

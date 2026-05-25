@@ -6,7 +6,8 @@ SUBDIRS += doc
 endif
 DIST_SUBDIRS = src tab doc
 
-EXTRA_DIST = cthugha-L.lsm Makefile.pre  cthugha.ini.eg tga2jpeg
+EXTRA_DIST = cthugha-L.lsm Makefile.pre  cthugha.ini.eg tga2jpeg \
+	external/minimp3/LICENSE external/minimp3/minimp3.h external/minimp3/minimp3_ex.h
 
 dist-hook:
 	cp Makefile.pre $(distdir)/Makefile

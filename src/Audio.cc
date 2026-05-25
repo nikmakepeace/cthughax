@@ -14,9 +14,26 @@
 #include <netdb.h>
 #include <unistd.h>
 
+#ifndef WITH_MINIMP3
+#define WITH_MINIMP3 1
+#endif
+
 #if WITH_PULSE == 1
 #include <pulse/error.h>
 #include <pulse/simple.h>
+#endif
+
+#if WITH_MINIMP3 == 1
+#ifndef __STDC_LIMIT_MACROS
+#define __STDC_LIMIT_MACROS
+#endif
+#include <stdint.h>
+#ifndef UINT64_MAX
+#define UINT64_MAX ((uint64_t)-1)
+#endif
+#define MINIMP3_NO_SIMD
+#define MINIMP3_IMPLEMENTATION
+#include "../external/minimp3/minimp3_ex.h"
 #endif
 
 #if WITH_DSP == 1
@@ -152,7 +169,7 @@ AudioPulseOutput::~AudioPulseOutput() {
 
 int AudioPulseOutput::defaultTargetLatencyMs() const {
     // pa_simple_write() may block until the server accepts more data, so keep
-    // a deeper sink target than the frame-sized decoder chunks.
+    // a deeper sink target than the frame-sized driver chunks.
     return 250;
 }
 
@@ -536,7 +553,7 @@ long long AudioBuffer::protectedWindowStartByte() const {
     //   [protectedWindowStartByte(), submittedEndByte) = recent submitted
     //       history retained for visual-frame reads.
     //   [submittedEndByte, decodedEndByte) = decoded PCM queued ahead of output.
-    // Future decoder writes may overwrite only data outside this span.
+    // Future driver writes may overwrite only data outside this span.
     long long historyStartByte = submittedEndByte - protectedHistoryBytes;
     long long capacityStartByte = decodedEndByte - capacity;
     long long startByte = (historyStartByte > capacityStartByte) ? historyStartByte : capacityStartByte;
@@ -841,10 +858,39 @@ void AudioFrameBuilder::convert(char2* dst, void* src, int n) {
     }
 }
 
-PcmSource::PcmSource()
+PcmDriver::PcmDriver()
     : error(0) { }
 
-PcmSource::~PcmSource() { }
+PcmDriver::~PcmDriver() { }
+
+static PcmFormat silentPcmFormat;
+
+PcmSource::PcmSource(PcmDriver* driver_, int takeOwnership)
+    : driver(driver_)
+    , driverOwned(takeOwnership) { }
+
+PcmSource::~PcmSource() {
+    if (driverOwned)
+        delete driver;
+    driver = NULL;
+}
+
+int PcmSource::hasError() const {
+    return (driver == NULL) || driver->hasError();
+}
+
+const PcmFormat& PcmSource::format() const {
+    return driver ? driver->format() : silentPcmFormat;
+}
+
+int PcmSource::read(char* dst, int bytes) {
+    return driver ? driver->read(dst, bytes) : 0;
+}
+
+void PcmSource::rewind() {
+    if (driver)
+        driver->rewind();
+}
 
 static unsigned int readLe16(const unsigned char* p) {
     return (unsigned int)p[0] | ((unsigned int)p[1] << 8);
@@ -917,8 +963,8 @@ void AudioPcmInput::update() {
     finished = 0;
 }
 
-WavAudioSource::WavAudioSource(const char* name_)
-    : PcmSource()
+WavPcmDriver::WavPcmDriver(const char* name_)
+    : PcmDriver()
     , file(NULL)
     , dataStart(0)
     , dataLength(0)
@@ -929,17 +975,17 @@ WavAudioSource::WavAudioSource(const char* name_)
         error = 1;
 }
 
-WavAudioSource::~WavAudioSource() {
+WavPcmDriver::~WavPcmDriver() {
     if (file)
         fclose0(file);
 }
 
-int WavAudioSource::open() {
+int WavPcmDriver::open() {
     if (file)
         fclose0(file);
 
     CTH_INFO("Playing file '%s'.\n", name);
-    CTH_TRACE("opening `%s'\n", "wav audio source", name);
+    CTH_TRACE("opening `%s'\n", "wav pcm driver", name);
 
     file = fopen(name, "rb");
     if (file == NULL) {
@@ -950,7 +996,7 @@ int WavAudioSource::open() {
     return parseHeader();
 }
 
-int WavAudioSource::readChunkHeader(char id[4], unsigned int& size) {
+int WavPcmDriver::readChunkHeader(char id[4], unsigned int& size) {
     unsigned char sizeBytes[4];
 
     if (fread(id, 1, 4, file) != 4)
@@ -962,7 +1008,7 @@ int WavAudioSource::readChunkHeader(char id[4], unsigned int& size) {
     return 0;
 }
 
-int WavAudioSource::parseHeader() {
+int WavPcmDriver::parseHeader() {
     char id[4];
     unsigned int size;
     unsigned char formatBytes[16];
@@ -1036,7 +1082,7 @@ int WavAudioSource::parseHeader() {
                 return 1;
             }
 
-            CTH_TRACE("format rate=%d channels=%d sample-format=%d\n", "wav audio source",
+            CTH_TRACE("format rate=%d channels=%d sample-format=%d\n", "wav pcm driver",
                 pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
 
             if (size > 16)
@@ -1054,7 +1100,7 @@ int WavAudioSource::parseHeader() {
             dataLength = size;
             dataRead = 0;
             foundData = 1;
-            CTH_TRACE("data-start=%ld data-length=%ld\n", "wav audio source", dataStart, dataLength);
+            CTH_TRACE("data-start=%ld data-length=%ld\n", "wav pcm driver", dataStart, dataLength);
         } else {
             fseek(file, size, SEEK_CUR);
             if (size & 1)
@@ -1070,7 +1116,7 @@ int WavAudioSource::parseHeader() {
     return 0;
 }
 
-int WavAudioSource::read(char* dst, int bytes) {
+int WavPcmDriver::read(char* dst, int bytes) {
     if ((file == NULL) || error)
         return 0;
 
@@ -1088,13 +1134,161 @@ int WavAudioSource::read(char* dst, int bytes) {
     return readBytes;
 }
 
-void WavAudioSource::rewind() {
-    CTH_TRACE("rewind `%s'\n", "wav audio source", name);
+void WavPcmDriver::rewind() {
+    CTH_TRACE("rewind `%s'\n", "wav pcm driver", name);
     if ((file == NULL) || error)
         return;
 
     fseek(file, dataStart, SEEK_SET);
     dataRead = 0;
+}
+
+Minimp3PcmDriver::Minimp3PcmDriver(const char* name_)
+    : PcmDriver()
+    , decoder(NULL) {
+    strncpy(name, name_, PATH_MAX - 1);
+    name[PATH_MAX - 1] = '\0';
+    if (open())
+        error = 1;
+}
+
+Minimp3PcmDriver::~Minimp3PcmDriver() {
+#if WITH_MINIMP3 == 1
+    if (decoder) {
+        mp3dec_ex_close((mp3dec_ex_t*)decoder);
+        delete (mp3dec_ex_t*)decoder;
+    }
+#endif
+    decoder = NULL;
+}
+
+int Minimp3PcmDriver::open() {
+#if WITH_MINIMP3 == 1
+    CTH_INFO("Playing file '%s'.\n", name);
+    CTH_TRACE("opening `%s'\n", "minimp3 pcm driver", name);
+
+    mp3dec_ex_t* dec = new mp3dec_ex_t;
+    memset(dec, 0, sizeof(*dec));
+
+    int result = mp3dec_ex_open(dec, name, MP3D_SEEK_TO_SAMPLE | MP3D_DO_NOT_SCAN);
+    if (result != 0) {
+        CTH_WARN("  Can not open MP3 file `%s' using minimp3: %d.\n", name, result);
+        delete dec;
+        return 1;
+    }
+
+    decoder = dec;
+    return applyFormat();
+#else
+    CTH_WARN("  Embedded minimp3 decoder support is not compiled in.\n");
+    CTH_TRACE("open failed because WITH_MINIMP3=0 file=`%s'\n", "minimp3 pcm driver", name);
+    return 1;
+#endif
+}
+
+int Minimp3PcmDriver::applyFormat() {
+#if WITH_MINIMP3 == 1
+    mp3dec_ex_t* dec = (mp3dec_ex_t*)decoder;
+    if (dec == NULL)
+        return 1;
+
+    pcmFormat.sampleRate = dec->info.hz;
+    pcmFormat.channels = dec->info.channels;
+#if (__BYTE_ORDER == __BIG_ENDIAN)
+    pcmFormat.sampleFormat = SF_s16_be;
+#else
+    pcmFormat.sampleFormat = SF_s16_le;
+#endif
+
+    if ((pcmFormat.channels < 1) || (pcmFormat.channels > 2) || (pcmFormat.sampleRate <= 0)) {
+        CTH_WARN("  Unsupported MP3 format rate=%d channels=%d.\n",
+            pcmFormat.sampleRate, pcmFormat.channels);
+        return 1;
+    }
+
+    CTH_TRACE("format rate=%d channels=%d sample-format=%d\n", "minimp3 pcm driver",
+        pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
+    return 0;
+#else
+    return 1;
+#endif
+}
+
+int Minimp3PcmDriver::read(char* dst, int bytes) {
+#if WITH_MINIMP3 == 1
+    if ((decoder == NULL) || error)
+        return 0;
+
+    int sampleBytes = sizeof(mp3d_sample_t);
+    int samplesWanted = bytes / sampleBytes;
+    if (samplesWanted <= 0)
+        return 0;
+
+    size_t samplesRead = mp3dec_ex_read((mp3dec_ex_t*)decoder, (mp3d_sample_t*)dst,
+        (size_t)samplesWanted);
+
+    return (int)(samplesRead * sampleBytes);
+#else
+    return 0;
+#endif
+}
+
+void Minimp3PcmDriver::rewind() {
+    CTH_TRACE("rewind `%s'\n", "minimp3 pcm driver", name);
+#if WITH_MINIMP3 == 1
+    if ((decoder == NULL) || error)
+        return;
+
+    mp3dec_ex_seek((mp3dec_ex_t*)decoder, 0);
+#endif
+}
+
+RandomNoisePcmDriver::RandomNoisePcmDriver()
+    : PcmDriver()
+    , v1(0)
+    , v2(0)
+    , maxdv(2) {
+    pcmFormat.sampleRate = int(soundSampleRate);
+    pcmFormat.channels = 2;
+    pcmFormat.sampleFormat = SF_u8;
+    CTH_TRACE("created rate=%d channels=%d format=%d\n", "random noise pcm driver",
+        pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
+}
+
+int RandomNoisePcmDriver::read(char* dst, int bytes) {
+    int frames = min(bytes / 2, 256);
+
+    if (frames <= 0)
+        return 0;
+
+    unsigned char* soundData = (unsigned char*)dst;
+
+    soundData[0] = 144;
+    soundData[1] = 112;
+    for (int x = 1; x < frames; x++) {
+        unsigned char* current = soundData + x * 2;
+        unsigned char* previous = current - 2;
+
+        if (rand() % 256 > previous[0])
+            v1 += rand() % maxdv;
+        else
+            v1 -= rand() % maxdv;
+
+        if (rand() % 256 > previous[1])
+            v2 += rand() % maxdv;
+        else
+            v2 -= rand() % maxdv;
+
+        current[0] = previous[0] + v1;
+        current[1] = previous[1] + v2;
+    }
+
+    return frames * 2;
+}
+
+void RandomNoisePcmDriver::rewind() {
+    v1 = 0;
+    v2 = 0;
 }
 
 AudioInputProcessor::AudioInputProcessor(AudioInput* input_, int takeOwnership)
@@ -1248,48 +1442,6 @@ void AudioInputProcessor::convert(char2* dst, void* src, int n) {
     default:
         CTH_ERROR("internal error: wrong sound format.\n");
     }
-}
-
-AudioRandomInput::AudioRandomInput()
-    : AudioInput()
-    , v1(0)
-    , v2(0)
-    , maxdv(2) {
-    update();
-}
-
-int AudioRandomInput::read(char* dst, int rawSize, int samplesRequested) {
-    int samples = min(samplesRequested, rawSize / int(sizeof(char2)));
-    samples = min(samples, 256);
-
-    if (samples <= 0)
-        return 0;
-
-    char2* sound_data = (char2*)dst;
-
-    sound_data[0][0] = 144;
-    sound_data[0][1] = 112;
-    for (int x = 1; x < samples; x++) {
-        if (rand() % 256 > sound_data[x - 1][0])
-            v1 += rand() % maxdv;
-        else
-            v1 -= rand() % maxdv;
-
-        if (rand() % 256 > sound_data[x - 1][1])
-            v2 += rand() % maxdv;
-        else
-            v2 -= rand() % maxdv;
-
-        sound_data[x][0] = sound_data[x - 1][0] + v1;
-        sound_data[x][1] = sound_data[x - 1][1] + v2;
-    }
-
-    return samples;
-}
-
-void AudioRandomInput::update() {
-    soundFormat.setValue(SF_u8);
-    soundChannels.setValue(2);
 }
 
 #if WITH_NETWORK == 1

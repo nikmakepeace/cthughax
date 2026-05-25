@@ -3,23 +3,13 @@
 #ifndef __RUNTIME_FACTORY_H
 #define __RUNTIME_FACTORY_H
 
-#include "Audio.h"
+#include "PcmSourceFactory.h"
 
 #include <limits.h>
 
 enum RuntimeSoundInputContext {
     RSIC_MainProcess,
     RSIC_FileChild
-};
-
-enum AudioSourceStrategy {
-    ASS_LineIn,
-    ASS_Network,
-    ASS_Random,
-    ASS_WavFile,
-    ASS_Mp3File,
-    ASS_RawFile,
-    ASS_Unknown
 };
 
 class Settings {
@@ -48,6 +38,7 @@ public:
 class RuntimeFactory {
     Settings settings;
     Environment environment;
+    PcmSourceFactory pcmSourceFactory;
 
 public:
     RuntimeFactory(const Settings& settings, const Environment& environment);

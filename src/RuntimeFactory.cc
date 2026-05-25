@@ -1,7 +1,6 @@
 #include "cthugha.h"
 #include "RuntimeFactory.h"
 
-#include <ctype.h>
 #include <string.h>
 #include <unistd.h>
 
@@ -25,41 +24,6 @@ Settings Settings::fromCurrentOptions() {
         settings.soundDeviceNumber, settings.soundDSPMethod, settings.silent, settings.fileName);
 
     return settings;
-}
-
-static const char* audioSourceStrategyName(AudioSourceStrategy strategy) {
-    switch (strategy) {
-    case ASS_LineIn:
-        return "line-in";
-    case ASS_Network:
-        return "network";
-    case ASS_Random:
-        return "random";
-    case ASS_WavFile:
-        return "wav-file";
-    case ASS_Mp3File:
-        return "mp3-file";
-    case ASS_RawFile:
-        return "raw-file";
-    default:
-        return "unknown";
-    }
-}
-
-static int filenameEndsWith(const char* name, const char* suffix) {
-    int nameLen = strlen(name);
-    int suffixLen = strlen(suffix);
-
-    if (suffixLen > nameLen)
-        return 0;
-
-    name += nameLen - suffixLen;
-    for (int i = 0; i < suffixLen; i++) {
-        if (tolower(name[i]) != tolower(suffix[i]))
-            return 0;
-    }
-
-    return 1;
 }
 
 Environment::Environment()
@@ -96,36 +60,7 @@ RuntimeFactory::RuntimeFactory(const Settings& settings_, const Environment& env
 }
 
 AudioSourceStrategy RuntimeFactory::selectAudioSourceStrategy() const {
-    AudioSourceStrategy strategy;
-
-    switch (settings.soundDeviceNumber) {
-    case SDN_DSPIn:
-        strategy = ASS_LineIn;
-        break;
-    case SDN_Net:
-        strategy = ASS_Network;
-        break;
-    case SDN_Random:
-        strategy = ASS_Random;
-        break;
-    case SDN_File:
-        if (filenameEndsWith(settings.fileName, ".wav"))
-            strategy = ASS_WavFile;
-        else if (filenameEndsWith(settings.fileName, ".mp3"))
-            strategy = ASS_Mp3File;
-        else if (settings.fileName[0] != '\0')
-            strategy = ASS_RawFile;
-        else
-            strategy = ASS_Unknown;
-        break;
-    default:
-        strategy = ASS_Unknown;
-        break;
-    }
-
-    CTH_TRACE("selected audio source strategy=%s sound-device-number=%d file=`%s'\n", "runtime factory",
-        audioSourceStrategyName(strategy), settings.soundDeviceNumber, settings.fileName);
-    return strategy;
+    return pcmSourceFactory.selectAudioSourceStrategy(settings);
 }
 
 AudioInput* RuntimeFactory::createAudioInput() const {
@@ -137,33 +72,38 @@ AudioInput* RuntimeFactory::createAudioInput() const {
     switch (settings.soundDeviceNumber) {
     case SDN_DSPIn:
         CTH_DEBUG("    audio input strategy: native OSS DSP input from %s source\n",
-            audioSourceStrategyName(sourceStrategy));
+            PcmSourceFactory::strategyName(sourceStrategy));
         CTH_TRACE("selected AudioDSPInput\n", "runtime factory");
         return new AudioDSPInput();
 
     case SDN_Net:
         CTH_DEBUG("    audio input strategy: native network input from %s source\n",
-            audioSourceStrategyName(sourceStrategy));
+            PcmSourceFactory::strategyName(sourceStrategy));
         CTH_TRACE("selected AudioNetInput\n", "runtime factory");
         return new AudioNetInput();
 
     case SDN_Random:
-        CTH_DEBUG("    audio input strategy: random input from %s source\n",
-            audioSourceStrategyName(sourceStrategy));
-        CTH_TRACE("selected AudioRandomInput\n", "runtime factory");
-        return new AudioRandomInput();
-
     case SDN_File:
-        if (sourceStrategy == ASS_WavFile) {
-            CTH_DEBUG("    audio input strategy: native WAV file input\n");
-            CTH_TRACE("selected AudioPcmInput with WavAudioSource\n", "runtime factory");
-            return new AudioPcmInput(new WavAudioSource(settings.fileName));
+    {
+        CTH_DEBUG("    audio input strategy: native PCM input from %s source\n",
+            PcmSourceFactory::strategyName(sourceStrategy));
+        PcmSource* source = pcmSourceFactory.create(settings);
+        if (source != NULL) {
+            CTH_TRACE("selected AudioPcmInput with strategy=%s\n", "runtime factory",
+                PcmSourceFactory::strategyName(sourceStrategy));
+            return new AudioPcmInput(source);
         }
-        CTH_DEBUG("    audio input strategy: legacy file input bridge for %s source, because file playback is not native yet\n",
-            audioSourceStrategyName(sourceStrategy));
-        CTH_TRACE("no native AudioInput for file source strategy=%s yet\n", "runtime factory",
-            audioSourceStrategyName(sourceStrategy));
+        if (settings.soundDeviceNumber == SDN_File) {
+            CTH_DEBUG("    audio input strategy: legacy file input bridge for %s source, because file playback is not native yet\n",
+                PcmSourceFactory::strategyName(sourceStrategy));
+        } else {
+            CTH_DEBUG("    audio input strategy: no native PCM input for %s source\n",
+                PcmSourceFactory::strategyName(sourceStrategy));
+        }
+        CTH_TRACE("no native AudioInput for source strategy=%s\n", "runtime factory",
+            PcmSourceFactory::strategyName(sourceStrategy));
         return NULL;
+    }
 
     default:
         CTH_DEBUG("    audio input strategy: none, because requested device %d is illegal\n",

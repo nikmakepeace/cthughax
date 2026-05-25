@@ -15,8 +15,22 @@ static int audioRuntimeOutputChunkSize = 0;
 static int audioRuntimeInputFinished = 0;
 static int audioRuntimeComplete = 0;
 
+#ifndef WITH_MINIMP3
+#define WITH_MINIMP3 1
+#endif
+
 static const char* audioRuntimeContextName(RuntimeSoundInputContext context) {
     return (context == RSIC_FileChild) ? "file child" : "main process";
+}
+
+static int audioRuntimeUsesNativeFilePipeline(AudioSourceStrategy sourceStrategy) {
+    if (sourceStrategy == ASS_WavFile)
+        return 1;
+#if WITH_MINIMP3 == 1
+    if (sourceStrategy == ASS_Mp3File)
+        return 1;
+#endif
+    return 0;
 }
 
 static int audioRuntimeBytesPerSample() {
@@ -191,10 +205,11 @@ void audioRuntimeInit(RuntimeSoundInputContext context, int initializeInputContr
     audioRuntimeInputFinished = 0;
     audioRuntimeComplete = 0;
 
-    if (sourceStrategy == ASS_WavFile) {
+    if (audioRuntimeUsesNativeFilePipeline(sourceStrategy)) {
         audioInput = runtimeFactory.createAudioInput();
         if ((audioInput == NULL) || audioInput->hasError()) {
-            CTH_TRACE("native WAV input construction failed\n", "audio runtime");
+            CTH_TRACE("native file input construction failed strategy=%d\n", "audio runtime",
+                sourceStrategy);
             delete audioInput;
             audioInput = NULL;
             exit(0);
@@ -202,7 +217,8 @@ void audioRuntimeInit(RuntimeSoundInputContext context, int initializeInputContr
 
         audioOutput = runtimeFactory.createAudioOutput();
         if ((audioOutput == NULL) || !audioOutput->isOpen()) {
-            CTH_TRACE("native WAV output construction failed\n", "audio runtime");
+            CTH_TRACE("native file output construction failed strategy=%d\n", "audio runtime",
+                sourceStrategy);
             delete audioInput;
             audioInput = NULL;
             delete audioOutput;
@@ -218,9 +234,9 @@ void audioRuntimeInit(RuntimeSoundInputContext context, int initializeInputContr
         audioRuntimeChunk = new char[audioRuntimeChunkSize];
         audioRuntimeOutputChunk = new char[audioRuntimeOutputChunkSize];
         audioRuntimeFrame.clear();
-        CTH_TRACE("installed native WAV pipeline input=%p buffer=%p output=%p frame-builder=%p input-chunk=%d output-chunk=%d target-delay=%d\n", "audio runtime",
-            audioInput, audioBuffer, audioOutput, audioFrameBuilder, audioRuntimeChunkSize,
-            audioRuntimeOutputChunkSize, audioOutput->targetDelayBytes());
+        CTH_TRACE("installed native file pipeline strategy=%d input=%p buffer=%p output=%p frame-builder=%p input-chunk=%d output-chunk=%d target-delay=%d\n", "audio runtime",
+            sourceStrategy, audioInput, audioBuffer, audioOutput, audioFrameBuilder,
+            audioRuntimeChunkSize, audioRuntimeOutputChunkSize, audioOutput->targetDelayBytes());
     } else {
         audioProcessor = runtimeFactory.createAudioProcessor();
         if (audioProcessor != NULL) {

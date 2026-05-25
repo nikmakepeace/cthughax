@@ -412,6 +412,7 @@ fi
 AC_DEFINE_UNQUOTED([WITH_DSP], 	 [${with_dsp}], [with DPS device])
 AC_DEFINE_UNQUOTED([DEV_DSP],	 ["${dev_dsp}"],[DPS device])
 AC_DEFINE_UNQUOTED([WITH_PULSE], 	 [${with_pulse}], [with PulseAudio-compatible output])
+AC_DEFINE_UNQUOTED([WITH_MINIMP3], 	 [1], [with embedded minimp3 decoding])
 AC_DEFINE_UNQUOTED([WITH_CDROM],	 [${with_cdrom}], [cdrom])
 AC_DEFINE_UNQUOTED([DEV_CDROM],	["${dev_cdrom}"], [dev-cdrom])
 AC_DEFINE_UNQUOTED([WITH_MIXER],	 [${with_mixer}], [with mixer])
@@ -449,6 +450,7 @@ if test x$with_pulse = x1; then
 else
 	echo "Pulse output   : disabled"
 fi
+echo "MP3 decoder    : embedded minimp3"
 if test x$with_cdrom = x1; then
 	echo "CDROM device   : ${dev_cdrom}"
 else
