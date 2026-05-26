@@ -62,6 +62,13 @@ core.*
 /tab/Makefile
 /tab/Makefile.in
 
+# CMake build output
+/CMakeCache.txt
+/CMakeFiles/
+/cmake-build*/
+/build*/
+/install_manifest.txt
+
 # Automake dependency/libtool directories
 .deps/
 .libs/
