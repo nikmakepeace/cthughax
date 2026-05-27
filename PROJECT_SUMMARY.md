@@ -1,88 +1,137 @@
 # CthughaNix Project Summary
 
-This repository is a C/C++ source snapshot of CthughaNix 1.5, a Linux/Unix continuation of Cthugha-L: an audio-seeded music visualizer descended from the DOS Cthugha 5.x codebase. The code is old-school Unix graphics software: a small core loop, many global subsystem singletons, frontends for X11/SVGAlib/OpenGL, OSS sound input, and asset-driven visual effects.
+This repository is a modernization/refactoring snapshot of CthughaNix 1.5, the
+Linux/Unix continuation of Cthugha-L and descendant of the DOS Cthugha 5.x
+visualizer. The code still has its classic indexed-color visual engine, but the
+current tree has been substantially reworked since the first project notes were
+written.
 
-The most useful mental model is:
+The current reference application target is `xcthugha`, the X11 frontend. The
+modern CMake build produces `xcthugha`, `tabheader`, `tabinfo`, and the
+translation-table generator programs under `tab/`. The old autotools build files
+are still present and currently select `xcthugha`, `tabheader`, and `tabinfo`.
+The source tree still contains SVGAlib and OpenGL frontend sources, but CMake
+does not build them. The old sound server/network sources are no longer present;
+only stale object files from previous builds remain in `src/`.
+
+The best mental model for one frame is now:
 
 ```text
-sound input -> normalized 1024 stereo samples -> analysis
-            -> per-buffer visual pipeline -> display mapping -> frontend copy
-            -> key/interface/autochanger feedback into options
+audio source -> AudioRuntime / AudioFrame
+             -> AudioProcessor
+             -> AudioAnalyzer / AcousticContext
+             -> AutoChanger
+             -> VisualPipeline
+             -> CthughaDisplay
+             -> DisplayDevice frontend
 ```
 
-The central runtime loop is in `src/initExitDisp.cc`. Each frame calls, in order:
+The shared graphical loop is in `src/initExitDisp.cc`. Each frame currently
+runs, in order:
 
 ```text
 CthughaDisplay::nextFrame()
-SoundDevice::operator()()
-SoundAnalyze::operator()()
-AutoChanger::operator()()
-SoundServer::operator()()
-CthughaBuffer::run()
-CthughaDisplay::operator()()
+audioFrameTick()
+AudioVisualBridge::runFrame()
+VisualPipeline::run()
+CthughaDisplay::operator()()  # when the frontend asks run() to draw
 CDPlayer::operator()()
+deferred suspend handling
 ```
 
-## Documentation Created
+## Documentation Set
 
-- `PROJECT_STRUCTURE.md` maps directories, generated artifacts, source groups, and target binaries.
-- `PROJECT_RUNTIME_MAP.md` traces startup, frame flow, visual buffer flow, audio flow, display flow, and user input.
-- `PROJECT_SEAMS_AND_RISKS.md` identifies extension seams, modernization seams, hidden couplings, and risky code paths.
-- `PROJECT_BUILD_AND_PORTING.md` records the build system, dependencies, current generated configuration, and porting strategy.
-- `PROJECT_VERIFICATION.md` lists the checks I ran and the cross-checks behind these findings.
+- `PROJECT_STRUCTURE.md` maps the current directories, active source groups,
+  generated artifacts, build targets, and runtime assets.
+- `PROJECT_RUNTIME_MAP.md` traces startup, frame flow, audio flow, visual buffer
+  flow, display flow, configuration, and input.
+- `PROJECT_SEAMS_AND_RISKS.md` lists useful extension seams and the risky edges
+  that remain after the recent refactor.
+- `PROJECT_BUILD_AND_PORTING.md` records the current CMake and autotools build
+  state, dependencies, verification commands, and porting strategy.
+- `PROJECT_MAIN_LOOP_EXPLAINED.md` is a guided source walk through one frame.
+- `PROJECT_VERIFICATION.md` records the checks used to update these files.
 
-## Project Shape
+## Current Project Shape
 
-- `src/` contains the application source, roughly 25k lines across C++ modules plus a few generated/wrapper include files.
-- `tab/` contains C/C++ translation-table generators and `.cmd` descriptors.
-- `map/` contains 169 Fractint-style palette maps.
-- `pcx/` contains 6 gzip-compressed PCX images.
-- `doc/` contains the original Texinfo/manual/manpage documentation.
-- `precompiled/` contains old 32-bit Linux ELF binaries and precompiled table generators.
-- `Makefile.am`, `configure.in`, generated `configure`, generated `Makefile`s, and `config.*` reflect a mixed old/new autotools state.
-
-## Main Binaries
-
-- `xcthugha`: X11 visualizer. This is the main practical frontend in this snapshot.
-- `cthugha`: SVGAlib console visualizer. Intended to install setuid root; high-risk today.
-- `glcthugha`: OpenGL/GLUT visualizer with 3D display modes and multiple buffers.
-- `cthugha-server`: ncurses sound server that broadcasts sound data to clients.
-- `tabheader`, `tabinfo`: translation-table inspection/conversion tools.
-- `tab/cmd_*`: table generator programs used through `.cmd` descriptors.
-
-The current generated Makefiles select `xcthugha`, `cthugha-server`, `tabheader`, and `tabinfo`. SVGAlib and OpenGL are not selected in the current generated configuration.
+- `src/` contains the application source: 71 top-level `.cc` files and 41
+  top-level headers.
+- `tab/` contains 8 table generator sources, 11 `.cmd` descriptors, and local
+  build outputs.
+- `map/` contains 100 `.map` palettes and `map/png/` contains 23 palette preview
+  PNGs.
+- `pcx/` contains 12 PCX assets: 6 plain `.pcx` files and 6 gzip-compressed
+  copies.
+- `external/minimp3/` is the embedded MP3 decoder used by the modern audio path.
+- `external/cthugha-js/` is a separate JavaScript port/reference tree.
+- `tests/headers/` contains the current local verification script for checking
+  source/header self-containment.
+- `build/` is a populated CMake build directory and currently contains built
+  `xcthugha`, `tabheader`, `tabinfo`, and `tab/cmd_*` binaries.
 
 ## Architectural Center
 
-The core abstraction is `CoreOption`. It is not just settings; it is the runtime registry for effect choices. A visual buffer has a set of core options:
+The legacy visual domain still revolves around `CoreOption`, the runtime
+registry for selectable visual entries. The current active categories include:
 
-- `flame`
-- `palette`
-- `pcx`
-- `translate`
-- `wave`
-- `object`
-- `flame-general`
-- `wave-scale`
-- `table`
-- `border`
-- `sound-process`
-- `flashlight`
+- global/display-ish options: `display`, `border`, `flashlight`,
+  `sound-processing`;
+- per-buffer options: `flame`, `palette`, `pcx`, `translate`, `wave`, `object`,
+  `flame-general`, `wave-scale`, and `table`.
 
-Each current option entry is invoked as a callable object during the frame. Some entries are compiled-in functions; others are loaded from files in `map/`, `pcx/`, `tab/`, and optional `obj/` directories.
+Audio and visual control have been pulled apart from the older `SoundDevice`
+monolith:
+
+- `AudioRuntime`, `RuntimeFactory`, `PcmSourceFactory`, and `Audio` classes own
+  modern source/output composition.
+- `AudioFrame` is the facade used by visual code to get the current raw and
+  processed 1024-sample window.
+- `AudioProcessor` implements `none`, `Filter1`, `Filter2`, and `FFT` for the
+  `sound-processing` option.
+- `AudioAnalyzer` produces frame-local `AudioAnalysis`; `AcousticContext` keeps
+  rolling intensity/fire state for effects and automatic changes.
+- `AudioVisualBridge` runs processing, analysis, and `AutoChanger` policy before
+  visual mutation.
+- `VisualPipeline` is the new visual-stage scaffold. It currently wraps the
+  old `CthughaBuffer::run()` as a coarse legacy transform while hosting newer
+  flashlight, border, and palette stages outside that transform.
 
 ## Highest-Value Seams
 
+- Audio composition seam: `RuntimeFactory`, `PcmSourceFactory`, `PcmSource`,
+  `AudioInput`, `AudioOutput`, and `AudioInputProcessor`.
+- Audio-to-visual seam: `AudioFrame`, `AudioProcessor`, `AudioAnalyzer`, and
+  `AudioVisualBridge`.
+- Visual pipeline seam: `VisualDirector`, `VisualPipelineFactory`,
+  `VisualPipeline`, `VisualModule`, `VisualFrameContext`, and
+  `CthughaFrameBuffer`.
+- Legacy visual effect seam: `CoreOptionEntry` and `CoreOptionEntryList`.
 - Display frontend seam: `DisplayDevice` plus `CthughaDisplay` subclasses.
-- Sound input seam: `SoundDevice` subclasses for OSS DSP, file/program, network, random, and forked playback.
-- Effect registry seam: `CoreOptionEntry` and `CoreOptionEntryList`.
-- Asset seams: `.map` palettes, `.pcx(.gz)` images, `.cmd` table descriptors, `.tab` binary translation tables, `.obj` line objects.
+- Asset seams: `.map` palettes, `.pcx`/`.pcx.gz` images, `.cmd` table
+  descriptors, `.tab` binary translation tables, and optional `.obj` line
+  objects.
 - Control seam: `Keymap` action registry and `Interface` screens.
-- Build target seam: wrapper source files such as `xwin_options.cc`, `GL_options.cc`, `serv_options.cc`, `svga_options.cc` compile the same `options.cc` with different macros.
+- Build seam: wrapper source files such as `xwin_options.cc`, `GL_options.cc`,
+  and `svga_options.cc` compile shared implementations with target-specific
+  macros.
 
 ## Current State Notes
 
-This directory is not a Git checkout, so there is no repository history available locally. A dry-run build (`make -n all`) did not reach compilation because the generated Makefile attempts to run `aclocal-1.9`, which is not installed here. I did not modify generated autotools files.
+The verified build path is CMake:
 
-The code is portable in the 1990s Unix sense, but not in the modern sense. It depends on APIs and assumptions that are now fragile: OSS `/dev/dsp`, SVGAlib, Xaw/Xt, MIT-SHM, GLUT paletted textures, process/fifo-based decoders, setuid console graphics, and many global buffers.
+```sh
+cmake --build build
+tests/headers/check-headers.sh
+make -n all
+```
 
+All three completed successfully in this workspace. A direct attempt to run
+`build/src/xcthugha --help` in the current headless shell failed with
+`Error: Can't open display:`, which confirms the binary starts through X11
+initialization before it can print help.
+
+The project is portable in a transitional sense, not yet a modern clean-room
+port. It still carries X11/Xt/Xaw, MIT-SHM, OSS `/dev/dsp`, OSS mixer, CD-ROM
+ioctl, SVGAlib, GLUT/OpenGL, fork/shared-memory playback, shell-based legacy
+decoder paths, and many global singletons. The refactor has created better
+audio and visual seams, but the classic engine is still stateful and global.

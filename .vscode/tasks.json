@@ -1,0 +1,77 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+        "label": "CMake: configure",
+        "type": "shell",
+        "command": "cmake",
+        "args": [
+            "-S",
+            "${workspaceFolder}",
+            "-B",
+            "${workspaceFolder}/build",
+            "-DCMAKE_BUILD_TYPE=Debug"
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+    },
+    {
+        "label": "CMake: build",
+        "type": "shell",
+        "command": "cmake",
+        "args": [
+            "--build",
+            "${workspaceFolder}/build",
+            "--parallel"
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "dependsOn": "CMake: configure",
+        "group": {
+            "kind": "build",
+            "isDefault": true
+        },
+        "problemMatcher": "$gcc"
+    },
+    {
+        "label": "CMake: clean",
+        "type": "shell",
+        "command": "cmake",
+        "args": [
+            "--build",
+            "${workspaceFolder}/build",
+            "--target",
+            "clean"
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": "$gcc"
+    },
+    {
+        "label": "Run xcthugha",
+        "type": "shell",
+        "command": "bash",
+        "args": [
+            "-lc",
+            "exec \"${workspaceFolder}/build/src/xcthugha\" ${input:cthughaArgs}"
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "dependsOn": "CMake: build",
+        "problemMatcher": []
+    }
+],
+  "inputs": [
+    {
+      "id": "cthughaArgs",
+      "type": "promptString",
+      "description": "Optional arguments for xcthugha",
+      "default": ""
+    }
+  ]
+}

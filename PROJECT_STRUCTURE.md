@@ -4,129 +4,204 @@
 
 ```text
 .
-|-- src/                 application source
+|-- src/                 application source and frontend-specific source files
 |-- tab/                 translation-table generators and .cmd descriptors
-|-- map/                 256-color palette maps
-|-- pcx/                 compressed PCX images
-|-- doc/                 original Texinfo, info, and manpage docs
-|-- precompiled/         old 32-bit Linux binaries
+|-- map/                 256-color palette maps and PNG palette previews
+|-- pcx/                 PCX image assets, both plain and gzip-compressed
+|-- doc/                 original Texinfo/manual/manpage documentation
+|-- tests/headers/       header/source self-containment check harness
+|-- tools/               small asset-generation helpers
+|-- external/minimp3/    embedded MP3 decoder used by the modern audio path
+|-- external/cthugha-js/ JavaScript port/reference implementation
+|-- build/               populated CMake build directory
+|-- precompiled/         historical 32-bit Linux binaries
+|-- CMakeLists.txt       modern build entry point
+|-- cmake/config.h.in    CMake config header template
 |-- Makefile.am          automake root
 |-- configure.in         old autoconf input
 |-- configure            generated configure script
-|-- Makefile             generated Makefile
-|-- config.h             generated feature config
-|-- cthugha.ini.eg       example config file
-|-- build_errors.txt     captured historical build failure
-`-- CVS/                 imported CVS metadata
+|-- Makefile             generated autotools Makefile
+|-- config.h             generated autotools config header
+`-- cthugha.ini.eg       example config file
 ```
 
-This is a source snapshot, not a Git repository. The `CVS/` directories and `precompiled/` contents are historical artifacts, not active build inputs for normal source builds.
+`project-docs/` also exists, but those files are older LLM-generated notes and
+were not updated in this pass. The authoritative project notes are the root
+`PROJECT_*.md` files.
+
+The tree contains local build artifacts in `src/`, `tab/`, `doc/`, and
+`tests/headers/build/`. Some stale object files refer to code that is no longer
+present, such as old server/network objects; do not treat every `.o` as evidence
+of a current source module.
 
 ## Source Layout
 
-The source tree is organized by subsystem rather than by one namespace or library boundary.
+The source tree is organized by subsystem rather than by namespace or library
+boundary.
 
 ### Entrypoints
 
-- `src/initExitDisp.cc`: main entrypoint for graphical visualizers, shared by `cthugha`, `xcthugha`, and `glcthugha`.
-- `src/serv_main.cc`: main entrypoint for `cthugha-server`.
-- `src/tabheader.cc`, `src/tabinfo.cc`: table utility programs.
+- `src/initExitDisp.cc`: graphical frontend entry point and shared per-frame
+  scheduler.
+- `src/tabheader.cc`, `src/tabinfo.cc`: installed translation-table utilities.
+- `tab/cmd_*.c`, `tab/cmdRead.cc`: translation-table generator/reader tools used
+  by `.cmd` descriptors.
 
-### Shared Runtime Core
+There is no current `cthugha-server` source entry point in `src/`.
 
-- `src/cthugha.h`: global platform config, common declarations, timing, logging, and `run()`.
-- `src/CthughaBuffer.*`: per-buffer visual pipeline state and core options.
-- `src/CthughaDisplay.*`: converts current visual buffer(s) into frontend display buffers.
-- `src/CoreOption.*`, `src/CoreOptionEntry.cc`: effect registry, history, hotkeys, loading helpers.
+### Runtime and Composition
+
+- `src/cthugha.h`: global platform config, logging, timing helpers, and `run()`.
+- `src/AudioRuntime.*`: owns the active audio runtime lifecycle.
+- `src/RuntimeFactory.*`: chooses audio input/output strategy from settings and
+  detected environment.
+- `src/PcmSourceFactory.*`: maps current settings/file names to PCM sources.
+- `src/Audio.*`: modern PCM source/input/output/buffer/frame-builder classes.
+- `src/AudioFrame.*`: facade exposing raw and processed 1024-sample audio
+  windows to the rest of the program.
+- `src/AudioVisualBridge.*`: runs audio processing, analysis, and auto-changing
+  before visual mutation.
+- `src/VisualPipeline.*`, `src/VisualDirector.*`: visual-stage scaffold and
+  pipeline factory.
+- `src/CthughaFrameBuffer.*`: adapter/owner for indexed active/passive visual
+  buffers plus palette pointers.
+
+### Legacy Visual Core
+
+- `src/CthughaBuffer.*`: classic per-buffer effect state and the coarse legacy
+  `flame -> translate -> wave -> swap` transform.
+- `src/CoreOption.*`, `src/CoreOptionEntry.cc`: effect registry, history,
+  locks, hotkeys, and file loading helpers.
 - `src/Option.*`, `src/OptionInt.cc`: scalar option classes.
-- `src/AutoChanger.*`: automatic effect changes based on time, silence, and beat/fire level.
+- `src/AutoChanger.*`: automatic option changes based on silence, fire level,
+  and elapsed time.
 - `src/imath.*`: integer math tables/helpers used by visual code.
-- `src/misc.cc`: logging, time helpers, `systemf()`.
+- `src/misc.cc`: logging helpers, time helpers, and `systemf()`.
 
 ### Audio
 
-- `src/SoundDevice.*`: base class, format conversion, device selection.
-- `src/SoundDeviceDSP.cc`: OSS `/dev/dsp` input/output implementation.
-- `src/SoundDeviceFile.cc`: `.wav`, `.mp3`, `.mod`, raw, fifo, and external decoder playback.
-- `src/SoundDeviceFork.cc`: separate sound-reading process using SysV shared memory.
-- `src/SoundDeviceNet.cc`: UDP network sound client.
-- `src/SoundDeviceRandom.cc`: random-noise debug device.
-- `src/SoundAnalyze.*`: amplitude, stereo amplitude, attack/fire, silence, intensity, speed.
-- `src/SoundProcess.cc`: `none`, two filters, and FFT as core options.
-- `src/sound.cc`, `src/sound.h`: global sound options and sound interface screen.
+- `src/AudioProcessor.*`: `sound-processing` option with `none`, `Filter1`,
+  `Filter2`, and `FFT`.
+- `src/AudioAnalyzer.*`: RMS-like frame analysis plus rolling
+  `AcousticContext` intensity/fire state.
+- `src/SoundDevice.*`: legacy backend interface retained as fallback and for
+  migrated code compatibility.
+- `src/SoundDeviceDSP.cc`: OSS `/dev/dsp` input/output implementation and
+  `DspPcmSource`.
+- `src/SoundDeviceFile.cc`: legacy file, fifo, and external-program playback
+  path for unsupported formats.
+- `src/SoundDeviceFork.cc`: legacy fork/shared-memory file playback reader.
+- `src/SoundDeviceRandom.cc`: random-noise source.
+- `src/sound.cc`, `src/Sound.h`: sound option registry and lifecycle wrapper.
 - `src/Mixer.cc`: OSS mixer integration.
-- `src/CDPlayer.*`: CD-ROM ioctl integration.
-- `src/SoundServer.*`: sound broadcast server used by visualizers and standalone server.
+- `src/CDPlayer.*`: CD-ROM ioctl integration when compiled in.
+
+`SoundAnalyze.*`, `SoundProcess.cc`, `SoundDeviceNet.cc`, `SoundServer.*`,
+`network.*`, and `serv_main.cc` are not current source files.
 
 ### 2D Visual Effects
 
-- `src/flames.*`: decay/propagation functions that transform the previous frame.
-- `src/waves.*`: waveform and beat-driven drawing functions.
+- `src/flames.*`: decay/propagation feedback functions over the previous frame.
+- `src/waves.*`: waveform, beat, object, and geometry drawing functions.
 - `src/sound_tables.cc`: 10 built-in wave color lookup tables.
 - `src/translate.*`: translation-table loading and per-pixel remapping.
-- `src/Flashlight.cc`: optional buffer brightening effect.
-- `src/display.cc`: 2D screen mapping functions such as mirrored, split, heightfield, roll, bent, plate.
-- `src/palettes.cc`: palette loading and palette handling.
+- `src/Flashlight.*`: palette-brightening visual stage.
+- `src/Border.*`: hidden-row boundary stage for flame diffusion.
+- `src/display.cc`: 2D screen mapping functions such as mirrored, split,
+  heightfield, roll, bent, and plate.
+- `src/palettes.cc`: palette loading, metadata, filtering, random palettes, and
+  palette handling.
 - `src/pcx.*`: PCX loading, display, and screenshot save.
 
 ### Display Frontends
 
 - `src/DisplayDevice.*`: abstract display device and text rendering base.
-- `src/DisplayDeviceX11.cc`: X11/Xt/Xaw display, window/root modes, MIT-SHM, palette setup.
-- `src/DisplayDeviceX11-Panel.cc`: optional X11 panel.
-- `src/CthughaDisplayX11.cc`: X11 display-buffer expansion and copy.
-- `src/DisplayDeviceSvga.cc`: SVGAlib console display and setuid-dependent startup.
-- `src/CthughaDisplaySVGA.cc`: SVGAlib display-buffer expansion and copy.
-- `src/DisplayDeviceGL.cc`: GLUT/OpenGL window, callbacks, GL text, texture prep.
-- `src/CthughaDisplayGL.cc`: GL drawing sequence.
-- `src/GL_display.cc`, `src/GL_Background.cc`, `src/GL_Light.cc`, `src/GL_Fly.cc`: OpenGL display modes and GL-only effects.
+- `src/DisplayDeviceX11.cc`: X11/Xt/Xaw display, window/root modes, MIT-SHM,
+  palette setup, resize handling, and X event loop.
+- `src/DisplayDeviceX11-Panel.cc`: optional Athena-widget X11 panel, including
+  palette preview/metadata editing helpers.
+- `src/CthughaDisplayX11.cc`: X11 display-buffer expansion, mirroring, and copy.
+- `src/DisplayDeviceSvga.cc`, `src/CthughaDisplaySVGA.cc`: retained SVGAlib
+  console frontend source.
+- `src/DisplayDeviceGL.cc`, `src/CthughaDisplayGL.cc`, `src/GL_*.cc`: retained
+  GLUT/OpenGL frontend and GL-specific effects.
+- `src/nonGL_stubs.cc`: dummy GL-related entries for non-GL targets.
+
+The modern CMake build only wires up the X11 frontend.
 
 ### UI, Input, and Configuration
 
-- `src/Interface.*`: interface registry, screens, selectable option rows, error display.
-- `src/InterfaceHelp.cc`, `src/InterfaceCredits.cc`, `src/InterfaceList.cc`: specific interface screens.
+- `src/Interface.*`: interface registry, screens, selectable option rows, and
+  error display.
+- `src/InterfaceHelp.cc`, `src/InterfaceCredits.cc`,
+  `src/InterfaceList.cc`: specific screens.
 - `src/keymap.*`: configurable keymaps and action dispatch.
-- `src/default.keymap`, `src/default.keymap.str`: default keymap source and generated C string include.
+- `src/default.keymap`: default keymap source.
+- `src/default.keymap.str`: generated C string include in legacy/in-tree builds;
+  CMake generates its own copy under `build/src/`.
 - `src/keys.cc`: key symbol translation and terminal/X/GL key polling.
-- `src/nonx_keys.cc`, `src/xwin_keys.cc`, `src/GL_keys.cc`: compile wrappers for key handling.
+- `src/nonx_keys.cc`, `src/xwin_keys.cc`, `src/GL_keys.cc`: wrapper variants for
+  key handling.
 - `src/options.cc`: command-line and ini option handling.
-- `src/nonx_options.cc`, `src/xwin_options.cc`, `src/svga_options.cc`, `src/GL_options.cc`, `src/serv_options.cc`: compile wrappers/stubs for option handling.
-- `src/IniFiles.cc`: ini search order, wildcard matching, generated `.cthugha.auto`.
+- `src/nonx_options.cc`, `src/xwin_options.cc`, `src/svga_options.cc`,
+  `src/GL_options.cc`: wrapper variants for option handling.
+- `src/IniFiles.cc`: ini search order, wildcard matching, validation, and
+  generated `.cthugha.auto`.
 - `src/info_title_usage.cc`: title/help/usage output.
 - `src/disp-ncurses.cc`: ncurses setup/teardown.
-- `src/joystick.*`: Linux joystick input for GL camera movement.
-
-### Stubs
-
-- `src/nonGL_stubs.cc`: defines dummy GL-related options/effects for non-GL builds.
-- `src/serv_stubs.cc`, `src/serv_display.cc`: define dummy visual/display pieces for the server build.
+- `src/joystick.*`: Linux joystick input for GL camera movement and legacy UI
+  options.
 
 ## Build Targets and Source Groups
 
-`src/Makefile.am` defines common source groups:
+### Modern CMake
 
-- `GENSRC`: shared option, sound, UI, network, misc, and base classes.
-- `DISPSRC`: `GENSRC` plus visual effect code, palettes, PCX, translation, buffer, and display init.
+Current CMake targets:
+
+| Target | Purpose | Notes |
+| --- | --- | --- |
+| `xcthugha` | X11 visualizer | Built from `CTHUGHA_COMMON_SOURCES`, X11 key/options wrappers, `display.cc`, X11 display device/display classes, and `nonGL_stubs.cc`. |
+| `tabheader` | Add/emit `.tab` headers | Built from `src/tabheader.cc`. |
+| `tabinfo` | Inspect `.tab` headers | Built from `src/tabinfo.cc`. |
+| `cmd_huricn`, `cmd_smoke`, `cmd_space`, `cmd_gentable`, `cmd_bighalfwheel`, `cmd_downspiral`, `cmd_randswirls`, `cmdRead` | Translation-table helpers | Built under `tab/` when `CTH_BUILD_TAB_TOOLS=ON`. |
+
+### Autotools
+
+`src/Makefile.am` still describes these legacy source sets:
+
+- `GENSRC`: shared options, modern audio/runtime files, sound, UI, misc, base
+  display classes, autochanger, analyzer, and pipeline scaffolding.
+- `DISPSRC`: `GENSRC` plus visual effects, palettes, PCX, translation,
+  `AudioProcessor`, `CthughaBuffer`, `initExitDisp`, flashlight, and help UI.
 - `NONXSRC`: non-X key/options wrappers.
 
-Target-specific source sets:
+Legacy target source sets:
 
 | Target | Purpose | Distinct source pieces |
 | --- | --- | --- |
 | `cthugha` | SVGAlib console frontend | `DisplayDeviceSvga.cc`, `CthughaDisplaySVGA.cc`, `svga_options.cc`, `nonx_keys.cc`, `nonGL_stubs.cc` |
 | `xcthugha` | X11 frontend | `DisplayDeviceX11.cc`, `DisplayDeviceX11-Panel.cc`, `CthughaDisplayX11.cc`, `xwin_keys.cc`, `xwin_options.cc`, `nonGL_stubs.cc` |
 | `glcthugha` | OpenGL/GLUT frontend | `DisplayDeviceGL.cc`, `CthughaDisplayGL.cc`, `GL_display.cc`, `GL_Light.cc`, `GL_Background.cc`, `GL_Fly.cc`, `GL_keys.cc`, `GL_options.cc` |
-| `cthugha-server` | ncurses sound server | `serv_main.cc`, `serv_display.cc`, `serv_stubs.cc`, `serv_options.cc`, `nonx_keys.cc`, `nonGL_stubs.cc` |
 | `tabheader` | Add/emit `.tab` headers | `tabheader.cc` |
 | `tabinfo` | Inspect `.tab` headers | `tabinfo.cc` |
 
-The wrapper files are important: several compile modes include implementation files directly after defining a macro, for example `xwin_options.cc` defines `CTH_XWIN` and includes `options.cc`.
+The current generated autotools Makefiles select `xcthugha tabheader tabinfo`
+and no setuid programs.
+
+The wrapper files are important: several compile modes include implementation
+files directly after defining a macro, for example `xwin_options.cc` defines
+`CTH_XWIN` and includes `options.cc`.
 
 ## Asset Directories
 
 ### `map/`
 
-Contains 169 palette maps. Format: up to 256 lines of `R G B` values, 0-255, with optional comments. Loader: `src/palettes.cc`.
+Contains 100 `.map` palettes. Format: up to 256 RGB rows, with optional
+metadata lines before the RGB data. Supported metadata keys include `name`,
+`set`, and `energy`. Loader: `src/palettes.cc`.
+
+`map/png/` contains 23 palette preview PNGs. These are installed by CMake when
+the directory exists, but the visualizer's palette loader uses `.map` files.
 
 Search path:
 
@@ -139,7 +214,9 @@ CTH_LIBDIR/map/
 
 ### `pcx/`
 
-Contains 6 gzip-compressed PCX files. Loader: `src/pcx.cc`, through `CoreOption::load`, which can read `.gz` by spawning `gzip -cd`.
+Contains 12 PCX assets: 6 plain `.pcx` files and 6 `.pcx.gz` copies. Loader:
+`src/pcx.cc`, through `CoreOption::load`, which can read `.gz` by spawning
+`gzip -cd`.
 
 Search path:
 
@@ -152,7 +229,8 @@ CTH_LIBDIR/pcx/
 
 ### `tab/`
 
-Contains `.cmd` descriptors and generator programs. `.cmd` files are text descriptors:
+Contains 11 `.cmd` descriptors and 8 generator/reader source programs. `.cmd`
+files are text descriptors:
 
 ```text
 cmdtab
@@ -160,7 +238,9 @@ Description
 command %d %d [other args]
 ```
 
-The `%d %d` placeholders receive `BUFF_WIDTH` and `BUFF_HEIGHT`. Translation generators write a `long` table to stdout. Loader: `src/translate.cc`.
+The `%d %d` placeholders receive `BUFF_WIDTH` and `BUFF_HEIGHT`. Translation
+generators write a table of source-pixel indexes to stdout. Loader:
+`src/translate.cc`.
 
 Search path:
 
@@ -174,7 +254,8 @@ CTH_LIBDIR/tab/
 
 ### `obj/`
 
-No `obj/` directory is present in this snapshot, but `src/waves.cc` can load `.obj` line objects from:
+No root `obj/` asset directory is present as a maintained content directory,
+but `src/waves.cc` can load `.obj` line objects from:
 
 ```text
 ./

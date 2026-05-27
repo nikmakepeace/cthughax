@@ -1,33 +1,38 @@
 # Main Loop Explained
 
-This is a guided walk through the Linux/Unix CthughaNix main loop. It ignores the DOS source and follows the modern port in `src/`.
+This is a guided walk through the current CthughaNix graphical main loop in
+`src/`. It describes the refactored tree, not the older `SoundAnalyze` /
+`SoundProcess` / sound-server architecture.
 
 The short version:
 
 ```text
 frontend event loop
   -> run()
-      -> update frame time
-      -> read sound
-      -> analyze sound
-      -> maybe change visual options
-      -> update all visual buffers
-      -> draw current buffer(s) to the frontend
+      -> publish frame time
+      -> advance audio runtime and current AudioFrame
+      -> process/analyze audio and maybe auto-change options
+      -> run visual pipeline around the legacy buffer transform
+      -> draw current passive buffer to the frontend
       -> update CD state
-      -> handle suspend
+      -> handle deferred suspend
 ```
 
-The important files to keep open are:
+Keep these files open:
 
-- `src/initExitDisp.cc`: process startup and `run()`.
-- `src/CthughaBuffer.*`: the visual buffer pipeline.
-- `src/SoundDevice.*`: sound input and normalization.
-- `src/SoundAnalyze.*`: amplitude, attack, and silence analysis.
+- `src/initExitDisp.cc`: startup and `run()`.
+- `src/AudioRuntime.*`: audio source/output lifecycle.
+- `src/RuntimeFactory.*`, `src/PcmSourceFactory.*`: audio strategy selection.
+- `src/AudioFrame.*`: facade for the current 1024-sample visual audio frame.
+- `src/AudioProcessor.*`: `sound-processing` modes.
+- `src/AudioAnalyzer.*`: frame analysis and rolling acoustic state.
+- `src/AudioVisualBridge.*`: processing, analysis, and autochanger bridge.
 - `src/AutoChanger.*`: automatic effect changes.
-- `src/flames.cc`: flame effects.
-- `src/waves.cc`: wave effects.
-- `src/translate.cc`: coordinate remapping effects.
-- `src/display.cc`: 2D screen mapping effects.
+- `src/VisualPipeline.*`, `src/VisualDirector.*`: visual-stage scaffold.
+- `src/CthughaFrameBuffer.*`: indexed buffer/palette adapter.
+- `src/CthughaBuffer.*`: legacy visual buffer and flame/translate/wave driver.
+- `src/flames.cc`, `src/translate.cc`, `src/waves.cc`: classic effects.
+- `src/display.cc`: 2D display mapping effects.
 - `src/CthughaDisplay*.cc`: frontend display composition.
 - `src/DisplayDevice*.cc`: X11, SVGAlib, or OpenGL event loops and screen IO.
 - `src/Interface.*`, `src/keymap.*`: key handling and on-screen UI.
@@ -46,56 +51,91 @@ cth_init()
 get_params()
 title()
 init_imath()
-SoundDevice::newSD()
-new SoundServer
+audioRuntimeInit(RSIC_MainProcess, 1)
 new CDPlayer
-init_mixer()
 CthughaBuffer::initAll()
+init_border()
+init_flashlight()
 newDisplayDevice()
 newCthughaDisplay()
 CoreOption::changeToInitial()
+audioProcessing.changeToInitial()
 Interface::set("main")
 Keymap::init()
-new AutoChanger
+initAudioVisualBridge()
 displayDevice->mainLoop()
 ```
 
-Read this as "build all the long-lived singletons, then hand control to the selected frontend." The code is C++, but it is not deeply object-owned. A lot of important objects are globals: `soundDevice`, `soundServer`, `cdPlayer`, `cthughaDisplay`, `displayDevice`, `autoChanger`, and `soundAnalyze`.
+Read this as "build long-lived singletons, then hand control to the selected
+frontend." The code is C++, but ownership is still mostly global:
+`displayDevice`, `cthughaDisplay`, `cdPlayer`, `autoChanger`, `audioAnalysis`,
+`acousticContext`, and sometimes the legacy `soundDevice`.
 
 ## 2. The Frontend Loop Calls `run()`
 
-The program has several frontends. Each frontend owns the platform event loop, but they all converge on `run()`.
+Each frontend owns the platform event loop, but they all converge on `run()`.
 
-- X11: `src/DisplayDeviceX11.cc::DisplayDeviceX11::mainLoop()` handles pending X events, polls keys, resizes the display, then calls `run(1)`.
-- SVGAlib: `src/DisplayDeviceSvga.cc::DisplayDeviceSvga::mainLoop()` calls `Interface::current->run()` and `run(1)` in a loop.
-- OpenGL: `src/DisplayDeviceGL.cc::idleCB()` calls `run(0)` and schedules a GLUT redraw; `drawCB()` later calls `(*cthughaDisplay)()`.
+- X11: `DisplayDeviceX11::mainLoop()` handles pending Xt/X events, translates
+  key releases, runs the interface, resizes to the X window, then calls
+  `run(1)`.
+- SVGAlib: `DisplayDeviceSvga::mainLoop()` remains in source and calls
+  `Interface::current->run()` and `run(1)` in a loop.
+- OpenGL: retained GLUT code calls `run(0)` from idle and draws later from the
+  display callback.
 
-The `doDisplay` argument decides whether `run()` itself calls the display step. X11 and SVGAlib pass `1`; OpenGL passes `0` because GLUT separates idle updates from drawing callbacks.
+The `doDisplay` argument decides whether `run()` itself calls the display step.
+X11 and SVGAlib pass `1`; OpenGL passes `0` because GLUT separates idle updates
+from drawing callbacks.
+
+CMake currently builds only the X11 frontend.
 
 ## 3. The Shared Scheduler: `run(int doDisplay)`
 
-The core scheduler is short and worth reading directly in `src/initExitDisp.cc`.
+The core scheduler is short and worth reading directly:
 
 ```text
 cthughaDisplay->nextFrame()
-(*soundDevice)()
-soundAnalyze()
-(*autoChanger)()
-(*soundServer)()
-CthughaBuffer::run()
-if(doDisplay)
+audioFrameTick()
+runAudioVisualBridge()
+runVisualPipeline()
+if (doDisplay)
     (*cthughaDisplay)()
 (*cdPlayer)()
 pause/suspend handling
 ```
 
-That is the main loop. Everything else explains one of these calls.
+Everything else explains one of these calls.
 
-## 4. Concept: CoreOption
+## 4. Concept: AudioFrame
 
-Before following the frame, understand `CoreOption`.
+`AudioFrame` is the current facade between audio backends and visual code.
 
-`CoreOption` is the runtime registry for visual choices. It is more than a scalar setting. A `CoreOption` owns a list of `CoreOptionEntry` objects, tracks the current entry, supports locks, supports random changes, and can be addressed by config/keymap/UI code.
+It contains:
+
+```cpp
+long long centerSample;
+int samples;
+char2 data[1024];
+char2 processed[1024];
+```
+
+Use these functions instead of reading `soundDevice` directly:
+
+```cpp
+audioFrameData();
+audioFrameProcessedData();
+audioFrameCurrent();
+```
+
+They hide whether the current data came from the native file pipeline, a native
+input processor, a legacy `SoundDevice`, or silent fallback buffers.
+
+## 5. Concept: CoreOption
+
+`CoreOption` is the runtime registry for visual choices. It is more than a
+scalar setting: it owns entries, tracks the current entry, supports locks,
+supports random changes, stores history/hotkeys, and can be addressed by
+config/keymap/UI code.
 
 Examples:
 
@@ -115,27 +155,31 @@ current->wave();
 screen();
 ```
 
-Those calls do not call a hard-coded function. They call the currently selected `CoreOptionEntry::operator()()`.
+Those calls invoke the currently selected `CoreOptionEntry::operator()()`, not a
+hard-coded function.
 
-The main implementation is in `src/CoreOption.cc` and `src/CoreOption.h`.
+`sound-processing` is adjacent but now implemented by `AudioProcessingOption`
+in `src/AudioProcessor.cc`.
 
-## 5. Concept: CthughaBuffer
+## 6. Concept: CthughaBuffer
 
-`CthughaBuffer` is the off-screen indexed-color image that flames and waves modify.
+`CthughaBuffer` is the classic off-screen indexed-color image that flames and
+waves modify.
 
 Key fields in `src/CthughaBuffer.h`:
 
 ```cpp
-unsigned char * activeBuffer;
-unsigned char * passiveBuffer;
+unsigned char* activeBuffer;
+unsigned char* passiveBuffer;
 ```
 
-The names are easy to misread. During `CthughaBuffer::run()`:
+During the legacy transform:
 
 - `activeBuffer` is the buffer being written for the next finished image.
 - `passiveBuffer` is the previous/current finished image.
-- At the end of the buffer step, the pointers are swapped.
-- The display code reads from `passive_buffer`, so after the swap it sees the newly completed frame.
+- At the end of the transform, the pointers are swapped.
+- Display code reads from `passive_buffer`, so after the swap it sees the newly
+  completed frame.
 
 Default dimensions are in `src/CthughaBuffer.cc`:
 
@@ -144,70 +188,112 @@ int BUFF_WIDTH = 160;
 int BUFF_HEIGHT = 100;
 ```
 
-`src/cth_buffer.h` defines `BUFF_SIZE` as `BUFF_WIDTH * BUFF_HEIGHT`.
+Each buffer allocation has three hidden rows above and below the visible buffer.
+The border stage fills those rows before flame code reads them.
 
-Each buffer allocation has three hidden rows above and below the visible buffer. The flame code uses those rows as boundary data.
-
-## 6. Step 1 In `run()`: Start The Frame
+## 7. Step 1: Start The Frame
 
 `cthughaDisplay->nextFrame()` is implemented in `src/CthughaDisplay.cc`.
 
 It:
 
-- updates global `now`;
-- computes `deltaT`;
-- updates `fps`;
+- samples the current time into global `now`;
+- computes global `deltaT`;
+- updates FPS accounting;
 - enforces `maxFPS` by sleeping if needed.
 
-This gives later modules a consistent frame time and keeps the visualizer from running completely unbounded.
+This gives later modules a consistent frame timestamp.
 
-## 7. Step 2: Read Sound
+## 8. Step 2: Advance Audio
 
-`(*soundDevice)()` calls `SoundDevice::operator()()` in `src/SoundDevice.cc`.
+`audioFrameTick()` calls `audioRuntimeTick()`.
 
-The selected backend fills `tmpData` by implementing `read()`. Backends include:
+There are three broad cases.
 
-- `SoundDeviceDSPIn`: OSS `/dev/dsp`.
-- `SoundDeviceFile`: file/program/fifo source.
-- `SoundDeviceFork`: forked playback/reader path.
-- `SoundDeviceNet`: UDP client from `cthugha-server`.
-- `SoundDeviceRandom`: no-sound/random test source.
+Native file playback:
 
-Then `SoundDevice::convert()` normalizes the input into:
-
-```cpp
-char2 * data;        // 1024 stereo signed 8-bit samples
-char2 dataProc[1024] // processed copy used by waves
+```text
+AudioInput reads WavPcmSource/Minimp3PcmSource
+AudioBuffer queues decoded PCM
+AudioOutput writes Pulse, OSS, or null output
+AudioFrameBuilder builds the visual frame around the audible sample
 ```
 
-The read size is not always 1024 fresh samples. `SoundDevice::operator()()` keeps a rolling 1024-sample window: it slides old samples down and converts the newest backend data into the tail.
+Native live/random input:
 
-## 8. Step 3: Analyze Sound
+```text
+PcmSource -> AudioInput -> AudioInputProcessor
+```
 
-`soundAnalyze()` calls `SoundAnalyze::operator()()` in `src/SoundAnalyze.cc`.
+Legacy fallback:
 
-It computes:
+```text
+SoundDevice::operator()()
+```
 
-- `amplitudeLeft` and `amplitudeRight`: RMS-ish amplitude for each channel.
+The result is always exposed as a 1024-sample signed 8-bit stereo visual frame
+through `audioFrameData()`.
+
+## 9. Step 3: AudioVisualBridge
+
+`runAudioVisualBridge()` ensures an `AudioVisualBridge` exists, then calls
+`AudioVisualBridge::runFrame()`.
+
+That method does:
+
+```text
+audioProcessing.process()
+audioAnalyzer()
+autoChanger()
+```
+
+It also contains a future pipeline-refresh flag. The current code can ask
+`VisualPipelineFactory` to refresh the existing pipeline, although the bridge
+does not yet set that flag itself.
+
+## 10. Step 3a: Sound Processing
+
+`audioProcessing.process()` runs the selected entry from `src/AudioProcessor.cc`.
+
+Built-in modes:
+
+- `none`: copy raw frame data to processed frame data.
+- `Filter1`: slope-limit sharp sample jumps.
+- `Filter2`: low-pass-ish smoothing.
+- `FFT`: transform the 1024-sample stereo window and write FFT bins into the
+  processed frame.
+
+Waves normally use `audioFrameProcessedData()`.
+
+## 11. Step 3b: Analyze Audio
+
+`audioAnalyzer()` calls `AudioAnalyzer::operator()()` in `src/AudioAnalyzer.cc`.
+
+It computes `audioAnalysis`:
+
+- `amplitudeLeft` and `amplitudeRight`: RMS-like amplitude for each channel.
 - `amplitude`: average amplitude.
-- `noisy`: whether either side is above `sound_minnoise`.
-- `attackLevel`: accumulated rise while the sound gets louder.
-- `fire`: a beat/attack event emitted when amplitude begins falling after a rise.
-- `fireLevel`: accumulated fire used by automatic changing.
-- `intensity`: smoothed normalized amplitude.
-- `speed`: approximate rate of recent fire events.
+- `noisy`: whether either side is above `min-noise`.
 
-"Fire" here is not the visual flame. It is the analysis term for a detected attack/beat.
+Then `acousticContext.update(audioAnalysis)` maintains rolling state:
 
-## 9. Step 4: AutoChanger
+- `intensity()`: smoothed normalized amplitude.
+- `fire()`: attack event emitted when rising amplitude begins to fall.
+- `fireLevel()`: accumulated fire used by automatic changing.
+
+"Fire" here is not the visual flame. It is the analysis term for a detected
+attack/beat.
+
+## 12. Step 3c: AutoChanger
 
 `(*autoChanger)()` calls `AutoChanger::operator()()` in `src/AutoChanger.cc`.
 
-This decides whether to change visual options automatically:
+It decides whether to change visual options automatically:
 
-- If the sound has been quiet long enough, it may show a silence message.
+- If sound has been quiet long enough, it may show a silence message.
 - If silence ends after a quiet gap, it can trigger a change.
-- If `soundAnalyze.fireLevel` exceeds `changeFireLevel`, it can trigger a change.
+- If `acousticContext.fireLevel()` exceeds `fire-level`, it can trigger a
+  change.
 - If enough time has passed, it can trigger a change.
 
 The actual change is:
@@ -218,153 +304,138 @@ CoreOption::changeOne()
 CoreOption::changeAll()
 ```
 
-So this does not directly know about specific flame or wave functions. It asks the CoreOption system to move current selections.
+So the autochanger does not directly know about specific flame or wave
+functions. It asks the CoreOption system to move current selections.
 
-## 10. Step 5: SoundServer
+## 13. Step 4: VisualPipeline
 
-`(*soundServer)()` updates the network sound server path. In normal local visualizer use this is not the central visual operation, but it allows a separate `cthugha-server` process or network clients to share sound data.
+`runVisualPipeline()` initializes the default visual pipeline if needed, binds a
+`CthughaFrameBuffer` to the current legacy buffer pointers, builds a
+`VisualFrameContext`, and calls:
 
-The relevant files are `src/SoundServer.*`, `src/SoundDeviceNet.cc`, and `src/network.*`.
+```cpp
+visualPipeline->run(visualFrameBuffer, context);
+```
 
-## 11. Step 6: Update Visual Buffers
+The context contains:
 
-`CthughaBuffer::run()` in `src/CthughaBuffer.cc` is where the frame becomes pixels.
+- current `AudioFrame`, when the native file pipeline has one;
+- `AudioAnalysis`;
+- `AcousticContext`;
+- `now`;
+- `deltaT`.
+
+The default pipeline currently has these modules:
+
+```text
+FlashlightVisualModule
+BorderVisualModule
+LegacyBufferTransformModule
+NullVisualStageModule("image")
+NullVisualStageModule("flame")
+NullVisualStageModule("translate")
+NullVisualStageModule("wave")
+PaletteStageModule
+```
+
+The null modules are placeholders for future decomposition. Most classic visual
+mutation is still inside `LegacyBufferTransformModule`.
+
+## 14. Step 4a: Flashlight
+
+`apply_flashlight()` in `src/Flashlight.cc` is a palette effect.
+
+If `flashlight` is enabled, it:
+
+1. copies the current frame palette;
+2. brightens low palette entries according to `acousticContext.fire()`;
+3. installs that temporary palette on the frame buffer.
+
+It does not draw pixels.
+
+## 15. Step 4b: Border
+
+`apply_border()` in `src/Border.cc` fills the three hidden rows above and below
+the active buffer.
+
+The selected `border` CoreOption decides whether those rows are:
+
+- zero;
+- copied from audio frame data;
+- filled with current amplitude;
+- filled with 255.
+
+Flames read neighboring pixels, so these rows are boundary conditions for
+diffusion.
+
+## 16. Step 4c: Legacy Buffer Transform
+
+`LegacyBufferTransformModule` calls `CthughaBuffer::run()`.
 
 For every active buffer:
 
 ```text
 current = buffers + j
-flashlight()
-set border rows
 done_translate = 0
 flame()
 translate()
 wave()
-smoothPalette()
 swap(activeBuffer, passiveBuffer)
 ```
 
 This order matters.
 
-### 11.1 Audio Processing
-
-Audio processing no longer belongs to the visual buffer loop. `AudioVisualBridge`
-runs the selected `audioProcessing` mode from `src/AudioProcessor.cc` before
-audio analysis and before auto-changing.
-
-The built-in entries are:
-
-- `none`: copy raw frame data to processed frame data.
-- `Filter1`: slope-limits sharp sample jumps.
-- `Filter2`: low-pass-ish smoothing.
-- `FFT`: transforms the 1024-sample stereo window and writes the result to the processed frame.
-
-Waves normally read `dataProc`, not raw `data`. This lets a visual use raw waveform samples, filtered samples, or FFT bins without changing the wave code.
-
-### 11.2 Flashlight
-
-`current->flashlight()` calls an optional brightening effect from `src/Flashlight.cc`.
-
-It is another CoreOption entry. Despite its position inside the buffer update, it does not change the indexed pixels in the buffer. It copies the current palette, brightens low palette entries according to `soundAnalyze.fire`, and installs that temporary palette with `current->setPalette(Pal)`.
-
-That means flashlight is a color/intensity effect for the current frame, not a drawing effect like a wave or a feedback effect like a flame.
-
-### 11.3 Border
-
-The border step fills the three hidden rows above and below `activeBuffer`.
-
-The selected `border` CoreOption decides whether those rows are:
-
-- zero;
-- copied from sound data;
-- filled with current amplitude;
-- filled with 255.
-
-Flames read neighboring pixels. These hidden rows are boundary conditions for that diffusion.
-
-### 11.4 Concept: What Is A Flame?
+### What Is A Flame?
 
 A flame is a feedback/decay function over the previous image.
 
-It does not usually draw the audio waveform. Instead, it takes pixels that already exist and propagates them through the buffer: up, down, left, right, watery, faded, generalized, and so on. It gives the visualizer memory. Without a flame, a wave would draw points or lines and they would simply sit there or vanish. With a flame, the drawn sound marks smear, cool, drift, and become fluid patterns.
+It does not usually draw the audio waveform. Instead, it propagates pixels that
+already exist: up, down, left, right, watery, faded, generalized, and so on. It
+gives the visualizer memory.
 
 In source:
 
-- The flame entries are registered in `src/flames.cc::_flames`.
-- Each entry is a `FlameEntry`, which wraps a C function like `flame_upslow()`.
+- entries are registered in `src/flames.cc::_flames`;
+- each entry is a `FlameEntry`;
 - `init_flames()` precomputes lookup tables such as `divsub`.
 
-A representative flame:
-
-```cpp
-void flame_upslow()
-```
-
-It swaps active/passive pointers using the `PTR` macro, then writes new pixels by averaging neighboring pixels from the old frame and decaying the result through `divsub`. The effect is "old image moves upward and cools."
-
-So, mentally:
+Mentally:
 
 ```text
 old finished image -> neighboring-pixel math -> new decayed image
 ```
 
-### 11.5 Concept: What Is Translate?
+### What Is Translate?
 
-A translation table is a coordinate remap. It says, for each destination pixel, which source pixel to read.
-
-In source:
-
-- Loading is in `src/translate.cc::init_translate()`.
-- `.cmd` files can generate tables with helper programs.
-- `.tab` files can be loaded directly.
-- Tables can be loaded on demand.
-- `TranslateEntry::operator()()` applies the remap.
-
-The key operation is:
+A translation table is a coordinate remap. For each destination pixel, it says
+which source pixel to read:
 
 ```text
 dst_pixel[i] = src_pixel[translation_table[i]]
 ```
 
-This can swirl, stretch, rotate, fold, or otherwise warp the current buffer. Some flame paths can fold translation into the flame step, so `done_translate` prevents duplicate translation.
+Loading is in `src/translate.cc::init_translate()`. `.cmd` files can generate
+tables with helper programs, and `.tab` files can be loaded directly. Tables can
+be loaded on demand.
 
-### 11.6 Concept: What Is A Wave?
+Some flame paths fold translation into the flame step and set `done_translate`,
+so the separate translate pass skips duplicate work.
 
-A wave is the fresh drawing seeded by the current sound.
+### What Is A Wave?
 
-If a flame is memory, a wave is new input. Wave functions look at the processed sound samples in `soundDevice->dataProc` and draw points, vertical lines, horizontal lines, spikes, Lissajous shapes, lightning, objects, spirals, and other geometry into `active_buffer`.
+A wave is the fresh drawing seeded by current sound.
 
-In source:
+Wave functions read `audioFrameProcessedData()`, `audioAnalysis`,
+`acousticContext`, `waveScale`, and `table`, then draw points, vertical lines,
+horizontal lines, spikes, Lissajous shapes, lightning, objects, spirals, and
+other geometry into `active_buffer`.
 
-- The wave entries are registered in `src/waves.cc::_waves`.
-- Each entry is a `WaveEntry`, which wraps a function like `wave_dotHor()`.
-- Helpers such as `prepareSoundData()`, `putat()`, `putat_cut()`, `do_vwave()`, and `do_hwave()` turn samples into pixels.
-- Wave colors use `tcolor(x)`, which indexes one of the 10 sound color tables.
+Those marks become fuel for later frames' flames.
 
-Example:
+## 17. Step 4d: Palette Stage
 
-```cpp
-void wave_dotHor()
-```
-
-This:
-
-1. Calls `prepareSoundData(BUFF_WIDTH)`.
-2. Scales 1024 processed samples down to one sample per x position.
-3. Draws left-channel and right-channel dots in different horizontal halves.
-4. Uses `putat_cut()` to write small cross-shaped marks into `active_buffer`.
-
-Mentally:
-
-```text
-current sound samples -> positions/colors -> new marks in active_buffer
-```
-
-Those marks become fuel for the next frame's flame.
-
-### 11.7 Palette Smoothing
-
-`current->smoothPalette()` moves `currentPalette` toward the selected palette over time.
+`PaletteStageModule` moves the current palette toward the selected palette over
+time.
 
 Palettes are 256 entries of RGB:
 
@@ -372,27 +443,20 @@ Palettes are 256 entries of RGB:
 typedef unsigned char Palette[256][3];
 ```
 
-The buffer stores only 8-bit color indexes. The palette decides what those indexes mean on screen. Palette smoothing is why color changes can drift rather than snap.
+The visual buffer stores only 8-bit color indexes. The palette decides what
+those indexes mean on screen. Palette smoothing is why color changes can drift
+rather than snap.
 
-### 11.8 Swap Buffers
+`--palette-smoothing` controls the chance that a palette change smooths instead
+of jumping directly.
 
-At the end:
-
-```cpp
-swap(activeBuffer, passiveBuffer)
-```
-
-The freshly generated image becomes the passive/current image, ready for display. The old passive image becomes the next active write target.
-
-## 12. Step 7: Draw To The Frontend
+## 18. Step 5: Draw To The Frontend
 
 If `doDisplay` is true, `run()` calls:
 
 ```cpp
 (*cthughaDisplay)()
 ```
-
-This means "compose Cthugha's indexed buffer into the selected frontend."
 
 For X11, read `src/CthughaDisplayX11.cc::CthughaDisplayX11::operator()()`.
 For SVGAlib, read `src/CthughaDisplaySVGA.cc::CthughaDisplaySVGA::operator()()`.
@@ -402,6 +466,7 @@ The classic 2D path does this:
 
 ```text
 displayDevice->preDraw()
+displayDevice->setGlobalPalette()
 choose output buffer
 checkZoom()
 while(screen()) draw passive buffer into display buffer
@@ -414,7 +479,11 @@ display interface text and errors
 displayDevice->postDraw()
 ```
 
-## 13. Concept: What Is `screen()`?
+`run()` measures display latency around this call and feeds it back into
+`cthughaDisplay->observeVisualLatency()`. The native file audio pipeline uses
+that estimate when choosing the sample window for future frames.
+
+## 19. Concept: What Is `screen()`?
 
 `screen()` is another `CoreOption`, defined in `src/display.cc`:
 
@@ -422,7 +491,8 @@ displayDevice->postDraw()
 CoreOption screen(-1, "display", screenEntries);
 ```
 
-It is unfortunately named if you are new to the code. A "screen" entry is not the OS window. It is a display mapping from the Cthugha buffer into a larger display buffer.
+A "screen" entry is not the OS window. It is a mapping from the Cthugha buffer
+into the larger display buffer.
 
 Examples from `src/display.cc`:
 
@@ -433,28 +503,30 @@ Examples from `src/display.cc`:
 - `screen_hfield`: heightfield.
 - `screen_roll`, `screen_bent`, `screen_plate`: more 3D-ish mappings.
 
-These functions read `passive_buffer`, which is the completed Cthugha image after the buffer swap.
+These functions read `passive_buffer`, which is the completed Cthugha image
+after the buffer swap.
 
-## 14. Concept: CthughaDisplay vs DisplayDevice
-
-There are two layers with similar names:
+## 20. Concept: CthughaDisplay vs DisplayDevice
 
 `CthughaDisplay`
 
-- Knows Cthugha buffer geometry.
-- Runs `screen()`.
-- Mirrors and zooms.
-- Expands palette indexes to frontend pixels.
-- Draws UI text through the device.
+- owns frame timing;
+- knows Cthugha buffer geometry;
+- runs `screen()`;
+- mirrors and zooms;
+- expands palette indexes to frontend pixels;
+- draws UI text through the device;
+- tracks observed visual latency.
 
 `DisplayDevice`
 
-- Knows the platform.
-- X11 creates windows/images, handles X events, copies to the X server.
-- SVGAlib owns console graphics buffers.
+- owns the platform;
+- X11 creates windows/images, handles X events, copies to the X server, and can
+  use MIT-SHM;
+- SVGAlib owns console graphics buffers;
 - OpenGL owns GLUT callbacks, GL state, and buffer swaps.
 
-If you are tracing "pixels to screen", the route is:
+If you are tracing pixels to screen, the route is:
 
 ```text
 CthughaBuffer passive_buffer
@@ -464,43 +536,52 @@ CthughaBuffer passive_buffer
   -> X11/SVGA/GL screen
 ```
 
-## 15. Step 8: CDPlayer
+## 21. Step 6: CDPlayer
 
-`(*cdPlayer)()` updates CD-ROM/player state after drawing. The CD player is separate from sound input: it controls playback, while actual audio still reaches Cthugha through the chosen sound device/mixer path.
+`(*cdPlayer)()` updates CD-ROM/player state after drawing. The CD player is
+separate from the current audio frame; it controls playback devices when CD
+support is compiled in.
 
 See `src/CDPlayer.*`.
 
-## 16. Step 9: Suspend Handling
+## 22. Step 7: Suspend Handling
 
 At the end of `run()`, the code checks `cthugha_pause`.
 
-The signal handlers in `src/initExitDisp.cc` set this flag for `SIGTSTP`/`SIGCONT` behavior. The actual suspend happens only after the graphics work finishes, so the process is not stopped in the middle of a drawing operation.
+The signal handlers in `src/initExitDisp.cc` set this flag for
+`SIGTSTP`/`SIGCONT` behavior. The actual suspend happens only between frame
+stages, so the process is not stopped in the middle of a drawing operation.
 
-## 17. Where Keyboard Input Fits
+## 23. Where Keyboard Input Fits
 
-Keyboard input is not inside `run()` directly. It is handled by the frontend loop and the `Interface` system.
+Keyboard input is not inside `run()` directly. It is handled by the frontend
+loop and the `Interface` system.
 
-For example, X11:
+For X11:
 
 ```text
 DisplayDeviceX11::mainLoop()
-  -> collect X events
+  -> collect Xt events
   -> keys_x11(...)
   -> Interface::current->run()
+  -> resize display
   -> run(1)
   -> Interface::current->run()
 ```
 
-`Interface::run()` in `src/Interface.cc` calls `getkey()` until no key remains. It dispatches keys through `Keymap::action()`.
+`Interface::run()` calls `getkey()` until no key remains. It dispatches keys
+through `Keymap::action()`.
 
 The keymap system can:
 
 - change CoreOptions;
-- enter option/help/CD screens;
+- change `sound-processing`, `border`, and `flashlight`;
+- enter option/help/CD/screens;
 - lock options;
 - save/restore hotkeys;
 - request quit;
-- change sound/display options.
+- change sound/display options;
+- print screenshots.
 
 Look at:
 
@@ -508,41 +589,52 @@ Look at:
 - `src/keymap.cc`
 - `src/Interface.cc`
 - `src/InterfaceList.cc`
-- frontend key translators such as `src/xwin_keys.cc`, `src/nonx_keys.cc`, and `src/GL_keys.cc`.
+- frontend key translators such as `src/xwin_keys.cc`, `src/nonx_keys.cc`, and
+  `src/GL_keys.cc`.
 
-## 18. A Concrete Source Walk
+## 24. A Concrete Source Walk
 
-If you want to step through one whole frame in your editor, use this route:
+If you want to step through one frame in your editor:
 
 1. Open `src/initExitDisp.cc`.
 2. Read `main()` until `displayDevice->mainLoop()`.
-3. Jump to your frontend's `mainLoop()`, probably `src/DisplayDeviceX11.cc::mainLoop()`.
+3. Jump to `src/DisplayDeviceX11.cc::mainLoop()`.
 4. Return to `src/initExitDisp.cc::run()`.
 5. Step into `src/CthughaDisplay.cc::nextFrame()`.
-6. Step into `src/SoundDevice.cc::SoundDevice::operator()()`.
-7. Step into the active backend's `read()`, such as `src/SoundDeviceDSP.cc::SoundDeviceDSPIn::read()`.
-8. Step into `src/AudioVisualBridge.cc::AudioVisualBridge::runFrame()`.
-9. Step into `src/AudioProcessor.cc` for the selected audio processing mode.
-10. Step into `src/AudioAnalyzer.cc::AudioAnalyzer::operator()()`.
-11. Step into `src/AutoChanger.cc::AutoChanger::operator()()`.
-12. Step into `src/CthughaBuffer.cc::CthughaBuffer::run()`.
-13. Jump to the current flame in `src/flames.cc`.
-14. Jump to `src/translate.cc::TranslateOption::operator()()` if translate is enabled.
-15. Jump to the current wave in `src/waves.cc`.
-16. Return to `CthughaBuffer::smoothPalette()`.
-17. Step into `src/CthughaDisplayX11.cc::operator()()` or `src/CthughaDisplaySVGA.cc::operator()()`.
-18. Jump to the current `screen()` function in `src/display.cc`.
-19. Finish in the frontend `DisplayDevice` `postDraw()` path.
+6. Step into `src/AudioFrame.cc::audioFrameTick()`.
+7. Step into `src/AudioRuntime.cc::audioRuntimeTick()`.
+8. For native file playback, follow `audioRuntimePumpPipeline()` and
+   `audioRuntimeBuildFrame()`.
+9. For live/random input, follow `AudioInputProcessor::operator()()`.
+10. Step into `src/AudioVisualBridge.cc::AudioVisualBridge::runFrame()`.
+11. Step into `src/AudioProcessor.cc` for the selected audio processing mode.
+12. Step into `src/AudioAnalyzer.cc::AudioAnalyzer::operator()()`.
+13. Step into `src/AutoChanger.cc::AutoChanger::operator()()`.
+14. Step into `src/VisualDirector.cc::VisualPipelineFactory::create()` to see
+   the current stage ordering.
+15. Step into `src/VisualPipeline.cc::VisualPipeline::run()`.
+16. Step into `src/Flashlight.cc::apply_flashlight()`.
+17. Step into `src/Border.cc::apply_border()`.
+18. Step into `src/CthughaBuffer.cc::CthughaBuffer::run()`.
+19. Jump to the current flame in `src/flames.cc`.
+20. Jump to `src/translate.cc::TranslateEntry::operator()()` if translate is
+   enabled.
+21. Jump to the current wave in `src/waves.cc`.
+22. Return through `PaletteStageModule` in `src/VisualDirector.cc`.
+23. Step into `src/CthughaDisplayX11.cc::operator()()`.
+24. Jump to the current `screen()` function in `src/display.cc`.
+25. Finish in the X11 `DisplayDevice` `postDraw()` path.
 
-## 19. How To Think About One Frame
+## 25. How To Think About One Frame
 
 A single frame is easiest to picture as two layers of behavior.
 
 The sound/control layer:
 
 ```text
-read samples
-normalize to signed stereo bytes
+advance audio source/output
+publish a 1024-sample visual frame
+process raw audio into processed audio
 compute amplitude/fire/silence
 maybe change CoreOptions
 ```
@@ -550,12 +642,13 @@ maybe change CoreOptions
 The image layer:
 
 ```text
-process sound data
+brighten palette for flashlight
+fill hidden border rows
 diffuse old pixels with a flame
 warp pixels with translate
 draw fresh audio marks with a wave
-smooth palette
 swap buffers
+smooth palette
 map buffer to frontend display
 ```
 

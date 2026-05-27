@@ -2,34 +2,38 @@
 
 ## Startup Flow
 
-Graphical frontends use `src/initExitDisp.cc::main`.
+Graphical frontends enter through `src/initExitDisp.cc::main`.
 
 ```text
 main(argc, argv)
   srand(time(0))
-  seteuid(getuid())                    # drop root until a frontend needs it
-  get_pre_params()                     # early --path/--verbose/text options
-  cth_init()                           # frontend-specific init
+  seteuid(getuid())                    # drop elevated uid
+  get_pre_params()                     # early --path/--ini-file/--verbose/text options
+  cth_init(&argc, argv)                # frontend-specific early init
   get_params()                         # read ini files, then command line
   title()
   init_imath()
   atexit(deleter)
-  init_ncurses() if needed
-  SoundDevice::newSD()
-  new SoundServer()
+  init_ncurses() if requested
+  audioRuntimeInit(RSIC_MainProcess, 1)
   new CDPlayer()
-  init_mixer()
   CthughaBuffer::initAll()
+  init_border()
+  init_flashlight()
   newDisplayDevice()
   newCthughaDisplay()
   CoreOption::changeToInitial()
+  audioProcessing.changeToInitial()
   Interface::set("main")
   Keymap::init()
-  new AutoChanger()
+  initAudioVisualBridge()              # constructs AutoChanger
+  install SIGTSTP handler
   displayDevice->mainLoop()
 ```
 
-`cthugha-server` uses `src/serv_main.cc::main`. It skips visual buffers and display frontends, forces ncurses text output, initializes sound/server/CD/mixer/keymaps, sets the `server` interface, and loops over sound reads plus server broadcasts.
+There is no current `cthugha-server` startup path in source. Earlier docs that
+mention `serv_main.cc`, `SoundServer`, or network clients are describing removed
+code or stale build artifacts.
 
 ## Frame Loop
 
@@ -37,150 +41,292 @@ main(argc, argv)
 
 ```text
 CthughaDisplay::nextFrame()
-  updates now, deltaT, FPS, and optional max-FPS sleep
+  publishes now/deltaT, updates FPS accounting, and enforces maxFPS
 
-SoundDevice::operator()()
-  reads raw sound from current backend
-  maintains a rolling 1024-sample signed 8-bit stereo `char2` window
+audioFrameTick()
+  advances AudioRuntime and publishes the current 1024-sample audio frame/window
 
-SoundAnalyze::operator()()
-  computes RMS left/right amplitude
-  computes smoothed amplitude, attack/fire, fireLevel, noisy/silent state
+AudioVisualBridge::runFrame()
+  applies selected sound-processing mode
+  analyzes raw audio into AudioAnalysis
+  updates AcousticContext
+  runs AutoChanger
 
-AutoChanger::operator()()
-  may change one/all CoreOptions based on silence, fire, or time
-
-SoundServer::operator()()
-  broadcasts sound to clients and accepts connect/disconnect requests
-
-CthughaBuffer::run()
-  applies sound processing, flashlight, border, flame, translate, wave, palette smoothing
+VisualPipeline::run()
+  runs visual-stage modules around the legacy buffer transform
 
 CthughaDisplay::operator()()
-  frontend-specific display composition
+  frontend-specific display composition, when doDisplay is true
 
 CDPlayer::operator()()
   updates CD playback state
+
+pause/suspend handling
 ```
 
-The frame loop is cooperative. There are no threads in the visualizer. The code uses processes for some sound/table-loading work.
+The frame loop is cooperative. There are no threads in the visualizer. The code
+still uses processes for legacy file playback and translation-table loading.
+
+### Frontend Event Loops
+
+- X11: `DisplayDeviceX11::mainLoop()` drains Xt events, translates key releases,
+  dispatches UI work, resizes to the current X window, calls `run(1)`, then runs
+  interface input again.
+- SVGAlib: `DisplayDeviceSvga::mainLoop()` is still present in source and calls
+  `Interface::current->run()` plus `run(1)` in a loop.
+- OpenGL: `DisplayDeviceGL` is still present in source; its idle callback calls
+  `run(0)` and the GLUT draw callback later invokes `(*cthughaDisplay)()`.
+
+CMake only builds the X11 path.
 
 ### Pause and Resume
 
-Graphical frontends install a `SIGTSTP` handler after initialization. Pressing `^Z` sets `cthugha_pause`; the main loop waits until graphics work is finished, calls `exit_sound()`, and raises `SIGTSTP` for the default terminal suspend behavior.
+Graphical frontends install a `SIGTSTP` handler after initialization. Pressing
+`^Z` sets `cthugha_pause`; `run()` waits until frame work is between stages,
+calls `exit_sound()`, and raises `SIGTSTP`.
 
-On `SIGCONT`, the continuation handler calls `init_sound()` and reinstalls the stop handler before the display loop continues. This keeps suspend/resume out of the middle of drawing code.
+On `SIGCONT`, the continuation handler calls `init_sound()` and reinstalls the
+stop handler before the display loop continues. This keeps suspend/resume out of
+the middle of drawing code.
 
 ## Audio Pipeline
 
-### Input Selection
+### Runtime Selection
 
-`SoundDevice::newSD()` creates one of:
+`audioRuntimeInit()` builds the active audio runtime through `RuntimeFactory`.
+Settings are read from current options (`sound-device-number`, `sound-method`,
+`silent`, and the `--play` file name). Environment detection checks OSS read and
+write availability and whether Pulse support was compiled in.
 
-- `SoundDeviceDSPIn`: OSS `/dev/dsp` read.
-- `SoundDeviceNet`: UDP client from `cthugha-server`.
-- `SoundDeviceRandom`: random noise for `--no-sound`.
-- `SoundDeviceFile`: direct file/program/fifo sound source.
-- `SoundDeviceFork`: parent/child wrapper used for non-silent `--play`, so playback can continue while the parent visualizer reads shared data.
+`PcmSourceFactory` currently selects:
 
-The selected device reads raw bytes into `tmpData`. `SoundDevice::convert()` normalizes supported formats into:
+- `ASS_LineIn` for `SDN_DSPIn`;
+- `ASS_Random` for `SDN_Random`;
+- `ASS_WavFile` for `--play *.wav`;
+- `ASS_Mp3File` for `--play *.mp3`;
+- `ASS_RawFile` for other `--play` names, which currently falls back to legacy
+  file handling;
+- `ASS_Unknown` for unsupported cases.
+
+### Native File Pipeline
+
+For WAV files, and MP3 files when minimp3 is enabled, `AudioRuntime` uses:
 
 ```text
-soundDevice->data[1024][2]      # signed 8-bit stereo, [left/right-ish] pairs
-soundDevice->dataProc[1024][2]  # processed copy used by wave drawing
+PcmSource -> AudioInput -> AudioBuffer -> AudioOutput
+                         -> AudioFrameBuilder -> AudioFrame
 ```
 
-`SoundDevice::operator()()` does not necessarily read 1024 fresh samples every frame. It asks the backend for `size` samples, where `size` is derived from the larger buffer dimension, then slides/updates the 1024-sample window. With the default `160x100` buffer, the fresh read size starts at 128 samples.
+Important pieces:
 
-CD playback is separate from `SoundDevice`: `CDPlayer` controls the CD-ROM drive through ioctls, while audio still reaches Cthugha through the machine's mixer/DSP input path.
+- `WavPcmSource` parses and reads WAV data.
+- `Minimp3PcmSource` decodes MP3 data through `external/minimp3`.
+- `AudioOutput` is selected as Pulse, OSS DSP output, or null output.
+- `AudioBuffer` stores decoded/submitted sample history.
+- `AudioFrameBuilder` builds the 1024-sample visual frame around the currently
+  audible sample, with compensation for observed visual latency.
 
-### File/Program Playback
+When playback reaches the end and the output has drained, `AudioRuntime` sets
+completion and requests program close.
 
-`SoundDeviceFile` recognizes format by filename extension:
+### Native Input Processor Path
 
-- `.wav`: direct read after parsing a WAV header.
-- `.mod`: external `xmp`, if configured.
-- `.mp3`: external `mpg123` or `l3dec`, if configured.
-- other: raw data.
+For live OSS input and random noise, `RuntimeFactory` can create:
 
-External players are started through `/bin/sh -c` and communicate through a fifo. `tmpnam()` is used to generate a fifo name unless `--fifo` overrides it.
+```text
+PcmSource -> AudioInput -> AudioInputProcessor
+```
 
-### Analysis
+`AudioInputProcessor` keeps the rolling 1024-sample normalized internal frame
+and processed workspace used by visual code.
 
-`SoundAnalyze` computes:
+### Legacy SoundDevice Fallback
 
-- `amplitude`, `amplitudeLeft`, `amplitudeRight`: RMS-ish amplitude.
-- `noisy`: above `minnoise`.
-- `fire`: attack peak when amplitude falls after rising.
-- `fireLevel`: accumulated fire used by the auto changer.
-- `intensity`: smoothed normalized amplitude.
-- `speed`: approximate event speed based on recent fires.
+If no native audio path is available, `AudioRuntime` installs a legacy
+`SoundDevice`:
 
-### Sound Processing CoreOption
+- `SoundDeviceDSPIn`: OSS `/dev/dsp` input.
+- `SoundDeviceRandom`: random-noise debug/input source.
+- `SoundDeviceFile`: legacy file/fifo/external-program source.
+- `SoundDeviceFork`: fork/shared-memory wrapper for legacy non-silent file
+  playback.
 
-`src/SoundProcess.cc` registers:
+`SoundDeviceNet` is not a current source file.
 
-- `none`: copy raw normalized samples to `dataProc`.
-- `Filter1`: slope-limited sample smoothing.
-- `Filter2`: low-pass-ish filter.
-- `FFT`: custom 1024-sample FFT using left as real and right as imaginary.
+### AudioFrame Facade
+
+Visual and UI code should use the facade in `src/AudioFrame.cc`:
+
+```text
+audioFrameData()
+audioFrameProcessedData()
+audioFrameCurrent()
+audioFrameTick()
+audioFrameChange()
+```
+
+These functions choose the current source in this order:
+
+1. `AudioRuntime` frame from the native file pipeline;
+2. `AudioInputProcessor` frame from the native input path;
+3. legacy `soundDevice`;
+4. silent static buffers.
+
+### Sound Processing
+
+The `sound-processing` option is implemented by `src/AudioProcessor.cc`, not by
+the old `SoundProcess.cc` file.
+
+Built-in entries:
+
+- `none`: copy raw audio to processed audio.
+- `Filter1`: slope-limit sharp sample jumps.
+- `Filter2`: low-pass-ish smoothing.
+- `FFT`: custom 1024-sample FFT using left/right channels as real/imaginary
+  components.
+
+`AudioVisualBridge::runFrame()` calls `audioProcessing.process()` before
+analysis and before visual mutation. Waves normally read
+`audioFrameProcessedData()`.
+
+### Analysis and Acoustic Context
+
+`AudioAnalyzer::operator()()` computes frame-local `AudioAnalysis`:
+
+- `amplitude`;
+- `amplitudeLeft`;
+- `amplitudeRight`;
+- `noisy`, based on `min-noise`.
+
+`AcousticContext` then maintains rolling state:
+
+- `intensity()`: smoothed normalized amplitude;
+- `fire()`: emitted when a rising attack ends;
+- `fireLevel()`: accumulated fire used by `AutoChanger`.
+
+`AutoChanger` uses `audioAnalysis.noisy` for silence handling and
+`acousticContext.fireLevel()` for fire-driven option changes.
 
 ## Visual Buffer Pipeline
 
-`CthughaBuffer` owns active/passive 8-bit indexed-color buffers. Default buffer size is `160x100`; `--buff-size` can choose predefined or explicit sizes.
-
-Each active buffer has two actual allocations with a 3-line border above and below. Macros in `src/CthughaBuffer.h` expose:
+`CthughaBuffer` still owns the legacy per-buffer options and the raw active and
+passive indexed buffers. Default dimensions are:
 
 ```text
-active_buffer
-passive_buffer
+BUFF_WIDTH  = 160
+BUFF_HEIGHT = 100
 ```
 
-### Per-Buffer Step Order
+Each allocation has three hidden rows above and below the visible buffer. Flame
+code reads those rows as boundary data.
 
-`CthughaBuffer::run()` loops over `nBuffers` and applies:
+### VisualPipeline Order
+
+`VisualDirector::planDefaultPipeline()` currently includes these stages:
 
 ```text
-soundProcess()
-flashlight()
-border setup
+FlashlightStage
+BorderStage
+BufferTransformStage
+ImageStage        # currently null
+FlameStage        # currently null
+TranslateStage    # currently null
+WaveStage         # currently null
+PaletteStage
+```
+
+The actual flame/translate/wave work still happens inside
+`BufferTransformStage`, which calls `CthughaBuffer::run()` through
+`LegacyBufferTransformModule`.
+
+### Flashlight
+
+`apply_flashlight()` is a palette effect. If the `flashlight` CoreOption is on,
+it copies the current palette, brightens low palette entries according to
+`acousticContext.fire()`, and installs the temporary palette on the
+`CthughaFrameBuffer`.
+
+It does not draw pixels into the indexed buffer.
+
+### Border
+
+`apply_border()` fills the three hidden rows above and below the active buffer.
+
+The selected `border` CoreOption decides whether those rows are:
+
+- zero;
+- copied from current audio data;
+- filled with current amplitude;
+- filled with 255.
+
+### Legacy Buffer Transform
+
+`CthughaBuffer::run()` loops over active buffers and applies:
+
+```text
+current = buffers + j
+done_translate = 0
 flame()
 translate()
 wave()
-smoothPalette()
 swap(activeBuffer, passiveBuffer)
 ```
 
 The order matters:
 
-- `flame` propagates/decays the previous image into the next active buffer.
-- `translate` remaps pixels using translation tables unless the flame already folded translation into its own loop.
-- `wave` draws fresh sound-reactive points/lines into the buffer.
-- palette smoothing moves the current palette toward the selected palette.
+- `flame` propagates/decays the previous finished image.
+- `translate` remaps pixels using loaded translation tables unless the flame
+  folded translation into its own loop and set `done_translate`.
+- `wave` draws fresh sound-reactive marks into the active buffer.
+- swapping makes the finished frame become `passiveBuffer`, which display code
+  reads.
+
+Palette smoothing no longer lives in `CthughaBuffer::run()`.
+
+### Palette Stage
+
+`PaletteStageModule` moves the current palette toward the selected palette. The
+global `paletteSmoothingChance` controls whether a palette change smooths or
+jumps directly to the new palette.
+
+Command-line options:
+
+- `--palette-smoothing VALUE`, clamped to `0.0..1.0`;
+- `--no-palette-smoothing`;
+- `--palette-set SET`, which filters palettes by metadata set.
 
 ## CoreOption System
 
 `CoreOption` is the runtime effect registry. It stores:
 
-- a per-option linked-list membership for "change one/all";
+- linked-list membership for `changeOne()`/`changeAll()`;
 - current value;
 - initial entry from config/CLI;
-- `use` flag on entries;
+- per-entry `use` flag;
 - per-option lock;
 - history stack for restore;
 - 10 hotkey values.
 
-`CoreOptionEntry` is callable via `operator()()`. Subclasses wrap functions, loaded assets, display functions, GL functions, or no-op entries.
+`CoreOptionEntry` is callable via `operator()()`. Subclasses wrap functions,
+loaded assets, display functions, GL functions, or no-op entries.
 
-Initial values come from ini files and command-line arguments. `CoreOption::changeToInitial()` applies them after buffers and display are initialized.
+Initial values come from ini files and command-line arguments. Startup applies
+them with:
+
+```text
+CoreOption::changeToInitial()
+audioProcessing.changeToInitial()
+```
 
 ## Display Pipeline
 
-The classic 2D display path is:
+The classic 2D X11/SVGA display path is:
 
 ```text
 displayDevice->preDraw()
+displayDevice->setGlobalPalette()
 choose direct or temporary indexed buffer
+checkZoom()
 screen() maps passive_buffer into CthughaDisplay::buffer
 optional horizontal mirror
 palette expansion if target is not 8-bit indexed
@@ -194,9 +340,13 @@ displayDevice->postPrint()
 displayDevice->postDraw()
 ```
 
-The display function selected by the `display` CoreOption comes from `src/display.cc` for 2D frontends. It maps one `BUFF_WIDTH x BUFF_HEIGHT` buffer into an image that is commonly mirrored to `2*BUFF_WIDTH x 2*BUFF_HEIGHT`.
+The display function selected by the `display` CoreOption comes from
+`src/display.cc` for 2D frontends. It maps one `BUFF_WIDTH x BUFF_HEIGHT`
+passive buffer into an image that is commonly mirrored to
+`2 * BUFF_WIDTH x 2 * BUFF_HEIGHT`.
 
-For OpenGL, `src/CthughaDisplayGL.cc` uses a different sequence:
+For OpenGL, retained source in `src/CthughaDisplayGL.cc` uses a different
+sequence:
 
 ```text
 background() before screen
@@ -207,39 +357,55 @@ fly()
 background() after screen
 ```
 
-GL display functions in `src/GL_display.cc` upload passive buffers as paletted textures and draw textured geometry.
+GL display functions in `src/GL_display.cc` upload passive buffers as paletted
+textures and draw textured geometry.
 
 ## User Input and Interface
 
-The UI is not a separate event framework. Each frontend polls/receives keys, then calls `Interface::current->run()`. `Interface` dispatches keys through `Keymap`.
+The UI is not a separate event framework. Each frontend polls or receives keys,
+then calls `Interface::current->run()`. `Interface` dispatches keys through
+`Keymap`.
 
-Default mappings come from `src/default.keymap`, transformed into `src/default.keymap.str`. A user keymap can be loaded with `--keymap`.
+Default mappings come from `src/default.keymap`, transformed into
+`default.keymap.str` by the active build.
 
-Keymaps are named contexts such as:
+Keymap contexts include:
 
-- `default`
-- `main`
-- `Help`
-- `CD`
-- `sound`
-- `Options`
-- `CoreOptions`
-- `OptionElement`
-- `CoreOptionElement`
+- `default`;
+- `main`;
+- `Help`;
+- `CD`;
+- `sound`;
+- `Options`;
+- `CoreOptions`;
+- `OptionElement`;
+- `CoreOptionElement`;
+- `playList`;
+- `border`;
+- `flashlight`.
 
-Actions are registered by static `ACTION(name)` objects in `keymap.cc`, `Interface.cc`, `InterfaceHelp.cc`, `InterfaceList.cc`, `CDPlayer.cc`, and related modules.
+Actions are registered by static `ACTION(name)` objects in `keymap.cc`,
+`Interface.cc`, `InterfaceHelp.cc`, `InterfaceList.cc`, `CDPlayer.cc`, and
+related modules.
 
 ## Configuration Flow
 
-`read_ini()` reads multiple config locations in order, with later files overriding earlier settings:
+`get_pre_params()` handles only early options such as `--path`, `--ini-file`,
+`--verbose`, and X11 terminal-text options. `get_params()` then reads ini files
+and reprocesses the full command line, so command-line options override ini
+values.
+
+Without `--ini-file`, `read_ini()` searches:
 
 1. `CTH_LIBDIR/cthugha.ini`
 2. `~/.cthugha.auto`
 3. `~/.cthugha.ini`
 4. `./cthugha.ini`
 5. `--path DIR` -> `DIR/cthugha.ini`
-6. X11 resource database for `xcthugha`
-7. command line options
+6. X11 resource database for `xcthugha`, via `open_ini_sys()`
+
+With `--ini-file FILE`, only that file is opened. Ini chaining from inside an
+ini file is intentionally ignored with a warning.
 
 Entry format is:
 
@@ -249,4 +415,5 @@ cthugha.feature.buffer: value
 cthugha.feature.buffer.entry: on/off
 ```
 
-The ini reader supports `?` wildcards in entry names. Pressing `a` at runtime writes `~/.cthugha.auto`.
+The ini reader supports `?` wildcards in entry names. Pressing `a` at runtime
+can write `~/.cthugha.auto` when saving is enabled.

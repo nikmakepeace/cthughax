@@ -1,147 +1,254 @@
 # Verification Log
 
-This file records what I checked while mapping the project.
+This file records what was checked while updating the root `PROJECT_*.md` files.
+
+## Tooling Notes
+
+`rg` and `git` are not installed in this execution environment. File inventory
+and source searches used `find`, `grep`, `sed`, `wc`, CMake, and local scripts
+instead.
+
+Because `git` is unavailable, repository history and dirty-state inspection were
+not verified here. A `.git/` directory exists in the workspace, but no Git
+commands were available.
+
+## Root Project Docs Read
+
+Files read before editing:
+
+- `PROJECT_SUMMARY.md`
+- `PROJECT_STRUCTURE.md`
+- `PROJECT_BUILD_AND_PORTING.md`
+- `PROJECT_RUNTIME_MAP.md`
+- `PROJECT_SEAMS_AND_RISKS.md`
+- `PROJECT_MAIN_LOOP_EXPLAINED.md`
+- `PROJECT_VERIFICATION.md`
+
+Major stale themes found:
+
+- old `SoundAnalyze` / `SoundProcess` names;
+- old `SoundServer`, `SoundDeviceNet`, `network`, and `cthugha-server` paths;
+- obsolete generated target list that still included the server;
+- old asset counts;
+- old build notes that predated the working CMake build;
+- partial updates in `PROJECT_MAIN_LOOP_EXPLAINED.md` that mixed old and new
+  architecture.
 
 ## Repository and Inventory
 
 Commands used:
 
 ```sh
-pwd
-ls
-ls -a
-rg --files
-find . -maxdepth 2 -type d | sort
-find . -maxdepth 2 -type f | sed 's#^./##' | awk -F/ '{count[$1]++} END {for (d in count) print d, count[d]}'
-find map -maxdepth 1 -type f | wc -l
-find pcx -maxdepth 1 -type f | wc -l
-find tab -maxdepth 1 -type f | wc -l
+ls -la
+find . -maxdepth 1 -name 'PROJECT_*.md' -print
+wc -l PROJECT_*.md
+find src -maxdepth 1 -type f -name '*.cc' -print | wc -l
+find src -maxdepth 1 -type f -name '*.h' -print | wc -l
+find map -maxdepth 1 -type f -name '*.map' -print | wc -l
+find map/png -maxdepth 1 -type f -name '*.png' -print | wc -l
+find pcx -maxdepth 1 -type f -print | wc -l
+find tab -maxdepth 1 -type f -name '*.cmd' -print | wc -l
 ```
 
-Findings:
+Current findings:
 
-- Not a Git checkout: `git status --short` returns `fatal: not a git repository`.
-- `map/` has 169 files.
-- `pcx/` has 6 files.
-- `tab/` has 23 files.
-- `src/` has 106 top-level files in this snapshot.
-- There are historical `CVS/` directories.
-- There is a hidden `.DS_Store`.
-
-## Existing Docs Read
-
-Files read:
-
-- `README`
-- `INSTALL`
-- `TODO`
-- `ChangeLog`
-- `COPYING`
-- `cthugha.ini.eg`
-- `cthugha-L.lsm`
-- `doc/overview.texi`
-- `doc/technical.texi`
-- `doc/parameters.texi`
-- `doc/configure.texi`
-- `doc/mixed.texi`
-- `doc/other.texi`
-
-Cross-checks:
-
-- Upstream docs identify the executable flavors: `cthugha`, `xcthugha`, `glcthugha`, and `cthugha-server`.
-- Texinfo docs confirm palette, PCX, and translation-table formats.
-- `TODO` confirms known risk areas: portability, big-endian, sound stability, network code, OpenGL build, X11 geometry, and old UI concerns.
-- `ChangeLog` confirms major architecture changes such as C++ rewrite, load-on-demand translation tables, OpenGL support, keymap rewrite, and `--play` simplification.
+- Root `PROJECT_*.md` files: 7.
+- `src/` top-level `.cc` files: 71.
+- `src/` top-level headers: 41.
+- `map/` `.map` palettes: 100.
+- `map/png/` palette preview PNGs: 23.
+- `pcx/` files: 12.
+- `tab/` `.cmd` descriptors: 11.
+- `external/minimp3/` contains the embedded MP3 decoder headers/license.
+- `external/cthugha-js/` is present as a separate JavaScript port/reference.
+- `build/` is a populated CMake build directory.
+- Local `.o` files exist in source directories; some are stale relative to
+  current source.
 
 ## Build Files Checked
 
 Files read:
 
+- `CMakeLists.txt`
+- `src/CMakeLists.txt`
+- `tab/CMakeLists.txt`
+- `cmake/config.h.in`
 - `Makefile.am`
 - `src/Makefile.am`
 - `tab/Makefile.am`
 - `configure.in`
 - generated `Makefile`
 - generated `src/Makefile`
+- generated `tab/Makefile`
+- generated `doc/Makefile`
 - `config.h`
 - `config.log`
-- `config.status`
+- `build/CMakeCache.txt`
+- `build/config.h`
 
 Commands used:
 
 ```sh
-rg -n "^(TARGETS|TARGETS_SUID|bin_PROGRAMS|noinst_PROGRAMS|EXTRA_PROGRAMS|SUBDIRS|pkglibdir|CXXFLAGS|X_LIBS|GL_LIBS|S_LIBS|N_LIBS)\b" Makefile src/Makefile tab/Makefile doc/Makefile
-rg -n "#define (WITH_|HAVE_|USE_|MP3_|MOD_|CTH_)|CTH_LIBDIR|DEV_DSP|DEV_CDROM|DEV_MIXER" config.h
-stat -f '%Sm %N' Makefile.am aclocal.m4 configure.in configure Makefile src/Makefile.am src/Makefile
-make -n all
+grep -n "AC_ARG_ENABLE\|AC_ARG_WITH\|TARGETS\|PULSE\|MINIMP3" configure.in
+grep -n "#define \(WITH_\|HAVE_\|USE_\|CTH_\|DEV_\|PACKAGE\|VERSION\|WORDS\)" config.h
+grep -n "^TARGETS\|^TARGETS_SUID\|^bin_PROGRAMS\|^SUBDIRS\|^pkglibdir\|^CXXFLAGS\|^PULSE\|^X_LIBS\|^GL_LIBS\|^S_LIBS\|^N_LIBS" Makefile src/Makefile tab/Makefile doc/Makefile
+grep -n "^CTH_\|^WITH_\|^PULSE\|^X11\|^ZLIB\|^CMAKE_C\|^CURSES" build/CMakeCache.txt
 ```
 
 Findings:
 
-- Current generated target list is `xcthugha cthugha-server tabheader tabinfo`.
-- Dry-run build stops at missing `aclocal-1.9`.
-- `configure.in` is newer than `aclocal.m4`, explaining why make wants to regenerate autotools metadata.
-- Current `config.log` is from Solaris/i386 in 2009.
+- CMake builds `xcthugha`, `tabheader`, `tabinfo`, and `tab/cmd_*` tools.
+- CMake does not build `cthugha` or `glcthugha`.
+- CMake option state in `build/`: X11 ON, tab tools ON, Pulse ON/found, DSP ON,
+  mixer ON, minimp3 ON, XPM ON, CD-ROM OFF.
+- Current generated autotools `TARGETS` is `xcthugha tabheader tabinfo`.
+- Current generated autotools `TARGETS_SUID` is empty.
+- `configure.in` has no current server/network option.
+- `config.log` is from Linux/x86_64 in this workspace, with GCC 14.2.0, created
+  by `./configure --no-create --no-recursion`.
+
+## Build and Check Commands
+
+Commands run:
+
+```sh
+cmake --build build
+tests/headers/check-headers.sh
+make -n all
+build/src/xcthugha --help
+build/src/tabinfo
+build/src/tabheader
+build/tab/cmdRead
+```
+
+Results:
+
+- `cmake --build build`: succeeded and built all current CMake targets.
+- `tests/headers/check-headers.sh`: succeeded.
+- Header check output:
+
+  ```text
+  Checked 41 headers.
+  Skipped: 1.
+  Failures: 0.
+  ```
+
+- `make -n all`: succeeded as an autotools dry run.
+- `build/src/xcthugha --help`: failed in the headless shell with
+  `Error: Can't open display:`. This verifies the binary exists and starts X11
+  initialization before it can show help.
+- `build/src/tabinfo`: printed `Syntax: tabinfo <filename>` and exited nonzero,
+  as expected with no argument.
+- `build/src/tabheader`: printed `Can't read header.` and exited nonzero, as
+  expected with no input.
+- `build/tab/cmdRead`: printed usage and exited nonzero, as expected with no
+  arguments.
 
 ## Entrypoint and Runtime Tracing
-
-Files read:
-
-- `src/initExitDisp.cc`
-- `src/serv_main.cc`
-- `src/CthughaDisplay.*`
-- `src/CthughaBuffer.*`
-- `src/DisplayDevice.*`
-- `src/DisplayDeviceX11.cc`
-- `src/DisplayDeviceSvga.cc`
-- `src/DisplayDeviceGL.cc`
-- `src/CthughaDisplayX11.cc`
-- `src/CthughaDisplaySVGA.cc`
-- `src/CthughaDisplayGL.cc`
 
 Commands used:
 
 ```sh
-rg -n "\bmain\s*\(" src tab
-rg -n "class |struct |enum " src --glob '*.{h,cc}'
+grep -R -n "int main" src tab tests tools
+grep -R -n "SoundAnalyze\|AudioAnalyzer\|AudioRuntime\|AudioVisualBridge\|AudioProcessor\|PcmSourceFactory\|RuntimeFactory\|VisualPipeline\|VisualDirector" src CMakeLists.txt cmake tests PROJECT_*.md
+grep -R -n "SoundServer\|soundServer\|cthugha-server\|WITH_NETWORK\|network" src/*.cc src/*.h CMakeLists.txt src/CMakeLists.txt configure.in Makefile.am src/Makefile.am PROJECT_*.md
 ```
-
-Cross-checks:
-
-- Main graphical loop found in `src/initExitDisp.cc`.
-- Server loop found in `src/serv_main.cc`.
-- Display frontend seam confirmed through per-target `cth_init()`, `newDisplayDevice()`, and `newCthughaDisplay()`.
-
-## Audio and Visual Pipeline Tracing
 
 Files read:
 
+- `src/initExitDisp.cc`
+- `src/AudioRuntime.*`
+- `src/RuntimeFactory.*`
+- `src/PcmSourceFactory.*`
+- `src/Audio.*`
+- `src/AudioFrame.*`
+- `src/AudioVisualBridge.*`
+- `src/AudioProcessor.*`
+- `src/AudioAnalyzer.*`
+- `src/AutoChanger.*`
+- `src/VisualPipeline.*`
+- `src/VisualDirector.*`
+- `src/CthughaFrameBuffer.*`
+- `src/CthughaBuffer.*`
+
+Findings:
+
+- Graphical startup and frame scheduling are in `src/initExitDisp.cc`.
+- Current frame order is `nextFrame`, `audioFrameTick`, bridge, visual pipeline,
+  optional display, CD update, suspend handling.
+- `AudioVisualBridge` constructs/destroys `AutoChanger`.
+- `SoundAnalyze.*` and `SoundProcess.cc` are not current source files.
+- `SoundServer.*`, `SoundDeviceNet.cc`, `network.*`, and `serv_main.cc` are not
+  current source files.
+
+## Audio Pipeline Tracing
+
+Files read:
+
+- `src/Audio.h`
+- `src/Audio.cc`
+- `src/AudioRuntime.cc`
+- `src/RuntimeFactory.cc`
+- `src/PcmSourceFactory.cc`
+- `src/AudioFrame.cc`
+- `src/AudioProcessor.cc`
+- `src/AudioAnalyzer.cc`
 - `src/SoundDevice.*`
 - `src/SoundDeviceDSP.cc`
 - `src/SoundDeviceFile.cc`
 - `src/SoundDeviceFork.cc`
-- `src/SoundDeviceNet.cc`
 - `src/SoundDeviceRandom.cc`
-- `src/SoundServer.*`
-- `src/SoundAnalyze.*`
-- `src/SoundProcess.cc`
 - `src/sound.cc`
 - `src/Mixer.cc`
 - `src/CDPlayer.*`
+
+Cross-checks:
+
+- `PcmSourceFactory` selects line-in, random, WAV, MP3, raw-file, or unknown
+  strategies.
+- `AudioRuntime` uses a native file pipeline for WAV and MP3 when minimp3 is
+  enabled.
+- `AudioRuntime` uses `AudioInputProcessor` for native live/random sources when
+  available.
+- `AudioRuntime` falls back to legacy `SoundDevice` implementations when native
+  creation fails or the strategy is unsupported.
+- Visual code should read through `audioFrameData()` and
+  `audioFrameProcessedData()`.
+- `AudioProcessor` owns the former sound-processing modes.
+- `AudioAnalyzer` owns frame analysis and `AcousticContext` owns rolling
+  intensity/fire state.
+
+## Visual and Display Pipeline Tracing
+
+Files read:
+
+- `src/VisualPipeline.*`
+- `src/VisualDirector.*`
+- `src/CthughaFrameBuffer.*`
+- `src/CthughaBuffer.*`
+- `src/Border.*`
+- `src/Flashlight.*`
 - `src/flames.*`
 - `src/waves.*`
-- `src/sound_tables.cc`
 - `src/translate.*`
 - `src/palettes.cc`
 - `src/pcx.*`
 - `src/display.cc`
+- `src/CthughaDisplay.*`
+- `src/DisplayDevice.*`
+- `src/DisplayDeviceX11.cc`
+- `src/DisplayDeviceX11-Panel.cc`
+- retained SVGAlib/OpenGL display source files
 
 Cross-checks:
 
-- `SoundDevice::operator()()` always normalizes into 1024 signed 8-bit stereo samples.
-- `CthughaBuffer::run()` applies sound processing, flashlight, border, flame, translate, wave, palette smoothing, then swaps buffers.
-- `CthughaDisplayX11` and `CthughaDisplaySVGA` share the same classic 2D display flow.
-- OpenGL path has separate screen/background/light/fly sequencing.
+- `VisualPipelineFactory` currently installs flashlight, border, legacy buffer
+  transform, null placeholders, and palette smoothing.
+- `LegacyBufferTransformModule` calls `CthughaBuffer::run()`.
+- `CthughaBuffer::run()` now does only `flame`, `translate`, `wave`, and swap.
+- Flashlight, border, and palette smoothing are outside `CthughaBuffer::run()`.
+- X11 display flow still maps `passive_buffer` through `screen()` into
+  `CthughaDisplay` buffers and then to `DisplayDeviceX11`.
 
 ## Option, Config, UI, and Keymap Tracing
 
@@ -156,45 +263,61 @@ Files read:
 - `src/InterfaceCredits.cc`
 - `src/InterfaceList.cc`
 - `src/keymap.*`
-- `src/keys.cc`
 - `src/default.keymap`
-- wrapper files `xwin_options.cc`, `svga_options.cc`, `GL_options.cc`, `serv_options.cc`, `xwin_keys.cc`, `nonx_keys.cc`
+- wrapper files `xwin_options.cc`, `svga_options.cc`, `GL_options.cc`,
+  `nonx_options.cc`, `xwin_keys.cc`, `nonx_keys.cc`, `GL_keys.cc`
 
 Cross-checks:
 
-- `cthugha.ini.eg` and `doc/configure.texi` agree with `IniFiles.cc` on config entry style and search order.
-- `default.keymap` agrees with `keymap.cc` action names.
-- Wrapper files confirm macro-variant compilation by directly including `.cc` implementations.
+- `--ini-file` is an early option and overrides normal ini search.
+- Normal ini search includes installed, auto, user, local, extra path, and X11
+  resource sources.
+- Ini entries are validated and unknown directives are warned.
+- `audioProcessing` is written to `.cthugha.auto`.
+- Keymap actions exist for `sound-processing`, `border`, and `flashlight`.
+- Wrapper files confirm macro-variant compilation by directly including `.cc`
+  implementations.
 
 ## Asset Format Checks
 
 Commands used:
 
 ```sh
-file pcx/*.pcx.gz precompiled/* tab/* map/basic.map
-sed -n '1,80p' tab/hurricane.cmd
-sed -n '1,80p' tab/cmdRead.cmd
-sed -n '1,120p' map/basic.map
+find map -maxdepth 1 -type f -name '*.map' -print
+find pcx -maxdepth 1 -type f -print
+find tab -maxdepth 1 -type f -print
+grep -n "CoreOption::load\|CTH_LIBDIR\|extra_lib_path\|map/\|pcx/\|tab/\|obj/\|gzip\|popen\|systemf" src/CoreOption.cc src/palettes.cc src/pcx.cc src/translate.cc src/waves.cc src/misc.cc
 ```
 
 Findings:
 
-- PCX assets are gzip-compressed PCX files.
-- Precompiled binaries are 32-bit i386 ELF executables.
-- `.cmd` files match the format implemented by `TranslateEntry::loaderCmd`.
-- `.map` palette files match Texinfo documentation and `read_palette()`.
+- `.map` palette search path is current directory, `map/`, installed
+  `CTH_LIBDIR/map/`, then `--path DIR/map/`.
+- Palette metadata supports `name`, `set`, and `energy` before RGB data.
+- PCX search path is current directory, `pcx/`, installed `CTH_LIBDIR/pcx/`,
+  then `--path DIR/pcx/`.
+- `.cmd`/`.tab` search path is current directory, `tab/`, installed
+  `CTH_LIBDIR/tab/WIDTHxHEIGHT/`, installed `CTH_LIBDIR/tab/`, then
+  `--path DIR/tab/`.
+- Object search path is current directory, `obj/`, installed `CTH_LIBDIR/obj/`,
+  then `--path DIR/obj/`.
+- `.gz` asset loading still shells out to `gzip -cd`.
 
 ## Risk Search
 
 Commands used:
 
 ```sh
-rg -n "TODO|FIXME|BUG|bug|not working|segmentation|WARNING|XXX|should not|wrong|unknown|not implemented|broken|disabled|panic|error" src tab doc TODO README INSTALL ChangeLog build_errors.txt cthugha.ini.eg
-rg -n "popen|systemf|execv|fork|kill\(|tmpnam|mkfifo|shm|gethostbyname|sendto|recv|mmap|ioctl|seteuid|XShm|GL_EXT|glut|vga_|ncurses|curses" src tab configure.in
+grep -n "mpg123\|l3dec\|xmp\|mkfifo\|popen\|systemf\|fork\|execv\|/bin/sh\|fifo" src/SoundDeviceFile.cc src/SoundDeviceFork.cc src/translate.cc src/CoreOption.cc src/AutoChanger.cc
+grep -R -n "HAVE_X11_EXTENSIONS_XSHM_H\|XShm" src/*.cc src/*.h cmake/config.h.in config.h.in
 ```
 
 Findings:
 
-- High-risk edges are external commands, old device ioctls, setuid SVGAlib, SysV shared memory, GLUT paletted textures, and network byte/sample handling.
-- Upstream `TODO` agrees with several observed risk areas.
-
+- Legacy external command paths remain in file playback, translation loading,
+  gzip asset loading, and silence messages.
+- Legacy file playback now uses `mkdtemp()` plus fifo paths rather than the
+  older `tmpnam()` pattern.
+- X11 MIT-SHM is included and used directly in the X11 frontend.
+- SVGAlib and OpenGL source remain high-risk legacy paths, but CMake does not
+  build them.

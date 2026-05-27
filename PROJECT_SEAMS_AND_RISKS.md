@@ -4,25 +4,49 @@
 
 ### Add a Palette
 
-Drop a `.map` file into `map/`, the current directory, installed `CTH_LIBDIR/map/`, or `--path DIR/map/`.
+Drop a `.map` file into `map/`, the current directory, installed
+`CTH_LIBDIR/map/`, or `--path DIR/map/`.
 
-Format is 256 RGB rows, compatible with Fractint-style maps:
+Format is up to 256 RGB rows:
 
 ```text
 R G B optional comment
 ```
 
+The loader also accepts metadata lines before RGB data:
+
+```text
+name: Human Name
+set: classic bright
+energy: low medium high extreme
+```
+
 Loader: `src/palettes.cc`.
 
-This is the lowest-risk extension seam.
+This is still the lowest-risk extension seam.
+
+### Add or Filter a Palette Set
+
+Palette metadata can be used with:
+
+```sh
+--palette-set SET
+```
+
+`palette_set_filter()` enables palettes whose metadata `set` contains the
+requested value. If no palette matches, the code warns and leaves all palettes
+enabled.
 
 ### Add a PCX Image
 
-Drop `.pcx` or `.pcx.gz` into `pcx/`, current directory, installed `CTH_LIBDIR/pcx/`, or `--path DIR/pcx/`.
+Drop `.pcx` or `.pcx.gz` into `pcx/`, current directory, installed
+`CTH_LIBDIR/pcx/`, or `--path DIR/pcx/`.
 
 Loader: `src/pcx.cc`.
 
-PCX images become entries in the `pcx` CoreOption, and their palettes are added to the palette registry.
+PCX images become entries in the `pcx` CoreOption, and their palettes are added
+to the palette registry. Current PCX display code centers/clips images to the
+active visual buffer.
 
 ### Add a Translation Effect Without Recompiling
 
@@ -36,13 +60,16 @@ Human-readable description
 command %d %d [args]
 ```
 
-The command receives `BUFF_WIDTH` and `BUFF_HEIGHT` and writes one `long` source-pixel index per destination pixel to stdout. `src/translate.cc` supports load-on-demand so large tables do not need to be generated at startup.
+The command receives `BUFF_WIDTH` and `BUFF_HEIGHT` and writes one source-pixel
+index per destination pixel to stdout. `src/translate.cc` supports load-on-demand
+so large tables do not need to be generated at startup.
 
-This is the best non-code visual effect seam.
+This remains the best non-code visual effect seam.
 
 ### Add a Precomputed `.tab`
 
-`.tab` files store a `tab_header` followed by table entries. `tabheader` and `tabinfo` exist to add/inspect headers.
+`.tab` files store a `tab_header` followed by table entries. `tabheader` and
+`tabinfo` add/inspect headers.
 
 Loader: `TranslateEntry::loaderTab` in `src/translate.cc`.
 
@@ -50,7 +77,8 @@ If table dimensions do not match the active buffer, stretching can be enabled.
 
 ### Add a 3D Line Object
 
-The code supports external `.obj` line objects, though this snapshot does not include an `obj/` directory.
+The code supports external `.obj` line objects, though this snapshot does not
+maintain a root `obj/` asset directory.
 
 Format:
 
@@ -62,89 +90,150 @@ Loader: `read_object()` in `src/waves.cc`.
 
 ### Add a Compiled-In 2D Flame
 
-Add a function to `src/flames.cc`, then add a `new FlameEntry(...)` in `_flames`.
+Add a function to `src/flames.cc`, then add a `new FlameEntry(...)` in
+`_flames`.
 
 Contract:
 
 - read/write `active_buffer` and `passive_buffer`;
 - respect `BUFF_WIDTH`, `BUFF_HEIGHT`, and the extra 3-line top/bottom border;
+- coordinate with `done_translate` if the flame folds translation into its own
+  loop;
 - return through `CoreOptionEntry::operator()()`.
 
 ### Add a Compiled-In Wave
 
 Add a function to `src/waves.cc`, then add a `new WaveEntry(...)` in `_waves`.
 
-Wave functions usually read `soundDevice->dataProc`, `soundAnalyze`, `waveScale`, and `table`, then draw directly into `active_buffer`.
+Wave functions should read sound through `audioFrameProcessedData()` and rolling
+state from `audioAnalysis` / `acousticContext`, then draw directly into
+`active_buffer`.
 
-### Add a Sound Processor
+### Add an Audio Processing Mode
 
-Add a `CoreOptionEntry` subclass in `src/SoundProcess.cc` and register it in `_soundProcessEntries`.
+Add a `CoreOptionEntry` subclass in `src/AudioProcessor.cc` and register it in
+`_audioProcessorOptionEntries`.
 
 Contract:
 
-- read `soundDevice->data`;
-- write all of `soundDevice->dataProc`;
-- keep the output as signed 8-bit stereo sample pairs.
+- read `audioFrameData()` or the active `AudioFrame`;
+- write all of `audioFrameProcessedData()` or the frame's `processed` buffer;
+- keep output as 1024 signed 8-bit stereo sample pairs.
+
+### Add a PCM Source
+
+Implement a `PcmSource` subclass in the modern audio model, then extend
+`PcmSourceFactory::selectAudioSourceStrategy()` and `PcmSourceFactory::create()`.
+
+Contract:
+
+- publish `PcmFormat`;
+- write raw PCM into the caller's buffer from `read()`;
+- report finishability through `canFinish()`/`isFinished()` when applicable.
+
+This is preferred over adding new legacy `SoundDevice` subclasses.
+
+### Add an Audio Output
+
+Implement an `AudioOutput` subclass and extend `RuntimeFactory::createAudioOutput()`.
+
+Contract:
+
+- implement `write()`, `outputDelayBytes()`, and `isOpen()`;
+- call `configureTiming()` with sample rate, bytes per sample, and chunk size;
+- make `outputDelayBytes()` meaningful enough for `AudioFrameBuilder` latency
+  compensation.
+
+### Add a Visual Pipeline Stage
+
+Implement `VisualModule` and add it through `VisualPipelineFactory`.
+
+Current reality: the pipeline exists, but `LegacyBufferTransformModule` still
+wraps most legacy pixel work by calling `CthughaBuffer::run()`. New stages should
+be introduced one at a time, with attention to ordering relative to flashlight,
+border, flame, translate, wave, swap, and palette smoothing.
 
 ### Add a Display Mode
 
 2D: add a screen function in `src/display.cc` and register it in `_screens`.
 
-GL: add a screen function in `src/GL_display.cc` and register it in that file's `_screens`.
+GL: add a screen function in `src/GL_display.cc` and register it in that file's
+`_screens`.
 
-2D `ScreenEntry` also declares an `xy size` that tells `CthughaDisplayX11/SVGA` whether to mirror horizontally and/or vertically.
-
-### Add a Sound Backend
-
-Subclass `SoundDevice`, implement `read()` and optionally `update()`, then extend `SoundDevice::newSD()`.
-
-Contract:
-
-- raw samples go into `tmpData`;
-- return the number of samples read, not bytes;
-- set `soundFormat`, `soundChannels`, and sample rate consistently so `SoundDevice::convert()` can normalize.
+2D `ScreenEntry` declares an `xy size` that tells `CthughaDisplayX11/SVGA`
+whether the display layer must mirror horizontally and/or vertically.
 
 ### Add a Display Frontend
 
-Implement a new `DisplayDevice` subclass and a matching `CthughaDisplay` subclass or reuse the X11/SVGA-style one.
+Implement a new `DisplayDevice` subclass and a matching `CthughaDisplay`
+subclass, or reuse the X11/SVGA-style display layer if the frontend can accept
+the same 2D buffer contract.
 
 Required seam points:
 
-- `cth_init()`
-- `newDisplayDevice()`
-- `newCthughaDisplay()`
-- display `mainLoop()`
-- `preDraw()`, `postDraw()`, `clearBox()`, `copyBox()`, text drawing
+- `cth_init()`;
+- `newDisplayDevice()`;
+- `newCthughaDisplay()`;
+- display `mainLoop()`;
+- `preDraw()`, `postDraw()`, `clearBox()`, `copyBox()`, and text drawing.
 
-This is a large seam because many globals (`disp_size`, `bypp`, `bytes_per_line`, `draw_mode`, `text_size`, `fontSize`) are shared.
+This is still a large seam because many globals (`disp_size`, `bypp`,
+`bytes_per_line`, `draw_mode`, `text_size`, `fontSize`) are shared.
 
 ## Hidden Couplings
 
-### Global State Is the Real Architecture
+### Global State Is Still The Real Architecture
 
 Subsystems communicate mainly through globals:
 
-- `soundDevice`, `soundAnalyze`, `soundServer`, `cdPlayer`, `autoChanger`
-- `displayDevice`, `cthughaDisplay`
-- `BUFF_WIDTH`, `BUFF_HEIGHT`
-- `active_buffer`, `passive_buffer`
-- `screen`, `light`, `background`, `fly`
-- many `Option` singletons
+- `cthughaDisplay`, `displayDevice`, `cdPlayer`, `autoChanger`;
+- `soundDevice` as a legacy fallback pointer;
+- `audioAnalysis`, `acousticContext`;
+- `BUFF_WIDTH`, `BUFF_HEIGHT`;
+- `active_buffer`, `passive_buffer`;
+- `screen`, `light`, `background`, `fly`;
+- many `Option` and `CoreOption` singletons.
 
-This makes direct reuse hard. Most modules assume initialization order rather than checking dependencies.
+The new runtime/pipeline classes reduce some coupling, but most modules still
+assume initialization order rather than checking dependencies.
+
+### Audio Has Two Active Models
+
+The current audio system can use:
+
+- native `AudioRuntime`/`PcmSource`/`AudioOutput` paths;
+- `AudioInputProcessor` for rolling live/random input;
+- legacy `SoundDevice` fallback paths.
+
+Code that reads audio directly from `soundDevice` will miss native file-pipeline
+frames. Prefer `audioFrameData()` and `audioFrameProcessedData()`.
+
+### VisualPipeline Is Not Fully Decomposed Yet
+
+`VisualPipeline` has explicit modules for flashlight, border, and palette
+smoothing, but the actual flame/translate/wave/swap work is still hidden inside
+`CthughaBuffer::run()`.
+
+Do not assume the pipeline stage names map one-to-one to separate effect
+implementations yet. Several stages are currently `NullVisualStageModule`
+placeholders.
 
 ### Build Wrappers Include `.cc` Files
 
-Files such as `xwin_options.cc`, `svga_options.cc`, `GL_options.cc`, and `serv_options.cc` define a macro and include `options.cc`. Similarly, `xwin_keys.cc` and `nonx_keys.cc` include `keys.cc`.
+Files such as `xwin_options.cc`, `svga_options.cc`, `GL_options.cc`, and
+`nonx_options.cc` define a macro and include `options.cc`. Similarly,
+`xwin_keys.cc`, `nonx_keys.cc`, and `GL_keys.cc` include `keys.cc`.
 
-This is intentional here, but it is surprising. Any build-system rewrite must preserve separate compile units for those wrappers, not simply compile every `.cc` file once.
+Any build-system rewrite must preserve separate compile units for those
+wrappers, not simply compile every `.cc` file once.
 
 ### Buffer Size Affects Asset Semantics
 
 `BUFF_WIDTH` and `BUFF_HEIGHT` affect:
 
-- amount of sound read per frame;
+- amount of sound read or framed for visuals;
 - translation table dimensions;
+- hidden border row pitch;
 - display mirror and zoom assumptions;
 - GL texture dimensions;
 - table generator output.
@@ -153,85 +242,124 @@ Changing buffer size is a system-wide operation.
 
 ### Translation Can Be Folded Into Flame
 
-Some flame functions detect the current translation table and apply it internally, setting `done_translate`. Then `translate()` skips its own remap. This is a speed optimization and a hidden coupling between `flames.cc` and `translate.cc`.
+Some flame functions detect the current translation table and apply it
+internally, setting `done_translate`. Then `translate()` skips its own remap.
+This is a speed optimization and a hidden coupling between `flames.cc` and
+`translate.cc`.
 
 ### Display Functions May Self-Reject
 
-Some screen functions return nonzero when the buffer aspect ratio is unsuitable. `CthughaDisplayX11/SVGA` calls `while (screen())` so the current display option advances until something works.
+Some screen functions return nonzero when the buffer aspect ratio is unsuitable.
+`CthughaDisplayX11/SVGA` calls `while (screen())` so the current display option
+advances until something works.
 
 ### Palette Handling Depends on Frontend Color Mode
 
-`palettes.cc` maintains palette entries, but frontend display code decides whether to use true palette hardware, pseudo-colors, or expanded true-color lookup tables.
+`palettes.cc` maintains palette entries and smoothing, but frontend display code
+decides whether to use true palette hardware, pseudo-colors, or expanded
+true-color lookup tables.
 
 ### Text Rendering Alters Palette/Copy Behavior
 
-`DisplayDevice::textOnScreen`, `darkenPalette`, and `needsFullCopy` interact with palette updates and dirty copying. Text is not just an overlay; in 8-bit modes it changes palette strategy.
+`DisplayDevice::textOnScreen`, palette darkening, `copyText`, and
+`needsFullCopy` interact with palette updates and dirty copying. Text is not
+just an overlay; in 8-bit modes it changes palette strategy.
 
 ## Modernization Seams
 
 ### Build System
 
-Best first move is to freeze a known target list and replace or quarantine autotools. A modern CMake/Meson build could map each old target source set directly, but it must respect wrapper include patterns.
+CMake is now the verified path and should remain the reference for active work.
+Autotools can be kept coherent for historical users, but new targets should be
+added to CMake first.
 
 ### Sound
 
-OSS `/dev/dsp`, OSS mixer, and CD-ROM ioctl code are the most obsolete runtime interfaces.
+OSS `/dev/dsp`, OSS mixer, and CD-ROM ioctl code remain obsolete runtime
+interfaces. The best replacement seam is the modern audio composition model:
 
-Modern sound replacement should target the `SoundDevice` seam first. A PulseAudio/PipeWire/ALSA backend can feed `tmpData` and reuse `SoundDevice::convert()` initially. A later pass can replace the global sound format model.
+- `PcmSource` for input/decoding;
+- `AudioOutput` for playback;
+- `AudioFrame` for visual sampling.
+
+Avoid new direct dependencies on `SoundDevice`.
 
 ### Display
 
-X11 is the most salvageable classic frontend. SVGAlib is likely archival. OpenGL depends on GLUT and paletted texture extensions that are now uncommon.
+X11 is the current reference frontend. SVGAlib is archival. OpenGL is retained
+but depends on GLUT and old paletted-texture assumptions.
 
-Modern display replacement should preserve the indexed 8-bit core buffer first, then render it as a texture through SDL2, GLFW, or a similar thin frontend.
+A modern display replacement should preserve the indexed 8-bit core buffer
+first, then render it as a texture through SDL2/SDL3, GLFW, or similar.
 
 ### Effects
 
-The effect code is mostly self-contained and should be preserved. The safest modernization path is:
+The effect code is mostly self-contained and should be preserved. The safest
+path is:
 
-1. Keep `CthughaBuffer`, `CoreOption`, `flames`, `waves`, `translate`, and palettes intact.
-2. Replace only platform I/O at the edges.
-3. Add tests around pure loaders and buffer transforms before deeper refactors.
+1. keep `CoreOption`, `flames`, `waves`, `translate`, palettes, and PCX behavior
+   stable;
+2. expose the effect stages through `VisualModule` adapters;
+3. add tests around loaders and deterministic transforms before deep refactors.
 
 ### Configuration and UI
 
-The `Option` and `CoreOption` model is workable but stringly typed. A modern UI should treat `CoreOption` entries as the existing domain model, then gradually wrap with safer metadata.
+The `Option` and `CoreOption` model is workable but stringly typed. A modern UI
+should treat current option entries as the domain model, then gradually wrap them
+with safer metadata.
 
 ## Risk Register
 
 ### High Risk
 
-- Setuid root SVGAlib path: `DisplayDeviceSvga.cc` regains root with `seteuid(0)` to call `vga_init()`.
-- External command execution: `CoreOption::load()` uses `gzip -cd`, `SoundDeviceFile` uses `/bin/sh -c`, translation load-on-demand uses `/bin/sh -c`, silence messages can run `fortune`.
-- Temporary fifo creation: `SoundDeviceFile` uses `tmpnam()` and `mkfifo()`.
-- OSS and CD ioctl paths: Linux-specific, obsolete, and hard to test on modern systems.
-- SysV shared memory and forked sound reader: `SoundDeviceFork` shares raw memory and mutable option state between processes.
-- OpenGL paletted texture requirement: `DisplayDeviceGL.cc` has a compile-time `#error` if `GL_EXT_paletted_texture` is unavailable.
+- X11/MIT-SHM startup and image paths are platform-sensitive. A headless shell
+  cannot even show `xcthugha --help` because X initialization happens first.
+- Setuid root SVGAlib path remains in source; `DisplayDeviceSvga.cc` can regain
+  root with `seteuid(0)` to call `vga_init()` when built that way.
+- External command execution remains: `CoreOption::load()` uses `gzip -cd`,
+  translation load-on-demand uses `/bin/sh -c`, legacy file playback can run
+  decoder commands, and silence messages can run `fortune`.
+- Legacy file playback still uses fifo/process orchestration and forked shared
+  memory in some paths.
+- OSS and CD ioctl paths are Linux-specific, obsolete, and hard to test on
+  modern systems.
+- OpenGL source still assumes old GLUT/paletted-texture behavior.
 
 ### Medium Risk
 
-- Many fixed-size string buffers use `sprintf`, `strncpy`, and `strncat` with historical assumptions.
-- `CoreOptionEntry` destructor uses `delete` for memory allocated with `new char[]`, which is undefined behavior in modern C++.
-- Some code assumes little-endian behavior despite partial big-endian branches; TODO explicitly calls out endian concerns.
-- Build-generated macros are odd in the current snapshot: generated files leave `PACKAGE` as `@PACKAGE_NAME@`, and `CTH_LIBDIR` uses `"${pkglibdir}"` in current generated config.
-- The network server/client path has suspicious port byte-order handling and raw-size/sample-format coupling.
-- `build_errors.txt` records linker multiple-definition failures from an older attempted build.
+- The native audio path and legacy `SoundDevice` path coexist; subtle behavior
+  differences are likely around playback latency, EOF, `--silent`, and raw/MOD
+  files.
+- `VisualPipeline` is only partially decomposed; new stages can accidentally run
+  before/after legacy work in surprising ways.
+- Many fixed-size string buffers use `sprintf`, `strncpy`, and `strncat` with
+  historical assumptions.
+- Some code assumes little-endian behavior despite partial big-endian branches.
+- Palette metadata is stricter than old free-form comments; malformed metadata
+  is warned/ignored before RGB data begins.
+- Local build directories and object files can be stale relative to current
+  source.
 
 ### Lower Risk
 
-- Palette/map loading is simple and isolated.
-- PCX loading is isolated, although format support is intentionally narrow.
+- Palette/map loading is relatively isolated.
+- PCX loading is isolated, though format support is intentionally narrow.
 - Keymap parsing is standalone and a good candidate for targeted tests.
-- Translation table generators are separate command-line programs and can be tested independently.
+- Translation table generators are separate command-line programs and can be
+  tested independently.
+- `AudioProcessor` and `AudioAnalyzer` are much easier to test than the old
+  monolithic sound path.
 
 ## Places To Put Tests First
 
-- `OptionInt`, `OptionTime`, `OptionOnOff` parsing.
-- `CoreOption::hasExtension()`, `isCompressed()`, and loader behavior with temporary files.
-- `.map` palette loader with short and full files.
+- `AudioProcessor` modes against fixed input frames.
+- `AudioAnalyzer::analyze()` and `AcousticContext::update()`.
+- `PcmSourceFactory::selectAudioSourceStrategy()`.
+- `AudioBuffer` append/read/history behavior.
+- Palette loader metadata, short files, malformed lines, and set filtering.
+- PCX loading, centering, clipping, and palette behavior.
 - `.cmd` parser and generated command assembly.
 - `.tab` header parser and stretch behavior.
-- `SoundDevice::convert()` for all sample formats and endian branches.
-- `Keymap::parseBinding()` with default keymap examples.
-- Pure flame/wave functions against small fixed buffers after introducing a harness.
-
+- `Keymap::parseBinding()` with `src/default.keymap` examples.
+- Flame/translate/wave transforms after they have `VisualModule` adapters or a
+  small harness.

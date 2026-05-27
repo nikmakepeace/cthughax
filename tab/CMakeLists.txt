@@ -30,6 +30,7 @@ foreach(tool
         cmd_downspiral
         cmd_randswirls
         cmdRead)
+    target_include_directories(${tool} PRIVATE ${CMAKE_BINARY_DIR}/src)
     target_link_libraries(${tool} PRIVATE m)
     install(TARGETS ${tool} RUNTIME DESTINATION ${CTH_DATA_DIR}/tab)
 endforeach()

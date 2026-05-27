@@ -3,7 +3,9 @@
 *~
 *.swp
 *.swo
-.vscode
+.vscode/*
+!.vscode/tasks.json
+!.vscode/launch.json
 .rsync-filter
 
 # Ad-hoc build logs
