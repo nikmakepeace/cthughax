@@ -35,7 +35,6 @@ public:
     virtual ~AudioOutput();
 
     virtual int write(const void* buffer, int size) = 0;
-    virtual int outputDelayBytes() const = 0;
     virtual int getHandle() const { return -1; }
     virtual int isOpen() const = 0;
     virtual int isRealtime() const { return 1; }
@@ -45,10 +44,7 @@ public:
     int bytesPerSample() const { return outputBytesPerSample; }
     int targetDelaySamples() const { return outputTargetDelaySamples; }
     int scratchSamples() const { return outputScratchSamples; }
-    int outputDelaySamples() const;
     int queuedTargetSamples() const;
-    virtual long long audibleSamplePosition(const AudioBuffer& buffer) const;
-    virtual int outputDrained() const;
     int playbackComplete(const AudioBuffer& buffer, int inputFinished) const;
     virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
         int inputFinished);
@@ -64,7 +60,6 @@ protected:
 
 public:
     virtual int write(const void* buffer, int size);
-    virtual int outputDelayBytes() const;
     virtual int isOpen() const;
     virtual int isRealtime() const;
 };
@@ -80,13 +75,10 @@ class AudioPulseOutput : public AudioOutput {
     int callbackScratchSamples;
     std::atomic<int> callbackDrainActive;
     int bytesPerSecondValue;
-    std::atomic<long long> firstSubmittedSample;
-    std::atomic<long long> lastSubmittedSample;
     std::atomic<int> lastReportedUnderflows;
 
     void closePulse();
     int writeUnlocked(const void* buffer, int size, int waitForWritable);
-    int latencyBytesUnlocked() const;
     int drainUnlocked(size_t requestedBytes);
 
 protected:
@@ -98,11 +90,8 @@ public:
     virtual ~AudioPulseOutput();
 
     virtual int write(const void* buffer, int size);
-    virtual int outputDelayBytes() const;
     virtual int isOpen() const;
     virtual int isRealtime() const;
-    virtual int outputDrained() const;
-    virtual long long audibleSamplePosition(const AudioBuffer& buffer) const;
     virtual void update();
     virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
         int inputFinished);
@@ -134,7 +123,6 @@ public:
     virtual ~AudioDSPOutput();
 
     virtual int write(const void* buffer, int size);
-    virtual int outputDelayBytes() const;
     virtual int getHandle() const;
     virtual int isOpen() const;
     virtual void update();

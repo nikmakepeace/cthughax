@@ -1,6 +1,5 @@
 #include "cthugha.h"
 #include "AudioRuntime.h"
-#include "CthughaDisplay.h"
 
 #include <atomic>
 #include <chrono>
@@ -24,10 +23,12 @@ static std::thread audioRuntimeOutputThread;
 static int audioRuntimeThreadsStarted = 0;
 static std::atomic<int> audioRuntimeCallbackDrainStarted(0);
 static int audioRuntimeCompletionAnnounced = 0;
+static int audioRuntimeVisualClockStarted = 0;
+static double audioRuntimeVisualClockStart = 0;
 
 static long long audioRuntimeDecodedSamplePosition();
 static long long audioRuntimeSubmittedSamplePosition();
-static long long audioRuntimeAudibleSamplePosition();
+static long long audioRuntimeVisualSamplePosition();
 static void audioRuntimeAnnounceComplete();
 
 static int audioRuntimeReadSigned16Le(const unsigned char* p) {
@@ -137,22 +138,8 @@ static int audioRuntimeStrategyChunkSamples() {
     return samples;
 }
 
-static int audioRuntimeStrategyVisualSlackSamples() {
-    int samplesPerSecond = audioRuntimeSamplesPerSecond();
-    int visualSlackSamples = samplesPerSecond / 4;
-    int observedVisualSlackSamples = 0;
-
-    if (cthughaDisplay != NULL)
-        observedVisualSlackSamples = (int)(cthughaDisplay->visualLatencySeconds()
-            * samplesPerSecond);
-    if (observedVisualSlackSamples > visualSlackSamples)
-        visualSlackSamples = observedVisualSlackSamples;
-
-    return visualSlackSamples + 1024;
-}
-
 static int audioRuntimeStrategyHistorySamples(const AudioOutput& output) {
-    int samples = output.targetDelaySamples() + audioRuntimeStrategyVisualSlackSamples();
+    int samples = output.targetDelaySamples() + 1024;
     int minimumSamples = audioRuntimeSamplesPerSecond();
 
     if (minimumSamples < 16384)
@@ -165,7 +152,7 @@ static int audioRuntimeStrategyHistorySamples(const AudioOutput& output) {
 
 static int audioRuntimeStrategyBufferSamples(const AudioOutput& output,
     int protectedHistorySamples, int inputChunkSamples) {
-    int decodeAheadSamples = output.targetDelaySamples() + inputChunkSamples * 2;
+    int decodeAheadSamples = output.targetDelaySamples() + inputChunkSamples * 4;
     int samples = protectedHistorySamples + decodeAheadSamples;
     int minimumSamples = audioRuntimeSamplesPerSecond() * 3;
 
@@ -247,7 +234,7 @@ static void audioRuntimeInputThreadMain() {
 static void audioRuntimeOutputThreadMain() {
     int primed = 0;
 
-    CTH_TRACE("output thread started output-chunk-samples=%d target-delay-samples=%d\n",
+    CTH_TRACE("output thread started output-chunk-samples=%d target-buffer-samples=%d\n",
         "audio runtime", audioRuntimeOutputChunkSamples,
         audioOutput ? audioOutput->targetDelaySamples() : 0);
 
@@ -283,11 +270,10 @@ static void audioRuntimeOutputThreadMain() {
             std::this_thread::sleep_for(std::chrono::milliseconds(1));
     }
 
-    CTH_TRACE("output thread stopped stop=%d complete=%d queued-samples=%d delay-samples=%d submitted-end-sample=%lld audible-sample=%lld\n",
+    CTH_TRACE("output thread stopped stop=%d complete=%d queued-samples=%d submitted-end-sample=%lld\n",
         "audio runtime", audioRuntimeThreadsStop.load(), audioRuntimeComplete.load(),
         audioBuffer ? audioBuffer->queuedForOutputSamples() : 0,
-        audioOutput ? audioOutput->outputDelaySamples() : 0,
-        audioRuntimeSubmittedSamplePosition(), audioRuntimeAudibleSamplePosition());
+        audioRuntimeSubmittedSamplePosition());
 }
 
 static void audioRuntimeStartThreads() {
@@ -298,7 +284,7 @@ static void audioRuntimeStartThreads() {
         audioOutput->startCallbackDrain(*audioBuffer, &audioRuntimeInputFinished,
             audioRuntimeOutputChunkSamples);
         audioRuntimeInputThread = std::thread(audioRuntimeInputThreadMain);
-        CTH_TRACE("using output callback drain queued-samples=%d target-delay-samples=%d output-chunk-samples=%d\n",
+        CTH_TRACE("using output callback drain queued-samples=%d target-buffer-samples=%d output-chunk-samples=%d\n",
             "audio runtime", audioBuffer->queuedForOutputSamples(),
             audioOutput->targetDelaySamples(), audioRuntimeOutputChunkSamples);
     } else {
@@ -334,7 +320,6 @@ static void audioRuntimePumpPipeline() {
 
     double pumpStart = getTime();
     int fillCalls = 0;
-    int targetDelay = audioOutput->targetDelaySamples();
 
     int inputTarget = audioOutput->queuedTargetSamples();
     int loops = 0;
@@ -352,9 +337,9 @@ static void audioRuntimePumpPipeline() {
     if (audioOutput->playbackComplete(*audioBuffer, audioRuntimeInputFinished.load()))
         audioRuntimeComplete.store(1);
 
-    CTH_TRACE("pump total-ms=%.3f fills=%d writes=%d queued-samples=%d delay-samples=%d target-delay-samples=%d complete=%d\n", "audio timing",
+    CTH_TRACE("pump total-ms=%.3f fills=%d writes=%d queued-samples=%d target-buffer-samples=%d complete=%d\n", "audio timing",
         (getTime() - pumpStart) * 1000.0, fillCalls, writeCalls,
-        audioBuffer->queuedForOutputSamples(), audioOutput->outputDelaySamples(), targetDelay,
+        audioBuffer->queuedForOutputSamples(), audioOutput->targetDelaySamples(),
         audioRuntimeComplete.load());
 
     audioRuntimeAnnounceComplete();
@@ -364,20 +349,17 @@ static void audioRuntimeBuildFrame() {
     if ((audioFrameBuilder == NULL) || (audioBuffer == NULL))
         return;
 
-    long long audibleSample = audioRuntimeAudibleSamplePosition();
-    double visualLatencySeconds = cthughaDisplay ? cthughaDisplay->visualLatencySeconds() : 0;
-    long long visualOffsetSamples = (long long)(audioRuntimeSamplesPerSecond() * visualLatencySeconds);
-
-    long long frameCenterSample = audibleSample + visualOffsetSamples;
+    long long frameCenterSample = audioRuntimeVisualSamplePosition();
     if (frameCenterSample > audioBuffer->decodedEndPosition())
         frameCenterSample = audioBuffer->decodedEndPosition();
 
     double buildStart = getTime();
     audioFrameBuilder->build(audioRuntimeFrame, *audioBuffer, frameCenterSample);
-    CTH_TRACE("frame-build-ms=%.3f audible-sample=%lld visual-offset-samples=%lld visual-latency-ms=%.3f center-sample=%lld queued-samples=%d\n",
+    CTH_TRACE("frame-build-ms=%.3f center-sample=%lld decoded-end-sample=%lld submitted-end-sample=%lld queued-samples=%d\n",
         "audio timing",
-        (getTime() - buildStart) * 1000.0, audibleSample, visualOffsetSamples,
-        visualLatencySeconds * 1000.0, frameCenterSample, audioBuffer->queuedForOutputSamples());
+        (getTime() - buildStart) * 1000.0, frameCenterSample,
+        audioRuntimeDecodedSamplePosition(), audioRuntimeSubmittedSamplePosition(),
+        audioBuffer->queuedForOutputSamples());
 }
 
 static void audioRuntimeAnnounceComplete() {
@@ -386,9 +368,9 @@ static void audioRuntimeAnnounceComplete() {
 
     audioRuntimeCompletionAnnounced = 1;
     CTH_INFO("Stopping...\n");
-    CTH_TRACE("playback complete decoded-end-sample=%lld submitted-end-sample=%lld audible-sample=%lld\n",
+    CTH_TRACE("playback complete decoded-end-sample=%lld submitted-end-sample=%lld\n",
         "audio runtime", audioRuntimeDecodedSamplePosition(),
-        audioRuntimeSubmittedSamplePosition(), audioRuntimeAudibleSamplePosition());
+        audioRuntimeSubmittedSamplePosition());
     cthugha_close++;
 }
 
@@ -410,6 +392,8 @@ void audioRuntimeInit(int initializeInputControls) {
     audioRuntimeThreadsStop.store(0);
     audioRuntimeCallbackDrainStarted.store(0);
     audioRuntimeCompletionAnnounced = 0;
+    audioRuntimeVisualClockStarted = 0;
+    audioRuntimeVisualClockStart = 0;
 
     if (audioRuntimeUsesNativeFilePipeline(settings, sourceStrategy)) {
         audioInput = runtimeFactory.createAudioInput();
@@ -447,17 +431,16 @@ void audioRuntimeInit(int initializeInputControls) {
         audioRuntimeOutputChunk = new char[pcmBytesForSamples(audioRuntimeOutputChunkSamples, bytesPerSample)];
         audioRuntimeFrame.clear();
         audioRuntimeStartThreads();
-        CTH_DEBUG("    audio runtime: native file pipeline rate=%d channels=%d format=%s bytes-per-sample=%d input-chunk-samples=%d output-chunk-samples=%d target-delay-samples=%d protected-history-samples=%d buffer-samples=%d\n",
+        CTH_DEBUG("    audio runtime: native file pipeline rate=%d channels=%d format=%s bytes-per-sample=%d input-chunk-samples=%d output-chunk-samples=%d target-buffer-samples=%d protected-history-samples=%d buffer-samples=%d\n",
             int(soundSampleRate), int(soundChannels), soundFormat.text(), bytesPerSample,
             audioRuntimeChunkSamples, audioRuntimeOutputChunkSamples,
             audioOutput->targetDelaySamples(), protectedHistorySamples, bufferSamples);
-        CTH_TRACE("installed native file pipeline strategy=%d input=%p buffer=%p output=%p frame-builder=%p input-chunk-samples=%d output-chunk-samples=%d bytes-per-sample=%d target-delay-samples=%d protected-history-samples=%d protected-history-ms=%d buffer-samples=%d buffer-ms=%d visual-slack-samples=%d\n", "audio runtime",
+        CTH_TRACE("installed native file pipeline strategy=%d input=%p buffer=%p output=%p frame-builder=%p input-chunk-samples=%d output-chunk-samples=%d bytes-per-sample=%d target-buffer-samples=%d protected-history-samples=%d protected-history-ms=%d buffer-samples=%d buffer-ms=%d\n", "audio runtime",
             sourceStrategy, audioInput, audioBuffer, audioOutput, audioFrameBuilder,
             audioRuntimeChunkSamples, audioRuntimeOutputChunkSamples, bytesPerSample,
             audioOutput->targetDelaySamples(), protectedHistorySamples,
             (protectedHistorySamples * 1000) / audioRuntimeSamplesPerSecond(),
-            bufferSamples, (bufferSamples * 1000) / audioRuntimeSamplesPerSecond(),
-            audioRuntimeStrategyVisualSlackSamples());
+            bufferSamples, (bufferSamples * 1000) / audioRuntimeSamplesPerSecond());
     } else {
         audioProcessor = runtimeFactory.createAudioProcessor();
         if (audioProcessor == NULL) {
@@ -489,7 +472,7 @@ void audioRuntimeTick() {
                 audioRuntimeInputFinished.load()))
             audioRuntimeComplete.store(1);
         audioRuntimeAnnounceComplete();
-        CTH_TRACE("tick pipeline-ms=%.3f pump-ms=%.3f build-ms=%.3f threaded=%d callback-drain=%d queued-samples=%d delay-samples=%d decoded-end-sample=%lld submitted-end-sample=%lld audible-sample=%lld complete=%d\n",
+        CTH_TRACE("tick pipeline-ms=%.3f pump-ms=%.3f build-ms=%.3f threaded=%d callback-drain=%d queued-samples=%d decoded-end-sample=%lld submitted-end-sample=%lld complete=%d\n",
             "audio timing",
             (buildEnd - tickStart) * 1000.0,
             (pumpEnd - pumpStart) * 1000.0,
@@ -497,10 +480,8 @@ void audioRuntimeTick() {
             audioRuntimeThreadsStarted,
             audioRuntimeCallbackDrainStarted.load(),
             audioBuffer->queuedForOutputSamples(),
-            audioOutput ? audioOutput->outputDelaySamples() : 0,
             audioRuntimeDecodedSamplePosition(),
             audioRuntimeSubmittedSamplePosition(),
-            audioRuntimeAudibleSamplePosition(),
             audioRuntimeComplete.load());
         return;
     }
@@ -543,6 +524,8 @@ void audioRuntimeShutdown() {
     audioRuntimeThreadsStop.store(0);
     audioRuntimeCompletionAnnounced = 0;
     audioRuntimeCallbackDrainStarted.store(0);
+    audioRuntimeVisualClockStarted = 0;
+    audioRuntimeVisualClockStart = 0;
     audioRuntimeChunkSamples = 0;
     audioRuntimeOutputChunkSamples = 0;
 
@@ -573,9 +556,23 @@ static long long audioRuntimeSubmittedSamplePosition() {
     return audioBuffer ? audioBuffer->submittedEndPosition() : 0;
 }
 
-static long long audioRuntimeAudibleSamplePosition() {
-    if ((audioBuffer == NULL) || (audioOutput == NULL))
+static long long audioRuntimeVisualSamplePosition() {
+    long long decodedEndSample = audioRuntimeDecodedSamplePosition();
+
+    if (decodedEndSample <= 0)
         return 0;
 
-    return audioOutput->audibleSamplePosition(*audioBuffer);
+    if (!audioRuntimeVisualClockStarted) {
+        audioRuntimeVisualClockStart = getTime();
+        audioRuntimeVisualClockStarted = 1;
+    }
+
+    long long sample = (long long)((getTime() - audioRuntimeVisualClockStart)
+        * audioRuntimeSamplesPerSecond());
+    if (sample < 0)
+        sample = 0;
+    if (sample > decodedEndSample)
+        sample = decodedEndSample;
+
+    return sample;
 }

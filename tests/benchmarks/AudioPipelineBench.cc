@@ -440,7 +440,7 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
 
         buffer.appendDecodedPcm(inputChunk.data(), samples);
         output.service(buffer, outputChunk.data(), fixture.sliceSamples, 0);
-        builder.build(frame, buffer, output.audibleSamplePosition(buffer));
+        builder.build(frame, buffer, buffer.submittedEndPosition());
         bridge.runFrame();
 
         totalSamples += samples;

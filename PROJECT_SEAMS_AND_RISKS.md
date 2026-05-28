@@ -139,10 +139,10 @@ Implement an `AudioOutput` subclass and extend `RuntimeFactory::createAudioOutpu
 
 Contract:
 
-- implement `write()`, `outputDelayBytes()`, and `isOpen()`;
+- implement `write()` and `isOpen()`;
 - call `configureTiming()` with sample rate, bytes per sample, and chunk size;
-- make `outputDelayBytes()` meaningful enough for `AudioFrameBuilder` latency
-  compensation.
+- treat `targetDelaySamples()` as output-buffer sizing only. Visual frame
+  selection is driven by the runtime visual clock, not by output latency.
 
 ### Add a Visual Pipeline Stage
 
