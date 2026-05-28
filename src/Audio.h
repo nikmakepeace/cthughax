@@ -52,6 +52,7 @@ public:
     int outputDelaySamples() const;
     int queuedTargetSamples() const;
     virtual long long audibleSamplePosition(const AudioBuffer& buffer) const;
+    virtual int outputDrained() const;
     int playbackComplete(const AudioBuffer& buffer, int inputFinished) const;
     virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
         int inputFinished);
@@ -89,6 +90,7 @@ class AudioPulseOutput : public AudioOutput {
 
     void closePulse();
     int writeUnlocked(const void* buffer, int size, int waitForWritable);
+    int latencyBytesUnlocked() const;
     int drainUnlocked(size_t requestedBytes);
 
 protected:
@@ -103,6 +105,7 @@ public:
     virtual int outputDelayBytes() const;
     virtual int isOpen() const;
     virtual int isRealtime() const;
+    virtual int outputDrained() const;
     virtual long long audibleSamplePosition(const AudioBuffer& buffer) const;
     virtual void update();
     virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
@@ -166,7 +169,8 @@ public:
     void clear();
 
     int appendDecodedPcm(const char* src, int samples);
-    int readForOutput(char* dst, int samples);
+    int peekForOutput(char* dst, int samples) const;
+    int commitOutputSamples(int samples);
     int readProtectedPcmAt(long long samplePosition, char* dst, int samples) const;
 };
 

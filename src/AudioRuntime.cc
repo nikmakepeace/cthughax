@@ -144,20 +144,42 @@ static int audioRuntimeStrategyChunkSamples() {
     return samples;
 }
 
-static int audioRuntimeStrategyBufferSamples() {
-    int samples = audioRuntimeSamplesPerSecond() * 3;
+static int audioRuntimeStrategyVisualSlackSamples() {
+    int samplesPerSecond = audioRuntimeSamplesPerSecond();
+    int visualSlackSamples = samplesPerSecond / 4;
+    int observedVisualSlackSamples = 0;
 
-    if (samples < 32768)
-        samples = 32768;
+    if (cthughaDisplay != NULL)
+        observedVisualSlackSamples = (int)(cthughaDisplay->visualLatencySeconds()
+            * samplesPerSecond);
+    if (observedVisualSlackSamples > visualSlackSamples)
+        visualSlackSamples = observedVisualSlackSamples;
+
+    return visualSlackSamples + 1024;
+}
+
+static int audioRuntimeStrategyHistorySamples(const AudioOutput& output) {
+    int samples = output.targetDelaySamples() + audioRuntimeStrategyVisualSlackSamples();
+    int minimumSamples = audioRuntimeSamplesPerSecond();
+
+    if (minimumSamples < 16384)
+        minimumSamples = 16384;
+    if (samples < minimumSamples)
+        samples = minimumSamples;
 
     return samples;
 }
 
-static int audioRuntimeStrategyHistorySamples() {
-    int samples = audioRuntimeSamplesPerSecond();
+static int audioRuntimeStrategyBufferSamples(const AudioOutput& output,
+    int protectedHistorySamples, int inputChunkSamples) {
+    int decodeAheadSamples = output.targetDelaySamples() + inputChunkSamples * 2;
+    int samples = protectedHistorySamples + decodeAheadSamples;
+    int minimumSamples = audioRuntimeSamplesPerSecond() * 3;
 
-    if (samples < 16384)
-        samples = 16384;
+    if (minimumSamples < 32768)
+        minimumSamples = 32768;
+    if (samples < minimumSamples)
+        samples = minimumSamples;
 
     return samples;
 }
@@ -422,21 +444,27 @@ void audioRuntimeInit(RuntimeSoundInputContext context, int initializeInputContr
         audioOutput->configureTiming(audioRuntimeSamplesPerSecond(), bytesPerSample,
             audioRuntimeChunkSamples);
         audioRuntimeOutputChunkSamples = audioOutput->scratchSamples();
-        audioBuffer = new AudioBuffer(audioRuntimeStrategyBufferSamples(), bytesPerSample,
-            audioRuntimeStrategyHistorySamples());
+        int protectedHistorySamples = audioRuntimeStrategyHistorySamples(*audioOutput);
+        int bufferSamples = audioRuntimeStrategyBufferSamples(*audioOutput,
+            protectedHistorySamples, audioRuntimeChunkSamples);
+        audioBuffer = new AudioBuffer(bufferSamples, bytesPerSample,
+            protectedHistorySamples);
         audioFrameBuilder = new AudioFrameBuilder();
         audioRuntimeChunk = new char[pcmBytesForSamples(audioRuntimeChunkSamples, bytesPerSample)];
         audioRuntimeOutputChunk = new char[pcmBytesForSamples(audioRuntimeOutputChunkSamples, bytesPerSample)];
         audioRuntimeFrame.clear();
         audioRuntimeStartThreads();
-        CTH_DEBUG("    audio runtime: native file pipeline rate=%d channels=%d format=%s bytes-per-sample=%d input-chunk-samples=%d output-chunk-samples=%d target-delay-samples=%d\n",
+        CTH_DEBUG("    audio runtime: native file pipeline rate=%d channels=%d format=%s bytes-per-sample=%d input-chunk-samples=%d output-chunk-samples=%d target-delay-samples=%d protected-history-samples=%d buffer-samples=%d\n",
             int(soundSampleRate), int(soundChannels), soundFormat.text(), bytesPerSample,
             audioRuntimeChunkSamples, audioRuntimeOutputChunkSamples,
-            audioOutput->targetDelaySamples());
-        CTH_TRACE("installed native file pipeline strategy=%d input=%p buffer=%p output=%p frame-builder=%p input-chunk-samples=%d output-chunk-samples=%d bytes-per-sample=%d target-delay-samples=%d\n", "audio runtime",
+            audioOutput->targetDelaySamples(), protectedHistorySamples, bufferSamples);
+        CTH_TRACE("installed native file pipeline strategy=%d input=%p buffer=%p output=%p frame-builder=%p input-chunk-samples=%d output-chunk-samples=%d bytes-per-sample=%d target-delay-samples=%d protected-history-samples=%d protected-history-ms=%d buffer-samples=%d buffer-ms=%d visual-slack-samples=%d\n", "audio runtime",
             sourceStrategy, audioInput, audioBuffer, audioOutput, audioFrameBuilder,
             audioRuntimeChunkSamples, audioRuntimeOutputChunkSamples, bytesPerSample,
-            audioOutput->targetDelaySamples());
+            audioOutput->targetDelaySamples(), protectedHistorySamples,
+            (protectedHistorySamples * 1000) / audioRuntimeSamplesPerSecond(),
+            bufferSamples, (bufferSamples * 1000) / audioRuntimeSamplesPerSecond(),
+            audioRuntimeStrategyVisualSlackSamples());
     } else {
         audioProcessor = runtimeFactory.createAudioProcessor();
         if (audioProcessor != NULL) {
