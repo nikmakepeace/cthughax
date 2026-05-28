@@ -97,6 +97,7 @@ if(CTH_BUILD_X11)
         ${X11_Xt_LIB}
         ${X11_Xaw_LIB}
         ${X11_Xmu_LIB}
+        Threads::Threads
         ZLIB::ZLIB
         m
     )

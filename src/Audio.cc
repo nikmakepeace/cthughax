@@ -15,8 +15,8 @@
 #endif
 
 #if WITH_PULSE == 1
-#include <pulse/error.h>
-#include <pulse/simple.h>
+#include <pulse/pulseaudio.h>
+#include <stdint.h>
 #endif
 
 #if WITH_MINIMP3 == 1
@@ -45,9 +45,15 @@
 #endif
 
 char pulse_server[PATH_MAX] = "";
+int pulse_latency_msec = 2000;
+char audio_output_dump[PATH_MAX] = "";
 
 const char* pulse_server_name() {
     return (pulse_server[0] != '\0') ? pulse_server : NULL;
+}
+
+const char* pulse_server_display_name() {
+    return pulse_server_name() ? pulse_server_name() : "default";
 }
 
 AudioOutput::AudioOutput()
@@ -121,7 +127,206 @@ int AudioNullOutput::outputDelayBytes() const { return 0; }
 int AudioNullOutput::isOpen() const { return 1; }
 int AudioNullOutput::isRealtime() const { return 0; }
 
+static int readSigned16Le(const unsigned char* p) {
+    unsigned int value = (unsigned int)p[0] | ((unsigned int)p[1] << 8);
+    return (value & 0x8000) ? (int)value - 0x10000 : (int)value;
+}
+
+static int readSigned16Be(const unsigned char* p) {
+    unsigned int value = ((unsigned int)p[0] << 8) | (unsigned int)p[1];
+    return (value & 0x8000) ? (int)value - 0x10000 : (int)value;
+}
+
+static unsigned int readUnsigned16Le(const unsigned char* p) {
+    return (unsigned int)p[0] | ((unsigned int)p[1] << 8);
+}
+
+static unsigned int readUnsigned16Be(const unsigned char* p) {
+    return ((unsigned int)p[0] << 8) | (unsigned int)p[1];
+}
+
+static int audioPcmPeak(const char* data, int samples) {
+    const unsigned char* bytes = (const unsigned char*)data;
+    int peak = 0;
+    int channels = int(soundChannels);
+    if ((data == NULL) || (samples <= 0) || (channels <= 0))
+        return 0;
+
+    switch (soundFormat) {
+    case SF_u8:
+        for (int i = 0; i < samples * channels; i++) {
+            int sample = (int)bytes[i] - 128;
+            peak = max(peak, abs(sample));
+        }
+        break;
+    case SF_s8:
+        for (int i = 0; i < samples * channels; i++)
+            peak = max(peak, abs((int)((const signed char*)data)[i]));
+        break;
+    case SF_u16_le:
+        for (int i = 0; i < samples * channels; i++) {
+            int sample = (int)readUnsigned16Le(bytes + i * 2) - 32768;
+            peak = max(peak, abs(sample));
+        }
+        break;
+    case SF_s16_le:
+        for (int i = 0; i < samples * channels; i++)
+            peak = max(peak, abs(readSigned16Le(bytes + i * 2)));
+        break;
+    case SF_u16_be:
+        for (int i = 0; i < samples * channels; i++) {
+            int sample = (int)readUnsigned16Be(bytes + i * 2) - 32768;
+            peak = max(peak, abs(sample));
+        }
+        break;
+    case SF_s16_be:
+        for (int i = 0; i < samples * channels; i++)
+            peak = max(peak, abs(readSigned16Be(bytes + i * 2)));
+        break;
+    default:
+        break;
+    }
+
+    return peak;
+}
+
+static void audioDebugSubmittedPcm(const char* scratch, int samples, int bytes, int written,
+    int queuedSamples, long long submittedEndSample, int delayBytes, int bytesPerSample,
+    int targetDelaySamples) {
+    static int reports = 0;
+
+    if (!CTH_LOG_ENABLED(CTH_LOG_DEBUG) || (reports >= 8))
+        return;
+
+    reports++;
+
+    CTH_DEBUG("    audio output: submitted samples=%d bytes=%d written=%d peak=%d queued-samples=%d submitted-end-sample=%lld delay-samples=%d target-delay-samples=%d\n",
+        samples, bytes, written, audioPcmPeak(scratch, samples), queuedSamples,
+        submittedEndSample, (bytesPerSample > 0) ? delayBytes / bytesPerSample : 0,
+        targetDelaySamples);
+}
+
+static void audioOutputDumpWriteLe16(FILE* out, unsigned int value) {
+    fputc(value & 255, out);
+    fputc((value >> 8) & 255, out);
+}
+
+static void audioOutputDumpWriteLe32(FILE* out, unsigned int value) {
+    fputc(value & 255, out);
+    fputc((value >> 8) & 255, out);
+    fputc((value >> 16) & 255, out);
+    fputc((value >> 24) & 255, out);
+}
+
+static int audioOutputDumpBitsPerSample() {
+    switch (soundFormat) {
+    case SF_u8:
+        return 8;
+    case SF_s16_le:
+    case SF_s16_be:
+        return 16;
+    default:
+        return 0;
+    }
+}
+
+static void audioOutputDumpWriteHeader(FILE* out, unsigned int dataBytes,
+    int sampleRate, int channels, int bitsPerSample) {
+    unsigned int blockAlign = (unsigned int)((channels * bitsPerSample) / 8);
+    unsigned int byteRate = (unsigned int)(sampleRate * blockAlign);
+    unsigned int riffBytes = 36 + dataBytes;
+
+    fwrite("RIFF", 1, 4, out);
+    audioOutputDumpWriteLe32(out, riffBytes);
+    fwrite("WAVE", 1, 4, out);
+    fwrite("fmt ", 1, 4, out);
+    audioOutputDumpWriteLe32(out, 16);
+    audioOutputDumpWriteLe16(out, 1);
+    audioOutputDumpWriteLe16(out, (unsigned int)channels);
+    audioOutputDumpWriteLe32(out, (unsigned int)sampleRate);
+    audioOutputDumpWriteLe32(out, byteRate);
+    audioOutputDumpWriteLe16(out, blockAlign);
+    audioOutputDumpWriteLe16(out, (unsigned int)bitsPerSample);
+    fwrite("data", 1, 4, out);
+    audioOutputDumpWriteLe32(out, dataBytes);
+}
+
+static void audioOutputDumpRefreshHeader(FILE* out, long long bytesWritten,
+    int sampleRate, int channels, int bitsPerSample) {
+    long pos = ftell(out);
+    unsigned int dataBytes = (bytesWritten > 0x7fffffffLL)
+        ? 0x7fffffffU : (unsigned int)bytesWritten;
+
+    fseek(out, 0, SEEK_SET);
+    audioOutputDumpWriteHeader(out, dataBytes, sampleRate, channels, bitsPerSample);
+    fseek(out, pos, SEEK_SET);
+}
+
+static void audioOutputDumpSubmittedPcm(const char* data, int bytes) {
+    static FILE* out = NULL;
+    static int initialized = 0;
+    static int enabled = 0;
+    static int sampleRate = 0;
+    static int channels = 0;
+    static int bitsPerSample = 0;
+    static long long bytesWritten = 0;
+
+    if (!initialized) {
+        initialized = 1;
+        enabled = audio_output_dump[0] != '\0';
+        if (enabled) {
+            sampleRate = int(soundSampleRate);
+            channels = int(soundChannels);
+            bitsPerSample = audioOutputDumpBitsPerSample();
+
+            if ((sampleRate <= 0) || (channels <= 0) || (bitsPerSample == 0)) {
+                CTH_WARN("Can not create audio output dump `%s' for format `%s'.\n",
+                    audio_output_dump, soundFormat.text());
+                enabled = 0;
+            }
+        }
+        if (enabled) {
+            out = fopen(audio_output_dump, "wb+");
+            if (out == NULL) {
+                CTH_ERRNO(errno, "Can not create audio output dump `%s'.",
+                    audio_output_dump);
+                enabled = 0;
+            } else {
+                audioOutputDumpWriteHeader(out, 0, sampleRate, channels, bitsPerSample);
+                CTH_DEBUG("    audio output: dumping submitted PCM to `%s' rate=%d channels=%d bits=%d format=%s\n",
+                    audio_output_dump, sampleRate, channels, bitsPerSample,
+                    soundFormat.text());
+            }
+        }
+    }
+
+    if (!enabled || (out == NULL) || (data == NULL) || (bytes <= 0))
+        return;
+
+    if (soundFormat == SF_s16_be) {
+        for (int i = 0; i + 1 < bytes; i += 2) {
+            fputc((unsigned char)data[i + 1], out);
+            fputc((unsigned char)data[i], out);
+        }
+    } else {
+        fwrite(data, 1, bytes, out);
+    }
+
+    bytesWritten += bytes;
+    audioOutputDumpRefreshHeader(out, bytesWritten, sampleRate, channels, bitsPerSample);
+    fflush(out);
+}
+
 #if WITH_PULSE == 1
+
+static std::atomic<int> audioPulseUnderflowCount(0);
+
+static int audioPulseBytesToMs(unsigned int bytes, int bytesPerSecond) {
+    if (bytesPerSecond <= 0)
+        return 0;
+    long long ms = ((long long)bytes * 1000LL) / bytesPerSecond;
+    return (ms > INT_MAX) ? INT_MAX : (int)ms;
+}
 
 static pa_sample_format_t audioPulseSampleFormat() {
     switch (soundFormat) {
@@ -136,22 +341,141 @@ static pa_sample_format_t audioPulseSampleFormat() {
     }
 }
 
+static void audioPulseContextStateCallback(pa_context*, void* userdata) {
+    if (userdata != NULL)
+        pa_threaded_mainloop_signal((pa_threaded_mainloop*)userdata, 0);
+}
+
+static void audioPulseStreamStateCallback(pa_stream*, void* userdata) {
+    if (userdata != NULL)
+        pa_threaded_mainloop_signal((pa_threaded_mainloop*)userdata, 0);
+}
+
+static void audioPulseStreamWriteCallback(pa_stream*, size_t requestedBytes, void* userdata) {
+    if (userdata != NULL)
+        ((AudioPulseOutput*)userdata)->pulseWritable(requestedBytes);
+}
+
+static void audioPulseStreamUnderflowCallback(pa_stream*, void* userdata) {
+    if (userdata != NULL)
+        ((AudioPulseOutput*)userdata)->pulseUnderflow();
+    else
+        audioPulseUnderflowCount.fetch_add(1);
+}
+
+static void audioPulseDrainDeferCallback(pa_mainloop_api* api, pa_defer_event* event,
+    void* userdata) {
+    if ((api != NULL) && (event != NULL))
+        api->defer_enable(event, 0);
+    if (userdata != NULL)
+        ((AudioPulseOutput*)userdata)->pulseWritable((size_t)-1);
+}
+
+static int audioPulseWaitForContextReady(pa_threaded_mainloop* mainloop,
+    pa_context* context) {
+    for (;;) {
+        pa_context_state_t state = pa_context_get_state(context);
+
+        if (state == PA_CONTEXT_READY)
+            return 1;
+        if (!PA_CONTEXT_IS_GOOD(state))
+            return 0;
+
+        pa_threaded_mainloop_wait(mainloop);
+    }
+}
+
+static int audioPulseWaitForStreamReady(pa_threaded_mainloop* mainloop,
+    pa_stream* stream) {
+    for (;;) {
+        pa_stream_state_t state = pa_stream_get_state(stream);
+
+        if (state == PA_STREAM_READY)
+            return 1;
+        if (!PA_STREAM_IS_GOOD(state))
+            return 0;
+
+        pa_threaded_mainloop_wait(mainloop);
+    }
+}
+
 AudioPulseOutput::AudioPulseOutput()
-    : pulse(NULL)
-    , bytesPerSecondValue(0) {
+    : mainloop(NULL)
+    , context(NULL)
+    , stream(NULL)
+    , drainEvent(NULL)
+    , callbackBuffer(NULL)
+    , callbackInputFinished(NULL)
+    , callbackScratch(NULL)
+    , callbackScratchSamples(0)
+    , callbackDrainActive(0)
+    , bytesPerSecondValue(0)
+    , firstSubmittedSample(-1)
+    , lastSubmittedSample(0)
+    , lastReportedUnderflows(0) {
     update();
 }
 
 AudioPulseOutput::~AudioPulseOutput() {
-    if (pulse)
-        pa_simple_free((pa_simple*)pulse);
-    pulse = NULL;
+    closePulse();
+}
+
+void AudioPulseOutput::closePulse() {
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+
+    if (pulseMainloop != NULL)
+        pa_threaded_mainloop_lock(pulseMainloop);
+
+    callbackDrainActive.store(0);
+    callbackBuffer = NULL;
+    callbackInputFinished = NULL;
+    callbackScratchSamples = 0;
+
+    if ((pulseMainloop != NULL) && (drainEvent != NULL)) {
+        pa_mainloop_api* api = pa_threaded_mainloop_get_api(pulseMainloop);
+        if (api != NULL)
+            api->defer_free((pa_defer_event*)drainEvent);
+        drainEvent = NULL;
+    }
+
+    if (stream != NULL) {
+        pa_stream* pulseStream = (pa_stream*)stream;
+        pa_stream_set_state_callback(pulseStream, NULL, NULL);
+        pa_stream_set_write_callback(pulseStream, NULL, NULL);
+        pa_stream_set_underflow_callback(pulseStream, NULL, NULL);
+        pa_stream_disconnect(pulseStream);
+        pa_stream_unref(pulseStream);
+        stream = NULL;
+    }
+
+    if (context != NULL) {
+        pa_context* pulseContext = (pa_context*)context;
+        pa_context_set_state_callback(pulseContext, NULL, NULL);
+        pa_context_disconnect(pulseContext);
+        pa_context_unref(pulseContext);
+        context = NULL;
+    }
+
+    if (pulseMainloop != NULL) {
+        pa_threaded_mainloop_unlock(pulseMainloop);
+        pa_threaded_mainloop_stop(pulseMainloop);
+        pa_threaded_mainloop_free(pulseMainloop);
+        mainloop = NULL;
+    }
+
+    bytesPerSecondValue = 0;
+    firstSubmittedSample.store(-1);
+    lastSubmittedSample.store(0);
+    lastReportedUnderflows.store(audioPulseUnderflowCount.load());
+    delete[] callbackScratch;
+    callbackScratch = NULL;
 }
 
 int AudioPulseOutput::defaultTargetLatencyMs() const {
-    // pa_simple_write() may block until the server accepts more data, so keep
-    // a deeper sink target than the frame-sized driver chunks.
-    return 250;
+    // Remote Pulse clients need enough server-side slack to survive network
+    // scheduling jitter.  Visual sync uses Pulse stream time, so deeper
+    // buffering is acceptable here.
+    return pulse_latency_msec;
 }
 
 int AudioPulseOutput::timingScratchSamples(int, int targetDelaySamples) const {
@@ -159,14 +483,10 @@ int AudioPulseOutput::timingScratchSamples(int, int targetDelaySamples) const {
 }
 
 void AudioPulseOutput::update() {
-    int error;
     pa_sample_spec sampleSpec;
+    pa_buffer_attr bufferAttr;
 
-    if (pulse) {
-        pa_simple_free((pa_simple*)pulse);
-        pulse = NULL;
-    }
-    bytesPerSecondValue = 0;
+    closePulse();
 
     sampleSpec.format = audioPulseSampleFormat();
     sampleSpec.rate = int(soundSampleRate);
@@ -178,66 +498,616 @@ void AudioPulseOutput::update() {
         return;
     }
 
-    pulse = pa_simple_new(pulse_server_name(), "Cthughanix", PA_STREAM_PLAYBACK, NULL,
-        "Audio passthrough", &sampleSpec, NULL, NULL, &error);
-    if (pulse == NULL) {
-        CTH_DEBUG("    audio output strategy: Pulse failed to open: %s\n", pa_strerror(error));
+    int bytesPerSampleValue = (soundFormat < 2) ? int(soundChannels) : 2 * int(soundChannels);
+    int targetSamples = (sampleSpec.rate * defaultTargetLatencyMs()) / 1000;
+    int minRequestSamples = sampleSpec.rate / 20;
+    if (minRequestSamples < 1)
+        minRequestSamples = 1;
+    if (targetSamples < minRequestSamples)
+        targetSamples = minRequestSamples;
+
+    unsigned int targetBytes = (unsigned int)pcmBytesForSamples(targetSamples, bytesPerSampleValue);
+    unsigned int minRequestBytes = (unsigned int)pcmBytesForSamples(minRequestSamples, bytesPerSampleValue);
+    unsigned int prebufferBytes = targetBytes;
+    if (prebufferBytes > minRequestBytes)
+        prebufferBytes -= minRequestBytes;
+
+    bufferAttr.maxlength = targetBytes * 2;
+    bufferAttr.tlength = targetBytes;
+    bufferAttr.prebuf = prebufferBytes;
+    bufferAttr.minreq = minRequestBytes;
+    bufferAttr.fragsize = (uint32_t)-1;
+
+    CTH_DEBUG("    audio output strategy: opening threaded Pulse server `%s'\n",
+        pulse_server_display_name());
+
+    mainloop = pa_threaded_mainloop_new();
+    if (mainloop == NULL) {
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' failed to open: no threaded mainloop\n",
+            pulse_server_display_name());
+        return;
+    }
+
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+    if (pa_threaded_mainloop_start(pulseMainloop) < 0) {
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' failed to open: could not start threaded mainloop\n",
+            pulse_server_display_name());
+        pa_threaded_mainloop_free(pulseMainloop);
+        mainloop = NULL;
+        return;
+    }
+
+    pa_threaded_mainloop_lock(pulseMainloop);
+
+    pa_mainloop_api* api = pa_threaded_mainloop_get_api(pulseMainloop);
+    drainEvent = api->defer_new(api, audioPulseDrainDeferCallback, this);
+    if (drainEvent != NULL)
+        api->defer_enable((pa_defer_event*)drainEvent, 0);
+
+    context = pa_context_new(api, "Cthughanix");
+    if (context == NULL) {
+        pa_threaded_mainloop_unlock(pulseMainloop);
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' failed to open: no context\n",
+            pulse_server_display_name());
+        closePulse();
+        return;
+    }
+
+    pa_context* pulseContext = (pa_context*)context;
+    pa_context_set_state_callback(pulseContext, audioPulseContextStateCallback,
+        pulseMainloop);
+    if (pa_context_connect(pulseContext, pulse_server_name(), PA_CONTEXT_NOFLAGS,
+            NULL)
+        < 0) {
+        const char* errorText = pa_strerror(pa_context_errno(pulseContext));
+        pa_threaded_mainloop_unlock(pulseMainloop);
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' failed to connect: %s\n",
+            pulse_server_display_name(), errorText);
+        closePulse();
+        return;
+    }
+
+    if (!audioPulseWaitForContextReady(pulseMainloop, pulseContext)) {
+        const char* errorText = pa_strerror(pa_context_errno(pulseContext));
+        pa_threaded_mainloop_unlock(pulseMainloop);
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' failed to become ready: %s\n",
+            pulse_server_display_name(), errorText);
+        closePulse();
+        return;
+    }
+
+    stream = pa_stream_new(pulseContext, "Audio passthrough", &sampleSpec, NULL);
+    if (stream == NULL) {
+        const char* errorText = pa_strerror(pa_context_errno(pulseContext));
+        pa_threaded_mainloop_unlock(pulseMainloop);
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' failed to create stream: %s\n",
+            pulse_server_display_name(), errorText);
+        closePulse();
+        return;
+    }
+
+    pa_stream* pulseStream = (pa_stream*)stream;
+    pa_stream_set_state_callback(pulseStream, audioPulseStreamStateCallback,
+        pulseMainloop);
+    pa_stream_set_write_callback(pulseStream, audioPulseStreamWriteCallback,
+        this);
+    pa_stream_set_underflow_callback(pulseStream, audioPulseStreamUnderflowCallback,
+        this);
+
+    pa_stream_flags_t flags = (pa_stream_flags_t)(PA_STREAM_AUTO_TIMING_UPDATE
+        | PA_STREAM_INTERPOLATE_TIMING);
+    if (pa_stream_connect_playback(pulseStream, NULL, &bufferAttr, flags, NULL,
+            NULL)
+        < 0) {
+        const char* errorText = pa_strerror(pa_context_errno(pulseContext));
+        pa_threaded_mainloop_unlock(pulseMainloop);
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' failed to connect stream: %s\n",
+            pulse_server_display_name(), errorText);
+        closePulse();
+        return;
+    }
+
+    if (!audioPulseWaitForStreamReady(pulseMainloop, pulseStream)) {
+        const char* errorText = pa_strerror(pa_context_errno(pulseContext));
+        pa_threaded_mainloop_unlock(pulseMainloop);
+        CTH_DEBUG("    audio output strategy: Pulse server `%s' stream failed to become ready: %s\n",
+            pulse_server_display_name(), errorText);
+        closePulse();
         return;
     }
 
     bytesPerSecondValue = pa_bytes_per_second(&sampleSpec);
-    CTH_TRACE("opened server=`%s' rate=%d channels=%d format=%d bytes-per-second=%d\n",
-        "audio pulse output", pulse_server_name() ? pulse_server_name() : "default",
-        sampleSpec.rate, sampleSpec.channels, sampleSpec.format, bytesPerSecondValue);
+    const pa_buffer_attr* actualBufferAttr = pa_stream_get_buffer_attr(pulseStream);
+    unsigned int actualTarget = actualBufferAttr ? actualBufferAttr->tlength : bufferAttr.tlength;
+    unsigned int actualPrebuf = actualBufferAttr ? actualBufferAttr->prebuf : bufferAttr.prebuf;
+    unsigned int actualMinRequest = actualBufferAttr ? actualBufferAttr->minreq : bufferAttr.minreq;
+    unsigned int actualMax = actualBufferAttr ? actualBufferAttr->maxlength : bufferAttr.maxlength;
+
+    pa_threaded_mainloop_unlock(pulseMainloop);
+
+    CTH_DEBUG("    audio output strategy: threaded Pulse server `%s' connected successfully\n",
+        pulse_server_display_name());
+    CTH_DEBUG("    audio output strategy: Pulse buffer target=%u bytes (%d ms) prebuffer=%u bytes (%d ms) min-request=%u bytes (%d ms) max=%u bytes (%d ms)\n",
+        actualTarget, audioPulseBytesToMs(actualTarget, bytesPerSecondValue),
+        actualPrebuf, audioPulseBytesToMs(actualPrebuf, bytesPerSecondValue),
+        actualMinRequest, audioPulseBytesToMs(actualMinRequest, bytesPerSecondValue),
+        actualMax, audioPulseBytesToMs(actualMax, bytesPerSecondValue));
+    CTH_TRACE("opened threaded server=`%s' rate=%d channels=%d format=%d bytes-per-second=%d target-bytes=%u prebuffer-bytes=%u min-request-bytes=%u max-bytes=%u target-ms=%d prebuffer-ms=%d min-request-ms=%d max-ms=%d configured-latency-ms=%d\n",
+        "audio pulse output", pulse_server_display_name(), sampleSpec.rate,
+        sampleSpec.channels, sampleSpec.format, bytesPerSecondValue, actualTarget,
+        actualPrebuf, actualMinRequest, actualMax,
+        audioPulseBytesToMs(actualTarget, bytesPerSecondValue),
+        audioPulseBytesToMs(actualPrebuf, bytesPerSecondValue),
+        audioPulseBytesToMs(actualMinRequest, bytesPerSecondValue),
+        audioPulseBytesToMs(actualMax, bytesPerSecondValue),
+        pulse_latency_msec);
+}
+
+int AudioPulseOutput::writeUnlocked(const void* buffer, int size, int waitForWritable) {
+    if ((mainloop == NULL) || (stream == NULL) || (buffer == NULL) || (size <= 0))
+        return 0;
+
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+    pa_stream* pulseStream = (pa_stream*)stream;
+    int written = 0;
+    int sampleBytes = bytesPerSample();
+    if (sampleBytes <= 0)
+        sampleBytes = 1;
+
+    while (written < size) {
+        if (!PA_STREAM_IS_GOOD(pa_stream_get_state(pulseStream))) {
+            CTH_ERROR("Pulse passthrough write failed on server `%s': stream is not ready\n",
+                pulse_server_display_name());
+            break;
+        }
+
+        size_t writable = pa_stream_writable_size(pulseStream);
+        if (writable == (size_t)-1) {
+            CTH_ERROR("Pulse passthrough write failed on server `%s': %s\n",
+                pulse_server_display_name(),
+                pa_strerror(pa_context_errno((pa_context*)context)));
+            break;
+        }
+
+        if (writable == 0) {
+            if (waitForWritable)
+                pa_threaded_mainloop_wait(pulseMainloop);
+            else
+                break;
+            continue;
+        }
+
+        size_t chunk = (size_t)(size - written);
+        if (chunk > writable)
+            chunk = writable;
+        if (sampleBytes > 1)
+            chunk -= chunk % (size_t)sampleBytes;
+        if (chunk == 0) {
+            if (waitForWritable)
+                pa_threaded_mainloop_wait(pulseMainloop);
+            else
+                break;
+            continue;
+        }
+
+        if (pa_stream_write(pulseStream, (const char*)buffer + written, chunk,
+                NULL, 0, PA_SEEK_RELATIVE)
+            < 0) {
+            CTH_ERROR("Pulse passthrough write failed on server `%s': %s\n",
+                pulse_server_display_name(),
+                pa_strerror(pa_context_errno((pa_context*)context)));
+            break;
+        }
+
+        written += (int)chunk;
+    }
+
+    return written;
 }
 
 int AudioPulseOutput::write(const void* buffer, int size) {
-    int error;
-
-    if (pulse == NULL)
+    if ((mainloop == NULL) || (stream == NULL) || (buffer == NULL) || (size <= 0))
         return 0;
 
-    if (pa_simple_write((pa_simple*)pulse, buffer, size, &error) < 0) {
-        CTH_ERROR("Pulse passthrough write failed: %s\n", pa_strerror(error));
-        return 0;
-    }
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
 
-    return size;
+    pa_threaded_mainloop_lock(pulseMainloop);
+    int written = writeUnlocked(buffer, size, 1);
+    pa_threaded_mainloop_unlock(pulseMainloop);
+
+    return written;
 }
 
 int AudioPulseOutput::outputDelayBytes() const {
-    int error;
     pa_usec_t latency;
+    int negative = 0;
 
-    if ((pulse == NULL) || (bytesPerSecondValue <= 0))
+    if ((mainloop == NULL) || (stream == NULL) || (bytesPerSecondValue <= 0))
         return 0;
 
-    latency = pa_simple_get_latency((pa_simple*)pulse, &error);
-    if (latency == (pa_usec_t)-1)
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+    pa_stream* pulseStream = (pa_stream*)stream;
+
+    pa_threaded_mainloop_lock(pulseMainloop);
+    int result = pa_stream_get_latency(pulseStream, &latency, &negative);
+    pa_threaded_mainloop_unlock(pulseMainloop);
+
+    if ((result < 0) || negative)
         return 0;
 
-    return (int)((latency * bytesPerSecondValue) / 1000000);
+    long long bytes = (long long)((latency * bytesPerSecondValue) / 1000000);
+    if (bytes > INT_MAX)
+        return INT_MAX;
+
+    return (int)bytes;
 }
 
-int AudioPulseOutput::isOpen() const { return pulse != NULL; }
+int AudioPulseOutput::isOpen() const { return stream != NULL; }
 int AudioPulseOutput::isRealtime() const { return 1; }
+
+long long AudioPulseOutput::audibleSamplePosition(const AudioBuffer& buffer) const {
+    long long firstSample = firstSubmittedSample.load();
+
+    if ((mainloop != NULL) && (stream != NULL) && (firstSample >= 0)
+        && (samplesPerSecond() > 0)) {
+        pa_usec_t streamTime = 0;
+        pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+        pa_stream* pulseStream = (pa_stream*)stream;
+
+        pa_threaded_mainloop_lock(pulseMainloop);
+        int result = pa_stream_get_time(pulseStream, &streamTime);
+        pa_threaded_mainloop_unlock(pulseMainloop);
+
+        if (result >= 0) {
+            long long playedSamples = firstSample
+                + (long long)((streamTime * samplesPerSecond()) / 1000000);
+            long long submittedEndSample = lastSubmittedSample.load();
+            if ((submittedEndSample <= 0)
+                || (submittedEndSample > buffer.submittedEndPosition()))
+                submittedEndSample = buffer.submittedEndPosition();
+
+            if (playedSamples < 0)
+                playedSamples = 0;
+            if (playedSamples > submittedEndSample)
+                playedSamples = submittedEndSample;
+
+            return playedSamples;
+        }
+    }
+
+    return AudioOutput::audibleSamplePosition(buffer);
+}
+
+int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
+    if (!callbackDrainActive.load() || (callbackBuffer == NULL) || (callbackScratch == NULL)
+        || (callbackScratchSamples <= 0) || (stream == NULL))
+        return 0;
+
+    pa_stream* pulseStream = (pa_stream*)stream;
+    int bytesPerSampleValue = callbackBuffer->bytesPerSample();
+    int writes = 0;
+    size_t remainingRequest = requestedBytes;
+
+    if (bytesPerSampleValue <= 0)
+        return 0;
+
+    for (;;) {
+        if (!callbackDrainActive.load() || (callbackBuffer == NULL))
+            break;
+        if (!PA_STREAM_IS_GOOD(pa_stream_get_state(pulseStream))) {
+            CTH_ERROR("Pulse passthrough stream failed on server `%s': stream is not ready\n",
+                pulse_server_display_name());
+            break;
+        }
+
+        int queuedSamples = callbackBuffer->queuedForOutputSamples();
+        if (queuedSamples <= 0)
+            break;
+
+        size_t writableBytes = pa_stream_writable_size(pulseStream);
+        if (writableBytes == (size_t)-1) {
+            CTH_ERROR("Pulse passthrough writable query failed on server `%s': %s\n",
+                pulse_server_display_name(),
+                pa_strerror(pa_context_errno((pa_context*)context)));
+            break;
+        }
+
+        if (remainingRequest != (size_t)-1) {
+            if (remainingRequest == 0)
+                break;
+            if (writableBytes > remainingRequest)
+                writableBytes = remainingRequest;
+        }
+        if (writableBytes == 0)
+            break;
+
+        int writableSamples = (int)(writableBytes / (size_t)bytesPerSampleValue);
+        int samplesWanted = queuedSamples;
+        if (samplesWanted > callbackScratchSamples)
+            samplesWanted = callbackScratchSamples;
+        if (samplesWanted > writableSamples)
+            samplesWanted = writableSamples;
+        if (samplesWanted <= 0)
+            break;
+
+        long long startSample = callbackBuffer->submittedEndPosition();
+        int samples = callbackBuffer->readForOutput(callbackScratch, samplesWanted);
+        if (samples <= 0)
+            break;
+
+        int bytes = pcmBytesForSamples(samples, bytesPerSampleValue);
+        int written = writeUnlocked(callbackScratch, bytes, 0);
+        if (written <= 0)
+            break;
+
+        audioOutputDumpSubmittedPcm(callbackScratch, written);
+        if (firstSubmittedSample.load() < 0)
+            firstSubmittedSample.store(startSample);
+        lastSubmittedSample.store(startSample + (written / bytesPerSampleValue));
+
+        int delayBytes = 0;
+        if (bytesPerSecondValue > 0) {
+            pa_usec_t latency = 0;
+            int negative = 0;
+            if ((pa_stream_get_latency(pulseStream, &latency, &negative) >= 0)
+                && !negative) {
+                long long bytesDelay = (long long)((latency * bytesPerSecondValue) / 1000000);
+                delayBytes = (bytesDelay > INT_MAX) ? INT_MAX : (int)bytesDelay;
+            }
+        }
+
+        audioDebugSubmittedPcm(callbackScratch, samples, bytes, written,
+            callbackBuffer->queuedForOutputSamples(),
+            callbackBuffer->submittedEndPosition(), delayBytes, bytesPerSampleValue,
+            targetDelaySamples());
+        CTH_TRACE("pulse callback drained samples=%d bytes=%d written=%d writable-bytes=%lu requested-bytes=%lu queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld delay-samples=%d delay-bytes=%d input-finished=%d\n",
+            "audio runtime", samples, bytes, written, (unsigned long)writableBytes,
+            (unsigned long)requestedBytes, callbackBuffer->queuedForOutputSamples(),
+            startSample, callbackBuffer->submittedEndPosition(),
+            delayBytes / bytesPerSampleValue, delayBytes,
+            callbackInputFinished ? callbackInputFinished->load() : 0);
+
+        writes++;
+
+        if (remainingRequest != (size_t)-1) {
+            if ((size_t)written >= remainingRequest)
+                break;
+            remainingRequest -= (size_t)written;
+        }
+        if (written < bytes)
+            break;
+    }
+
+    return writes;
+}
+
+int AudioPulseOutput::supportsCallbackDrain() const {
+    return (mainloop != NULL) && (stream != NULL) && (drainEvent != NULL);
+}
+
+void AudioPulseOutput::startCallbackDrain(AudioBuffer& buffer,
+    const std::atomic<int>* inputFinished, int scratchSamples) {
+    if ((mainloop == NULL) || (stream == NULL) || (drainEvent == NULL))
+        return;
+
+    int samples = scratchSamples;
+    if (samples <= 0)
+        samples = targetDelaySamples();
+    if (samples <= 0)
+        samples = 1024;
+
+    char* scratch = new char[pcmBytesForSamples(samples, buffer.bytesPerSample())];
+    char* oldScratch = NULL;
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+
+    pa_threaded_mainloop_lock(pulseMainloop);
+    oldScratch = callbackScratch;
+    callbackBuffer = &buffer;
+    callbackInputFinished = inputFinished;
+    callbackScratch = scratch;
+    callbackScratchSamples = samples;
+    callbackDrainActive.store(1);
+    pa_mainloop_api* api = pa_threaded_mainloop_get_api(pulseMainloop);
+    if ((api != NULL) && (drainEvent != NULL))
+        api->defer_enable((pa_defer_event*)drainEvent, 1);
+    pa_threaded_mainloop_unlock(pulseMainloop);
+
+    delete[] oldScratch;
+
+    CTH_TRACE("pulse callback drain started scratch-samples=%d target-delay-samples=%d queued-samples=%d input-finished=%d\n",
+        "audio runtime", samples, targetDelaySamples(), buffer.queuedForOutputSamples(),
+        inputFinished ? inputFinished->load() : 0);
+}
+
+void AudioPulseOutput::notifyCallbackDrain() {
+    if ((mainloop == NULL) || (drainEvent == NULL))
+        return;
+
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+    pa_threaded_mainloop_lock(pulseMainloop);
+    if (callbackDrainActive.load()) {
+        pa_mainloop_api* api = pa_threaded_mainloop_get_api(pulseMainloop);
+        if (api != NULL)
+            api->defer_enable((pa_defer_event*)drainEvent, 1);
+    }
+    pa_threaded_mainloop_unlock(pulseMainloop);
+}
+
+void AudioPulseOutput::stopCallbackDrain() {
+    if (mainloop == NULL) {
+        delete[] callbackScratch;
+        callbackScratch = NULL;
+        callbackBuffer = NULL;
+        callbackInputFinished = NULL;
+        callbackScratchSamples = 0;
+        callbackDrainActive.store(0);
+        return;
+    }
+
+    char* oldScratch = NULL;
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+
+    pa_threaded_mainloop_lock(pulseMainloop);
+    callbackDrainActive.store(0);
+    callbackBuffer = NULL;
+    callbackInputFinished = NULL;
+    callbackScratchSamples = 0;
+    oldScratch = callbackScratch;
+    callbackScratch = NULL;
+    if (drainEvent != NULL) {
+        pa_mainloop_api* api = pa_threaded_mainloop_get_api(pulseMainloop);
+        if (api != NULL)
+            api->defer_enable((pa_defer_event*)drainEvent, 0);
+    }
+    pa_threaded_mainloop_unlock(pulseMainloop);
+
+    delete[] oldScratch;
+}
+
+void AudioPulseOutput::pulseWritable(size_t requestedBytes) {
+    drainUnlocked(requestedBytes);
+    if (mainloop != NULL)
+        pa_threaded_mainloop_signal((pa_threaded_mainloop*)mainloop, 0);
+}
+
+void AudioPulseOutput::pulseUnderflow() {
+    int underflows = audioPulseUnderflowCount.fetch_add(1) + 1;
+    int previous = lastReportedUnderflows.exchange(underflows);
+
+    if (underflows != previous)
+        CTH_WARN("Pulse output underrun on server `%s' (count=%d).\n",
+            pulse_server_display_name(), underflows);
+
+    drainUnlocked((size_t)-1);
+    if (mainloop != NULL)
+        pa_threaded_mainloop_signal((pa_threaded_mainloop*)mainloop, 0);
+}
+
+int AudioPulseOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
+    int /*inputFinished*/) {
+    if (callbackDrainActive.load())
+        return 0;
+
+    if ((mainloop == NULL) || (stream == NULL) || (scratch == NULL)
+        || (scratchSamples <= 0))
+        return 0;
+
+    int queuedSamples = buffer.queuedForOutputSamples();
+    if (queuedSamples <= 0)
+        return 0;
+
+    int bytesPerSampleValue = buffer.bytesPerSample();
+    if (bytesPerSampleValue <= 0)
+        return 0;
+
+    pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
+    pa_stream* pulseStream = (pa_stream*)stream;
+    size_t writableBytes = 0;
+    int underflows = 0;
+    int streamGood = 1;
+
+    pa_threaded_mainloop_lock(pulseMainloop);
+    streamGood = PA_STREAM_IS_GOOD(pa_stream_get_state(pulseStream));
+    if (streamGood) {
+        writableBytes = pa_stream_writable_size(pulseStream);
+        if (writableBytes == (size_t)-1)
+            streamGood = 0;
+    }
+    underflows = audioPulseUnderflowCount.load();
+    pa_threaded_mainloop_unlock(pulseMainloop);
+
+    if (!streamGood) {
+        CTH_ERROR("Pulse passthrough stream failed on server `%s': %s\n",
+            pulse_server_display_name(),
+            pa_strerror(pa_context_errno((pa_context*)context)));
+        return 0;
+    }
+
+    if (underflows != lastReportedUnderflows.load()) {
+        CTH_WARN("Pulse output underrun on server `%s' (count=%d).\n",
+            pulse_server_display_name(), underflows);
+        lastReportedUnderflows.store(underflows);
+    }
+
+    if (writableBytes == 0) {
+        CTH_TRACE("pulse output idle writable-bytes=0 queued-samples=%d submitted-end-sample=%lld\n",
+            "audio runtime", queuedSamples, buffer.submittedEndPosition());
+        return 0;
+    }
+
+    int writableSamples = (int)(writableBytes / (size_t)bytesPerSampleValue);
+    if (writableSamples <= 0)
+        return 0;
+
+    int samplesWanted = (queuedSamples < scratchSamples) ? queuedSamples : scratchSamples;
+    if (samplesWanted > writableSamples)
+        samplesWanted = writableSamples;
+    if (samplesWanted <= 0)
+        return 0;
+
+    long long startSample = buffer.submittedEndPosition();
+    int samples = buffer.readForOutput(scratch, samplesWanted);
+    if (samples <= 0)
+        return 0;
+
+    int bytes = pcmBytesForSamples(samples, bytesPerSampleValue);
+    int written = write(scratch, bytes);
+    if (written > 0) {
+        audioOutputDumpSubmittedPcm(scratch, written);
+        if (firstSubmittedSample.load() < 0)
+            firstSubmittedSample.store(startSample);
+        lastSubmittedSample.store(startSample + (written / bytesPerSampleValue));
+    }
+
+    int finalDelay = outputDelayBytes();
+
+    audioDebugSubmittedPcm(scratch, samples, bytes, written, buffer.queuedForOutputSamples(),
+        buffer.submittedEndPosition(), finalDelay, bytesPerSampleValue, targetDelaySamples());
+    CTH_TRACE("pulse output submitted samples=%d bytes=%d written=%d writable-bytes=%lu queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld delay-samples=%d delay-bytes=%d target-delay-samples=%d stream-playhead-sample=%lld\n",
+        "audio runtime", samples, bytes, written, (unsigned long)writableBytes,
+        buffer.queuedForOutputSamples(), startSample, buffer.submittedEndPosition(),
+        (bytesPerSampleValue > 0) ? finalDelay / bytesPerSampleValue : 0, finalDelay,
+        targetDelaySamples(), audibleSamplePosition(buffer));
+
+    return written > 0 ? 1 : 0;
+}
 
 #else
 
 AudioPulseOutput::AudioPulseOutput()
-    : pulse(NULL)
-    , bytesPerSecondValue(0) {
+    : mainloop(NULL)
+    , context(NULL)
+    , stream(NULL)
+    , drainEvent(NULL)
+    , callbackBuffer(NULL)
+    , callbackInputFinished(NULL)
+    , callbackScratch(NULL)
+    , callbackScratchSamples(0)
+    , callbackDrainActive(0)
+    , bytesPerSecondValue(0)
+    , firstSubmittedSample(-1)
+    , lastSubmittedSample(0)
+    , lastReportedUnderflows(0) {
     CTH_DEBUG("    audio output strategy: Pulse unavailable because support is not compiled in\n");
 }
 
 AudioPulseOutput::~AudioPulseOutput() { }
+void AudioPulseOutput::closePulse() { }
 int AudioPulseOutput::defaultTargetLatencyMs() const { return 250; }
 int AudioPulseOutput::timingScratchSamples(int, int targetDelaySamples) const { return targetDelaySamples; }
 int AudioPulseOutput::write(const void*, int) { return 0; }
 int AudioPulseOutput::outputDelayBytes() const { return 0; }
 int AudioPulseOutput::isOpen() const { return 0; }
 int AudioPulseOutput::isRealtime() const { return 1; }
+long long AudioPulseOutput::audibleSamplePosition(const AudioBuffer& buffer) const { return AudioOutput::audibleSamplePosition(buffer); }
 void AudioPulseOutput::update() { }
+int AudioPulseOutput::service(AudioBuffer&, char*, int, int) { return 0; }
+int AudioPulseOutput::supportsCallbackDrain() const { return 0; }
+void AudioPulseOutput::startCallbackDrain(AudioBuffer&, const std::atomic<int>*, int) { }
+void AudioPulseOutput::notifyCallbackDrain() { }
+void AudioPulseOutput::stopCallbackDrain() { }
+void AudioPulseOutput::pulseWritable(size_t) { }
+void AudioPulseOutput::pulseUnderflow() { }
 
 #endif
 
@@ -529,6 +1399,7 @@ AudioBuffer::~AudioBuffer() {
 }
 
 void AudioBuffer::clear() {
+    std::lock_guard<std::mutex> lock(mutex);
     decodedEndSample = 0;
     submittedEndSample = 0;
 }
@@ -549,6 +1420,31 @@ long long AudioBuffer::protectedWindowStartSample() const {
         startSample = submittedEndSample;
 
     return startSample;
+}
+
+int AudioBuffer::queuedForOutputSamples() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return int(decodedEndSample - submittedEndSample);
+}
+
+int AudioBuffer::protectedWindowSamples() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return int(decodedEndSample - protectedWindowStartSample());
+}
+
+int AudioBuffer::writableSamples() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return capacitySamples - int(decodedEndSample - protectedWindowStartSample());
+}
+
+long long AudioBuffer::decodedEndPosition() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return decodedEndSample;
+}
+
+long long AudioBuffer::submittedEndPosition() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return submittedEndSample;
 }
 
 int AudioBuffer::copyAt(long long samplePosition, char* dst, int samples) const {
@@ -574,8 +1470,10 @@ int AudioBuffer::copyAt(long long samplePosition, char* dst, int samples) const 
 }
 
 int AudioBuffer::appendDecodedPcm(const char* src, int samples) {
+    std::lock_guard<std::mutex> lock(mutex);
     int writtenSamples = 0;
-    int wantedSamples = min(samples, writableSamples());
+    int protectedSamples = int(decodedEndSample - protectedWindowStartSample());
+    int wantedSamples = min(samples, capacitySamples - protectedSamples);
 
     while (writtenSamples < wantedSamples) {
         int posSample = int((decodedEndSample + writtenSamples) % capacitySamples);
@@ -592,6 +1490,7 @@ int AudioBuffer::appendDecodedPcm(const char* src, int samples) {
 }
 
 int AudioBuffer::readForOutput(char* dst, int samples) {
+    std::lock_guard<std::mutex> lock(mutex);
     int copied = copyAt(submittedEndSample, dst, samples);
 
     submittedEndSample += copied;
@@ -600,6 +1499,7 @@ int AudioBuffer::readForOutput(char* dst, int samples) {
 }
 
 int AudioBuffer::readProtectedPcmAt(long long samplePosition, char* dst, int samples) const {
+    std::lock_guard<std::mutex> lock(mutex);
     return copyAt(samplePosition, dst, samples);
 }
 
@@ -626,12 +1526,16 @@ int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
         double outputWriteStart = getTime();
         int written = write(scratch, bytes);
         double outputWriteEnd = getTime();
-        if (written > 0)
+        if (written > 0) {
+            audioOutputDumpSubmittedPcm(scratch, written);
             writes++;
+        }
 
         double delayStart = getTime();
         int finalDelay = outputDelayBytes();
         double delayEnd = getTime();
+        audioDebugSubmittedPcm(scratch, samples, bytes, written, buffer.queuedForOutputSamples(),
+            buffer.submittedEndPosition(), finalDelay, bytesPerSample, configuredTargetDelaySamples);
         CTH_TRACE("output submitted samples=%d bytes=%d written=%d queued-samples=%d submitted-end-sample=%lld delay-samples=%d delay-bytes=%d\n", "audio runtime",
             samples, bytes, written, buffer.queuedForOutputSamples(), buffer.submittedEndPosition(),
             finalDelay / bytesPerSample, finalDelay);
@@ -649,6 +1553,7 @@ int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
     double delayEnd = getTime();
     int queuedBefore = buffer.queuedForOutputSamples();
     int samplesWanted = inputFinished ? buffer.queuedForOutputSamples() : configuredTargetDelaySamples - delaySamples;
+
     if (samplesWanted <= 0) {
         CTH_TRACE("service idle realtime=1 delay-query-ms=%.3f delay-samples=%d target-delay-samples=%d queued-samples=%d scratch-samples=%d input-finished=%d reason=delay-target-met\n",
             "audio timing", (delayEnd - delayStart) * 1000.0, delaySamples,
@@ -674,12 +1579,16 @@ int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
     double outputWriteStart = getTime();
     int written = write(scratch, bytes);
     double outputWriteEnd = getTime();
-    if (written > 0)
+    if (written > 0) {
+        audioOutputDumpSubmittedPcm(scratch, written);
         writes++;
+    }
 
     double finalDelayStart = getTime();
     int finalDelay = outputDelayBytes();
     double finalDelayEnd = getTime();
+    audioDebugSubmittedPcm(scratch, samples, bytes, written, buffer.queuedForOutputSamples(),
+        buffer.submittedEndPosition(), finalDelay, bytesPerSample, configuredTargetDelaySamples);
     CTH_TRACE("output submitted samples=%d bytes=%d written=%d queued-samples=%d submitted-end-sample=%lld delay-samples=%d delay-bytes=%d target-delay-samples=%d requested-samples=%d\n", "audio runtime",
         samples, bytes, written, buffer.queuedForOutputSamples(), buffer.submittedEndPosition(),
         finalDelay / bytesPerSample, finalDelay, configuredTargetDelaySamples, samplesWanted);

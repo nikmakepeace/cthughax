@@ -9,12 +9,6 @@
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "DISPLAY",
-          "value": "192.168.64.1:0.0" 
-        }
-      ],
       "externalConsole": false,
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb",
@@ -38,12 +32,7 @@
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
-      "environment": [
-        {
-          "name": "DISPLAY",
-          "value": "192.168.64.1:0.0" 
-        }
-      ],
+
       "externalConsole": false,
       "MIMode": "gdb",
       "miDebuggerPath": "/usr/bin/gdb",

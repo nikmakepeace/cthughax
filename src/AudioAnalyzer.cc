@@ -111,6 +111,17 @@ AudioAnalysis AudioAnalyzer::analyze(const char2* frame) {
 }
 
 void AudioAnalyzer::operator()() {
+    static int debugReports = 0;
+    AudioFrame* frame = audioFrameCurrent();
+
     audioAnalysis = analyze(audioFrameData());
     acousticContext.update(audioAnalysis);
+
+    if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
+        debugReports++;
+        CTH_DEBUG("audio analysis: amplitude=%d left=%d right=%d noisy=%d frame-samples=%d center-sample=%lld\n",
+            audioAnalysis.amplitude, audioAnalysis.amplitudeLeft,
+            audioAnalysis.amplitudeRight, audioAnalysis.noisy,
+            frame ? frame->samples : 1024, frame ? frame->centerSample : 0);
+    }
 }

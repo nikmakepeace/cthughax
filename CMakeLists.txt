@@ -66,6 +66,7 @@ set(TIME_WITH_SYS_TIME 1)
 set(WITH_SAVER 0)
 
 find_package(Curses QUIET)
+find_package(Threads REQUIRED)
 if(CURSES_FOUND)
     set(HAVE_NCURSES 1)
 else()

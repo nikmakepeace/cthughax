@@ -28,6 +28,9 @@ int init_mixer();
 
 extern char dev_mixer[];
 extern char pulse_server[];
+extern int pulse_latency_msec;
+extern char audio_output_dump[];
 const char* pulse_server_name();
+const char* pulse_server_display_name();
 
 #endif

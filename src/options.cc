@@ -80,6 +80,8 @@ enum option_nr {
     opt_no_palette_smoothing,
     opt_palette_set,
     opt_pulse_server,
+    opt_pulse_latency_ms,
+    opt_audio_output_dump,
     opt_ini_file,
 };
 
@@ -94,6 +96,8 @@ struct option long_options[] = {
     { "rate", 1, 0, 'v' }, { "stereo", 0, 0, '2' }, { "no-stereo", 0, 0, '1' },
     { "snd-format", 1, 0, opt_sound_format },
     { "pulse-server", 1, 0, opt_pulse_server },
+    { "pulse-latency-ms", 1, 0, opt_pulse_latency_ms },
+    { "audio-output-dump", 1, 0, opt_audio_output_dump },
 
 // DSP options
 #if WITH_DSP == 1
@@ -311,6 +315,26 @@ int do_param(int c, int value, char* str) {
             pulse_server[PATH_MAX - 1] = '\0';
         } else {
             pulse_server[0] = '\0';
+        }
+        break;
+
+    case opt_pulse_latency_ms:
+        pulse_latency_msec = value;
+        if (pulse_latency_msec < 50) {
+            CTH_WARN("PulseAudio latency below 50 ms, clamping to 50 ms.\n");
+            pulse_latency_msec = 50;
+        } else if (pulse_latency_msec > 10000) {
+            CTH_WARN("PulseAudio latency above 10000 ms, clamping to 10000 ms.\n");
+            pulse_latency_msec = 10000;
+        }
+        break;
+
+    case opt_audio_output_dump:
+        if (str != NULL) {
+            strncpy(audio_output_dump, str, PATH_MAX);
+            audio_output_dump[PATH_MAX - 1] = '\0';
+        } else {
+            audio_output_dump[0] = '\0';
         }
         break;
 

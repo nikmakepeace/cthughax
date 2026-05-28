@@ -2,6 +2,7 @@
 #include "AudioVisualBridge.h"
 #include "AudioAnalyzer.h"
 #include "AudioProcessor.h"
+#include "AudioFrame.h"
 #include "AutoChanger.h"
 
 AudioVisualBridge::AudioVisualBridge()
@@ -18,9 +19,19 @@ AudioVisualBridge::~AudioVisualBridge() {
 
 void AudioVisualBridge::runFrame() {
     double start = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
+    static int debugReports = 0;
 
     audioProcessing.process();
     double processed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
+
+    if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
+        AudioAnalysis processedAnalysis = audioAnalyzer.analyze(audioFrameProcessedData());
+        debugReports++;
+        CTH_DEBUG("processed audio: mode=%s amplitude=%d left=%d right=%d noisy=%d\n",
+            audioProcessing.text(), processedAnalysis.amplitude,
+            processedAnalysis.amplitudeLeft, processedAnalysis.amplitudeRight,
+            processedAnalysis.noisy);
+    }
 
     audioAnalyzer();
     double analyzed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;

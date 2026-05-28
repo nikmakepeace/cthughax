@@ -75,6 +75,17 @@ Specify the PulseAudio server used for playback passthrough. The same setting
 can be placed in an ini file as @code{cthugha.pulse-server: SERVER}. If unset,
 PulseAudio uses its default server.
 
+@item --pulse-latency-ms N
+Set the PulseAudio target playback latency in milliseconds. The same setting
+can be placed in an ini file as @code{cthugha.pulse-latency-ms: N}. The default
+is 2000 ms, matching PulseAudio's conservative default buffering more closely
+for network playback.
+
+@item --audio-output-dump FILE
+Dump the PCM bytes submitted to the playback output as a WAV file. This is
+intended for audio diagnostics; if the dump plays cleanly with @code{paplay},
+the distortion is likely after Cthugha's output submission boundary.
+
 @end table
 
 

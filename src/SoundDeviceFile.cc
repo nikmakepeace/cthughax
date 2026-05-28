@@ -144,14 +144,18 @@ void SoundOutputPulse::update() {
         return;
     }
 
+    CTH_DEBUG("    sound output strategy: opening Pulse server `%s'\n",
+        pulse_server_display_name());
     pulse = pa_simple_new(pulse_server_name(), "Cthughanix", PA_STREAM_PLAYBACK, NULL,
         "Audio passthrough", &sampleSpec, NULL, NULL, &error);
     if (pulse == NULL) {
-        CTH_DEBUG("    sound output strategy: Pulse passthrough failed to open: %s\n",
-            pa_strerror(error));
+        CTH_DEBUG("    sound output strategy: Pulse server `%s' failed to open: %s\n",
+            pulse_server_display_name(), pa_strerror(error));
     } else {
+        CTH_DEBUG("    sound output strategy: Pulse server `%s' opened successfully\n",
+            pulse_server_display_name());
         CTH_TRACE("opened server=`%s' rate=%d channels=%d format=%d\n",
-            "sound pulse output", pulse_server_name() ? pulse_server_name() : "default",
+            "sound pulse output", pulse_server_display_name(),
             sampleSpec.rate, sampleSpec.channels, sampleSpec.format);
     }
 }
@@ -163,7 +167,8 @@ int SoundOutputPulse::write(const void* buffer, int size) {
         return 0;
 
     if (pa_simple_write(pulse, buffer, size, &error) < 0) {
-        CTH_ERROR("Pulse passthrough write failed: %s\n", pa_strerror(error));
+        CTH_ERROR("Pulse passthrough write failed on server `%s': %s\n",
+            pulse_server_display_name(), pa_strerror(error));
         return 0;
     }
 

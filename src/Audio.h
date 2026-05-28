@@ -12,6 +12,8 @@
 
 #include <stdio.h>
 #include <limits.h>
+#include <atomic>
+#include <mutex>
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
@@ -43,15 +45,20 @@ public:
     virtual int isRealtime() const { return 1; }
     virtual void update() { }
     virtual void configureTiming(int samplesPerSecond, int bytesPerSample, int inputChunkSamples);
+    int samplesPerSecond() const { return outputSamplesPerSecond; }
     int bytesPerSample() const { return outputBytesPerSample; }
     int targetDelaySamples() const { return outputTargetDelaySamples; }
     int scratchSamples() const { return outputScratchSamples; }
     int outputDelaySamples() const;
     int queuedTargetSamples() const;
-    long long audibleSamplePosition(const AudioBuffer& buffer) const;
+    virtual long long audibleSamplePosition(const AudioBuffer& buffer) const;
     int playbackComplete(const AudioBuffer& buffer, int inputFinished) const;
     virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
         int inputFinished);
+    virtual int supportsCallbackDrain() const { return 0; }
+    virtual void startCallbackDrain(AudioBuffer&, const std::atomic<int>*, int) { }
+    virtual void notifyCallbackDrain() { }
+    virtual void stopCallbackDrain() { }
 };
 
 class AudioNullOutput : public AudioOutput {
@@ -66,8 +73,23 @@ public:
 };
 
 class AudioPulseOutput : public AudioOutput {
-    void* pulse;
+    void* mainloop;
+    void* context;
+    void* stream;
+    void* drainEvent;
+    AudioBuffer* callbackBuffer;
+    const std::atomic<int>* callbackInputFinished;
+    char* callbackScratch;
+    int callbackScratchSamples;
+    std::atomic<int> callbackDrainActive;
     int bytesPerSecondValue;
+    std::atomic<long long> firstSubmittedSample;
+    std::atomic<long long> lastSubmittedSample;
+    std::atomic<int> lastReportedUnderflows;
+
+    void closePulse();
+    int writeUnlocked(const void* buffer, int size, int waitForWritable);
+    int drainUnlocked(size_t requestedBytes);
 
 protected:
     virtual int defaultTargetLatencyMs() const;
@@ -81,7 +103,17 @@ public:
     virtual int outputDelayBytes() const;
     virtual int isOpen() const;
     virtual int isRealtime() const;
+    virtual long long audibleSamplePosition(const AudioBuffer& buffer) const;
     virtual void update();
+    virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
+        int inputFinished);
+    virtual int supportsCallbackDrain() const;
+    virtual void startCallbackDrain(AudioBuffer& buffer,
+        const std::atomic<int>* inputFinished, int scratchSamples);
+    virtual void notifyCallbackDrain();
+    virtual void stopCallbackDrain();
+    void pulseWritable(size_t requestedBytes);
+    void pulseUnderflow();
 };
 
 class AudioDSPOutput : public AudioOutput {
@@ -116,6 +148,7 @@ class AudioBuffer {
     int protectedHistorySamples;
     long long decodedEndSample;
     long long submittedEndSample;
+    mutable std::mutex mutex;
 
     long long protectedWindowStartSample() const;
     int copyAt(long long samplePosition, char* dst, int samples) const;
@@ -125,11 +158,11 @@ public:
     ~AudioBuffer();
 
     int bytesPerSample() const { return bytesPerSampleValue; }
-    int queuedForOutputSamples() const { return int(decodedEndSample - submittedEndSample); }
-    int protectedWindowSamples() const { return int(decodedEndSample - protectedWindowStartSample()); }
-    int writableSamples() const { return capacitySamples - protectedWindowSamples(); }
-    long long decodedEndPosition() const { return decodedEndSample; }
-    long long submittedEndPosition() const { return submittedEndSample; }
+    int queuedForOutputSamples() const;
+    int protectedWindowSamples() const;
+    int writableSamples() const;
+    long long decodedEndPosition() const;
+    long long submittedEndPosition() const;
     void clear();
 
     int appendDecodedPcm(const char* src, int samples);

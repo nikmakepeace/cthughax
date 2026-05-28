@@ -1,5 +1,6 @@
 #include "cthugha.h"
 #include "RuntimeFactory.h"
+#include "Sound.h"
 
 #include <string.h>
 #include <unistd.h>
@@ -118,10 +119,13 @@ AudioOutput* RuntimeFactory::createAudioOutput() const {
     }
 
     if (environment.pulseOutputAvailable) {
-        CTH_DEBUG("    audio output strategy: trying Pulse output\n");
+        CTH_DEBUG("    audio output strategy: trying Pulse output on server `%s'\n",
+            pulse_server_display_name());
         AudioPulseOutput* pulse = new AudioPulseOutput();
         if (pulse->isOpen()) {
-            CTH_TRACE("selected AudioPulseOutput\n", "runtime factory");
+            CTH_DEBUG("    audio output strategy: selected Pulse output\n");
+            CTH_TRACE("selected AudioPulseOutput server=`%s'\n", "runtime factory",
+                pulse_server_display_name());
             return pulse;
         }
         delete pulse;

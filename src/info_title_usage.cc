@@ -76,6 +76,8 @@ void usage() {
     PH(" -1, -2, --stereo, --no-stereo Set number of sound channels", soundChannels.text());
     PH(" --snd-format FMT    Set sound format to FMT", soundFormat.text());
     PH(" --pulse-server SERVER  Set PulseAudio server", pulse_server);
+    PH(" --pulse-latency-ms N  Set PulseAudio target latency");
+    PH(" --audio-output-dump FILE  Dump submitted output PCM to WAV");
     PH("");
 
 #if WITH_DSP == 1
