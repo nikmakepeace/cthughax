@@ -1,7 +1,6 @@
 #include "cthugha.h"
 #include "information.h" /* title, credits, ... */
 #include "display.h"
-#include "Sound.h"
 #include "translate.h"
 #include "options.h"
 #include "keys.h"

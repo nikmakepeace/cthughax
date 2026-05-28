@@ -1,6 +1,7 @@
 #include "cthugha.h"
 #include "information.h"
-#include "Sound.h"
+#include "AudioOptions.h"
+#include "Mixer.h"
 #include "DisplayDevice.h"
 #include "CDPlayer.h"
 #include "AutoChanger.h"
@@ -85,10 +86,8 @@ void usage() {
     PH(" --snd-method M      Use method M for sound reading", soundDSPMethod.text());
     PH(" --snd-sync          Reset soundcard after reading each block", soundDSPSync.text());
     PH(" --snd-fragments     Set number of sound fragments", soundDSPFragments.text());
-    PH(" --dev-dsp DEV       Set the DSP device to DEV", SoundDeviceDSP::dev_dsp);
+    PH(" --dev-dsp DEV       Set the DSP device to DEV", dev_dsp);
 #endif
-    PH(" --snd-buffer B      Set sound buffer size to B kB, when using --play", soundBuffer.text());
-
     PH("");
 
 #if WITH_CDROM == 1

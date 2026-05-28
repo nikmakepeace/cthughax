@@ -8,13 +8,12 @@
 #include <limits.h>
 
 enum RuntimeSoundInputContext {
-    RSIC_MainProcess,
-    RSIC_FileChild
+    RSIC_MainProcess
 };
 
 class Settings {
 public:
-    int soundDeviceNumber;
+    int audioInputMode;
     int soundDSPMethod;
     int silent;
     char fileName[PATH_MAX];
@@ -48,7 +47,6 @@ public:
     AudioInputProcessor* createAudioProcessor() const;
     AudioSourceStrategy selectAudioSourceStrategy() const;
 
-    SoundDevice* createLegacySoundDevice(RuntimeSoundInputContext context) const;
 };
 
 #endif

@@ -1,12 +1,12 @@
 // Current audio-frame facade.
 //
-// This keeps visual/audio consumers from depending directly on SoundDevice
-// while startup is migrated to the new Audio* composition model.
+// This keeps visual/audio consumers on the frame facade instead of runtime
+// implementation details.
 
 #ifndef __AUDIO_FRAME_H
 #define __AUDIO_FRAME_H
 
-#include "SoundDevice.h"
+#include "AudioTypes.h"
 
 class AudioFrame {
 public:

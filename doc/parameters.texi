@@ -25,20 +25,10 @@ Use a file as source for the sound.
 Cthugha plays the file over and over again. In future versions playing
 multiple files will be possible.
 
-Cthugha can play .wav files directly and by using external programs also
-MOD files and MPEG Layer 3 files. To play .mod and .mp3 files 
-@code{xmp}, @code{mpg123} and @code{l3dec} are currently supported.
-The type of the file is identified by the extension only.
-
-If you don't want to use the programs supported the following is
-possible: @code{NAME} might be a fifo file, so you can so things like
-@example
-mkfifo fifo.wav
-cat something.wav > fifo.wav &     
-xcthugha --play fifo.wav
-@end example
-
-The old options @code{--exec}, @code{--mod}, ... are no longer needed.
+Cthugha can play PCM @file{.wav} files, MPEG Layer 3 files through the
+embedded decoder, and raw PCM files using the current sound format, channel
+count, and sample rate options. The type of the file is identified by the
+extension only.
 
 @item --silent
 This causes Cthugha to only read the sound data when using
@@ -117,8 +107,6 @@ Specify which DSP device to use. This usually @code{/dev/dsp}, but on
 some systems it might be @code{/dev/audio}. 
 
 
-@item --snd-buffer B
-Set the size of the sound buffer size to B kB, when using --play.
 @end table
 
 

@@ -1,6 +1,6 @@
 #include "cthugha.h"
 #include "Audio.h"
-#include "Sound.h"
+#include "Mixer.h"
 #include "imath.h"
 #include "cth_buffer.h"
 
@@ -47,6 +47,7 @@
 char pulse_server[PATH_MAX] = "";
 int pulse_latency_msec = 2000;
 char audio_output_dump[PATH_MAX] = "";
+char audio_input_file[PATH_MAX] = "";
 
 const char* pulse_server_name() {
     return (pulse_server[0] != '\0') ? pulse_server : NULL;
@@ -1274,16 +1275,16 @@ void AudioDSPOutput::setFormat() {
 }
 
 void AudioDSPOutput::init() {
-    CTH_DEBUG("  setting %s for writing...\n", SoundDeviceDSP::dev_dsp);
-    CTH_TRACE("init device=`%s' method=%d\n", "audio dsp output", SoundDeviceDSP::dev_dsp,
+    CTH_DEBUG("  setting %s for writing...\n", dev_dsp);
+    CTH_TRACE("init device=`%s' method=%d\n", "audio dsp output", dev_dsp,
         method);
 
     if (handle >= 0)
         close(handle);
     handle = -1;
 
-    if ((handle = open(SoundDeviceDSP::dev_dsp, O_WRONLY)) < 0) {
-        CTH_ERRNO(errno, "Can't open `%s' for writing.", SoundDeviceDSP::dev_dsp);
+    if ((handle = open(dev_dsp, O_WRONLY)) < 0) {
+        CTH_ERRNO(errno, "Can't open `%s' for writing.", dev_dsp);
         return;
     }
 
@@ -1489,6 +1490,11 @@ int AudioBuffer::protectedWindowSamples() const {
 int AudioBuffer::writableSamples() const {
     std::lock_guard<std::mutex> lock(mutex);
     return capacitySamples - int(decodedEndSample - protectedWindowStartSample());
+}
+
+long long AudioBuffer::oldestProtectedPosition() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return protectedWindowStartSample();
 }
 
 long long AudioBuffer::decodedEndPosition() const {
@@ -1732,6 +1738,21 @@ void AudioFrameBuilder::build(AudioFrame& frame, const AudioBuffer& buffer, long
         startSample = 0;
     }
 
+    long long oldestSample = buffer.oldestProtectedPosition();
+    if (startSample < oldestSample) {
+        long long skippedSamples = oldestSample - startSample;
+        if (skippedSamples < 1024)
+            sampleOffset += int(skippedSamples);
+        else
+            sampleOffset = 0;
+        startSample = oldestSample;
+    }
+    if (sampleOffset >= 1024) {
+        CTH_TRACE("no overlap center-sample=%lld oldest-sample=%lld decoded-end-sample=%lld\n",
+            "audio frame builder", centerSample, oldestSample, buffer.decodedEndPosition());
+        return;
+    }
+
     samplesRead = buffer.readProtectedPcmAt(startSample,
         rawData + pcmBytesForSamples(sampleOffset, bytesPerSample),
         1024 - sampleOffset);
@@ -1890,11 +1911,15 @@ int AudioInput::read(char* dst, int rawSize, int samplesRequested) {
     int samplesRead = source ? source->read(dst, rawSize, samplesRequested) : 0;
 
     if ((samplesRead == 0) && source && source->canFinish()) {
-        if (soundPlayLoop) {
+        if (audioInputLoop) {
             CTH_TRACE("source reached end; rewinding\n", "audio input");
             source->rewind();
             applyFormat();
             samplesRead = source->read(dst, rawSize, samplesRequested);
+            if (samplesRead == 0) {
+                CTH_TRACE("source remained empty after rewind\n", "audio input");
+                finished = 1;
+            }
         } else {
             CTH_TRACE("source reached end\n", "audio input");
             finished = 1;
@@ -2225,6 +2250,93 @@ void Minimp3PcmSource::rewind() {
 #endif
 }
 
+RawFilePcmSource::RawFilePcmSource(const char* name_)
+    : PcmSource()
+    , file(NULL) {
+    strncpy(name, name_ ? name_ : "", PATH_MAX - 1);
+    name[PATH_MAX - 1] = '\0';
+    if (open())
+        error = 1;
+}
+
+RawFilePcmSource::~RawFilePcmSource() {
+    if (file)
+        fclose0(file);
+    file = NULL;
+}
+
+int RawFilePcmSource::open() {
+    if (file)
+        fclose0(file);
+
+    CTH_INFO("Playing file '%s'.\n", name);
+    CTH_TRACE("opening `%s'\n", "raw pcm source", name);
+
+    file = fopen(name, "rb");
+    if (file == NULL) {
+        CTH_ERRNO(errno, "Can not open sound file `%s' for reading.", name);
+        return 1;
+    }
+
+    return applyFormat();
+}
+
+int RawFilePcmSource::applyFormat() {
+    pcmFormat.sampleRate = int(soundSampleRate);
+    pcmFormat.channels = int(soundChannels);
+    pcmFormat.sampleFormat = int(soundFormat);
+
+    if (pcmFormat.sampleRate <= 0) {
+        CTH_WARN("  Unsupported raw audio sample rate %d.\n", pcmFormat.sampleRate);
+        return 1;
+    }
+    if ((pcmFormat.channels < 1) || (pcmFormat.channels > 2)) {
+        CTH_WARN("  Unsupported raw audio channel count %d.\n", pcmFormat.channels);
+        return 1;
+    }
+    if ((pcmFormat.sampleFormat < SF_u8) || (pcmFormat.sampleFormat > SF_s16_be)) {
+        CTH_WARN("  Unsupported raw audio format %d.\n", pcmFormat.sampleFormat);
+        return 1;
+    }
+    if (pcmFormat.bytesPerSample() <= 0) {
+        CTH_WARN("  Unsupported raw audio format %d.\n", pcmFormat.sampleFormat);
+        return 1;
+    }
+
+    CTH_TRACE("format rate=%d channels=%d sample-format=%d\n", "raw pcm source",
+        pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
+    return 0;
+}
+
+int RawFilePcmSource::read(char* dst, int rawSize, int samplesRequested) {
+    if ((file == NULL) || error)
+        return 0;
+
+    int bytesPerSample = pcmFormat.bytesPerSample();
+    int maxSamples = (bytesPerSample > 0) ? rawSize / bytesPerSample : 0;
+    int samples = min(samplesRequested, maxSamples);
+    if (samples <= 0)
+        return 0;
+
+    int wanted = pcmBytesForSamples(samples, bytesPerSample);
+    int readBytes = fread(dst, 1, wanted, file);
+    readBytes -= readBytes % bytesPerSample;
+
+    return readBytes / bytesPerSample;
+}
+
+int RawFilePcmSource::canFinish() const { return 1; }
+
+void RawFilePcmSource::rewind() {
+    CTH_TRACE("rewind `%s'\n", "raw pcm source", name);
+    if ((file == NULL) || error)
+        return;
+
+    clearerr(file);
+    if (fseek(file, 0, SEEK_SET) != 0)
+        CTH_TRACE("rewind failed for `%s' errno=%d\n", "raw pcm source", name, errno);
+}
+
 RandomNoisePcmSource::RandomNoisePcmSource()
     : PcmSource()
     , v1(0)
@@ -2529,15 +2641,15 @@ void DspPcmSource::setFormat() {
 }
 
 void DspPcmSource::init() {
-    CTH_DEBUG("  setting %s for reading...\n", SoundDeviceDSP::dev_dsp);
+    CTH_DEBUG("  setting %s for reading...\n", dev_dsp);
     CTH_TRACE("init method=%d sample-window=%d\n", "dsp pcm source", int(soundDSPMethod), sampleWindow);
 
     if (handle >= 0)
         close(handle);
     handle = -1;
 
-    if ((handle = open(SoundDeviceDSP::dev_dsp, O_RDONLY)) < 0) {
-        CTH_ERRNO(errno, "Can't open `%s' for reading.", SoundDeviceDSP::dev_dsp);
+    if ((handle = open(dev_dsp, O_RDONLY)) < 0) {
+        CTH_ERRNO(errno, "Can't open `%s' for reading.", dev_dsp);
         error = 1;
         return;
     }

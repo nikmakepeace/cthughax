@@ -4,7 +4,9 @@
 #include "translate.h"
 #include "information.h"
 #include "display.h"
-#include "Sound.h"
+#include "Audio.h"
+#include "AudioOptions.h"
+#include "Mixer.h"
 #include "CDPlayer.h"
 #include "keys.h"
 #include "waves.h"
@@ -44,12 +46,10 @@ enum option_nr {
     opt_wave_scale,
     opt_position,
     opt_sound_method,
-    opt_sound_buffer,
     opt_sound_format,
     opt_dev_dsp,
     opt_dev_mixer,
     opt_dev_cd,
-    opt_fifo,
     opt_border,
     opt_test,
     opt_zoom,
@@ -63,7 +63,6 @@ enum option_nr {
     opt_no_silent,
     opt_dsp_sync,
     opt_no_dsp_sync,
-    opt_no_snd_buffer,
     opt_light,
     opt_no_light,
     opt_hints,
@@ -108,9 +107,8 @@ struct option long_options[] = {
 #endif
 
     // Play/exec options
-    { "fifo", 1, 0, opt_fifo }, { "snd-buffer", 1, 0, opt_sound_buffer },
-    { "no-snd-buffer", 0, 0, opt_no_snd_buffer }, { "loop", 0, &soundPlayLoop, 1 },
-    { "no-loop", 0, &soundPlayLoop, 0 },
+    { "loop", 0, &audioInputLoop, 1 },
+    { "no-loop", 0, &audioInputLoop, 0 },
 
 // CD options
 #if WITH_CDROM == 1
@@ -367,7 +365,7 @@ int do_param(int c, int value, char* str) {
 #endif
 
     case 'x': /* debug mode */
-        soundDeviceNr.setValue(SDN_Random);
+        audioInputMode.setValue(AIM_Random);
         break;
 
 
@@ -483,8 +481,13 @@ int do_param(int c, int value, char* str) {
         break;
 
     case opt_play:
-        strncpy(SoundDeviceFile::name, str, PATH_MAX);
-        soundDeviceNr.setValue(SDN_File);
+        if (str != NULL) {
+            strncpy(audio_input_file, str, PATH_MAX);
+            audio_input_file[PATH_MAX - 1] = '\0';
+        } else {
+            audio_input_file[0] = '\0';
+        }
+        audioInputMode.setValue(AIM_File);
         break;
 
     case opt_silent:
@@ -495,7 +498,8 @@ int do_param(int c, int value, char* str) {
         break;
 
     case opt_dev_dsp:
-        strncpy(SoundDeviceDSP::dev_dsp, str, PATH_MAX);
+        strncpy(dev_dsp, str, PATH_MAX);
+        dev_dsp[PATH_MAX - 1] = '\0';
         break;
 
 #if WITH_DSP == 1
@@ -518,10 +522,6 @@ int do_param(int c, int value, char* str) {
         strncpy(dev_mixer, str, PATH_MAX);
         break;
 #endif
-    case opt_fifo:
-        strncpy(SoundDeviceFile::fifo, str, PATH_MAX);
-        break;
-
     case opt_snd_fragments:
         soundDSPFragments.change(str);
         break;
@@ -540,14 +540,6 @@ int do_param(int c, int value, char* str) {
 
     case opt_sound_method:
         soundDSPMethod.change(str);
-        break;
-
-    case opt_sound_buffer:
-        soundBuffer.change(str);
-        break;
-
-    case opt_no_snd_buffer:
-        soundBuffer.setValue(0);
         break;
 
 #ifdef CTH_GL

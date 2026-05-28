@@ -58,7 +58,3 @@
 #define PACKAGE_NAME "@PROJECT_NAME@"
 #define PACKAGE_VERSION "@PROJECT_VERSION@"
 #define VERSION "@PROJECT_VERSION@"
-
-/* The old forked helper playback path is kept compiled, but modern decoding uses minimp3. */
-#define MP3_PLAYER 0
-#define MOD_PLAYER 0

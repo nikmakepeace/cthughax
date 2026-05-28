@@ -98,17 +98,6 @@ AC_ARG_WITH(mixer,
 esac],
 [with_mixer=1 dev_mixer="/dev/mixer"])
 
-dnl which MP3 player to use
-AC_ARG_WITH(mpg123,
-[  --without-mpg123        do not use 'mpg123' - use 'l3dec' instead],
-[case "${withval}" in
- yes) with_mpg123=1 ;;
-  no) with_mpg123=0 ;;
-   *) AC_MSG_ERROR(bad value ${enableval} for --without-mpg123) ;;
-esac],
-[with_mpg123=1])
-
-
 dnl enable special architecture optimization
 AC_ARG_WITH(arch,
 [  --with-arch=ARCH        set special architecture for compiler (-march=ARCH for pgcc)],
@@ -229,7 +218,7 @@ AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MMAP
 AC_TYPE_SIGNAL
 AC_FUNC_VPRINTF
-AC_CHECK_FUNCS(gethostname gettimeofday mkfifo select strerror strstr strtol)
+AC_CHECK_FUNCS(gethostname gettimeofday select strerror strstr strtol)
 
 dnl Checks for svgalib and turn of svgalib version if libraries not found
 if test x$svga = x1; then
@@ -327,29 +316,6 @@ if test x$gl = x1; then
 fi
 
 
-#
-# check of players
-#
-if test x${with_mpg123} = x1; then
-	AC_PATH_PROG(MP3_mpg123, mpg123)
-fi
-if test x${MP3_mpg123} != x; then
-	AC_DEFINE_UNQUOTED([MP3_PLAYER], [1], [mp3 player])
-	AC_DEFINE_UNQUOTED([MP3_PATH],   ["${MP3_mpg123}"], [mp3 path])
-else
-	AC_PATH_PROG(MP3_l3dec, l3dec)
-	if test x${MP3_l3dec} != x; then
-		AC_DEFINE_UNQUOTED([MP3_PLAYER], [2], [mps player])
-		AC_DEFINE_UNQUOTED([MP3_PATH],   ["${MP3_l3dec}"], [mp3 path])
-	fi
-fi
-
-AC_PATH_PROG(MOD_xmp, xmp)
-if test x${MOD_xmp} != x; then
-	AC_DEFINE_UNQUOTED([MOD_PLAYER], [1], [mod player])
-	AC_DEFINE_UNQUOTED([MOD_PATH],   ["${MOD_xmp}"], [mod path])
-fi
-
 AC_CHECK_PROG([HAVE_MAKEINFO], [makeinfo], [yes], [no])
 AM_CONDITIONAL([BUILD_DOCS], [test x$HAVE_MAKEINFO = xyes])
 
@@ -425,18 +391,4 @@ if test x$with_mixer = x1; then
 	echo "Mixer device   : ${dev_mixer}"
 else
 	echo "Mixer device   : disabled"
-fi
-
-if test x${MP3_mpg123} != x; then
-	echo "MP3 player     : mpg123"
-elif test x${MP3_l3dec} != x; then
-	echo "MP3 player     : l3dec"
-else
-	echo "MP3 player     : none"
-fi
-
-if test x${MOD_xmp} != x; then
-	echo "MOD player     : xmp"
-else
-	echo "MOD player     : none"
 fi

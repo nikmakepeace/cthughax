@@ -6,7 +6,6 @@
 #include "cthugha.h"
 #include <X11/Intrinsic.h>
 #include <X11/extensions/XShm.h>
-#include "SoundDevice.h"
 
 extern Display* xcth_display;
 

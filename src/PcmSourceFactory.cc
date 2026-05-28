@@ -45,14 +45,14 @@ const char* PcmSourceFactory::strategyName(AudioSourceStrategy strategy) {
 AudioSourceStrategy PcmSourceFactory::selectAudioSourceStrategy(const Settings& settings) const {
     AudioSourceStrategy strategy;
 
-    switch (settings.soundDeviceNumber) {
-    case SDN_DSPIn:
+    switch (settings.audioInputMode) {
+    case AIM_DSPIn:
         strategy = ASS_LineIn;
         break;
-    case SDN_Random:
+    case AIM_Random:
         strategy = ASS_Random;
         break;
-    case SDN_File:
+    case AIM_File:
         if (filenameEndsWith(settings.fileName, ".wav"))
             strategy = ASS_WavFile;
         else if (filenameEndsWith(settings.fileName, ".mp3"))
@@ -67,8 +67,8 @@ AudioSourceStrategy PcmSourceFactory::selectAudioSourceStrategy(const Settings& 
         break;
     }
 
-    CTH_TRACE("selected strategy=%s sound-device-number=%d file=`%s'\n", "pcm source factory",
-        strategyName(strategy), settings.soundDeviceNumber, settings.fileName);
+    CTH_TRACE("selected strategy=%s audio-input-mode=%d file=`%s'\n", "pcm source factory",
+        strategyName(strategy), settings.audioInputMode, settings.fileName);
     return strategy;
 }
 
@@ -99,6 +99,11 @@ PcmSource* PcmSourceFactory::create(const Settings& settings) const {
             settings.fileName);
         return NULL;
 #endif
+
+    case ASS_RawFile:
+        CTH_TRACE("creating RawFilePcmSource file=`%s'\n", "pcm source factory",
+            settings.fileName);
+        return new RawFilePcmSource(settings.fileName);
 
     default:
         CTH_TRACE("no PCM source for strategy=%s\n", "pcm source factory",

@@ -5,7 +5,6 @@
 #include "disp-sys.h"
 #include "imath.h"
 #include "xcthugha.h"
-#include "Sound.h"
 #include "keys.h"
 #include "CthughaBuffer.h"
 #include "Interface.h"
