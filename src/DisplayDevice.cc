@@ -50,7 +50,8 @@ int DisplayDevice::setGlobalPalette() {
 }
 
 DisplayDevice::DisplayDevice()
-    : darkenPalette(0)
+    : textOnScreen(0)
+    , darkenPalette(0)
     , needsFullCopy(1) { }
 DisplayDevice::~DisplayDevice() { }
 

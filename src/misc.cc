@@ -59,7 +59,11 @@ static int vprintfv(int lvl, const char* fmt, va_list ap) {
 #else
         printf(fmt_r);
 #endif
-        fflush(stdout);
+        // Trace/debug logging can be extremely hot and may run from audio
+        // callbacks. Flushing each line makes diagnostics perturb frame and
+        // audio timing, especially when stdout is captured by a debugger.
+        if (lvl <= CTH_LOG_INFO)
+            fflush(stdout);
     }
     return 0;
 }

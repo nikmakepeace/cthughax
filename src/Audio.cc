@@ -706,7 +706,6 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
     pa_stream* pulseStream = (pa_stream*)stream;
     int bytesPerSampleValue = callbackBuffer->bytesPerSample();
     int writes = 0;
-    size_t remainingRequest = requestedBytes;
 
     if (bytesPerSampleValue <= 0)
         return 0;
@@ -724,25 +723,21 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
         if (queuedSamples <= 0)
             break;
 
-        size_t writableBytes = pa_stream_writable_size(pulseStream);
-        if (writableBytes == (size_t)-1) {
+        // A delayed write callback may request only minreq bytes even though
+        // the stream has much more room. Fill the actual writable space so the
+        // server buffer can catch up after stalls.
+        size_t streamWritableBytes = pa_stream_writable_size(pulseStream);
+        if (streamWritableBytes == (size_t)-1) {
             CTH_ERROR("Pulse passthrough writable query failed on server `%s': %s\n",
                 pulse_server_display_name(),
                 pa_strerror(pa_context_errno((pa_context*)context)));
             break;
         }
 
-        if (remainingRequest != (size_t)-1) {
-            if (remainingRequest == 0)
-                break;
-            if (writableBytes > remainingRequest)
-                writableBytes = remainingRequest;
-        }
-
-        if (writableBytes == 0)
+        if (streamWritableBytes == 0)
             break;
 
-        int writableSamples = (int)(writableBytes / (size_t)bytesPerSampleValue);
+        int writableSamples = (int)(streamWritableBytes / (size_t)bytesPerSampleValue);
         int samplesWanted = queuedSamples;
         if (samplesWanted > callbackScratchSamples)
             samplesWanted = callbackScratchSamples;
@@ -774,18 +769,12 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
             callbackBuffer->submittedEndPosition());
         CTH_TRACE("pulse callback drained samples=%d bytes=%d written=%d committed-samples=%d committed-bytes=%d writable-bytes=%lu requested-bytes=%lu queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld input-finished=%d\n",
             "audio runtime", samples, bytes, written, committedSamples, committedBytes,
-            (unsigned long)writableBytes,
+            (unsigned long)streamWritableBytes,
             (unsigned long)requestedBytes, callbackBuffer->queuedForOutputSamples(),
             startSample, callbackBuffer->submittedEndPosition(),
             callbackInputFinished ? callbackInputFinished->load() : 0);
 
         writes++;
-
-        if (remainingRequest != (size_t)-1) {
-            if ((size_t)written >= remainingRequest)
-                break;
-            remainingRequest -= (size_t)written;
-        }
         if (written < bytes)
             break;
     }
@@ -886,13 +875,13 @@ void AudioPulseOutput::pulseUnderflow() {
     int underflows = audioPulseUnderflowCount.fetch_add(1) + 1;
     int previous = lastReportedUnderflows.exchange(underflows);
 
-    if (underflows != previous)
-        CTH_WARN("Pulse output underrun on server `%s' (count=%d).\n",
-            pulse_server_display_name(), underflows);
-
     drainUnlocked((size_t)-1);
     if (mainloop != NULL)
         pa_threaded_mainloop_signal((pa_threaded_mainloop*)mainloop, 0);
+
+    if (underflows != previous)
+        CTH_WARN("Pulse output underrun on server `%s' (count=%d).\n",
+            pulse_server_display_name(), underflows);
 }
 
 int AudioPulseOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,

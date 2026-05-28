@@ -301,6 +301,10 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
 }
 
 void CthughaDisplayX11::operator()() {
+    int traceDisplayTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
+    double displayTiming[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+    if (traceDisplayTiming)
+        displayTiming[0] = getTime();
 
     /*
      * Sync the palette before indexed pixels are expanded or copied. Waiting
@@ -308,12 +312,16 @@ void CthughaDisplayX11::operator()() {
      * through stale bitmap colors.
      */
     displayDevice->setGlobalPalette();
+    if (traceDisplayTiming)
+        displayTiming[1] = getTime();
 
     /*
      * prepare the display device
      */
     unsigned char* display_base = displayDevice->preDraw();
     prepareExpandedBuffer();
+    if (traceDisplayTiming)
+        displayTiming[2] = getTime();
 
     /*
      * Choose the buffer that screen() should draw into.  Direct mode draws
@@ -350,6 +358,8 @@ void CthughaDisplayX11::operator()() {
      */
     while (screen())
         ; /* draw the buffer */
+    if (traceDisplayTiming)
+        displayTiming[3] = getTime();
 
     const xy& s = ((ScreenEntry*)screen.current())->size;
 
@@ -365,12 +375,16 @@ void CthughaDisplayX11::operator()() {
      *  but maybe later a different palette for each quadrant)
      */
     expandPalette((s.y == 1) ? 1 : 0);
+    if (traceDisplayTiming)
+        displayTiming[4] = getTime();
 
     /*
      * do veritical mirroring, if necessary
      */
     if (s.y == 1)
         mirrorVertically();
+    if (traceDisplayTiming)
+        displayTiming[5] = getTime();
 
 #if 0
     expandPaletteMirrorHV();
@@ -385,6 +399,8 @@ void CthughaDisplayX11::operator()() {
      * copy (with zoom) the image to the display
      */
     zoom2Screen(display_base + SCREEN_OFFSET, bytes_per_line);
+    if (traceDisplayTiming)
+        displayTiming[6] = getTime();
 
     /*
      * bring text to screen
@@ -393,9 +409,26 @@ void CthughaDisplayX11::operator()() {
     Interface::current->display(); // print the text of the current interface
     errors.display(); // and the error messages
     displayDevice->postPrint();
+    if (traceDisplayTiming)
+        displayTiming[7] = getTime();
 
     /*
      * make sure everything is really copied to the screen
      */
     displayDevice->postDraw();
+    if (traceDisplayTiming) {
+        displayTiming[8] = getTime();
+        CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f prepare-ms=%.3f screen-ms=%.3f expand-ms=%.3f mirror-v-ms=%.3f zoom-clear-ms=%.3f text-ms=%.3f post-ms=%.3f draw-mode=%d bypp=%d size=%dx%d draw=%dx%d\n",
+            "display timing",
+            (displayTiming[8] - displayTiming[0]) * 1000.0,
+            (displayTiming[1] - displayTiming[0]) * 1000.0,
+            (displayTiming[2] - displayTiming[1]) * 1000.0,
+            (displayTiming[3] - displayTiming[2]) * 1000.0,
+            (displayTiming[4] - displayTiming[3]) * 1000.0,
+            (displayTiming[5] - displayTiming[4]) * 1000.0,
+            (displayTiming[6] - displayTiming[5]) * 1000.0,
+            (displayTiming[7] - displayTiming[6]) * 1000.0,
+            (displayTiming[8] - displayTiming[7]) * 1000.0,
+            draw_mode, bypp, disp_size.x, disp_size.y, draw_size.x, draw_size.y);
+    }
 }

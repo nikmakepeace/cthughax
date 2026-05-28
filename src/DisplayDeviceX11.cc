@@ -227,7 +227,7 @@ void DisplayDeviceX11::CreateWindow(char* name, int full_screen) {
 
     mask = CWEventMask | CWCursor | CWBackPixel;
     attr.background_pixel = black_pixel;
-    attr.event_mask = KeyReleaseMask;
+    attr.event_mask = KeyReleaseMask | StructureNotifyMask | ExposureMask;
     attr.cursor = xcth_cursor();
 
     if (display_override_redirect) {
@@ -434,12 +434,23 @@ DisplayDeviceX11::~DisplayDeviceX11() {
 
 void DisplayDeviceX11::mainLoop() {
     while (cthugha_close == 0) {
+        int traceDisplayTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
+        double loopStart = traceDisplayTiming ? getTime() : 0.0;
+        double eventsStart = loopStart;
+        double eventsEnd = loopStart;
+        double runStart = 0.0;
+        double runEnd = 0.0;
+        int eventCount = 0;
+        int resizeEvents = 0;
+        int exposeEvents = 0;
+
         // Xt queues X events for both the raw display window and the optional
         // Athena-widget panel. Key releases are translated into Cthugha keys;
         // everything else is dispatched back through Xt.
         while (XtAppPending(xcth_app_con)) {
             XEvent event;
             XtAppNextEvent(xcth_app_con, &event);
+            eventCount++;
             if (event.type == KeyRelease) {
                 char key_buff[256];
                 int count;
@@ -455,18 +466,38 @@ void DisplayDeviceX11::mainLoop() {
 
                 keys_x11(key_buff, kevent->state);
 
+            } else if ((event.type == ConfigureNotify)
+                && (event.xconfigure.window == window)) {
+                resizeEvents++;
+                resizeDisplay(event.xconfigure.width, event.xconfigure.height);
+            } else if ((event.type == Expose) && (event.xexpose.window == window)) {
+                exposeEvents++;
+                if (cthughaDisplay != NULL)
+                    cthughaDisplay->needsClear = 1;
             } else {
                 XtDispatchEvent(&event);
             }
 
             Interface::current->run();
         }
-        XWindowAttributes wa;
-        XGetWindowAttributes(xcth_display, window, &wa);
-        resizeDisplay(wa.width, wa.height);
+        if (traceDisplayTiming)
+            eventsEnd = getTime();
 
+        if (traceDisplayTiming)
+            runStart = getTime();
         run(1);
+        if (traceDisplayTiming)
+            runEnd = getTime();
         Interface::current->run();
+        if (traceDisplayTiming) {
+            double loopEnd = getTime();
+            CTH_TRACE("mainloop-ms=%.3f events-ms=%.3f run-ms=%.3f interface-ms=%.3f events=%d resize-events=%d expose-events=%d\n",
+                "display timing", (loopEnd - loopStart) * 1000.0,
+                (eventsEnd - eventsStart) * 1000.0,
+                (runEnd - runStart) * 1000.0,
+                (loopEnd - runEnd) * 1000.0, eventCount, resizeEvents,
+                exposeEvents);
+        }
     }
 }
 
@@ -697,7 +728,8 @@ void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
     allocImage();
 
     // After resizing, the border around the image must be redrawn.
-    cthughaDisplay->needsClear = 1;
+    if (cthughaDisplay != NULL)
+        cthughaDisplay->needsClear = 1;
 }
 
 unsigned char* DisplayDeviceX11::preDraw() {
@@ -721,39 +753,78 @@ void DisplayDeviceX11::clearBox(int x, int y, int width, int height) {
     for (int i = 0; i < height; i++, dst += bytes_per_line)
         memset(dst, 0, bypp * width);
 }
+
 void DisplayDeviceX11::postDraw() {
+    int traceDisplayTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
+    double postStart = traceDisplayTiming ? getTime() : 0.0;
+    double paletteMs = 0.0;
+    double dumpMs = 0.0;
+    double previewMs = 0.0;
+    double putMs = 0.0;
+    double copyMs = 0.0;
+    int fullCopy = needsFullCopy;
+    int copyTextFrame = copyText ? 1 : 0;
+    double stepStart = 0.0;
 
+    if (traceDisplayTiming)
+        stepStart = getTime();
     this->setGlobalPalette();
-    dump_x11_frame(image);
+    if (traceDisplayTiming)
+        paletteMs = (getTime() - stepStart) * 1000.0;
 
+    if (traceDisplayTiming)
+        stepStart = getTime();
+    dump_x11_frame(image);
+    if (traceDisplayTiming)
+        dumpMs = (getTime() - stepStart) * 1000.0;
+
+    if (traceDisplayTiming)
+        stepStart = getTime();
     if (palettePreviewWidget)
         updatePalettePreview();
+    if (traceDisplayTiming)
+        previewMs = (getTime() - stepStart) * 1000.0;
 
     if (copyText) {
 
         if (panelTextWidget) {
             copyText--;
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XCopyArea(xcth_display, textPixmap, XtWindow(panelTextWidget), gc, 0, 0,
                 text_size.x * fontSize.x, text_size.y * fontSize.y, 0, 0);
+            if (traceDisplayTiming)
+                copyMs += (getTime() - stepStart) * 1000.0;
         } else {
             switch (shmLevel) {
             case shmPixmap:
+                if (traceDisplayTiming)
+                    stepStart = getTime();
                 XCopyArea(xcth_display, pixmap, window, gc, 0, 0,
                     disp_size.x, disp_size.y,
                     0, 0);
+                if (traceDisplayTiming)
+                    copyMs += (getTime() - stepStart) * 1000.0;
 
                 break;
             case shmImage:
             case shmNone:
+                if (traceDisplayTiming)
+                    stepStart = getTime();
                 XCopyArea(xcth_display, textPixmap, window, gc, 0, 0,
                     disp_size.x, disp_size.y,
                     0, 0);
+                if (traceDisplayTiming)
+                    copyMs += (getTime() - stepStart) * 1000.0;
             }
             {
                 double flushStart = getTime();
                 XFlush(xcth_display);
-                CTH_TRACE("xflush-ms=%.3f copy-text=1\n", "display timing",
-                    (getTime() - flushStart) * 1000.0);
+                double flushMs = (getTime() - flushStart) * 1000.0;
+                CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=1 full-copy=%d shm-level=%d draw=%dx%d\n",
+                    "display timing", (getTime() - postStart) * 1000.0,
+                    paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs,
+                    fullCopy, shmLevel, draw_size.x, draw_size.y);
             }
             return;
         }
@@ -762,45 +833,82 @@ void DisplayDeviceX11::postDraw() {
     if (needsFullCopy)
         switch (shmLevel) {
         case shmPixmap:
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XCopyArea(xcth_display, pixmap, window, gc, 0, 0,
                 disp_size.x, disp_size.y,
                 0, 0);
+            if (traceDisplayTiming)
+                copyMs += (getTime() - stepStart) * 1000.0;
 
             break;
         case shmImage:
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XShmPutImage(xcth_display, window, gc, image, 0, 0, 0, 0, disp_size.x, disp_size.y, 0);
+            if (traceDisplayTiming)
+                putMs += (getTime() - stepStart) * 1000.0;
             break;
         case shmNone:
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XPutImage(xcth_display, pixmap, gc, image, 0, 0, 0, 0, disp_size.x, disp_size.y);
+            if (traceDisplayTiming)
+                putMs += (getTime() - stepStart) * 1000.0;
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XCopyArea(xcth_display, pixmap, window, gc, 0, 0,
                 disp_size.x, disp_size.y,
                 0, 0);
+            if (traceDisplayTiming)
+                copyMs += (getTime() - stepStart) * 1000.0;
+            break;
         }
     else
         switch (shmLevel) {
         case shmPixmap:
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XCopyArea(xcth_display, pixmap, window, gc, SCREEN_OFFSET_X,
                 SCREEN_OFFSET_Y,
                 draw_size.x, draw_size.y,
                 SCREEN_OFFSET_X,
                 SCREEN_OFFSET_Y);
+            if (traceDisplayTiming)
+                copyMs += (getTime() - stepStart) * 1000.0;
             break;
         case shmImage:
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XShmPutImage(xcth_display, window, gc, image, SCREEN_OFFSET_X, SCREEN_OFFSET_Y,
                 SCREEN_OFFSET_X, SCREEN_OFFSET_Y, draw_size.x, draw_size.y, 0);
+            if (traceDisplayTiming)
+                putMs += (getTime() - stepStart) * 1000.0;
             break;
         case shmNone:
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XPutImage(xcth_display, pixmap, gc, image, SCREEN_OFFSET_X, SCREEN_OFFSET_Y,
                 SCREEN_OFFSET_X, SCREEN_OFFSET_Y, draw_size.x, draw_size.y);
+            if (traceDisplayTiming)
+                putMs += (getTime() - stepStart) * 1000.0;
+            if (traceDisplayTiming)
+                stepStart = getTime();
             XCopyArea(xcth_display, pixmap, window, gc, SCREEN_OFFSET_X, SCREEN_OFFSET_Y,
                 draw_size.x, draw_size.y,
                 SCREEN_OFFSET_X, SCREEN_OFFSET_Y);
+            if (traceDisplayTiming)
+                copyMs += (getTime() - stepStart) * 1000.0;
+            break;
         }
 
     double flushStart = getTime();
     XFlush(xcth_display);
-    CTH_TRACE("xflush-ms=%.3f full-copy=%d shm-level=%d draw=%dx%d\n", "display timing",
-        (getTime() - flushStart) * 1000.0, needsFullCopy, shmLevel, draw_size.x, draw_size.y);
+    double flushMs = (getTime() - flushStart) * 1000.0;
+    CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=%d full-copy=%d shm-level=%d draw=%dx%d\n",
+        "display timing", (getTime() - postStart) * 1000.0,
+        paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs, copyTextFrame,
+        fullCopy, shmLevel, draw_size.x, draw_size.y);
     needsFullCopy = 0;
 }
 
