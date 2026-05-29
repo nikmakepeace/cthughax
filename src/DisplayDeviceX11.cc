@@ -927,9 +927,9 @@ void DisplayDeviceX11::initPalette() {
         blue_mask = visual->blue_mask;
         blue_shift = ffs(blue_mask & ~(blue_mask >> 1)) - 8;
 
-        CTH_TRACE("red   mask/shift   : 0x%4x/%d\n", "x11 display", red_mask, red_shift);
-        CTH_TRACE("green mask/shift   : 0x%4x/%d\n", "x11 display", green_mask, green_shift);
-        CTH_TRACE("blue  mask/shift   : 0x%4x/%d\n", "x11 display", blue_mask, blue_shift);
+        CTH_DEBUG("    red   mask/shift   : 0x%4x/%d\n", red_mask, red_shift);
+        CTH_DEBUG("    green mask/shift   : 0x%4x/%d\n", green_mask, green_shift);
+        CTH_DEBUG("    blue  mask/shift   : 0x%4x/%d\n", blue_mask, blue_shift);
 
         switch (bypp) {
         case 1:

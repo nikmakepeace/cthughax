@@ -34,14 +34,14 @@ VisualPipeline* VisualPipelineFactory::create(const VisualPipelineSequence& sequ
         pipeline->add(VisualPipelineSequence::FlashlightStage, flashlightModule, 1);
     }
 
-    CTH_TRACE("created pipeline=%p stages=%d modules=%d\n", "visual pipeline factory",
+    CTH_DEBUG("visual pipeline factory: created pipeline=%p stages=%d modules=%d\n",
         pipeline, int(sequence.sequence().size()), pipeline->size());
     return pipeline;
 }
 
 void VisualPipelineFactory::refresh(VisualPipeline& pipeline,
     const VisualPipelineSequence& sequence) const {
-    CTH_TRACE("refreshing pipeline=%p stages=%d modules=%d\n", "visual pipeline factory",
+    CTH_DEBUG("visual pipeline factory: refreshing pipeline=%p stages=%d modules=%d\n",
         &pipeline, int(sequence.sequence().size()), pipeline.size());
     pipeline.refresh();
 }

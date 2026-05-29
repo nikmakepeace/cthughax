@@ -95,7 +95,7 @@ int CDPlayer::openCD() {
     if (handle != -1) // already open
         return 0;
 
-    CTH_TRACE("Opening CD device `%s'.\n", "cd player", dev_cd);
+    CTH_DEBUG("Opening CD device `%s'.\n", dev_cd);
 
     // open device
     if ((handle = open(dev_cd, O_RDONLY)) == -1) {
@@ -180,7 +180,7 @@ int CDPlayer::readTOC() {
     for (int i = 0; (i < last) && (traceLen < int(sizeof(traceLine))); i++)
         traceLen += snprintf(traceLine + traceLen, sizeof(traceLine) - traceLen,
             " %d", nextList[i]);
-    CTH_TRACE("%s\n", "cd player", traceLine);
+    CTH_DEBUG("%s\n", traceLine);
 
     return 0;
 }

@@ -93,8 +93,8 @@ void AudioOutput::configureTiming(int samplesPerSecond, int bytesPerSample, int 
     if (outputTargetDelaySamples < 1)
         outputTargetDelaySamples = outputScratchSamples;
 
-    CTH_TRACE("configured timing realtime=%d samples-per-second=%d bytes-per-sample=%d input-chunk-samples=%d target-buffer-ms=%d target-buffer-samples=%d scratch-samples=%d\n",
-        "audio output", isRealtime(), outputSamplesPerSecond, outputBytesPerSample,
+    CTH_DEBUG("audio output: configured timing realtime=%d samples-per-second=%d bytes-per-sample=%d input-chunk-samples=%d target-buffer-ms=%d target-buffer-samples=%d scratch-samples=%d\n",
+        isRealtime(), outputSamplesPerSecond, outputBytesPerSample,
         inputChunkSamples, targetLatencyMs, outputTargetDelaySamples, outputScratchSamples);
 }
 
@@ -609,8 +609,8 @@ void AudioPulseOutput::update() {
         actualPrebuf, audioPulseBytesToMs(actualPrebuf, bytesPerSecondValue),
         actualMinRequest, audioPulseBytesToMs(actualMinRequest, bytesPerSecondValue),
         actualMax, audioPulseBytesToMs(actualMax, bytesPerSecondValue));
-    CTH_TRACE("opened threaded server=`%s' rate=%d channels=%d format=%d bytes-per-second=%d target-bytes=%u prebuffer-bytes=%u min-request-bytes=%u max-bytes=%u target-ms=%d prebuffer-ms=%d min-request-ms=%d max-ms=%d configured-latency-ms=%d\n",
-        "audio pulse output", pulse_server_display_name(), sampleSpec.rate,
+    CTH_DEBUG("    audio output strategy: opened threaded server=`%s' rate=%d channels=%d format=%d bytes-per-second=%d target-bytes=%u prebuffer-bytes=%u min-request-bytes=%u max-bytes=%u target-ms=%d prebuffer-ms=%d min-request-ms=%d max-ms=%d configured-latency-ms=%d\n",
+        pulse_server_display_name(), sampleSpec.rate,
         sampleSpec.channels, sampleSpec.format, bytesPerSecondValue, actualTarget,
         actualPrebuf, actualMinRequest, actualMax,
         audioPulseBytesToMs(actualTarget, bytesPerSecondValue),
@@ -815,8 +815,8 @@ void AudioPulseOutput::startCallbackDrain(AudioBuffer& buffer,
 
     delete[] oldScratch;
 
-    CTH_TRACE("pulse callback drain started scratch-samples=%d target-buffer-samples=%d queued-samples=%d input-finished=%d\n",
-        "audio runtime", samples, targetDelaySamples(), buffer.queuedForOutputSamples(),
+    CTH_DEBUG("audio runtime: pulse callback drain started scratch-samples=%d target-buffer-samples=%d queued-samples=%d input-finished=%d\n",
+        samples, targetDelaySamples(), buffer.queuedForOutputSamples(),
         inputFinished ? inputFinished->load() : 0);
 }
 
@@ -1089,7 +1089,7 @@ void AudioDSPOutput::setFormat() {
         if (ioctl(handle, SNDCTL_DSP_SETFMT, &sound_format) < 0)
             CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_SETFMT failed.");
     }
-    CTH_TRACE("set sound format requested=%d returned=%d\n", "audio dsp output",
+    CTH_DEBUG("audio dsp output: set sound format requested=%d returned=%d\n",
         requested_sound_format, sound_format);
 
     switch (sound_format) {
@@ -1118,7 +1118,7 @@ void AudioDSPOutput::setFormat() {
 
 void AudioDSPOutput::init() {
     CTH_DEBUG("  setting %s for writing...\n", dev_dsp);
-    CTH_TRACE("init device=`%s' method=%d\n", "audio dsp output", dev_dsp,
+    CTH_DEBUG("audio dsp output: init device=`%s' method=%d\n", dev_dsp,
         method);
 
     if (handle >= 0)
@@ -1229,7 +1229,7 @@ AudioDSPOutput::AudioDSPOutput(int method_)
     : handle(-1)
     , method(method_) {
     CTH_DEBUG("    audio output strategy: OSS DSP unavailable because support is not compiled in\n");
-    CTH_TRACE("unavailable method=%d\n", "audio dsp output", method);
+    CTH_DEBUG("audio dsp output: unavailable method=%d\n", method);
 }
 
 AudioDSPOutput::~AudioDSPOutput() { }
@@ -1263,8 +1263,8 @@ AudioBuffer::AudioBuffer(int capacitySamples_, int bytesPerSample_, int protecte
     if (protectedHistorySamples > capacitySamples)
         protectedHistorySamples = capacitySamples;
     data = new char[pcmBytesForSamples(capacitySamples, bytesPerSampleValue)];
-    CTH_TRACE("created capacity-samples=%d bytes-per-sample=%d protected-history-samples=%d\n",
-        "audio buffer", capacitySamples, bytesPerSampleValue, protectedHistorySamples);
+    CTH_DEBUG("audio buffer: created capacity-samples=%d bytes-per-sample=%d protected-history-samples=%d\n",
+        capacitySamples, bytesPerSampleValue, protectedHistorySamples);
 }
 
 AudioBuffer::~AudioBuffer() {
@@ -1472,7 +1472,7 @@ void AudioFrameBuilder::setRawCapacity(int rawBytes) {
     delete[] rawData;
     rawCapacity = rawBytes;
     rawData = new char[rawCapacity];
-    CTH_TRACE("resized raw buffer to %d bytes\n", "audio frame builder", rawCapacity);
+    CTH_DEBUG("audio frame builder: resized raw buffer to %d bytes\n", rawCapacity);
 }
 
 void AudioFrameBuilder::build(AudioFrame& frame, const AudioBuffer& buffer, long long centerSample) {
@@ -1643,7 +1643,7 @@ AudioInput::AudioInput(PcmSource* source_, int takeOwnership)
     , sourceOwned(takeOwnership)
     , finished(0) {
     if ((source == NULL) || source->hasError()) {
-        CTH_TRACE("source construction failed\n", "audio input");
+        CTH_DEBUG("audio input: source construction failed\n");
         error = 1;
         return;
     }
@@ -1660,7 +1660,7 @@ AudioInput::~AudioInput() {
 void AudioInput::applyFormat() {
     const PcmFormat& format = source->format();
 
-    CTH_TRACE("applying format rate=%d channels=%d format=%d\n", "audio input",
+    CTH_DEBUG("audio input: applying format rate=%d channels=%d format=%d\n",
         format.sampleRate, format.channels, format.sampleFormat);
     soundSampleRate.setValue(format.sampleRate);
     soundChannels.setValue(format.channels);
@@ -1675,16 +1675,16 @@ int AudioInput::read(char* dst, int rawSize, int samplesRequested) {
 
     if ((samplesRead == 0) && source && source->canFinish()) {
         if (audioInputLoop) {
-            CTH_TRACE("source reached end; rewinding\n", "audio input");
+            CTH_DEBUG("audio input: source reached end; rewinding\n");
             source->rewind();
             applyFormat();
             samplesRead = source->read(dst, rawSize, samplesRequested);
             if (samplesRead == 0) {
-                CTH_TRACE("source remained empty after rewind\n", "audio input");
+                CTH_DEBUG("audio input: source remained empty after rewind\n");
                 finished = 1;
             }
         } else {
-            CTH_TRACE("source reached end\n", "audio input");
+            CTH_DEBUG("audio input: source reached end\n");
             finished = 1;
         }
     }
@@ -1735,7 +1735,7 @@ int WavPcmSource::open() {
         fclose0(file);
 
     CTH_INFO("Playing file '%s'.\n", name);
-    CTH_TRACE("opening `%s'\n", "wav pcm source", name);
+    CTH_DEBUG("wav pcm source: opening `%s'\n", name);
 
     file = fopen(name, "rb");
     if (file == NULL) {
@@ -1832,7 +1832,7 @@ int WavPcmSource::parseHeader() {
                 return 1;
             }
 
-            CTH_TRACE("format rate=%d channels=%d sample-format=%d\n", "wav pcm source",
+            CTH_DEBUG("wav pcm source: format rate=%d channels=%d sample-format=%d\n",
                 pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
 
             if (size > 16)
@@ -1850,7 +1850,7 @@ int WavPcmSource::parseHeader() {
             dataLength = size;
             dataRead = 0;
             foundData = 1;
-            CTH_TRACE("data-start=%ld data-length=%ld\n", "wav pcm source", dataStart, dataLength);
+            CTH_DEBUG("wav pcm source: data-start=%ld data-length=%ld\n", dataStart, dataLength);
         } else {
             fseek(file, size, SEEK_CUR);
             if (size & 1)
@@ -1897,7 +1897,7 @@ int WavPcmSource::read(char* dst, int rawSize, int samplesRequested) {
 int WavPcmSource::canFinish() const { return 1; }
 
 void WavPcmSource::rewind() {
-    CTH_TRACE("rewind `%s'\n", "wav pcm source", name);
+    CTH_DEBUG("wav pcm source: rewind `%s'\n", name);
     if ((file == NULL) || error)
         return;
 
@@ -1927,7 +1927,7 @@ Minimp3PcmSource::~Minimp3PcmSource() {
 int Minimp3PcmSource::open() {
 #if WITH_MINIMP3 == 1
     CTH_INFO("Playing file '%s'.\n", name);
-    CTH_TRACE("opening `%s'\n", "minimp3 pcm source", name);
+    CTH_DEBUG("minimp3 pcm source: opening `%s'\n", name);
 
     mp3dec_ex_t* dec = new mp3dec_ex_t;
     memset(dec, 0, sizeof(*dec));
@@ -1943,7 +1943,7 @@ int Minimp3PcmSource::open() {
     return applyFormat();
 #else
     CTH_WARN("  Embedded minimp3 decoder support is not compiled in.\n");
-    CTH_TRACE("open failed because WITH_MINIMP3=0 file=`%s'\n", "minimp3 pcm source", name);
+    CTH_DEBUG("minimp3 pcm source: open failed because WITH_MINIMP3=0 file=`%s'\n", name);
     return 1;
 #endif
 }
@@ -1968,7 +1968,7 @@ int Minimp3PcmSource::applyFormat() {
         return 1;
     }
 
-    CTH_TRACE("format rate=%d channels=%d sample-format=%d\n", "minimp3 pcm source",
+    CTH_DEBUG("minimp3 pcm source: format rate=%d channels=%d sample-format=%d\n",
         pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
     return 0;
 #else
@@ -2004,7 +2004,7 @@ int Minimp3PcmSource::read(char* dst, int rawSize, int samplesRequested) {
 int Minimp3PcmSource::canFinish() const { return 1; }
 
 void Minimp3PcmSource::rewind() {
-    CTH_TRACE("rewind `%s'\n", "minimp3 pcm source", name);
+    CTH_DEBUG("minimp3 pcm source: rewind `%s'\n", name);
 #if WITH_MINIMP3 == 1
     if ((decoder == NULL) || error)
         return;
@@ -2033,7 +2033,7 @@ int RawPcmSource::open() {
         fclose0(file);
 
     CTH_INFO("Playing raw PCM file '%s'.\n", name);
-    CTH_TRACE("opening `%s'\n", "raw pcm source", name);
+    CTH_DEBUG("raw pcm source: opening `%s'\n", name);
 
     file = fopen(name, "rb");
     if (file == NULL) {
@@ -2066,7 +2066,7 @@ int RawPcmSource::applyFormat() {
         return 1;
     }
 
-    CTH_TRACE("format rate=%d channels=%d sample-format=%d\n", "raw pcm source",
+    CTH_DEBUG("raw pcm source: format rate=%d channels=%d sample-format=%d\n",
         pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
     return 0;
 }
@@ -2091,13 +2091,13 @@ int RawPcmSource::read(char* dst, int rawSize, int samplesRequested) {
 int RawPcmSource::canFinish() const { return 1; }
 
 void RawPcmSource::rewind() {
-    CTH_TRACE("rewind `%s'\n", "raw pcm source", name);
+    CTH_DEBUG("raw pcm source: rewind `%s'\n", name);
     if ((file == NULL) || error)
         return;
 
     clearerr(file);
     if (fseek(file, 0, SEEK_SET) != 0)
-        CTH_TRACE("rewind failed for `%s' errno=%d\n", "raw pcm source", name, errno);
+        CTH_DEBUG("raw pcm source: rewind failed for `%s' errno=%d\n", name, errno);
 }
 
 RandomNoisePcmSource::RandomNoisePcmSource()
@@ -2108,7 +2108,7 @@ RandomNoisePcmSource::RandomNoisePcmSource()
     pcmFormat.sampleRate = int(soundSampleRate);
     pcmFormat.channels = 2;
     pcmFormat.sampleFormat = SF_u8;
-    CTH_TRACE("created rate=%d channels=%d format=%d\n", "random noise pcm source",
+    CTH_DEBUG("random noise pcm source: created rate=%d channels=%d format=%d\n",
         pcmFormat.sampleRate, pcmFormat.channels, pcmFormat.sampleFormat);
 }
 
@@ -2184,7 +2184,7 @@ void AudioInputProcessor::setTmpData() {
         requestedTmpSize = rawSize;
 
     if (tmpSize < requestedTmpSize) {
-        CTH_TRACE("resizing raw buffer from %d to %d bytes (frame=%d)\n", "audio processor",
+        CTH_DEBUG("audio processor: resizing raw buffer from %d to %d bytes (frame=%d)\n",
             tmpSize, requestedTmpSize, rawSize);
         delete[] tmpData;
         tmpSize = requestedTmpSize;
@@ -2375,7 +2375,7 @@ void DspPcmSource::setFormat() {
             CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_SETFMT failed.");
     }
 
-    CTH_TRACE("set sound format requested=%d returned=%d\n", "dsp pcm source",
+    CTH_DEBUG("dsp pcm source: set sound format requested=%d returned=%d\n",
         requested_sound_format, sound_format);
 
     switch (sound_format) {
@@ -2405,7 +2405,7 @@ void DspPcmSource::setFormat() {
 
 void DspPcmSource::init() {
     CTH_DEBUG("  setting %s for reading...\n", dev_dsp);
-    CTH_TRACE("init method=%d sample-window=%d\n", "dsp pcm source", int(soundDSPMethod), sampleWindow);
+    CTH_DEBUG("dsp pcm source: init method=%d sample-window=%d\n", int(soundDSPMethod), sampleWindow);
 
     if (handle >= 0)
         close(handle);

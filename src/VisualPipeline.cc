@@ -38,13 +38,13 @@ void VisualPipeline::add(unsigned int stage, VisualModule* module, int takeOwner
     if (module == 0)
         return;
     modules.push_back(Entry(stage, module, takeOwnership));
-    CTH_TRACE("added stage=%u module=%p owned=%d mode=%d size=%d\n",
-        "visual pipeline", stage, module, takeOwnership, int(VisualStageDisabled), size());
+    CTH_DEBUG("visual pipeline: added stage=%u module=%p owned=%d mode=%d size=%d\n",
+        stage, module, takeOwnership, int(VisualStageDisabled), size());
 }
 
 void VisualPipeline::setStageSequence(const std::vector<unsigned int>& stages) {
     sequence = stages;
-    CTH_TRACE("set sequence stages=%d\n", "visual pipeline", int(sequence.size()));
+    CTH_DEBUG("visual pipeline: set sequence stages=%d\n", int(sequence.size()));
 }
 
 int VisualPipeline::moveStageBefore(unsigned int stage, unsigned int beforeStage) {
@@ -61,7 +61,7 @@ int VisualPipeline::moveStageBefore(unsigned int stage, unsigned int beforeStage
     beforeIndex = findStageIndex(sequence, beforeStage);
     sequence.insert(sequence.begin() + beforeIndex, movingStage);
 
-    CTH_TRACE("moved stage=%u before stage=%u\n", "visual pipeline",
+    CTH_DEBUG("visual pipeline: moved stage=%u before stage=%u\n",
         stage, beforeStage);
     return 1;
 }
@@ -80,7 +80,7 @@ int VisualPipeline::moveStageAfter(unsigned int stage, unsigned int afterStage) 
     afterIndex = findStageIndex(sequence, afterStage);
     sequence.insert(sequence.begin() + afterIndex + 1, movingStage);
 
-    CTH_TRACE("moved stage=%u after stage=%u\n", "visual pipeline",
+    CTH_DEBUG("visual pipeline: moved stage=%u after stage=%u\n",
         stage, afterStage);
     return 1;
 }

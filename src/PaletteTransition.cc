@@ -212,7 +212,7 @@ void PaletteTransition::achieve(const ColorPalette& target, int frameBudget,
     remainingFramesValue = (frameBudget > 0) ? frameBudget : 0;
     hasTargetValue = 1;
 
-    CTH_TRACE("palette transition target set strategy=%s frames=%d\n", "palette",
+    CTH_DEBUG("palette transition target set strategy=%s frames=%d\n",
         strategyValue->name(), remainingFramesValue);
 }
 

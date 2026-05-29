@@ -9,14 +9,14 @@
 
 AudioVisualBridge::AudioVisualBridge()
     : pipelineRefreshRequestedValue(0) {
-    CTH_TRACE("creating bridge\n", "audio visual bridge");
+    CTH_DEBUG("audio visual bridge: creating bridge\n");
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
     autoChanger = new AutoChanger;
 #endif
 }
 
 AudioVisualBridge::~AudioVisualBridge() {
-    CTH_TRACE("destroying bridge\n", "audio visual bridge");
+    CTH_DEBUG("audio visual bridge: destroying bridge\n");
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
     delete autoChanger;
     autoChanger = 0;

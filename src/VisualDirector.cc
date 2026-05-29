@@ -71,7 +71,7 @@ VisualPipelineSequence VisualDirector::defaultPipelineSequence() const {
     sequence.append(VisualPipelineSequence::PaletteStage);
     sequence.append(VisualPipelineSequence::FlashlightStage);
 
-    CTH_TRACE("default stage sequence stages=%d\n", "visual director",
+    CTH_DEBUG("visual director: default stage sequence stages=%d\n",
         int(sequence.sequence().size()));
     return sequence;
 }

@@ -21,7 +21,7 @@ Environment Environment::detect() {
     environment.pulseOutputAvailable = 1;
 #endif
 
-    CTH_TRACE("dev-dsp=`%s' oss-input=%d oss-output=%d pulse-output=%d\n", "runtime environment",
+    CTH_DEBUG("runtime environment: dev-dsp=`%s' oss-input=%d oss-output=%d pulse-output=%d\n",
         dev_dsp, environment.ossInputAvailable, environment.ossOutputAvailable,
         environment.pulseOutputAvailable);
 
@@ -31,7 +31,7 @@ Environment Environment::detect() {
 RuntimeFactory::RuntimeFactory(const Settings& settings_, const Environment& environment_)
     : settings(settings_)
     , environment(environment_) {
-    CTH_TRACE("created with audio-input-mode=%d sound-dsp-method=%d silent=%d oss-input=%d oss-output=%d pulse-output=%d\n", "runtime factory",
+    CTH_DEBUG("runtime factory: created with audio-input-mode=%d sound-dsp-method=%d silent=%d oss-input=%d oss-output=%d pulse-output=%d\n",
         settings.audioInputMode, settings.soundDSPMethod, settings.silent,
         environment.ossInputAvailable, environment.ossOutputAvailable,
         environment.pulseOutputAvailable);
@@ -44,7 +44,7 @@ AudioSourceStrategy RuntimeFactory::selectAudioSourceStrategy() const {
 AudioInput* RuntimeFactory::createAudioInput() const {
     AudioSourceStrategy sourceStrategy = selectAudioSourceStrategy();
 
-    CTH_TRACE("selecting AudioInput for audio-input-mode=%d\n", "runtime factory",
+    CTH_DEBUG("    audio input strategy: selecting AudioInput for audio-input-mode=%d\n",
         settings.audioInputMode);
 
     switch (settings.audioInputMode) {
@@ -62,14 +62,14 @@ AudioInput* RuntimeFactory::createAudioInput() const {
     default:
         CTH_DEBUG("    audio input strategy: none, because requested device %d is illegal\n",
             settings.audioInputMode);
-        CTH_TRACE("illegal native AudioInput request %d\n", "runtime factory",
+        CTH_DEBUG("    audio input strategy: illegal native AudioInput request %d\n",
             settings.audioInputMode);
         return NULL;
     }
 
     PcmSource* source = pcmSourceFactory.create(settings);
     if (source != NULL) {
-        CTH_TRACE("selected AudioInput with source strategy=%s\n", "runtime factory",
+        CTH_DEBUG("    audio input strategy: selected AudioInput with source strategy=%s\n",
             PcmSourceFactory::strategyName(sourceStrategy));
         return new AudioInput(source);
     }
@@ -80,18 +80,18 @@ AudioInput* RuntimeFactory::createAudioInput() const {
         CTH_DEBUG("    audio input strategy: no native PCM source for %s source\n",
             PcmSourceFactory::strategyName(sourceStrategy));
     }
-    CTH_TRACE("no native AudioInput for source strategy=%s\n", "runtime factory",
+    CTH_DEBUG("    audio input strategy: no native AudioInput for source strategy=%s\n",
         PcmSourceFactory::strategyName(sourceStrategy));
     return NULL;
 }
 
 AudioOutput* RuntimeFactory::createAudioOutput() const {
-    CTH_TRACE("selecting AudioOutput silent=%d pulse-output=%d oss-output=%d\n", "runtime factory",
+    CTH_DEBUG("    audio output strategy: selecting AudioOutput silent=%d pulse-output=%d oss-output=%d\n",
         settings.silent, environment.pulseOutputAvailable, environment.ossOutputAvailable);
 
     if (settings.silent) {
         CTH_DEBUG("    audio output strategy: null output, because playback is silent\n");
-        CTH_TRACE("selected AudioNullOutput\n", "runtime factory");
+        CTH_DEBUG("    audio output strategy: selected AudioNullOutput\n");
         return new AudioNullOutput();
     }
 
@@ -101,7 +101,7 @@ AudioOutput* RuntimeFactory::createAudioOutput() const {
         AudioPulseOutput* pulse = new AudioPulseOutput();
         if (pulse->isOpen()) {
             CTH_DEBUG("    audio output strategy: selected Pulse output\n");
-            CTH_TRACE("selected AudioPulseOutput server=`%s'\n", "runtime factory",
+            CTH_DEBUG("    audio output strategy: selected AudioPulseOutput server=`%s'\n",
                 pulse_server_display_name());
             return pulse;
         }
@@ -115,7 +115,7 @@ AudioOutput* RuntimeFactory::createAudioOutput() const {
             settings.soundDSPMethod);
         AudioDSPOutput* dsp = new AudioDSPOutput(settings.soundDSPMethod);
         if (dsp->isOpen()) {
-            CTH_TRACE("selected AudioDSPOutput method=%d\n", "runtime factory",
+            CTH_DEBUG("    audio output strategy: selected AudioDSPOutput method=%d\n",
                 settings.soundDSPMethod);
             return dsp;
         }
@@ -125,28 +125,28 @@ AudioOutput* RuntimeFactory::createAudioOutput() const {
     }
 
     CTH_DEBUG("    audio output strategy: null output, because no real output opened\n");
-    CTH_TRACE("selected AudioNullOutput fallback\n", "runtime factory");
+    CTH_DEBUG("    audio output strategy: selected AudioNullOutput fallback\n");
     return new AudioNullOutput();
 }
 
 AudioInputProcessor* RuntimeFactory::createAudioProcessor() const {
-    CTH_TRACE("creating AudioInputProcessor\n", "runtime factory");
+    CTH_DEBUG("    audio input strategy: creating AudioInputProcessor\n");
     AudioInput* input = createAudioInput();
     if (input == NULL) {
         if (settings.audioInputMode == AIM_DSPIn) {
             CTH_WARN("Can not use requested sound input. Using random noise.\n");
-            CTH_TRACE("falling back to RandomNoisePcmSource after null input\n", "runtime factory");
+            CTH_DEBUG("    audio input strategy: falling back to RandomNoisePcmSource after null input\n");
             return new AudioInputProcessor(new AudioInput(new RandomNoisePcmSource()));
         }
         return NULL;
     }
 
     if (input->hasError()) {
-        CTH_TRACE("native AudioInput construction failed\n", "runtime factory");
+        CTH_DEBUG("    audio input strategy: native AudioInput construction failed\n");
         delete input;
         if (settings.audioInputMode == AIM_DSPIn) {
             CTH_WARN("Can not use requested sound input. Using random noise.\n");
-            CTH_TRACE("falling back to RandomNoisePcmSource after input error\n", "runtime factory");
+            CTH_DEBUG("    audio input strategy: falling back to RandomNoisePcmSource after input error\n");
             return new AudioInputProcessor(new AudioInput(new RandomNoisePcmSource()));
         }
         return NULL;

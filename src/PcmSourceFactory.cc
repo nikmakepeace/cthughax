@@ -63,7 +63,7 @@ AudioSourceStrategy PcmSourceFactory::selectAudioSourceStrategy(const Settings& 
         break;
     }
 
-    CTH_TRACE("selected strategy=%s audio-input-mode=%d file=`%s'\n", "pcm source factory",
+    CTH_DEBUG("    pcm source strategy: selected strategy=%s audio-input-mode=%d file=`%s'\n",
         strategyName(strategy), settings.audioInputMode, settings.fileName);
     return strategy;
 }
@@ -73,36 +73,36 @@ PcmSource* PcmSourceFactory::create(const Settings& settings) const {
 
     switch (strategy) {
     case ASS_LineIn:
-        CTH_TRACE("creating DspPcmSource\n", "pcm source factory");
+        CTH_DEBUG("    pcm source strategy: creating DspPcmSource\n");
         return new DspPcmSource();
 
     case ASS_Random:
-        CTH_TRACE("creating RandomNoisePcmSource\n", "pcm source factory");
+        CTH_DEBUG("    pcm source strategy: creating RandomNoisePcmSource\n");
         return new RandomNoisePcmSource();
 
     case ASS_WavFile:
-        CTH_TRACE("creating WavPcmSource file=`%s'\n", "pcm source factory",
+        CTH_DEBUG("    pcm source strategy: creating WavPcmSource file=`%s'\n",
             settings.fileName);
         return new WavPcmSource(settings.fileName);
 
     case ASS_Mp3File:
 #if WITH_MINIMP3 == 1
-        CTH_TRACE("creating Minimp3PcmSource file=`%s'\n", "pcm source factory",
+        CTH_DEBUG("    pcm source strategy: creating Minimp3PcmSource file=`%s'\n",
             settings.fileName);
         return new Minimp3PcmSource(settings.fileName);
 #else
-        CTH_TRACE("no MP3 PCM driver is compiled in file=`%s'\n", "pcm source factory",
+        CTH_DEBUG("    pcm source strategy: no MP3 PCM driver is compiled in file=`%s'\n",
             settings.fileName);
         return NULL;
 #endif
 
     case ASS_RawFile:
-        CTH_TRACE("creating RawPcmSource file=`%s'\n", "pcm source factory",
+        CTH_DEBUG("    pcm source strategy: creating RawPcmSource file=`%s'\n",
             settings.fileName);
         return new RawPcmSource(settings.fileName);
 
     default:
-        CTH_TRACE("no PCM source for strategy=%s\n", "pcm source factory",
+        CTH_DEBUG("    pcm source strategy: no PCM source for strategy=%s\n",
             strategyName(strategy));
         return NULL;
     }

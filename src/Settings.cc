@@ -24,7 +24,7 @@ Settings Settings::fromCurrentOptions() {
     Settings settings;
     settings.refreshFromCurrentOptions();
 
-    CTH_TRACE("audio-input-mode=%d sound-dsp-method=%d silent=%d file=`%s'\n", "runtime settings",
+    CTH_DEBUG("runtime settings: audio-input-mode=%d sound-dsp-method=%d silent=%d file=`%s'\n",
         settings.audioInputMode, settings.soundDSPMethod, settings.silent, settings.fileName);
 
     return settings;

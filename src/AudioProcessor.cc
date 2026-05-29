@@ -280,7 +280,7 @@ void AudioProcessingOption::change(int by) {
         return;
 
     value = mod(value + by, n);
-    CTH_TRACE("changed audio processing to `%s'\n", "audio processing", text());
+    CTH_DEBUG("changed audio processing to `%s'\n", text());
 }
 
 void AudioProcessingOption::change(const char* to) {
@@ -292,7 +292,7 @@ void AudioProcessingOption::change(const char* to) {
     if ((value < 0) || (value >= n))
         value = 0;
 
-    CTH_TRACE("changed audio processing to `%s'\n", "audio processing", text());
+    CTH_DEBUG("changed audio processing to `%s'\n", text());
 }
 
 const char* AudioProcessingOption::text() const {

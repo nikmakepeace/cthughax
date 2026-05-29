@@ -47,7 +47,7 @@ void AcousticContext::update(const AudioAnalysis& analysis) {
         attackLevelValue = 0;
 
         if (fireValue > 0)
-            CTH_DEBUG("sound fire: fire=%d amplitude=%d lastamp=%d\n",
+            CTH_TRACE("fire=%d amplitude=%d lastamp=%d\n", "sound fire",
                 fireValue, amplitude, lastAmplitudeValue);
     } else
         fireValue = 0;
