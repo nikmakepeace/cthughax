@@ -33,7 +33,6 @@ public:
         trans = NULL;
     }
 
-    int operator()(); // do a translation on the current legacy buffer
     int operator()(CthughaBuffer& buffer);
     void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
 
@@ -60,7 +59,6 @@ public:
     TranslateOption(int buffer, const char* name);
 
     int prepareCurrentEntry(TranslateEntry*& entry);
-    virtual int operator()();
 
     virtual const char* status();
 };

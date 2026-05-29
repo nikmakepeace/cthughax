@@ -293,10 +293,10 @@ Good next steps:
 
 ### Phase 3: Continue The Visual Pipeline Migration
 
-`VisualPipeline` now has explicit begin/end, image, flame, translate, wave,
-flashlight, border, and palette modules. The old `CthughaBuffer::run()`
-choreography has been removed, and `VisualDirector` updates the current stage
-bindings before each pipeline run.
+`VisualPipeline` now has explicit image, flame, translate, wave, flashlight,
+border, palette, and frame-commit modules. The old `CthughaBuffer::run()`
+choreography has been removed, and `VisualDirector` synchronizes the selected
+buffer and updates the current stage bindings before each pipeline run.
 
 The migration is still incomplete, but the visual stage path now passes
 `CthughaBuffer&` into stage entries. The remaining legacy coupling is that UI,

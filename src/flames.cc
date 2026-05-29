@@ -48,12 +48,6 @@ FlameEntry::FlameEntry(void (*f)(CthughaBuffer& buffer), const char* name, const
     : CoreOptionEntry(name, desc, inUse)
     , flame(f) { }
 
-int FlameEntry::operator()() {
-    if (CthughaBuffer::current != 0)
-        (*flame)(*CthughaBuffer::current);
-    return 0;
-}
-
 void FlameEntry::execute(CthughaBuffer& buffer, const VisualFrameContext& context) {
     (void)context;
 

@@ -13,7 +13,6 @@ class FlameEntry : public CoreOptionEntry {
 public:
     FlameEntry(void (*f)(CthughaBuffer& buffer), const char* name, const char* desc, int inUse = 1);
 
-    int operator()();
     void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
 };
 

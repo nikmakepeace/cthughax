@@ -37,37 +37,35 @@ state updates, and automatic option changes before visual mutation.
 default pipeline stages are:
 
 ```text
-BufferFrameBeginStage
 ImageStage
 FlashlightStage
 BorderStage
 FlameStage
 TranslateStage
 WaveStage
-BufferFrameEndStage
+FrameCommitStage
 PaletteStage
 ```
 
 In module form, this is currently:
 
 ```text
-BufferFrameBeginModule
 ImageStageModule
 FlashlightVisualModule
 BorderVisualModule
 FlameStageModule
 TranslateStageModule
 WaveStageModule
-BufferFrameEndModule
+FrameCommitModule
 PaletteStageModule
 ```
 
 Image, flame, translate, and wave are real object-executing stages now. The
 image stage overlays the selected PCX when `VisualDirector` arms it once.
-Before each frame, `VisualDirector` updates the stage bindings for the selected
-PCX, per-buffer flames, translate providers, waves, and palette state. The
-modules still bind the legacy `CthughaBuffer` globals before calling classic
-effect code, but they no longer choose their own entries from `CoreOption`.
+Before each frame, `VisualDirector` synchronizes the selected-buffer global and
+updates the stage bindings for the selected PCX, per-buffer flames, translate
+providers, waves, and palette state. That compatibility detail cannot be
+affected by stage order.
 
 ## Where Audio Affects Pixels
 

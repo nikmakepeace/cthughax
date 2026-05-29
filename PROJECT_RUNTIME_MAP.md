@@ -226,14 +226,13 @@ code reads those rows as boundary data.
 `VisualDirector::planDefaultPipeline()` currently includes these stages:
 
 ```text
-BufferFrameBeginStage
 ImageStage
 FlashlightStage
 BorderStage
 FlameStage
 TranslateStage
 WaveStage
-BufferFrameEndStage
+FrameCommitStage
 PaletteStage
 ```
 
@@ -241,22 +240,22 @@ PaletteStage
 order:
 
 ```text
-BufferFrameBeginModule
 ImageStageModule
 FlashlightVisualModule
 BorderVisualModule
 FlameStageModule
 TranslateStageModule
 WaveStageModule
-BufferFrameEndModule
+FrameCommitModule
 PaletteStageModule
 ```
 
 `ImageStageModule`, `FlameStageModule`, `TranslateStageModule`, and
 `WaveStageModule` are real stages. Image overlays the currently selected PCX
 when `VisualDirector` arms the one-shot image stage. Before each frame,
-`VisualDirector` updates bindings for the selected PCX, per-buffer flames,
-translate providers, waves, border mode, and palette state.
+`VisualDirector` synchronizes `CthughaBuffer::current` with the selected buffer
+and updates bindings for the selected PCX, per-buffer flames, translate
+providers, waves, border mode, and palette state.
 
 Current limitation: entry selection is now director-owned and stage entries
 receive explicit `CthughaBuffer&` objects, but UI, loading, and display code
@@ -288,9 +287,6 @@ The old `CthughaBuffer::run()` transform has been split across visual pipeline
 modules. The frame-level order is:
 
 ```text
-BufferFrameBeginModule
-  synchronize CthughaBuffer::current with the selected buffer
-
 ImageStageModule
   overlay the selected PCX when VisualDirector has armed ImageStage once
 
@@ -304,7 +300,7 @@ TranslateStageModule
 WaveStageModule
   pass each active CthughaBuffer into bound WaveEntry objects
 
-BufferFrameEndModule
+FrameCommitModule
   log a limited visual-buffer summary
   swap(activeBuffer, passiveBuffer)
 ```

@@ -15,14 +15,13 @@ class VisualPlan {
 
 public:
     enum Stage {
-        BufferFrameBeginStage,
         ImageStage,
         FlashlightStage,
         BorderStage,
         FlameStage,
         TranslateStage,
         WaveStage,
-        BufferFrameEndStage,
+        FrameCommitStage,
         PaletteStage
     };
 
@@ -37,6 +36,7 @@ class VisualDirector {
     std::vector<int> pcxSelectionByBuffer;
 
     int pcxSelectionChanged();
+    void syncSelectedBuffer();
     void bindPipelineStages(VisualPipeline& pipeline);
 
 public:

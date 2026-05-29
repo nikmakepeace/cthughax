@@ -334,16 +334,6 @@ int TranslateEntry::loadLine(FILE* in, int n) {
     return 0;
 }
 
-//
-// Do the translate
-//
-int TranslateEntry::operator()() {
-    if (CthughaBuffer::current == 0)
-        return 0;
-
-    return operator()(*CthughaBuffer::current);
-}
-
 int TranslateEntry::operator()(CthughaBuffer& buffer) {
     int i;
     unsigned int* dst;
@@ -548,16 +538,6 @@ int TranslateOption::prepareCurrentEntry(TranslateEntry*& entry) {
 
     entry = current;
     return 0;
-}
-
-int TranslateOption::operator()() {
-    TranslateEntry* entry = NULL;
-    int result = prepareCurrentEntry(entry);
-
-    if (result || entry == NULL)
-        return result;
-
-    return entry->operator()();
 }
 
 const char* TranslateOption::status() {

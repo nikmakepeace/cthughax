@@ -79,26 +79,6 @@ public:
     }
 };
 
-class BufferFrameBeginModule : public VisualModule {
-    CthughaBuffer* buffer;
-
-public:
-    BufferFrameBeginModule()
-        : buffer(0) { }
-
-    void setSelectedBuffer(CthughaBuffer* buffer_) {
-        buffer = buffer_;
-    }
-
-    void execute(const VisualFrameContext& context) {
-        (void)context;
-
-        CTH_TRACE("beginning indexed buffer frame\n", "visual pipeline");
-        if (buffer != 0)
-            CthughaBuffer::current = buffer;
-    }
-};
-
 class FlameStageModule : public VisualModule {
     std::vector<FlameStageBinding> flames;
 
@@ -161,11 +141,11 @@ public:
     }
 };
 
-class BufferFrameEndModule : public VisualModule {
+class FrameCommitModule : public VisualModule {
     std::vector<CthughaBuffer*> buffers;
 
 public:
-    BufferFrameEndModule() { }
+    FrameCommitModule() { }
 
     void setBuffers(const std::vector<CthughaBuffer*>& buffers_) {
         buffers = buffers_;
@@ -174,7 +154,7 @@ public:
     void execute(const VisualFrameContext& context) {
         (void)context;
 
-        CTH_TRACE("ending indexed buffer frame\n", "visual pipeline");
+        CTH_TRACE("committing indexed buffer frame\n", "visual pipeline");
         static int debugReports = 0;
 
         for (unsigned int j = 0; j < buffers.size(); j++) {
@@ -334,14 +314,13 @@ int VisualPlan::includes(Stage stage) const {
 VisualPlan VisualDirector::planDefaultPipeline() const {
     VisualPlan plan;
 
-    plan.append(VisualPlan::BufferFrameBeginStage);
     plan.append(VisualPlan::ImageStage);
     plan.append(VisualPlan::FlashlightStage);
     plan.append(VisualPlan::BorderStage);
     plan.append(VisualPlan::FlameStage);
     plan.append(VisualPlan::TranslateStage);
     plan.append(VisualPlan::WaveStage);
-    plan.append(VisualPlan::BufferFrameEndStage);
+    plan.append(VisualPlan::FrameCommitStage);
     plan.append(VisualPlan::PaletteStage);
 
     CTH_TRACE("planned default stages=%d\n", "visual director", int(plan.sequence().size()));
@@ -364,6 +343,12 @@ int VisualDirector::pcxSelectionChanged() {
     return 1;
 }
 
+void VisualDirector::syncSelectedBuffer() {
+    CthughaBuffer* selected = selectedBuffer();
+    if (selected != 0)
+        CthughaBuffer::current = selected;
+}
+
 void VisualDirector::bindPipelineStages(VisualPipeline& pipeline) {
     CthughaBuffer* selected = selectedBuffer();
     std::vector<CthughaBuffer*> buffers;
@@ -381,11 +366,6 @@ void VisualDirector::bindPipelineStages(VisualPipeline& pipeline) {
         waves.push_back(WaveStageBinding(buffer,
             static_cast<WaveEntry*>(buffer->wave.current())));
     }
-
-    BufferFrameBeginModule* beginModule
-        = stageModule<BufferFrameBeginModule>(pipeline, VisualPlan::BufferFrameBeginStage);
-    if (beginModule != 0)
-        beginModule->setSelectedBuffer(selected);
 
     ImageStageModule* imageModule
         = stageModule<ImageStageModule>(pipeline, VisualPlan::ImageStage);
@@ -408,10 +388,10 @@ void VisualDirector::bindPipelineStages(VisualPipeline& pipeline) {
     if (waveModule != 0)
         waveModule->setWaves(waves);
 
-    BufferFrameEndModule* endModule
-        = stageModule<BufferFrameEndModule>(pipeline, VisualPlan::BufferFrameEndStage);
-    if (endModule != 0)
-        endModule->setBuffers(buffers);
+    FrameCommitModule* frameCommitModule
+        = stageModule<FrameCommitModule>(pipeline, VisualPlan::FrameCommitStage);
+    if (frameCommitModule != 0)
+        frameCommitModule->setBuffers(buffers);
 
     FlashlightVisualModule* flashlightModule
         = stageModule<FlashlightVisualModule>(pipeline, VisualPlan::FlashlightStage);
@@ -434,9 +414,9 @@ void VisualDirector::bindPipelineStages(VisualPipeline& pipeline) {
 }
 
 void VisualDirector::configurePipeline(VisualPipeline& pipeline) {
+    syncSelectedBuffer();
     bindPipelineStages(pipeline);
 
-    pipeline.setStageMode(VisualPlan::BufferFrameBeginStage, VisualStageEnabled);
     if (pcxSelectionChanged())
         pipeline.setStageMode(VisualPlan::ImageStage, VisualStageArmedOnce);
     pipeline.setStageMode(VisualPlan::FlashlightStage,
@@ -445,7 +425,7 @@ void VisualDirector::configurePipeline(VisualPipeline& pipeline) {
     pipeline.setStageMode(VisualPlan::FlameStage, VisualStageEnabled);
     pipeline.setStageMode(VisualPlan::TranslateStage, VisualStageEnabled);
     pipeline.setStageMode(VisualPlan::WaveStage, VisualStageEnabled);
-    pipeline.setStageMode(VisualPlan::BufferFrameEndStage, VisualStageEnabled);
+    pipeline.setStageMode(VisualPlan::FrameCommitStage, VisualStageEnabled);
     pipeline.setStageMode(VisualPlan::PaletteStage, VisualStageEnabled);
 }
 
@@ -456,8 +436,6 @@ VisualPipeline* VisualPipelineFactory::create(const VisualPlan& plan) const {
 
     pipeline->setStageSequence(plan.sequence());
 
-    if (plan.includes(VisualPlan::BufferFrameBeginStage))
-        pipeline->add(VisualPlan::BufferFrameBeginStage, new BufferFrameBeginModule(), 1);
     if (plan.includes(VisualPlan::ImageStage))
         pipeline->add(VisualPlan::ImageStage, new ImageStageModule(), 1);
     if (plan.includes(VisualPlan::FlashlightStage))
@@ -470,8 +448,8 @@ VisualPipeline* VisualPipelineFactory::create(const VisualPlan& plan) const {
         pipeline->add(VisualPlan::TranslateStage, new TranslateStageModule(), 1);
     if (plan.includes(VisualPlan::WaveStage))
         pipeline->add(VisualPlan::WaveStage, new WaveStageModule(), 1);
-    if (plan.includes(VisualPlan::BufferFrameEndStage))
-        pipeline->add(VisualPlan::BufferFrameEndStage, new BufferFrameEndModule(), 1);
+    if (plan.includes(VisualPlan::FrameCommitStage))
+        pipeline->add(VisualPlan::FrameCommitStage, new FrameCommitModule(), 1);
     if (plan.includes(VisualPlan::PaletteStage))
         pipeline->add(VisualPlan::PaletteStage, new PaletteStageModule(), 1);
 

@@ -145,14 +145,14 @@
    - Current visual pipeline state:
      - `AudioVisualBridge` still owns audio processing/analyzer/autochanger work before
        visual mutation.
+     - `ImageStage`
      - `FlashlightStage`
      - `BorderStage`
-     - indexed-buffer begin/end modules
      - `FlameStage`
      - `TranslateStage`
      - `WaveStage`
+     - `FrameCommitStage`
      - `PaletteStage`
-     - only `ImageStage` remains a null placeholder.
    - Pipeline construction happens once per session, and module refresh/rebuild happens
      when startup settings or `AutoChanger` alter selected visual options.
    - Treat classic `screen` functions carefully:
@@ -167,11 +167,11 @@
      - Added explicit flame, translate, and wave modules that execute selected
        `FlameEntry`, `TranslateEntry`, and `WaveEntry` objects.
    - Next practical slice:
-     - Make `VisualDirector` / `VisualPipelineFactory` construct concrete flame,
-       translate, and wave objects, inject framebuffer dependencies, then inject those
-       objects into stages.
-     - Move selection/loading/binding out of stage execution so stages no longer know
-       about `CthughaBuffer::current`.
+     - Continue moving selected-buffer lookups behind explicit display/provider
+       objects so non-pipeline code no longer has to consult
+       `CthughaBuffer::current`.
+     - Add focused tests around director-owned stage sequencing, stage modes, and
+       frame commit behavior.
 
 ## Short-Term Extras
 

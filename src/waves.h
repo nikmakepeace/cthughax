@@ -16,7 +16,6 @@ class WaveEntry : public CoreOptionEntry {
 public:
     WaveEntry(void (*f)(CthughaBuffer& buffer), const char* name, const char* desc, int inUse = 1);
 
-    int operator()();
     int operator()(CthughaBuffer& buffer);
     void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
 };

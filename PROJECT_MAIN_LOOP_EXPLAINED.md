@@ -181,7 +181,7 @@ During the visual pipeline's indexed-buffer stages:
 
 - `activeBuffer` is the buffer being written for the next finished image.
 - `passiveBuffer` is the previous/current finished image.
-- `BufferFrameEndModule` swaps the pointers after flame, translate, and wave
+- `FrameCommitModule` swaps the pointers after flame, translate, and wave
   stages have run.
 - Display code reads the buffer's passive pixels, so after the swap it sees
   the newly completed frame.
@@ -327,22 +327,22 @@ The context contains:
 The default pipeline currently has these modules:
 
 ```text
-BufferFrameBeginModule
 ImageStageModule
 FlashlightVisualModule
 BorderVisualModule
 FlameStageModule
 TranslateStageModule
 WaveStageModule
-BufferFrameEndModule
+FrameCommitModule
 PaletteStageModule
 ```
 
 Image, flame, translate, and wave are real stages now. `ImageStageModule`
 overlays the selected PCX when `VisualDirector` arms the one-shot image stage.
-Before each frame, `VisualDirector` updates stage bindings for the selected
-PCX, per-buffer flames, translate providers, waves, border mode, and palette
-state. Flame, translate, and wave modules iterate those bound objects and pass
+Before each frame, `VisualDirector` synchronizes `CthughaBuffer::current` with
+the selected buffer, then updates stage bindings for the selected PCX,
+per-buffer flames, translate providers, waves, border mode, and palette state.
+Flame, translate, and wave modules iterate those bound objects and pass
 the relevant `CthughaBuffer&` into the entry/provider API they were given.
 
 Important limitation: this is not the final inversion-of-control shape yet.
@@ -384,9 +384,6 @@ The old monolithic `CthughaBuffer::run()` path has been decomposed into
 pipeline modules. The logical order for a frame is:
 
 ```text
-BufferFrameBeginModule
-  synchronize CthughaBuffer::current with the selected buffer
-
 ImageStageModule
   overlay the selected PCX when VisualDirector has armed ImageStage once
 
@@ -400,7 +397,7 @@ TranslateStageModule
 WaveStageModule
   execute bound WaveEntry objects
 
-BufferFrameEndModule
+FrameCommitModule
   emit limited debug summaries
   swap(activeBuffer, passiveBuffer)
 ```
@@ -643,17 +640,16 @@ If you want to step through one frame in your editor:
 15. Step into `src/VisualPipeline.cc::VisualPipeline::run()`.
 16. Step into `src/Flashlight.cc::apply_flashlight()`.
 17. Step into `src/Border.cc::apply_border()`.
-18. Step through `BufferFrameBeginModule` in `src/VisualDirector.cc`.
-19. Step through `FlameStageModule`, then jump to the current flame entry in
+18. Step through `FlameStageModule`, then jump to the current flame entry in
    `src/flames.cc`.
-20. Step through `TranslateStageModule`; if a table is ready, jump to
+19. Step through `TranslateStageModule`; if a table is ready, jump to
    `src/translate.cc::TranslateEntry::execute()`.
-21. Step through `WaveStageModule`, then jump to the current wave entry in
+20. Step through `WaveStageModule`, then jump to the current wave entry in
    `src/waves.cc`.
-22. Step through `BufferFrameEndModule` to see the active/passive swap.
-23. Return through `PaletteStageModule` in `src/VisualDirector.cc`.
-24. Step into `src/CthughaDisplayX11.cc::operator()()`.
-25. Jump to the current `screen()` function in `src/display.cc`.
+21. Step through `FrameCommitModule` to see the active/passive swap.
+22. Return through `PaletteStageModule` in `src/VisualDirector.cc`.
+23. Step into `src/CthughaDisplayX11.cc::operator()()`.
+24. Jump to the current `screen()` function in `src/display.cc`.
 26. Finish in the X11 `DisplayDevice` `postDraw()` path.
 
 ## 25. How To Think About One Frame

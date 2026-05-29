@@ -58,13 +58,6 @@ WaveEntry::WaveEntry(void (*f)(CthughaBuffer& buffer), const char* name, const c
     : CoreOptionEntry(name, desc, inUse)
     , wave(f) { }
 
-int WaveEntry::operator()() {
-    if (CthughaBuffer::current == 0)
-        return 0;
-
-    return operator()(*CthughaBuffer::current);
-}
-
 int WaveEntry::operator()(CthughaBuffer& buffer) {
     wave_just_started = (last_wave_function != wave);
     last_wave_function = wave;

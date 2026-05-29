@@ -91,12 +91,11 @@ Audio and visual control are now separated:
   rolling intensity/fire state for effects and automatic changes.
 - `AudioVisualBridge` runs processing, analysis, and `AutoChanger` policy before
   visual mutation.
-- `VisualPipeline` is the visual-stage executor. Indexed buffer begin/end,
-  one-shot PCX image overlay, flashlight, border, flame, translate, wave, and
-  palette smoothing now run as explicit modules. `VisualDirector` updates stage
-  bindings for selected images, per-buffer effects, border mode, and palette
-  state before each run. The modules still bind legacy `CthughaBuffer` globals
-  while executing classic effect code.
+- `VisualPipeline` is the visual-stage executor. One-shot PCX image overlay,
+  flashlight, border, flame, translate, wave, frame commit, and palette
+  smoothing now run as explicit modules. `VisualDirector` synchronizes the
+  selected buffer and updates stage bindings for selected images, per-buffer
+  effects, border mode, and palette state before each run.
 
 ## Highest-Value Seams
 

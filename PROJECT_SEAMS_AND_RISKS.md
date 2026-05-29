@@ -150,15 +150,17 @@ Contract:
 
 Implement `VisualModule` and add it through `VisualPipelineFactory`.
 
-Current reality: flashlight, border, indexed-buffer begin/end, image, flame,
-translate, wave, and palette smoothing are explicit modules. `VisualDirector`
-updates typed stage bindings before each run; flame, translate, and wave stages
-execute the bound `FlameEntry`, `TranslateOption`, and `WaveEntry` objects.
+Current reality: flashlight, border, image, flame, translate, wave,
+frame-commit, and palette smoothing are explicit modules. `VisualDirector`
+synchronizes the selected buffer and updates typed stage bindings before each
+run; flame, translate, and wave stages execute the bound `FlameEntry`,
+`TranslateOption`, and `WaveEntry` objects.
 
 The next seam to improve is the remaining selected-buffer global. Stage
-execution synchronizes `CthughaBuffer::current` for UI/display compatibility,
-but stage entries now receive explicit `CthughaBuffer&` objects and entry
-selection no longer happens inside the stage modules.
+execution no longer synchronizes `CthughaBuffer::current`; the director does
+that before the sequenced pipeline runs. Stage entries now receive explicit
+`CthughaBuffer&` objects and entry selection no longer happens inside the stage
+modules.
 
 ### Add a Display Mode
 
@@ -216,8 +218,8 @@ file playback, live input, random input, and silence all present the same
 
 ### VisualPipeline Still Uses Legacy Selection And Binding
 
-`VisualPipeline` now has explicit modules for image, flashlight, border,
-indexed-buffer begin/end, flame, translate, wave, and palette smoothing. The
+`VisualPipeline` now has explicit modules for image, flashlight, border, flame,
+translate, wave, frame commit, and palette smoothing. The
 former `CthughaBuffer::run()` loop and the temporary frame-buffer binding
 adapter have been removed.
 
@@ -304,8 +306,8 @@ path is:
 
 1. keep `CoreOption`, `flames`, `waves`, `translate`, palettes, and PCX behavior
    stable;
-2. continue moving legacy buffer binding out of stage execution and into
-   explicit framebuffer/provider objects;
+2. continue moving selected-buffer lookups behind explicit display/provider
+   objects;
 3. add tests around loaders and deterministic transforms before deep refactors.
 
 ### Configuration and UI
@@ -333,9 +335,9 @@ with safer metadata.
 
 - File playback has a single buffered runtime path now; the riskiest edges are
   playback latency accounting, EOF/drain behavior, and raw PCM option handling.
-- `VisualPipeline` stage order is explicit now, but the stages still depend on
-  global buffer selection/binding. Refactors can accidentally change which
-  buffer an effect mutates.
+- `VisualPipeline` stage order is explicit now, and stage execution uses
+  director-provided buffers. The remaining risk is non-pipeline code that still
+  consults `CthughaBuffer::current`.
 - Many fixed-size string buffers use `sprintf`, `strncpy`, and `strncat` with
   longstanding assumptions.
 - Some code assumes little-endian behavior despite partial big-endian branches.
