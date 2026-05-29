@@ -444,8 +444,7 @@ int prepare_3d(int maxZ) {
     scale = scaleFactor * (float)min(BUFF_WIDTH, BUFF_HEIGHT) / l;
 
     /* rotate a little bit */
-    /* TODO: use some value from the sound to set speed,
-       external value (joystick) to set rotation */
+    /* TODO: use some value from the sound to set speed. */
     double dt = deltaT;
     if (dt < 0.0)
         dt = 0.0;

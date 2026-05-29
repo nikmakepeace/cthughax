@@ -283,10 +283,6 @@ and DGA support are no longer included. More things might
 follow. The whole thing is just getting too big for me. I will 
 remove parts for which good alternatives exist or which are useless.
 
-@item @code{svgalib}. To me it seems, that this library is slowly
-dying. Newer chips are not longer supported. So in the future I will
-probably only continue on the X11 version. 
-
 @item User interface. The current user interface is not really good --
 here are some changes necessary.
 
@@ -294,11 +290,7 @@ here are some changes necessary.
 you for private use. I think about putting the whole thing under the GNU
 public license.
 
-@item GGI. Maybe I combine X, svgalib and OpenGL version into just one
-program using GGI. This should also work with linux-fb.
-
 @end itemize
-
 
 
 

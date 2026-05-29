@@ -23,11 +23,7 @@
 #include "xcthugha.h"
 #endif
 #include "imath.h"
-#ifdef CTH_GL
-#include "glcthugha.h"
-#endif
 #include "keymap.h"
-#include "joystick.h"
 
 #include <unistd.h>
 #include <ctype.h>
@@ -56,24 +52,11 @@ enum option_nr {
     opt_flashlight,
     opt_no_flashlight,
     opt_font,
-    opt_mesh_size,
-    opt_texture_quality,
     opt_silent,
     opt_no_silent,
     opt_dsp_sync,
     opt_no_dsp_sync,
-    opt_light,
-    opt_no_light,
-    opt_hints,
-    opt_dither,
-    opt_no_dither,
-    opt_background,
-    opt_no_background,
-    opt_fly,
-    opt_no_fly,
     opt_keymap,
-    opt_shade,
-    opt_no_shade,
     opt_palette_smoothing,
     opt_no_palette_smoothing,
     opt_palette_set,
@@ -135,7 +118,6 @@ struct option long_options[] = {
 // Core Options
     { "flashlight", 0, 0, opt_flashlight }, { "no-flashlight", 0, 0, opt_no_flashlight },
     { "sound-processing", 1, 0, 'm' }, { "flame", 1, 0, 'f' }, { "translation", 1, 0, 't' },
-    { "light", 1, 0, opt_light }, { "no-light", 1, 0, opt_no_light },
 
 // buffer options
     { "buff-size", 1, 0, 'S' }, { "wave", 1, 0, 'w' },
@@ -159,12 +141,6 @@ struct option long_options[] = {
     { "test", 0, 0, opt_test }, { "max-fps", 1, 0, opt_maxfps },
     { "zoom", 1, 0, opt_zoom },
 
-// SVGA options
-    { "sync", 0, &display_syncwait, 1 }, { "no-sync", 0, &display_syncwait, 0 },
-#ifndef CTH_GL
-    { "disp-direct", 0, &display_direct, 1 }, { "no-disp-direct", 0, &display_direct, 0 },
-#endif
-
 // X11 options
 #ifdef CTH_XWIN
     { "mit-shm", 0, &display_mit_shm, 1 }, { "no-mit-shm", 0, &display_mit_shm, 0 },
@@ -180,23 +156,11 @@ struct option long_options[] = {
     { "no-text-on-term", 0, &DisplayDevice::text_on_term, 0 }, { "font", 1, 0, opt_font },
 #endif
 
-// OpenGL option
-#ifdef CTH_GL
-    { "mesh-size", 1, 0, opt_mesh_size }, { "texture-quality", 1, 0, opt_texture_quality },
-    { "hints", 1, 0, opt_hints }, { "dither", 0, 0, opt_dither },
-    { "no-dither", 0, 0, opt_no_dither }, { "shade", 0, 0, opt_shade },
-    { "no-shade", 0, 0, opt_no_shade }, { "background", 1, 0, opt_background },
-    { "no-background", 0, 0, opt_no_background }, { "fly", 1, 0, opt_fly },
-    { "no-fly", 0, 0, opt_no_fly }, { "full-screen", 0, &fullScreen, 1 },
-    { "no-full-screen", 0, &fullScreen, 0 },
-#endif
-
     // general options
     { "path", 1, 0, 'E' }, { "ini-file", 1, 0, opt_ini_file }, { "keymap", 1, 0, opt_keymap },
     { "dbl-load", 0, &double_load.value, 1 }, { "no-dbl-load", 0, &double_load.value, 0 },
     { "save", 0, &options_save.value, 1 }, { "no-save", 0, &options_save.value, 0 },
     { "prt-file", 1, 0, opt_prt_file },
-    { "joystick", 0, &Joystick::useJoystick, 1 }, { "no-joystick", 0, &Joystick::useJoystick, 0 },
     { "esc", 0, &key_esc, 1 },
     { "no-esc", 0, &key_esc, 0 }, { "verbose", 2, 0, opt_verbose },
     { "no-verbose", 1, &cthugha_verbose.value, 0 }, { "help", 0, 0, '?' },
@@ -281,14 +245,6 @@ int do_param(int c, int value, char* str) {
     case 'm':
         audioProcessing.setInitialEntry(str);
         break;
-
-    case opt_light:
-        light.setInitialEntry(str);
-        break;
-    case opt_no_light:
-        light.setInitialEntry("locked:none");
-        break;
-
 
     case '2': /* Stereo */
         soundChannels.setValue(2);
@@ -382,10 +338,6 @@ int do_param(int c, int value, char* str) {
         break;
     case opt_msg_time:
         changeMsgTime.change(str);
-        break;
-
-    case 'r': /* sync-mode */
-        display_syncwait = 1;
         break;
 
     case opt_fire_level:
@@ -540,52 +492,6 @@ int do_param(int c, int value, char* str) {
         soundDSPMethod.change(str);
         break;
 
-#ifdef CTH_GL
-    case opt_mesh_size:
-        MeshSize.change(str);
-        break;
-
-    case opt_texture_quality:
-        TextureQuality.change(str);
-        break;
-
-    case opt_hints:
-        Hints.change(str);
-        break;
-
-    case opt_dither:
-        Dither.change("on");
-        break;
-
-    case opt_no_dither:
-        Dither.change("off");
-        break;
-
-    case opt_shade:
-        Shade.change("smooth");
-        break;
-
-    case opt_no_shade:
-        Shade.change("flat");
-        break;
-
-    case opt_background:
-        background.setInitialEntry(str);
-        break;
-
-    case opt_no_background:
-        background.setInitialEntry("lock:off");
-        break;
-
-    case opt_fly:
-        fly.setInitialEntry(str);
-        break;
-
-    case opt_no_fly:
-        fly.setInitialEntry("lock:none");
-        break;
-#endif
-
     default: /* error or help */
         return 1;
     }
@@ -640,7 +546,7 @@ int get_params(int argc, char* argv[]) {
     optind = optindsave; /* start again at first opt */
 
     while ((c = getopt_long(argc, argv,
-                "21v:L:M:C:c:xrP:E:?S:"
+                "21v:L:M:C:c:xP:E:?S:"
                 "f:w:d:p:t:o:q:T:R:D:a:m:XlQ:s"
                 ,
                 long_options, &option_index))

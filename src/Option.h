@@ -111,13 +111,4 @@ extern OptionOnOff double_load; // allow double loading
 
 extern OptionInt cthugha_verbose; // verbose level
 
-//
-// glcthugha Options
-//
-extern Option& MeshSize;
-extern Option& TextureQuality;
-extern Option& Hints;
-extern Option& Dither;
-extern Option& Shade;
-
 #endif

@@ -107,7 +107,7 @@
 9. Modernize the build.
    - Add a contemporary build path that can build `xcthugha` and future modern display
      targets.
-   - Quarantine or optionally disable SVGAlib and old OpenGL/GLUT paths by default.
+   - Keep removed legacy frontend paths out of active build/configuration surfaces.
    - Keep old build files around until the replacement build proves itself.
 
 10. Add a modern display target.
@@ -185,6 +185,4 @@
 - Rationalize ini file naming: accept unprefixed keys like `lock: yes` in addition to
   `cthugha.lock: yes`, warn on likely misspellings such as `chuthga.*`, and decide
   whether future auto-written ini files should keep the old prefix for compatibility.
-- Document `xcthugha` as the current reference target and SVGAlib as archival.
-- Revisit `glcthugha` later; it depends on old GLUT/OpenGL assumptions and likely should
-  not block the SDL path.
+- Document `xcthugha` as the current reference target.

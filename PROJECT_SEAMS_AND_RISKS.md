@@ -167,17 +167,14 @@ modules.
 
 2D: add a screen function in `src/display.cc` and register it in `_screens`.
 
-GL: add a screen function in `src/GL_display.cc` and register it in that file's
-`_screens`.
-
-2D `ScreenEntry` declares an `xy size` that tells `CthughaDisplayX11/SVGA`
+`ScreenEntry` declares an `xy size` that tells `CthughaDisplayX11`
 whether the display layer must mirror horizontally and/or vertically.
 
 ### Add a Display Frontend
 
 Implement a new `DisplayDevice` subclass and a matching `CthughaDisplay`
-subclass, or reuse the X11/SVGA-style display layer if the frontend can accept
-the same 2D buffer contract.
+subclass, or reuse the X11-style display layer if the frontend can accept the
+same 2D buffer contract.
 
 Required seam points:
 
@@ -200,7 +197,7 @@ Subsystems communicate mainly through globals:
 - `audioAnalysis`, `acousticContext`;
 - `BUFF_WIDTH`, `BUFF_HEIGHT`;
 - `CthughaBuffer::current`;
-- `screen`, `light`, `background`, `fly`;
+- `screen`;
 - many `Option` and `CoreOption` singletons.
 
 The new runtime/pipeline classes reduce some coupling, but most modules still
@@ -229,9 +226,8 @@ code still use `CthughaBuffer::current` to find the selected buffer.
 
 ### Build Wrappers Include `.cc` Files
 
-Files such as `xwin_options.cc`, `svga_options.cc`, `GL_options.cc`, and
-`nonx_options.cc` define a macro and include `options.cc`. Similarly,
-`xwin_keys.cc`, `nonx_keys.cc`, and `GL_keys.cc` include `keys.cc`.
+Files such as `xwin_options.cc` define a macro and include `options.cc`.
+Similarly, `xwin_keys.cc` includes `keys.cc`.
 
 Any build-system rewrite must preserve separate compile units for those
 wrappers, not simply compile every `.cc` file once.
@@ -244,7 +240,6 @@ wrappers, not simply compile every `.cc` file once.
 - translation table dimensions;
 - hidden border row pitch;
 - display mirror and zoom assumptions;
-- GL texture dimensions;
 - table generator output.
 
 Changing buffer size is a system-wide operation.
@@ -258,7 +253,7 @@ old hidden coupling between `flames.cc` and `translate.cc`.
 ### Display Functions May Self-Reject
 
 Some screen functions return nonzero when the buffer aspect ratio is unsuitable.
-`CthughaDisplayX11/SVGA` calls `while (screen())` so the current display option
+`CthughaDisplayX11` calls `while (screen())` so the current display option
 advances until something works.
 
 ### Palette Handling Depends on Frontend Color Mode
@@ -294,8 +289,8 @@ Keep new audio work inside these interfaces.
 
 ### Display
 
-X11 is the current reference frontend. SVGAlib is archival. OpenGL is retained
-but depends on GLUT and old paletted-texture assumptions.
+X11 is the current reference frontend. The old SVGAlib and OpenGL paths have
+been removed.
 
 A modern display replacement should preserve the indexed 8-bit core buffer
 first, then render it as a texture through SDL2/SDL3, GLFW, or similar.
@@ -323,14 +318,11 @@ with safer metadata.
 
 - X11/MIT-SHM startup and image paths are platform-sensitive. A headless shell
   cannot even show `xcthugha --help` because X initialization happens first.
-- Setuid root SVGAlib path remains in source; `DisplayDeviceSvga.cc` can regain
-  root with `seteuid(0)` to call `vga_init()` when built that way.
 - External command execution remains: `CoreOption::load()` uses `gzip -cd`,
   translation load-on-demand uses `/bin/sh -c`, and silence messages can run
   `fortune`.
 - OSS and CD ioctl paths are Linux-specific, obsolete, and hard to test on
   modern systems.
-- OpenGL source still assumes old GLUT/paletted-texture behavior.
 
 ### Medium Risk
 

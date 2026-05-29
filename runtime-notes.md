@@ -16,8 +16,6 @@ Verified:
 
 Not yet verified:
 
-- `cthugha` / SVGA build
-- `glcthugha` (although TODO-2007.md says this doesn't build)
 - Runtime behaviour on modern Linux distributions
 - Runtime behaviour with ALSA, PulseAudio, or PipeWire-native devices
 - Runtime behaviour without OSS compatibility
@@ -143,8 +141,7 @@ For normal interactive work in Etch, `xterm` is usually the best balance of comp
 - Live input and mixer control still depend on OSS-compatible device paths.
 - `/dev/dsp` and `/dev/mixer` may not exist on modern Linux systems.
 - File playback is better exercised through PulseAudio/PipeWire-Pulse output.
-- The X11 path is the only currently verified graphics path.
-- The SVGA and OpenGL paths are untested.
+- The X11 path is the only graphics path in the current tree.
 
 ## Troubleshooting checklist
 

@@ -26,9 +26,6 @@ F16  setInterface(object)
 F17  setInterface(palette)
 F18  setInterface(pcx)
 F19  setInterface(flashlight)
-F21  setInterface(light)
-F22  setInterface(background)
-F23  setInterface(fly)
 
 Left  prevInterface()
 Right nextInterface()
@@ -74,12 +71,6 @@ x pcxChg(+1)
 X pcxChg(-1)
 l lockChg()
 L lockChg()
-y lightChg(+1)
-Y lightChg(-1)
-i backgroundChg(+1)
-I backgroundChg(-1)
-c flyChg(+1)
-C flyChg(-1)
 
 r randomPalette()
 R newRandomPalette()
@@ -187,7 +178,6 @@ Return setInterface(main) activate()
 
 # only used for thinning palettes out
 k deletePaletteChg(+1)
-
 
 
 

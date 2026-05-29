@@ -22,9 +22,6 @@ See `INSTALL.md`.
 - Take a look at the documentation. I know it is quite long and not very well
   written, but it is still useful.
 
-- Joystick movement of the display can be controlled by a joystick in this
-  version. Use `--no-joystick` for automatic, random movement.
-
 - Example of nice full-screen options for X:
 
   ```sh

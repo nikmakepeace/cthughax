@@ -28,7 +28,6 @@ set(CTHUGHA_COMMON_SOURCES
     keymap.cc
     InterfaceCredits.cc
     InterfaceList.cc
-    joystick.cc
     palettes.cc
     pcx.cc
     Flame.cc
@@ -64,14 +63,12 @@ if(CTH_BUILD_X11)
         DisplayDeviceX11.cc
         CthughaDisplayX11.cc
         DisplayDeviceX11-Panel.cc
-        nonGL_stubs.cc
         ${CMAKE_CURRENT_BINARY_DIR}/default.keymap.str
     )
 
     add_dependencies(xcthugha default_keymap_str)
 
     target_compile_definitions(xcthugha PRIVATE
-        CTH_XWIN
         CTH_LIBDIR="${CTH_DATA_DIR}"
     )
 

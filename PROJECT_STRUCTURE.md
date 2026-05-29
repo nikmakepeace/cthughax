@@ -118,13 +118,8 @@ files.
 - `src/DisplayDeviceX11-Panel.cc`: optional Athena-widget X11 panel, including
   palette preview/metadata editing helpers.
 - `src/CthughaDisplayX11.cc`: X11 display-buffer expansion, mirroring, and copy.
-- `src/DisplayDeviceSvga.cc`, `src/CthughaDisplaySVGA.cc`: retained SVGAlib
-  console frontend source.
-- `src/DisplayDeviceGL.cc`, `src/CthughaDisplayGL.cc`, `src/GL_*.cc`: retained
-  GLUT/OpenGL frontend and GL-specific effects.
-- `src/nonGL_stubs.cc`: dummy GL-related entries for non-GL targets.
 
-The modern CMake build only wires up the X11 frontend.
+The current tree only wires up the X11 frontend.
 
 ### UI, Input, and Configuration
 
@@ -136,18 +131,14 @@ The modern CMake build only wires up the X11 frontend.
 - `src/default.keymap`: default keymap source.
 - `src/default.keymap.str`: generated C string include in in-tree builds;
   CMake generates its own copy under `build/src/`.
-- `src/keys.cc`: key symbol translation and terminal/X/GL key polling.
-- `src/nonx_keys.cc`, `src/xwin_keys.cc`, `src/GL_keys.cc`: wrapper variants for
-  key handling.
+- `src/keys.cc`: key symbol translation and X11 key polling.
+- `src/xwin_keys.cc`: X11 wrapper variant for key handling.
 - `src/options.cc`: command-line and ini option handling.
-- `src/nonx_options.cc`, `src/xwin_options.cc`, `src/svga_options.cc`,
-  `src/GL_options.cc`: wrapper variants for option handling.
+- `src/xwin_options.cc`: X11 wrapper variant for option handling.
 - `src/IniFiles.cc`: ini search order, wildcard matching, validation, and
   generated `.cthugha.auto`.
 - `src/info_title_usage.cc`: title/help/usage output.
 - `src/disp-ncurses.cc`: ncurses setup/teardown.
-- `src/joystick.*`: Linux joystick input for GL camera movement and old UI
-  options.
 
 ## Build Targets and Source Groups
 
@@ -157,7 +148,7 @@ Current CMake targets:
 
 | Target | Purpose | Notes |
 | --- | --- | --- |
-| `xcthugha` | X11 visualizer | Built from `CTHUGHA_COMMON_SOURCES`, X11 key/options wrappers, `display.cc`, X11 display device/display classes, and `nonGL_stubs.cc`. |
+| `xcthugha` | X11 visualizer | Built from `CTHUGHA_COMMON_SOURCES`, X11 key/options wrappers, `display.cc`, and X11 display device/display classes. |
 | `tabheader` | Add/emit `.tab` headers | Built from `src/tabheader.cc`. |
 | `tabinfo` | Inspect `.tab` headers | Built from `src/tabinfo.cc`. |
 | `cmd_huricn`, `cmd_smoke`, `cmd_space`, `cmd_gentable`, `cmd_bighalfwheel`, `cmd_downspiral`, `cmd_randswirls`, `cmdRead` | Translation-table helpers | Built under `tab/` when `CTH_BUILD_TAB_TOOLS=ON`. |
@@ -170,15 +161,12 @@ Current CMake targets:
   display classes, autochanger, analyzer, and pipeline scaffolding.
 - `DISPSRC`: `GENSRC` plus visual effects, palettes, PCX, translation,
   `AudioProcessor`, `CthughaBuffer`, `initExitDisp`, flashlight, and help UI.
-- `NONXSRC`: non-X key/options wrappers.
 
 Autotools target source sets:
 
 | Target | Purpose | Distinct source pieces |
 | --- | --- | --- |
-| `cthugha` | SVGAlib console frontend | `DisplayDeviceSvga.cc`, `CthughaDisplaySVGA.cc`, `svga_options.cc`, `nonx_keys.cc`, `nonGL_stubs.cc` |
-| `xcthugha` | X11 frontend | `DisplayDeviceX11.cc`, `DisplayDeviceX11-Panel.cc`, `CthughaDisplayX11.cc`, `xwin_keys.cc`, `xwin_options.cc`, `nonGL_stubs.cc` |
-| `glcthugha` | OpenGL/GLUT frontend | `DisplayDeviceGL.cc`, `CthughaDisplayGL.cc`, `GL_display.cc`, `GL_Light.cc`, `GL_Background.cc`, `GL_Fly.cc`, `GL_keys.cc`, `GL_options.cc` |
+| `xcthugha` | X11 frontend | `DisplayDeviceX11.cc`, `DisplayDeviceX11-Panel.cc`, `CthughaDisplayX11.cc`, `xwin_keys.cc`, `xwin_options.cc` |
 | `tabheader` | Add/emit `.tab` headers | `tabheader.cc` |
 | `tabinfo` | Inspect `.tab` headers | `tabinfo.cc` |
 

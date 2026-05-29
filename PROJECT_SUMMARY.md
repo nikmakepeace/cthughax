@@ -10,9 +10,9 @@ The current reference application target is `xcthugha`, the X11 frontend. The
 modern CMake build produces `xcthugha`, `tabheader`, `tabinfo`, and the
 translation-table generator programs under `tab/`. The old autotools build files
 are still present and currently select `xcthugha`, `tabheader`, and `tabinfo`.
-The source tree still contains SVGAlib and OpenGL frontend sources, but CMake
-does not build them. The old sound server/network sources are no longer present;
-only stale object files from previous builds remain in `src/`.
+The old SVGAlib and OpenGL frontend paths have been removed. The old sound
+server/network sources are no longer present; only stale object files from
+previous builds remain in `src/`.
 
 The best mental model for one frame is now:
 
@@ -54,7 +54,7 @@ deferred suspend handling
 
 ## Current Project Shape
 
-- `src/` contains the application source: 71 top-level `.cc` files and 41
+- `src/` contains the application source: 51 top-level `.cc` files and 41
   top-level headers.
 - `tab/` contains 8 table generator sources, 11 `.cmd` descriptors, and local
   build outputs.
@@ -108,14 +108,14 @@ Audio and visual control are now separated:
 - Classic visual effect seam: `CoreOptionEntry` / `CoreOptionEntryList`, with
   flame, translate, and wave entries now receiving explicit `CthughaBuffer&`
   objects during pipeline execution.
-- Display frontend seam: `DisplayDevice` plus `CthughaDisplay` subclasses.
+- Display frontend seam: `DisplayDevice` plus the X11 `CthughaDisplay`
+  subclass.
 - Asset seams: `.map` palettes, `.pcx`/`.pcx.gz` images, `.cmd` table
   descriptors, `.tab` binary translation tables, and optional `.obj` line
   objects.
 - Control seam: `Keymap` action registry and `Interface` screens.
-- Build seam: wrapper source files such as `xwin_options.cc`, `GL_options.cc`,
-  and `svga_options.cc` compile shared implementations with target-specific
-  macros.
+- Build seam: wrapper source files such as `xwin_options.cc` compile shared
+  implementations with target-specific macros.
 
 ## Current State Notes
 
@@ -124,17 +124,16 @@ The verified build path is CMake:
 ```sh
 cmake --build build
 tests/headers/check-headers.sh
-make -n all
 ```
 
-All three completed successfully in this workspace. A direct attempt to run
+Both completed successfully in this workspace. A direct attempt to run
 `build/src/xcthugha --help` in the current headless shell failed with
 `Error: Can't open display:`, which confirms the binary starts through X11
 initialization before it can print help.
 
 The project is portable in a transitional sense, not yet a modern clean-room
 port. It still carries X11/Xt/Xaw, MIT-SHM, OSS `/dev/dsp`, OSS mixer, CD-ROM
-ioctl, SVGAlib, GLUT/OpenGL, shell-based asset helpers, and many global
-singletons. The refactor has created better audio and visual seams, and the old
-monolithic flame/translate/wave loop has been decomposed into pipeline stages,
-but the classic engine is still stateful and global.
+ioctl, shell-based asset helpers, and many global singletons. The refactor has
+created better audio and visual seams, and the old monolithic
+flame/translate/wave loop has been decomposed into pipeline stages, but the
+classic engine is still stateful and global.

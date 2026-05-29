@@ -544,9 +544,6 @@ ACTION(deletePaletteChg) {
 ACTION(tableChg) { CthughaBuffer::current->table.change(int(v), 0); }
 ACTION(pcxChg) { CthughaBuffer::current->pcx.change(int(v), 0); }
 ACTION(lockChg) { lock.change(+1); }
-ACTION(lightChg) { light.change(int(v), 0); }
-ACTION(backgroundChg) { background.change(int(v), 0); }
-ACTION(flyChg) { fly.change(int(v), 0); }
 
 ACTION(screen) { screen.change(p, 0); }
 ACTION(zoom) { zoom.change(p); }
@@ -563,9 +560,6 @@ ACTION(palette) { CthughaBuffer::current->palette.change(p, 0); }
 ACTION(table) { CthughaBuffer::current->table.change(p, 0); }
 ACTION(pcx) { CthughaBuffer::current->pcx.change(p, 0); }
 ACTION(lock) { lock.change(+1); }
-ACTION(light) { light.change(p, 0); }
-ACTION(background) { background.change(p, 0); }
-ACTION(fly) { fly.change(p, 0); }
 
 ACTION(writeIni) { write_ini(); } // when net-sound: re-sent request to server
 ACTION(soundReset) { audioFrameChange(); }

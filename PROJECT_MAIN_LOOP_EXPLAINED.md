@@ -35,7 +35,7 @@ Keep these files open:
   objects used by the visual stages.
 - `src/display.cc`: 2D display mapping effects.
 - `src/CthughaDisplay*.cc`: frontend display composition.
-- `src/DisplayDevice*.cc`: X11, SVGAlib, or OpenGL event loops and screen IO.
+- `src/DisplayDevice*.cc`: X11 event loop and screen IO.
 - `src/Interface.*`, `src/keymap.*`: key handling and on-screen UI.
 
 ## 1. Startup: `main()`
@@ -74,21 +74,14 @@ and `acousticContext`.
 
 ## 2. The Frontend Loop Calls `run()`
 
-Each frontend owns the platform event loop, but they all converge on `run()`.
+The X11 frontend owns the platform event loop and converges on `run()`.
 
 - X11: `DisplayDeviceX11::mainLoop()` handles pending Xt/X events, translates
   key releases, runs the interface, resizes to the X window, then calls
   `run(1)`.
-- SVGAlib: `DisplayDeviceSvga::mainLoop()` remains in source and calls
-  `Interface::current->run()` and `run(1)` in a loop.
-- OpenGL: retained GLUT code calls `run(0)` from idle and draws later from the
-  display callback.
 
 The `doDisplay` argument decides whether `run()` itself calls the display step.
-X11 and SVGAlib pass `1`; OpenGL passes `0` because GLUT separates idle updates
-from drawing callbacks.
-
-CMake currently builds only the X11 frontend.
+The current X11 frontend passes `1`.
 
 ## 3. The Shared Scheduler: `run(int doDisplay)`
 
@@ -486,8 +479,6 @@ If `doDisplay` is true, `run()` calls:
 ```
 
 For X11, read `src/CthughaDisplayX11.cc::CthughaDisplayX11::operator()()`.
-For SVGAlib, read `src/CthughaDisplaySVGA.cc::CthughaDisplaySVGA::operator()()`.
-For OpenGL, read `src/CthughaDisplayGL.cc::CthughaDisplayGL::operator()()`.
 
 The classic 2D path does this:
 
@@ -549,9 +540,7 @@ completed Cthugha image after the buffer swap.
 
 - owns the platform;
 - X11 creates windows/images, handles X events, copies to the X server, and can
-  use MIT-SHM;
-- SVGAlib owns console graphics buffers;
-- OpenGL owns GLUT callbacks, GL state, and buffer swaps.
+  use MIT-SHM.
 
 If you are tracing pixels to screen, the route is:
 
@@ -560,7 +549,7 @@ CthughaBuffer passive pixels
   -> src/display.cc screen function
   -> CthughaDisplay buffer/expandedBuffer
   -> DisplayDevice preDraw/postDraw
-  -> X11/SVGA/GL screen
+  -> X11 screen
 ```
 
 ## 21. Step 6: CDPlayer
@@ -616,8 +605,7 @@ Look at:
 - `src/keymap.cc`
 - `src/Interface.cc`
 - `src/InterfaceList.cc`
-- frontend key translators such as `src/xwin_keys.cc`, `src/nonx_keys.cc`, and
-  `src/GL_keys.cc`.
+- frontend key translator `src/xwin_keys.cc`.
 
 ## 24. A Concrete Source Walk
 

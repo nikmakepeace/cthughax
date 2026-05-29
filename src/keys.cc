@@ -255,10 +255,7 @@ int translate_key(int key) {
     }
 }
 
-/* Now I'm using ncurses to read from the keyboard
-   In version 0.1 I used vga_getkey, but getch is much better.
-   There is a 1 sec. delay when only ESC is pressed.
-   */
+/* There is a 1 sec. delay when only ESC is pressed. */
 
 int getkey_ncurs() {
     static int next_key = CK_NONE;
@@ -293,15 +290,6 @@ int getkey() {
     int k = getkey_x11();
     if (k != CK_NONE)
         return k;
-#endif
-
-#ifdef CTH_GL
-    extern int GLkey;
-    if (GLkey != CK_NONE) {
-        int k = GLkey;
-        GLkey = CK_NONE;
-        return k;
-    }
 #endif
 
 #if HAVE_NCURSES == 1

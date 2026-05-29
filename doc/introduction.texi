@@ -29,20 +29,8 @@ Think of this as an oscilloscope on acid.
 
 @table @code
 
-@item cthugha
-displays directly on the Linux console. To do that it uses
-@code{svgalib}. Because @code{svgalib} does not support new graphics
-chipsets this version will slowly die. 
-
-
 @item xcthugha
 This program displays the graphics using X11. 
-
-
-@item @code{glcthugha}
-is the newest part. Using OpenGL/MesaGL you get the display in 3D. 
-Of course without hardware support this is quite slow.
-
 
 @end table
 

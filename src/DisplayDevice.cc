@@ -31,9 +31,6 @@ int bytes_per_line = 0;
 xy disp_size(0, 0); /* size of drawing area */
 enum draw_mode_t draw_mode = DM_direct; /* how drawing is done */
 
-int display_direct = 0; /* draw directly to screen */
-int display_syncwait = 0;
-
 //
 // prepare to set the global palette
 //

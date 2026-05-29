@@ -74,12 +74,9 @@ Translation-table load-on-demand can still spawn helper commands.
 - X11: `DisplayDeviceX11::mainLoop()` drains Xt events, translates key releases,
   dispatches UI work, resizes to the current X window, calls `run(1)`, then runs
   interface input again.
-- SVGAlib: `DisplayDeviceSvga::mainLoop()` is still present in source and calls
-  `Interface::current->run()` plus `run(1)` in a loop.
-- OpenGL: `DisplayDeviceGL` is still present in source; its idle callback calls
-  `run(0)` and the GLUT draw callback later invokes `(*cthughaDisplay)()`.
 
-CMake only builds the X11 path.
+The removed SVGAlib and OpenGL paths no longer participate in runtime control
+flow.
 
 ### Pause and Resume
 
@@ -340,7 +337,7 @@ Command-line options:
 - 10 hotkey values.
 
 `CoreOptionEntry` is callable via `operator()()`. Subclasses wrap functions,
-loaded assets, display functions, GL functions, or no-op entries.
+loaded assets, display functions, or no-op entries.
 
 Initial values come from ini files and command-line arguments. Startup applies
 them with:
@@ -352,7 +349,7 @@ audioProcessing.changeToInitial()
 
 ## Display Pipeline
 
-The classic 2D X11/SVGA display path is:
+The X11 display path is:
 
 ```text
 displayDevice->preDraw()
@@ -373,24 +370,9 @@ displayDevice->postDraw()
 ```
 
 The display function selected by the `display` CoreOption comes from
-`src/display.cc` for 2D frontends. It maps one `BUFF_WIDTH x BUFF_HEIGHT`
+`src/display.cc`. It maps one `BUFF_WIDTH x BUFF_HEIGHT`
 passive buffer into an image that is commonly mirrored to
 `2 * BUFF_WIDTH x 2 * BUFF_HEIGHT`.
-
-For OpenGL, retained source in `src/CthughaDisplayGL.cc` uses a different
-sequence:
-
-```text
-background() before screen
-set projection/modelview
-light()
-screen()
-fly()
-background() after screen
-```
-
-GL display functions in `src/GL_display.cc` upload passive buffers as paletted
-textures and draw textured geometry.
 
 ## User Input and Interface
 

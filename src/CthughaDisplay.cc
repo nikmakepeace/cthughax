@@ -11,7 +11,7 @@
 #include <unistd.h>
 
 // The active display coordinator.  The selected frontend supplies
-// newCthughaDisplay(), so this points at an X11, SVGA, or OpenGL subclass.
+// newCthughaDisplay(), so this points at the X11 display subclass.
 CthughaDisplay* cthughaDisplay = NULL;
 
 CthughaDisplay::~CthughaDisplay() { }

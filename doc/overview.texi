@@ -59,13 +59,11 @@ Think of this as an oscilloscope on acid.
 Try one of these command lines to test Cthugha-L: 
 @example
 @group 
-   No soundcard           :   cthugha -x
-   Soundcard (Line In)    :   cthugha -L 100
-   Soundcard (CD In)      :   cthugha -C 100 
+   No soundcard           :   xcthugha -x
+   Soundcard (Line In)    :   xcthugha -L 100
+   Soundcard (CD In)      :   xcthugha -C 100
 @end group
 @end example
-
-For dispaly using X11 use @code{xcthugha} instead of @code{cthugha}.
 
 Once Cthugha is running, try @key{F1} to bring up the Help Screen.
 
@@ -78,17 +76,11 @@ Once Cthugha is running, try @key{F1} to bring up the Help Screen.
 
 @table @code
 
-@item cthugha
-displays directly on the Linux console. To do that it uses @code{svgalib}. 
-
-
 @item xcthugha
 This program displays the graphics using X11.
 
 @code{xcthugha} also runs in True and High Color displays, but 
 it will run slower then. Currently @code{xcthugha} will not run 
 on all possible displays.
-
-@code{glcthugha}
 
 @end table

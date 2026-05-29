@@ -32,9 +32,6 @@ Some Tips
    * Take a look at the documentation. I know it is quite long and not very
      good written, but it is still usefull.
 
-   * Joystick: the movement of the display can be controlled by a joystick in
-     this version. Use '--no-joystick' for automatic (random) movement.
-   
    * Example of nice full screen options for X:
      ./xcthugha -D 5 --full-screen --play /export/home/brandon/Shared/Beach\ Boys\ -\ Good\ Vibrations.mp3
 
@@ -62,6 +59,5 @@ Any Questions left / Contact
     * official Newsgroup:  alt.graphics.cthugha
 
    If you have any questions left feel free to send me an email. 
-
 
 

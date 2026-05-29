@@ -251,11 +251,4 @@ public:
 
 extern CoreOption screen;
 
-//
-// options from glcthugha
-//
-extern CoreOption light;
-extern CoreOption background;
-extern CoreOption fly;
-
 #endif

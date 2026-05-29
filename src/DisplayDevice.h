@@ -14,8 +14,6 @@
 
 extern int display_mode; // predefined graphics mode to use
 
-extern int display_direct; // draw directly to screen (for Svga)
-extern int display_syncwait; // Wait for sync on display  (for Svga)
 extern int display_text_time; // how long text is kept on the screen
 
 extern xy text_size;

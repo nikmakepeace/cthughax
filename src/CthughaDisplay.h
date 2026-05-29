@@ -94,25 +94,6 @@ public:
     virtual void operator()();
 };
 
-//
-// SVGA is a little bit easier (here we always have 8bit)
-//
-class CthughaDisplaySVGA : public CthughaDisplay {
-    void expandPalette(int);
-
-public:
-    CthughaDisplaySVGA();
-    virtual void operator()();
-};
-
-//
-// OpenGL is different
-//
-class CthughaDisplayGL : public CthughaDisplay {
-public:
-    virtual void operator()();
-};
-
 class ScreenEntry : public CoreOptionEntry {
 public:
     int (*screen)();

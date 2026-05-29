@@ -27,9 +27,7 @@ install-pre:
 	${mkinstalldirs} ${pkglibdir}/map
 	${mkinstalldirs} ${pkglibdir}/pcx
 	${mkinstalldirs} ${pkglibdir}/tab
-	-${INSTALL} -o root -m 4755 precompiled/cthugha		${bindir}/cthugha
 	-${INSTALL} -m 0755 precompiled/xcthugha		${bindir}/xcthugha
-	-${INSTALL} -m 0755 precompiled/glcthugha		${bindir}/glcthugha
 	-${INSTALL} -m 0755 precompiled/tabheader		${bindir}/tabheader
 	-${INSTALL} -m 0755 precompiled/tabinfo			${bindir}/tabinfo
 	-cp map/*			${pkglibdir}/map
@@ -42,4 +40,3 @@ install-pre:
 	-${INSTALL} -m 0644 doc/cthugha.1		${mandir}/man1/cthugha.1
 
 .PHONY: install-pre
-

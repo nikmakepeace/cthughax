@@ -9,8 +9,7 @@ GENSRC = Option.cc OptionInt.cc CoreOption.cc CoreOptionEntry.cc	\
 	misc.cc DisplayDevice.cc				\
 	AutoChanger.cc AudioAnalyzer.cc  CthughaDisplay.cc 		\
 	Border.cc VisualPipeline.cc VisualDirector.cc	\
-	keymap.cc InterfaceCredits.cc InterfaceList.cc			\
-	joystick.cc
+	keymap.cc InterfaceCredits.cc InterfaceList.cc
 
 
 DISPSRC = $(GENSRC)							\
@@ -21,31 +20,12 @@ DISPSRC = $(GENSRC)							\
 	Flashlight.cc  InterfaceHelp.cc 
 
 
-NONXSRC = nonx_keys.cc nonx_options.cc
-
-
-cthugha_SOURCES = $(DISPSRC) $(NONXSRC) DisplayDeviceSvga.cc	\
-	 svga_options.cc display.cc CthughaDisplaySVGA.cc	\
-	nonGL_stubs.cc
-# EXTRA_cthugha_SOURCES =	 getopt_long.c
-cthugha_LDADD = ${N_LIBS} ${S_LIBS} ${PULSE_LIBS} ${LIBOBJS}
-
-
 xcthugha_SOURCES = $(DISPSRC) xwin_keys.cc xwin_options.cc display.cc		\
 	DisplayDeviceX11.cc  CthughaDisplayX11.cc		\
-	DisplayDeviceX11-Panel.cc nonGL_stubs.cc
+	DisplayDeviceX11-Panel.cc
 # EXTRA_xcthugha_SOURCES = getopt_long.c
 xcthugha_INCLUDES = ${X_CFLAGS}
 xcthugha_LDADD = ${N_LIBS} ${X_LIBS} -lz ${PULSE_LIBS} ${LIBOBJS}
-
-glcthugha_SOURCES = ${DISPSRC} GL_keys.cc GL_display.cc		\
-	nonx_options.cc GL_options.cc DisplayDeviceGL.cc	\
-	CthughaDisplayGL.cc GL_Light.cc	GL_Background.cc	\
-	GL_Fly.cc
-# EXTRA_glcthugha_SOURCES = getopt_long.c
-glcthugha_INCLUDES = ${X_CFLAGS}
-glcthugha_LDADD = ${N_LIBS} ${X_LIBS} ${GL_LIBS} ${PULSE_LIBS} ${LIBOBJS}
-
 
 
 tabheader_SOURCES = tabheader.cc
@@ -62,8 +42,8 @@ noinst_HEADERS = 	\
 	CthughaDisplay.h  cth_buffer.h      vroot.h		\
 	DisplayDevice.h   cthugha.h         keys.h            waves.h		\
 	Option.h          disp-sys.h        xcthugha.h	\
-	display.h         options.h	      glcthugha.h	\
-	Interface.h	  keymap.h	    joystick.h				\
+	display.h         options.h	      \
+	Interface.h	  keymap.h	    				\
 										\
 	keys.cc options.cc			\
 	default.keymap	  default.keymap.str
@@ -78,15 +58,15 @@ bin_PROGRAMS = @TARGETS@
 ## programs that need special treatment (manual installation)
 noinst_PROGRAMS = @TARGETS_SUID@
 
-EXTRA_PROGRAMS = cthugha xcthugha glcthugha tabheader tabinfo
+EXTRA_PROGRAMS = xcthugha tabheader tabinfo
 
 ## for debugging
 ## display.s: 
 ##	$(COMPILE) display.cc -c -S -fverbose-asm -o display.s
 
 ##
-## special installation for cthugha and xcthugha
-## 
+## special installation for targets that still need setuid handling
+##
 install-exec-local: @TARGETS_SUID@
 	@$(NORMAL_INSTALL)
 	$(mkinstalldirs) $(bindir)
@@ -105,7 +85,6 @@ uninstall-local:
 
 
 #dist-hook:
-#	cp -p $(bindir)/cthugha $(distdir)/cthugha
 #	cp -p $(bindir)/xcthugha $(distdir)/xcthugha
 #	cp -p $(bindir)/tabinfo $(distdir)/tabinfo
 #	cp -p $(bindir)/tabheader $(distdir)/tabheader

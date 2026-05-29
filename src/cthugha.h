@@ -78,7 +78,7 @@ char *strchr(), *strrchr();
 extern int cthugha_close; /* cthugha is closing now */
 extern int cthugha_pause; /* cthugha is suspending (^Z) now */
 
-char* cthugha_mode_text(); /* returns "svga", "xwin", ... */
+char* cthugha_mode_text();
 
 int cth_init(int* argc, char* argv[]);
 int cth_main();

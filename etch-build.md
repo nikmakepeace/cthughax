@@ -15,8 +15,6 @@ Verified:
 
 Not yet verified:
 
-- `cthugha` / SVGA build
-- `glcthugha` (although TODO-2007.md says this doesn't build)
 - Modern Linux distributions
 - Native ALSA, PulseAudio, or PipeWire audio paths
 - Packaging or installation outside the historical build environment

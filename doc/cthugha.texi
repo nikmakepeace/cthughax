@@ -211,7 +211,7 @@ the possible values of all the CoreOptions.
 
 @chapter Parameters
 
-For a (short) list use @code{cthugha --help}. 
+For a (short) list use @code{xcthugha --help}.
 
 Mose of the options can also
 be used in a negative form to disable the feature. This is simply done

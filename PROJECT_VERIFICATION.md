@@ -55,7 +55,6 @@ source names or removed extension instructions.
 
 - Live input still depends on OSS-compatible `/dev/dsp` support.
 - Mixer and CD controls still use old Unix/Linux ioctls.
-- SVGAlib and GLUT/OpenGL frontends remain source-preserved but non-reference.
 - Visual effects still rely heavily on global indexed-buffer state.
 - Translation-table loading and compressed PCX loading can still spawn helper
   commands.

@@ -6,7 +6,7 @@ The project currently has two build paths:
 
 - modern CMake, which is the verified reference path in this workspace;
 - old autoconf/automake files, still maintained enough to describe/build the
-  non-reference frontends.
+  X11 frontend and helper tools.
 
 The CMake files are:
 
@@ -110,15 +110,11 @@ Current generated autotools target state:
 
 - selected programs: `xcthugha tabheader tabinfo`;
 - selected setuid programs: none;
-- `cthugha` and `glcthugha` remain `EXTRA_PROGRAMS`, not selected in the
-  current generated Makefiles;
 - the old server-mode program is not a current target.
 
 Major `configure.in` options:
 
-- `--disable-svga`: skip the SVGAlib console target.
 - `--disable-xwin`: skip the X11 target.
-- `--disable-gl`: skip the OpenGL/GLUT target.
 - `--disable-tabtools`: skip `tabheader` and `tabinfo`.
 - `--with-dsp=DEV` / `--without-dsp`: OSS DSP.
 - `--without-pulse`: disable PulseAudio-compatible output.
@@ -128,6 +124,8 @@ Major `configure.in` options:
 
 Removed/stale options from earlier project notes:
 
+- `--disable-svga` is not present.
+- `--disable-gl` is not present.
 - `--disable-serv` is not present.
 - `--without-network` is not present.
 - the old server-mode program is not built from current source files.
@@ -174,12 +172,6 @@ Audio and media:
 - optional OSS mixer ioctls;
 - optional Linux/Unix CD-ROM ioctls;
 
-Non-reference frontends:
-
-- SVGAlib requires `libvga`, `libvgagl`, and traditionally setuid console
-  access.
-- OpenGL requires OpenGL, GLU, GLUT, and old paletted-texture assumptions.
-
 ## Verified Commands
 
 These commands were run successfully while updating the docs:
@@ -187,7 +179,6 @@ These commands were run successfully while updating the docs:
 ```sh
 cmake --build build
 tests/headers/check-headers.sh
-make -n all
 ```
 
 `cmake --build build` reconfigured and built all current CMake targets.
@@ -199,9 +190,6 @@ Checked 41 headers.
 Skipped: 1.
 Failures: 0.
 ```
-
-`make -n all` completed its recursive dry run and reported nothing to build in
-`src` or `tab`.
 
 In the current headless shell, this command did not reach usage output:
 
@@ -242,16 +230,10 @@ local logging path rather than adding a new one.
 
 - Do not compile `options.cc` directly for every target unless replacing the
   wrapper scheme deliberately.
-- `xwin_options.cc`, `svga_options.cc`, `GL_options.cc`, and
-  `nonx_options.cc` produce different variants.
-- `xwin_keys.cc`, `nonx_keys.cc`, and `GL_keys.cc` produce different key
-  handling variants.
-- `nonGL_stubs.cc` is needed for non-GL targets because shared code references
-  GL option globals.
+- `xwin_options.cc` and `xwin_keys.cc` are the remaining wrapper compile units
+  for X11-specific options and key handling.
 - CMake generates `default.keymap.str` under `build/src/`; in-tree builds
   may generate `src/default.keymap.str`.
-- CMake currently builds only the X11 frontend, even though SVGAlib/OpenGL source
-  files still exist.
 - Local object files in `src/` and `tab/` are not authoritative. Check source
   lists in `CMakeLists.txt` and `Makefile.am`.
 
@@ -266,8 +248,6 @@ Recommended practice:
 - Use CMake for active development.
 - Keep the autotools files coherent while they remain in the tree, but avoid
   relying on stale build artifacts.
-- Keep SVGAlib and OpenGL as source-preserved non-reference frontends until they are
-  intentionally revived or removed.
 - Treat `xcthugha` as the behavioral reference when modernizing.
 
 ### Phase 2: Extend The Modern Audio Runtime

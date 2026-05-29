@@ -168,7 +168,7 @@ static const char* InterfaceList[] = { "Help", // F1
 
     "display", // F9
     "flame", "border", "translate", "wave", "table", "waveScaling", "object",
-    "palette", "pcx", "flashlight", "light", "background", "fly", "Help", NULL };
+    "palette", "pcx", "flashlight", "Help", NULL };
 
 ACTION(nextInterface) {
     for (const char** N = InterfaceList; *N != NULL; N++)
@@ -387,7 +387,7 @@ public:
     InterfaceCoreOption()
         : Interface("CoreOptions", "Core Options", NULL) {
 
-        nElements = 17;
+        nElements = 14;
         elements = new InterfaceElement*[nElements];
 
         CthughaBuffer& b = CthughaBuffer::buffers[CthughaBuffer::nCurrent];
@@ -414,10 +414,6 @@ public:
             elements[12] = new InterfaceElementCoreOption("3D-Object (j,J)       : %s", &b.object);
             elements[13]
                 = new InterfaceElementCoreOption("Flashlight (s)        : %s", &flashlight);
-            elements[14] = new InterfaceElementCoreOption("Lights (y/Y)          : %s", &light);
-            elements[15]
-                = new InterfaceElementCoreOption("Background (i/I)      : %s", &background);
-            elements[16] = new InterfaceElementCoreOption("Flies (c/C)           : %s", &fly);
         }
     }
 
@@ -461,11 +457,6 @@ InterfaceElement* elementsOption[] = {
     new InterfaceElementOption("Fire level               : %10s", &changeFireLevel, 10, 50, 100),
     new InterfaceElementOption("Little changes only      : %10s", &change_little),
     new InterfaceElementOption("Lock                     : %10s", &lock),
-    new InterfaceElementOption("GL Mesh Size             : %10s", &MeshSize, 1, 10, 20),
-    new InterfaceElementOption("GL Texture Quality       : %10s", &TextureQuality),
-    new InterfaceElementOption("GL Hints                 : %10s", &Hints),
-    new InterfaceElementOption("GL Dither                : %10s", &Dither),
-    new InterfaceElementOption("GL Shade                 : %10s", &Shade),
 };
 int nElementsOption = sizeof(elementsOption) / sizeof(InterfaceElement*);
 

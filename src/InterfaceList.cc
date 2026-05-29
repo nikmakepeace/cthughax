@@ -162,9 +162,3 @@ InterfaceList interfaceList9("Palette", "Select Palette", &(CthughaBuffer::buffe
 InterfaceList interfaceListA("PCX", "Select PCX", &(CthughaBuffer::buffers[0].pcx));
 
 InterfaceList interfaceListB("Flashlight", "Select Flashlight", &flashlight);
-
-InterfaceList interfaceListC("Light", "Select Light", &light);
-
-InterfaceList interfaceListD("Background", "Select Background", &background);
-
-InterfaceList interfaceListE("Fly", "Select Flies", &fly);

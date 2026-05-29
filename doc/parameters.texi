@@ -319,22 +319,6 @@ decoration.
 @end table
 
 
-@subsection SVGA Options
-
-@table @code
-@item -r, --sync
-This option causes @code{cthugha} to wait for a resync before the buffer
-is displayed on the screen. So screen update and video refresh are
-synchronized. @code{--sync} causes a slight decrease in speed.
-
-
-@item --disp-direct
-Display directly to screen when using running in 320x200 mode.
-When runing on this option some flicker occurs when text is displayed.
-
-@end table
-
-
 @subsection X11 Options
 
 @table @code
@@ -379,34 +363,6 @@ flag).
 Set the font to use when displaying text messages.
 
 @end table
-
-
-@subsection GL Options
-
-@table @code
-
-@item --mesh-size S
-Set how fine to make the mesh for 3D displays. Bigger values will make a
-finer mesh and will take longer to display.
-
-@item --texture-quality Q
-Set the quality of the texture (low, medium, high) to use.
-
-@item --hints H
-Set the @code{glHints} for perspective correction and fog to @code{fast}
-(better quality) or  @code{nice} (faster).
-
-@item --dither 
-Turn on or off dithering. This influences the speed of @code{glcthugha}.
-
-@item -window, --full-screen
-Run @code{glcthugha} in a window or full screen. This only has an effect
-when using Mesa and a 3Dfx card. Running full screen is usually much
-faster, while for debugging a window is very usefull.
-
-
-@end table
-
 
 
 @c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

@@ -158,11 +158,6 @@ void usage() {
     PH(" -m, --sound-processing N  Start with sound processing N");
     PH(" -a, --table N       Start with table N (how palette is used in wave)");
     PH(" -P, --pcx N         Start with PCX N");
-    PH(" --background B      Start with background type B (only for glcthugha)");
-    PH(" --light L           Start with light L (only for glcthugha)");
-    PH(" --fly F             Start with fly method F (only for glcthugha)");
-    PH("");
-
     PH("Display options:");
     PH(" -D, --disp-mode MODE    Set graphics mode (window size)");
     for (int i = 0; i < nScreenSizes; i++) {
@@ -174,11 +169,6 @@ void usage() {
     PH("                     or a special resolution in the form: WIDTHxHEIGHT.");
     PH(" --zoom N            Set Zoom factor to N (0 = fit window/screen)");
     PH(" --max-fps N         Set maximal frames per seond to N (0 = no limit)");
-    PH("");
-    PH("SVGA options:");
-    PH(" -r, --sync          Enable Video synch refresh waiting");
-    PH(" --disp-direct       Draw directly to screen (only in 320x200)");
-    PH("");
     PH("X11 options:");
     PH(" --root              Display on root window");
     PH(" --install           Install a private colormap");
@@ -190,13 +180,6 @@ void usage() {
     PH(" --no-decorate       Do not decorate window (set override_redirect flag)");
     PH(" --font F            Font to use for Cthugha");
     PH("");
-    PH("GL options:");
-    PH(" --mesh-size S       How fine to make the mesh for 3D displays", MeshSize);
-    PH(" --texture-quality Q Quality of the texture (low, medium, high)", TextureQuality);
-    PH(" --hints H           Set glHints to 'fast' or 'nice'", Hints);
-    PH(" --dither            Turn on or off dithering", Dither);
-    PH(" --no-full-screen, --full-screen  Run in a window or full screen (only with Mesa and 3dfx)");
-    PH("");
     PH("General options:");
     PH(" -E, --path LIBDIR   An extra searchpath for map, pcx and tab-files");
     PH("                     cthugha searches in LIBDIR/map, LIBDIR/pcx and LIBDIR/tab");
@@ -205,7 +188,6 @@ void usage() {
     PH(" --dbl-load          Allow double loading of palettes, pcx, translations");
     PH(" --prt-file FILE     Filename used at print screen");
     PH(" --no-esc            Disable quit on ESC");
-    PH(" --no-joystick       Disable joystick support");
     PH(" --save              Save settings on exit");
     PH(" --verbose[=LVL]     Print some extra information");
     PH("                     --verbose without LVL sets a level of 4");

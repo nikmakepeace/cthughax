@@ -20,7 +20,7 @@ Primary-site:   sunsite.unc.edu /pub/Linux/apps/sound/lightshow
 Alternate-site: ftp.afn.org /cthugha
 
 Original-site:  
-Platform:       svgalib and/or X11
+Platform:       X11
 		soundcard (recommended) 
 
 Copying-policy: shareware
