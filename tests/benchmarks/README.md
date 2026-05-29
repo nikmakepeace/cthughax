@@ -120,6 +120,15 @@ Run a sized report directly:
 tools/run_visual_effects_benchmarks.py --build-dir build --buffer-size 640x480
 ```
 
+Run a specific fixture at its encoded size:
+
+```sh
+tools/run_visual_effects_benchmarks.py \
+  --build-dir build \
+  --buffer-size 640x480 \
+  --fixtures 640x480-fixture
+```
+
 Reports are written under:
 
 ```text
@@ -128,4 +137,6 @@ build/test-results/visual-effects/
 
 Each report directory contains Google Benchmark JSON, console output,
 `manifest.json` with git/build/fixture metadata, `spread-metrics.json`, and
-`summary.md`.
+`summary.md`. The visual `summary.md` includes the requested buffer size, the
+selected fixture name, and a fixture-file table showing the decoded image size
+and whether it matched the buffer.

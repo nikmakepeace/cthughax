@@ -53,6 +53,7 @@ void CthughaDisplay::resetFPS() { }
 namespace {
 
 const int kHiddenRows = 3;
+const int kMaxBenchmarkDimension = 4096;
 
 struct VisualBenchConfig {
     int width;
@@ -101,7 +102,7 @@ int parseSize(const char* value, int& width, int& height) {
         return 0;
 
     if (parsedWidth <= 0 || parsedHeight <= 0
-        || parsedWidth > MAX_BUFF_WIDTH || parsedHeight > MAX_BUFF_HEIGHT)
+        || parsedWidth > kMaxBenchmarkDimension || parsedHeight > kMaxBenchmarkDimension)
         return 0;
 
     width = (int)parsedWidth;

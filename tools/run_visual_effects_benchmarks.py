@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import statistics
 import subprocess
@@ -208,11 +209,140 @@ def cmake_cache_value(build_dir, key):
     return ""
 
 
-def fixture_metadata(source_dir, fixture_dir, active, passive):
+def parse_buffer_size(text):
+    match = re.fullmatch(r"([0-9]+)x([0-9]+)", text or "")
+    if not match:
+        return None
+    return int(match.group(1)), int(match.group(2))
+
+
+def pgm_token(f):
+    token = bytearray()
+
+    while True:
+        c = f.read(1)
+        if not c:
+            return None
+        if c.isspace():
+            continue
+        if c == b"#":
+            f.readline()
+            continue
+        token.extend(c)
+        break
+
+    while True:
+        c = f.read(1)
+        if not c:
+            break
+        if c.isspace():
+            break
+        if c == b"#":
+            f.readline()
+            break
+        token.extend(c)
+
+    return token.decode("ascii")
+
+
+def read_pgm_header(path):
+    with path.open("rb") as f:
+        magic = pgm_token(f)
+        width = int(pgm_token(f) or 0)
+        height = int(pgm_token(f) or 0)
+        max_value = int(pgm_token(f) or 0)
+        data_offset = f.tell()
+    return {
+        "format": magic or "",
+        "width": width,
+        "height": height,
+        "max_value": max_value,
+        "payload_bytes": path.stat().st_size - data_offset,
+    }
+
+
+def buffer_match_for_dimensions(width, height, buffer_size):
+    parsed = parse_buffer_size(buffer_size)
+    if not parsed:
+        return ""
+    expected_width, expected_height = parsed
+    if width == expected_width and height == expected_height:
+        return "visible"
+    if width == expected_width and height == expected_height + 6:
+        return "visible+hidden-rows"
+    return "mismatch"
+
+
+def buffer_match_for_raw_size(byte_count, buffer_size):
+    parsed = parse_buffer_size(buffer_size)
+    if not parsed:
+        return ""
+    width, height = parsed
+    if byte_count == width * height:
+        return "visible"
+    if byte_count == width * (height + 6):
+        return "visible+hidden-rows"
+    return "mismatch"
+
+
+def selected_fixture_paths(fixture_dir, fixture_selection):
+    if not fixture_dir.exists():
+        return []
+    if not fixture_selection:
+        return sorted(list(fixture_dir.glob("*.pgm")) + list(fixture_dir.glob("*.raw")))
+
+    paths = []
+    names = [item.strip() for item in fixture_selection.split(",") if item.strip()]
+    for name in names:
+        for stem in (name, name + "-active", name + "-passive"):
+            for extension in (".pgm", ".raw"):
+                path = fixture_dir / (stem + extension)
+                if path.exists():
+                    paths.append(path)
+
+    unique = []
+    seen = set()
+    for path in sorted(paths):
+        if path not in seen:
+            unique.append(path)
+            seen.add(path)
+    return unique
+
+
+def image_metadata(path, source_dir, buffer_size):
+    metadata = file_metadata(path, source_dir)
+    suffix = path.suffix.lower()
+    if suffix == ".pgm":
+        header = read_pgm_header(path)
+        metadata.update(header)
+        metadata["image_size"] = f"{header['width']}x{header['height']}"
+        metadata["buffer_match"] = buffer_match_for_dimensions(
+            header["width"], header["height"], buffer_size
+        )
+        metadata["payload_matches_header"] = (
+            header["payload_bytes"] == header["width"] * header["height"]
+        )
+    elif suffix == ".raw":
+        metadata["format"] = "raw"
+        metadata["image_size"] = ""
+        metadata["max_value"] = ""
+        metadata["payload_bytes"] = metadata["bytes"]
+        metadata["buffer_match"] = buffer_match_for_raw_size(metadata["bytes"], buffer_size)
+        metadata["payload_matches_header"] = ""
+    else:
+        metadata["format"] = suffix.lstrip(".")
+        metadata["image_size"] = ""
+        metadata["max_value"] = ""
+        metadata["payload_bytes"] = metadata["bytes"]
+        metadata["buffer_match"] = ""
+        metadata["payload_matches_header"] = ""
+    return metadata
+
+
+def fixture_metadata(source_dir, fixture_dir, active, passive, fixture_selection, buffer_size):
     fixtures = []
-    if fixture_dir.exists():
-        for fixture in sorted(list(fixture_dir.glob("*.pgm")) + list(fixture_dir.glob("*.raw"))):
-            fixtures.append(file_metadata(fixture, source_dir))
+    for fixture in selected_fixture_paths(fixture_dir, fixture_selection):
+        fixtures.append(image_metadata(fixture, source_dir, buffer_size))
 
     explicit = []
     for label, path_text in (("active", active), ("passive", passive)):
@@ -220,7 +350,7 @@ def fixture_metadata(source_dir, fixture_dir, active, passive):
             continue
         path = Path(path_text).resolve()
         if path.exists():
-            metadata = file_metadata(path, source_dir)
+            metadata = image_metadata(path, source_dir, buffer_size)
             metadata["role"] = label
             explicit.append(metadata)
 
@@ -278,12 +408,36 @@ def write_slowest_table(f, rows):
     f.write("\n")
 
 
+def write_fixture_table(f, manifest):
+    rows = []
+    for entry in manifest.get("fixture_files", []):
+        item = dict(entry)
+        item["role"] = "fixture"
+        rows.append(item)
+    rows.extend(manifest.get("explicit_images", []))
+
+    if not rows:
+        return
+
+    f.write("## Fixture Files\n\n")
+    f.write("| Role | File | Format | Image Size | Max | Payload Bytes | Buffer Match |\n")
+    f.write("| --- | --- | --- | ---: | ---: | ---: | --- |\n")
+    for row in rows:
+        f.write(
+            f"| `{row.get('role', 'fixture')}` | `{row.get('file', '')}` | "
+            f"`{row.get('format', '')}` | `{row.get('image_size', '')}` | "
+            f"`{row.get('max_value', '')}` | {row.get('payload_bytes', '')} | "
+            f"`{row.get('buffer_match', '')}` |\n"
+        )
+    f.write("\n")
+
+
 def write_summary(path, manifest, rows):
     stages = sorted({row["stage"] for row in rows})
     stage_rows = {stage: [row for row in rows if row["stage"] == stage] for stage in stages}
 
     with path.open("w", encoding="utf-8") as f:
-        f.write("# Visual Effects Benchmark Summary\n\n")
+        f.write(f"# Visual Effects Benchmark Summary ({manifest['buffer_size']})\n\n")
         f.write(f"- Schema: `{manifest['schema']}`\n")
         f.write(f"- Timestamp: `{manifest['timestamp_utc']}`\n")
         f.write(f"- Git: `{manifest['git_commit']}`")
@@ -295,12 +449,19 @@ def write_summary(path, manifest, rows):
         f.write(f"- Repetitions: `{manifest['benchmark_repetitions']}`\n")
         f.write(f"- Minimum time per repetition: `{manifest['benchmark_min_time']}`\n")
         f.write(f"- Buffer size: `{manifest['buffer_size']}`\n")
+        if manifest["fixture_selection"]:
+            f.write(f"- Fixture selection: `{manifest['fixture_selection']}`\n")
+        elif manifest["explicit_images"]:
+            f.write("- Fixture selection: explicit active/passive images\n")
+        else:
+            f.write("- Fixture selection: built-in `zero`, `impulse`, `gradient`, `noise`\n")
         f.write(f"- Timing unit: `us`\n")
         f.write(f"- Items: `{VISIBLE_PIXELS_NOTE}`\n")
         f.write(f"- Build dir: `{manifest['build_dir']}`\n")
         f.write(f"- Benchmark binary: `{manifest['benchmark_binary']}`\n\n")
         f.write("Fixture copying and buffer reset are excluded from measured timing.\n\n")
 
+        write_fixture_table(f, manifest)
         write_slowest_table(f, rows)
 
         for stage in ("Flame", "Translate"):
@@ -388,7 +549,9 @@ def main():
         sys.stderr.write(result.stderr)
         raise SystemExit(result.returncode)
 
-    fixture_info = fixture_metadata(source_dir, fixture_dir, args.active, args.passive)
+    fixture_info = fixture_metadata(
+        source_dir, fixture_dir, args.active, args.passive, args.fixtures, args.buffer_size
+    )
     manifest = {
         "schema": SCHEMA,
         "timestamp_utc": timestamp,
