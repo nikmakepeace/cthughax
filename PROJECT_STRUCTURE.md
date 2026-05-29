@@ -62,9 +62,6 @@ There is no current server-mode source entry point in `src/`.
   before visual mutation.
 - `src/VisualPipeline.*`, `src/VisualDirector.*`: visual-stage executor,
   default stage plan, and pipeline factory.
-- `src/CthughaFrameBuffer.*`: adapter/owner for indexed active/passive visual
-  buffers plus palette pointers.
-
 ### Legacy Visual Core
 
 - `src/CthughaBuffer.*`: classic per-buffer effect state, option instances, and

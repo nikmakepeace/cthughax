@@ -298,16 +298,15 @@ flashlight, border, and palette modules. The old `CthughaBuffer::run()`
 choreography has been removed, and `VisualDirector` updates the current stage
 bindings before each pipeline run.
 
-The migration is still incomplete: stage execution still binds buffers through
-the legacy `CthughaBuffer::current` global because classic effect code uses
-`active_buffer` and `passive_buffer` macros.
+The migration is still incomplete, but the visual stage path now passes
+`CthughaBuffer&` into stage entries. The remaining legacy coupling is that UI,
+loading, and display paths still use `CthughaBuffer::current` to find the
+selected buffer.
 
 Good next steps:
 
-- Move the remaining legacy buffer binding behind explicit framebuffer/provider
-  objects so stage execution no longer mutates `CthughaBuffer::current`.
-- Keep `CthughaFrameBuffer` as the buffer/palette adapter while the old globals
-  still exist.
+- Move the remaining selected-buffer lookups behind explicit display/provider
+  objects so stage execution no longer has to restore `CthughaBuffer::current`.
 - Add tests around deterministic visual stages before changing artistic
   behavior.
 

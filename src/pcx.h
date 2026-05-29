@@ -6,7 +6,7 @@
 #include "cthugha.h"
 #include "CoreOption.h"
 
-class CthughaFrameBuffer;
+class CthughaBuffer;
 
 class PCXEntry : public CoreOptionEntry {
 
@@ -27,7 +27,7 @@ public:
         data = NULL;
     }
 
-    int overlay(CthughaFrameBuffer& frameBuffer) const;
+    int overlay(CthughaBuffer& buffer) const;
 
     friend CoreOptionEntry* read_pcx(FILE*, const char*, const char*);
 };

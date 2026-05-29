@@ -4,7 +4,6 @@
 #include "disp-sys.h"
 #include "cth_buffer.h"
 #include "CthughaBuffer.h"
-#include "CthughaFrameBuffer.h"
 #include "CthughaDisplay.h"
 #include "imath.h"
 
@@ -71,23 +70,23 @@ static int choose_image_left(int imageSize, int bufferSize) {
 }
 
 /*
- * Overlay this PCX onto the frame buffer.
+ * Overlay this PCX onto the selected indexed buffer.
  */
-int PCXEntry::overlay(CthughaFrameBuffer& frameBuffer) const {
+int PCXEntry::overlay(CthughaBuffer& buffer) const {
 
     CTH_DEBUG("overlaying pcx `%s'...\n", Name());
 
     if (data == NULL)
         return 0;
 
-    unsigned char* active = frameBuffer.active();
-    unsigned char* passive = frameBuffer.passive();
+    unsigned char* active = buffer.activePixels();
+    unsigned char* passive = buffer.passivePixels();
     if (active == NULL || passive == NULL)
         return 0;
 
-    int width = frameBuffer.width();
-    int height = frameBuffer.height();
-    int pitch = frameBuffer.pitch();
+    int width = BUFF_WIDTH;
+    int height = BUFF_HEIGHT;
+    int pitch = BUFF_WIDTH;
 
     int x = choose_image_left(this->width, width);
     int y = choose_image_left(this->height, height);

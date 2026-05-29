@@ -8,30 +8,30 @@
 
 CoreOptionEntryList generalFlameEntries;
 
-void flame_clear();
-void flame_upslow();
-void flame_upsubtle();
-void flame_upfast();
-void flame_leftslow();
-void flame_leftsubtle();
-void flame_leftfast();
-void flame_rightslow();
-void flame_rightsubtle();
-void flame_rightfast();
-void flame_water();
-void flame_watersubtle();
-void flame_skyline();
-void flame_weird();
-void flame_zzz();
-void flame_fade();
-void flame_general_subtle();
-void flame_general_slow();
+void flame_clear(CthughaBuffer& buffer);
+void flame_upslow(CthughaBuffer& buffer);
+void flame_upsubtle(CthughaBuffer& buffer);
+void flame_upfast(CthughaBuffer& buffer);
+void flame_leftslow(CthughaBuffer& buffer);
+void flame_leftsubtle(CthughaBuffer& buffer);
+void flame_leftfast(CthughaBuffer& buffer);
+void flame_rightslow(CthughaBuffer& buffer);
+void flame_rightsubtle(CthughaBuffer& buffer);
+void flame_rightfast(CthughaBuffer& buffer);
+void flame_water(CthughaBuffer& buffer);
+void flame_watersubtle(CthughaBuffer& buffer);
+void flame_skyline(CthughaBuffer& buffer);
+void flame_weird(CthughaBuffer& buffer);
+void flame_zzz(CthughaBuffer& buffer);
+void flame_fade(CthughaBuffer& buffer);
+void flame_general_subtle(CthughaBuffer& buffer);
+void flame_general_slow(CthughaBuffer& buffer);
 
-void flame_general_subtle_filter();
+void flame_general_subtle_filter(CthughaBuffer& buffer);
 
-void flame_general_slow_filter();
+void flame_general_slow_filter(CthughaBuffer& buffer);
 
-void flame_down();
+void flame_down(CthughaBuffer& buffer);
 
 const char* OptionGeneralFlame::text() const {
     static char str[32];
@@ -44,20 +44,20 @@ const char* OptionGeneralFlame::text() const {
     return str;
 }
 
-FlameEntry::FlameEntry(void (*f)(), const char* name, const char* desc, int inUse)
+FlameEntry::FlameEntry(void (*f)(CthughaBuffer& buffer), const char* name, const char* desc, int inUse)
     : CoreOptionEntry(name, desc, inUse)
     , flame(f) { }
 
 int FlameEntry::operator()() {
-    (*flame)();
+    if (CthughaBuffer::current != 0)
+        (*flame)(*CthughaBuffer::current);
     return 0;
 }
 
-void FlameEntry::execute(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context) {
-    (void)frameBuffer;
+void FlameEntry::execute(CthughaBuffer& buffer, const VisualFrameContext& context) {
     (void)context;
 
-    (*flame)();
+    (*flame)(buffer);
 }
 
 CoreOptionEntry* _flames[] = {
@@ -126,13 +126,13 @@ int init_flames() {
     return 0;
 }
 
-void general_offset() {
+void general_offset(CthughaBuffer& buffer) {
     int i;
     /* offset to the neighbors */
     int position[9] = { -BUFF_WIDTH - 1, -BUFF_WIDTH, -BUFF_WIDTH + 1, -1, 0, 1, +BUFF_WIDTH - 1,
         +BUFF_WIDTH, +BUFF_WIDTH + 1 };
 
-    int gen = CthughaBuffer::current->flameGeneral;
+    int gen = buffer.flameGeneral;
     int shift = gen % 9;
     gen = gen / 9;
     /* generate offset-table */
@@ -147,21 +147,15 @@ void general_offset() {
  * UI: Clear (Blank the buffer)
  * Does: clears every visible buffer pixel to palette index 0 before translate
  * and wave drawing.
- * How: direct memset of active_buffer; it does not read passive_buffer or the
+ * How: direct memset of buffer.activePixels(); it does not read buffer.passivePixels() or the
  * border rows.
  * Sound/border: ignores sound and border input.
  */
-void flame_clear() { memset(active_buffer, 0, BUFF_SIZE); }
+void flame_clear(CthughaBuffer& buffer) { memset(buffer.activePixels(), 0, BUFF_SIZE); }
 
 /*****************************************************************************
  *  FLAME-UP
  *****************************************************************************/
-
-#define PTR                                                                                        \
-    unsigned char* ptr;                                                                            \
-    ptr = active_buffer;                                                                           \
-    active_buffer = passive_buffer;                                                                \
-    passive_buffer = ptr;
 
 /*
  * UI: u-Sl (Up Slow)
@@ -173,12 +167,12 @@ void flame_clear() { memset(active_buffer, 0, BUFF_SIZE); }
  * Sound/border: reads from the hidden bottom border through the below-neighbor
  * samples, so border modes can feed or damp the upward flame.
  */
-void flame_upslow() {
+void flame_upslow(CthughaBuffer& buffer) {
     int i;
     unsigned int tmp;
     unsigned int tmp2;
-    PTR;
-    ptr = active_buffer + BUFF_WIDTH;
+    buffer.swapBuffers();
+    unsigned char* ptr = buffer.activePixels() + BUFF_WIDTH;
 
     ptr++;
     tmp = (unsigned int)(*(ptr - 2 - 1)) + (unsigned int)(*(ptr - 1 - 1))
@@ -199,13 +193,13 @@ void flame_upslow() {
  * as its own pipeline stage.
  * Sound/border: bottom border rows affect the lower-neighbor samples.
  */
-void flame_upsubtle() {
+void flame_upsubtle(CthughaBuffer& buffer) {
     flame_offset[0] = -1 + BUFF_WIDTH;
     flame_offset[1] = 0 + BUFF_WIDTH;
     flame_offset[2] = 1 + BUFF_WIDTH;
     flame_offset[3] = BUFF_WIDTH + BUFF_WIDTH;
 
-    flame_general_subtle_filter();
+    flame_general_subtle_filter(buffer);
 }
 
 /*
@@ -215,11 +209,11 @@ void flame_upsubtle() {
  * from itself plus three lower neighbors, then applying divsub.
  * Sound/border: bottom border rows can inject energy into the upward motion.
  */
-void flame_upfast() {
+void flame_upfast(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    PTR;
-    ptr = active_buffer + BUFF_SIZE;
+    buffer.swapBuffers();
+    unsigned char* ptr = buffer.activePixels() + BUFF_SIZE;
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (int)(*ptr) + (int)(*(ptr + BUFF_WIDTH - 1)) + (int)(*(ptr + BUFF_WIDTH + 1))
@@ -241,11 +235,11 @@ void flame_upfast() {
  * and lower samples into the pixel one row above.
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_leftslow() {
+void flame_leftslow(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    PTR;
-    ptr = active_buffer + BUFF_WIDTH;
+    buffer.swapBuffers();
+    unsigned char* ptr = buffer.activePixels() + BUFF_WIDTH;
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (int)(*(ptr - BUFF_WIDTH + 1)) + (int)(*ptr) + (int)(*(ptr + 1))
@@ -263,13 +257,13 @@ void flame_leftslow() {
  * own pipeline stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_leftsubtle() {
+void flame_leftsubtle(CthughaBuffer& buffer) {
     flame_offset[0] = +1;
     flame_offset[1] = +BUFF_WIDTH;
     flame_offset[2] = 1 + BUFF_WIDTH;
     flame_offset[3] = BUFF_WIDTH + BUFF_WIDTH;
 
-    flame_general_subtle_filter();
+    flame_general_subtle_filter(buffer);
 }
 
 /*
@@ -279,11 +273,11 @@ void flame_leftsubtle() {
  * and lower into each destination pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_leftfast() {
+void flame_leftfast(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    PTR;
-    ptr = active_buffer + BUFF_SIZE;
+    buffer.swapBuffers();
+    unsigned char* ptr = buffer.activePixels() + BUFF_SIZE;
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (int)(*ptr) + (int)(*(ptr + BUFF_WIDTH + 1)) + (int)(*(ptr + BUFF_WIDTH + 1))
@@ -301,15 +295,15 @@ void flame_leftfast() {
  * UI: r-Sl (Right Slow)
  * Does: diffuses the previous frame up and right, producing a slow rightward
  * flame drift.
- * How: reads passive_buffer without swapping, averaging upper-left, current,
- * left, and lower samples into active_buffer.
+ * How: reads buffer.passivePixels() without swapping, averaging upper-left, current,
+ * left, and lower samples into buffer.activePixels().
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_rightslow() {
+void flame_rightslow(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    unsigned char* src = passive_buffer + BUFF_WIDTH + 1;
-    unsigned char* dst = active_buffer + 1;
+    unsigned char* src = buffer.passivePixels() + BUFF_WIDTH + 1;
+    unsigned char* dst = buffer.activePixels() + 1;
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (int)(*(src - BUFF_WIDTH - 1)) + (int)(*src) + (int)(*(src - 1))
@@ -328,13 +322,13 @@ void flame_rightslow() {
  * own pipeline stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_rightsubtle() {
+void flame_rightsubtle(CthughaBuffer& buffer) {
     flame_offset[0] = -1;
     flame_offset[1] = BUFF_WIDTH - 1;
     flame_offset[2] = BUFF_WIDTH;
     flame_offset[3] = BUFF_WIDTH + BUFF_WIDTH;
 
-    flame_general_subtle_filter();
+    flame_general_subtle_filter(buffer);
 }
 
 /*
@@ -344,11 +338,11 @@ void flame_rightsubtle() {
  * and lower into each destination pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_rightfast() {
+void flame_rightfast(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    PTR;
-    ptr = active_buffer + BUFF_SIZE;
+    buffer.swapBuffers();
+    unsigned char* ptr = buffer.activePixels() + BUFF_SIZE;
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (int)(*ptr) + (int)(*(ptr + BUFF_WIDTH - 1)) + (int)(*(ptr + BUFF_WIDTH - 1))
@@ -371,11 +365,11 @@ void flame_rightfast() {
  * halves use divsub for averaging and decay.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_water() {
+void flame_water(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    unsigned char* src = passive_buffer + BUFF_WIDTH;
-    unsigned char* dst = active_buffer;
+    unsigned char* src = buffer.passivePixels() + BUFF_WIDTH;
+    unsigned char* dst = buffer.activePixels();
 
     for (i = BUFF_SIZE / 2 + BUFF_WIDTH; i != 0; i--) {
         tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + BUFF_WIDTH));
@@ -384,8 +378,8 @@ void flame_water() {
         src++;
     }
 
-    src = passive_buffer + BUFF_WIDTH * (BUFF_HEIGHT - 1);
-    dst = active_buffer + BUFF_WIDTH * (BUFF_HEIGHT - 0);
+    src = buffer.passivePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 1);
+    dst = buffer.activePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 0);
     for (i = BUFF_SIZE / 2; i != 0; i--) {
         tmp = (int)(*(src - BUFF_WIDTH + 1)) + (int)(*src) + (int)(*(src + 1))
             + (int)(*(src - BUFF_WIDTH));
@@ -402,11 +396,11 @@ void flame_water() {
  * temporaries, preserving the old compact arithmetic behavior.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_watersubtle() {
+void flame_watersubtle(CthughaBuffer& buffer) {
     int i;
     unsigned char tmp;
-    char* src = (char*)(passive_buffer + BUFF_WIDTH);
-    char* dst = (char*)active_buffer;
+    char* src = (char*)(buffer.passivePixels() + BUFF_WIDTH);
+    char* dst = (char*)buffer.activePixels();
 
     for (i = BUFF_SIZE / 2 + BUFF_WIDTH; i != 0; i--) {
         tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + BUFF_WIDTH));
@@ -415,8 +409,8 @@ void flame_watersubtle() {
         src++;
     }
 
-    src = (char*)passive_buffer + BUFF_WIDTH * (BUFF_HEIGHT - 1);
-    dst = (char*)active_buffer + BUFF_WIDTH * (BUFF_HEIGHT - 0);
+    src = (char*)buffer.passivePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 1);
+    dst = (char*)buffer.activePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 0);
     for (i = BUFF_SIZE / 2; i != 0; i--) {
         tmp = (int)(*(src - BUFF_WIDTH + 1)) + (int)(*src) + (int)(*(src + 1))
             + (int)(*(src - BUFF_WIDTH));
@@ -437,11 +431,11 @@ void flame_watersubtle() {
  * How: averages left, current, right, and current again through divsub.
  * Sound/border: does not intentionally sample vertical border rows.
  */
-void flame_skyline() {
+void flame_skyline(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    unsigned char* src = passive_buffer + BUFF_WIDTH + 1;
-    unsigned char* dst = active_buffer;
+    unsigned char* src = buffer.passivePixels() + BUFF_WIDTH + 1;
+    unsigned char* dst = buffer.activePixels();
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src));
@@ -459,11 +453,11 @@ void flame_skyline() {
  * averaging, which gives this flame its sharper texture.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_weird() {
+void flame_weird(CthughaBuffer& buffer) {
     int i;
     unsigned char tmp;
-    char* src = (char*)passive_buffer + BUFF_WIDTH + 1;
-    char* dst = (char*)active_buffer + 1;
+    char* src = (char*)buffer.passivePixels() + BUFF_WIDTH + 1;
+    char* dst = (char*)buffer.activePixels() + 1;
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (*(src - 1)) | (*src) | (*(src + 1)) | (*(src + BUFF_WIDTH));
@@ -484,11 +478,11 @@ void flame_weird() {
  * uses divsub2, which divides by two and subtracts one.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_zzz() {
+void flame_zzz(CthughaBuffer& buffer) {
     int i;
     unsigned char tmp;
-    PTR;
-    ptr = active_buffer + BUFF_WIDTH;
+    buffer.swapBuffers();
+    unsigned char* ptr = buffer.activePixels() + BUFF_WIDTH;
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (*(ptr - 1)) + (*(ptr + BUFF_WIDTH));
@@ -504,11 +498,11 @@ void flame_zzz() {
  * at zero, four pixels at a time through divsub4.
  * Sound/border: ignores sound and border input.
  */
-void flame_fade() {
+void flame_fade(CthughaBuffer& buffer) {
     int i;
     unsigned int tmp;
-    PTR;
-    ptr = active_buffer;
+    buffer.swapBuffers();
+    unsigned char* ptr = buffer.activePixels();
 
     for (i = BUFF_SIZE / 4; i != 0; i--) {
         tmp = (*(unsigned int*)ptr);
@@ -536,35 +530,35 @@ void flame_fade() {
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_subtle() {
-    general_offset();
+void flame_general_subtle(CthughaBuffer& buffer) {
+    general_offset(buffer);
 
-    flame_general_subtle_filter();
+    flame_general_subtle_filter(buffer);
 }
 
 /*
  * Helper for GenSubt.
- * Does: applies the current four offsets directly from passive_buffer to
- * active_buffer.
+ * Does: applies the current four offsets directly from buffer.passivePixels() to
+ * buffer.activePixels().
  * How: processes four pixels per loop by packing divsub results into an
  * unsigned int using endian-specific pre-shifted lookup tables.
  */
-void flame_general_subtle_filter() {
+void flame_general_subtle_filter(CthughaBuffer& buffer) {
     int i;
     unsigned char tmp;
-    unsigned char* ptr = active_buffer;
+    unsigned char* ptr = buffer.activePixels();
     int offset1, offset2, offset3, offset4;
     unsigned int t2;
 
     /* initialize offsets
      *
-     *  ptr          -> destination (active_buffer)
-     *  ptr + offset -> source (passive_buffer)
+     *  ptr          -> destination (buffer.activePixels())
+     *  ptr + offset -> source (buffer.passivePixels())
      */
-    offset1 = flame_offset[0] + (passive_buffer - active_buffer);
-    offset2 = flame_offset[1] + (passive_buffer - active_buffer);
-    offset3 = flame_offset[2] + (passive_buffer - active_buffer);
-    offset4 = flame_offset[3] + (passive_buffer - active_buffer);
+    offset1 = flame_offset[0] + (buffer.passivePixels() - buffer.activePixels());
+    offset2 = flame_offset[1] + (buffer.passivePixels() - buffer.activePixels());
+    offset3 = flame_offset[2] + (buffer.passivePixels() - buffer.activePixels());
+    offset4 = flame_offset[3] + (buffer.passivePixels() - buffer.activePixels());
 
     for (i = BUFF_SIZE / 4; i != 0; i--) {
         tmp = (*(ptr + offset1)) + (*(ptr + offset2)) + (*(ptr + offset3)) + (*(ptr + offset4));
@@ -601,34 +595,34 @@ void flame_general_subtle_filter() {
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_slow() {
-    general_offset();
+void flame_general_slow(CthughaBuffer& buffer) {
+    general_offset(buffer);
 
-    flame_general_slow_filter();
+    flame_general_slow_filter(buffer);
 }
 
 /*
  * Helper for GenSlow.
- * Does: applies the current four offsets directly from passive_buffer to
- * active_buffer.
+ * Does: applies the current four offsets directly from buffer.passivePixels() to
+ * buffer.activePixels().
  * How: byte-by-byte sum of four neighbors followed by divsub.  Easier to read
  * than GenSubt's packed path, but slower.
  */
-void flame_general_slow_filter() {
+void flame_general_slow_filter(CthughaBuffer& buffer) {
     int i;
     int tmp;
-    unsigned char* ptr = active_buffer;
+    unsigned char* ptr = buffer.activePixels();
     int offset1, offset2, offset3, offset4;
 
     /* initialize offsets
      *
-     *  ptr          -> destination (active_buffer)
-     *  ptr + offset -> source (passive_buffer)
+     *  ptr          -> destination (buffer.activePixels())
+     *  ptr + offset -> source (buffer.passivePixels())
      */
-    offset1 = flame_offset[0] + (passive_buffer - active_buffer);
-    offset2 = flame_offset[1] + (passive_buffer - active_buffer);
-    offset3 = flame_offset[2] + (passive_buffer - active_buffer);
-    offset4 = flame_offset[3] + (passive_buffer - active_buffer);
+    offset1 = flame_offset[0] + (buffer.passivePixels() - buffer.activePixels());
+    offset2 = flame_offset[1] + (buffer.passivePixels() - buffer.activePixels());
+    offset3 = flame_offset[2] + (buffer.passivePixels() - buffer.activePixels());
+    offset4 = flame_offset[3] + (buffer.passivePixels() - buffer.activePixels());
 
     for (i = BUFF_SIZE; i != 0; i--) {
         tmp = (int)(*(ptr + offset1)) + (int)(*(ptr + offset2)) + (int)(*(ptr + offset3))
@@ -641,15 +635,15 @@ void flame_general_slow_filter() {
 /*
  * UI: Down (Falling Down)
  * Does: shifts the previous frame downward by one row.
- * How: copies rows from passive_buffer starting one row above the visible
- * buffer into active_buffer.
+ * How: copies rows from buffer.passivePixels() starting one row above the visible
+ * buffer into buffer.activePixels().
  * Sound/border: the top hidden border row becomes the new top visible row, so
  * border mode has a direct visible effect here.
  */
-void flame_down() {
+void flame_down(CthughaBuffer& buffer) {
     int i;
-    unsigned char* src = passive_buffer - BUFF_WIDTH;
-    unsigned char* dst = active_buffer;
+    unsigned char* src = buffer.passivePixels() - BUFF_WIDTH;
+    unsigned char* dst = buffer.activePixels();
 
     for (i = BUFF_HEIGHT; i != 0; i--) {
         memcpy(dst, src, BUFF_WIDTH);

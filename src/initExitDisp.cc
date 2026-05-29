@@ -20,7 +20,6 @@
 #include "Option.h"
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
-#include "CthughaFrameBuffer.h"
 #include "CDPlayer.h"
 #include "DisplayDevice.h"
 #include "Flashlight.h"
@@ -34,7 +33,6 @@
 static VisualPipeline* visualPipeline = NULL;
 static VisualPlan visualPlan;
 static VisualDirector visualDirector;
-static CthughaFrameBuffer visualFrameBuffer;
 static AudioVisualBridge* audioVisualBridge = NULL;
 
 static void initVisualPipeline() {
@@ -76,15 +74,6 @@ static void runAudioVisualBridge() {
 static void runVisualPipeline() {
     initVisualPipeline();
 
-    if (CthughaBuffer::current != NULL
-        && (visualFrameBuffer.active() != CthughaBuffer::current->activeBuffer
-            || visualFrameBuffer.passive() != CthughaBuffer::current->passiveBuffer)) {
-        visualFrameBuffer.bind(CthughaBuffer::current->activeBuffer,
-            CthughaBuffer::current->passiveBuffer, BUFF_WIDTH, BUFF_HEIGHT, BUFF_WIDTH,
-            &CthughaBuffer::current->currentPalette, &CthughaBuffer::current->palChanged,
-            &CthughaBuffer::current->palette, &CthughaBuffer::current->lastPalette);
-    }
-
     VisualFrameContext context;
     context.audioFrame = audioFrameCurrent();
     context.audioAnalysis = &audioAnalysis;
@@ -95,7 +84,7 @@ static void runVisualPipeline() {
     CTH_TRACE("running pipeline=%p modules=%d\n", "visual runtime",
         visualPipeline, visualPipeline ? visualPipeline->size() : 0);
     visualDirector.configurePipeline(*visualPipeline);
-    visualPipeline->run(visualFrameBuffer, context);
+    visualPipeline->run(context);
 }
 
 void sig_tty_cont(int);

@@ -258,17 +258,16 @@ when `VisualDirector` arms the one-shot image stage. Before each frame,
 `VisualDirector` updates bindings for the selected PCX, per-buffer flames,
 translate providers, waves, border mode, and palette state.
 
-Current limitation: the stages still bind through `CthughaBuffer::current`
-while executing classic effects because those functions use `active_buffer` and
-`passive_buffer` macros. Entry selection is now director-owned; legacy buffer
-binding remains in the modules.
+Current limitation: entry selection is now director-owned and stage entries
+receive explicit `CthughaBuffer&` objects, but UI, loading, and display code
+still use `CthughaBuffer::current` to find the selected buffer.
 
 ### Flashlight
 
 `apply_flashlight()` is a palette effect. If the `flashlight` CoreOption is on,
 it copies the current palette, brightens low palette entries according to
 `acousticContext.fire()`, and installs the temporary palette on the
-`CthughaFrameBuffer`.
+selected buffer.
 
 It does not draw pixels into the indexed buffer.
 
@@ -290,23 +289,20 @@ modules. The frame-level order is:
 
 ```text
 BufferFrameBeginModule
-  bind the selected buffer to CthughaFrameBuffer
+  synchronize CthughaBuffer::current with the selected buffer
 
 ImageStageModule
   overlay the selected PCX when VisualDirector has armed ImageStage once
 
 FlameStageModule
-  bind each active buffer
-  execute bound FlameEntry objects
+  pass each active CthughaBuffer into bound FlameEntry objects
 
 TranslateStageModule
-  bind each active buffer
   ask bound TranslateOption providers to prepare/load TranslateEntry objects
-  TranslateEntry::execute(frameBuffer, context) when ready
+  TranslateEntry::execute(buffer, context) when ready
 
 WaveStageModule
-  bind each active buffer
-  execute bound WaveEntry objects
+  pass each active CthughaBuffer into bound WaveEntry objects
 
 BufferFrameEndModule
   log a limited visual-buffer summary
@@ -367,7 +363,7 @@ displayDevice->preDraw()
 displayDevice->setGlobalPalette()
 choose direct or temporary indexed buffer
 checkZoom()
-screen() maps passive_buffer into CthughaDisplay::buffer
+screen() maps selected passive pixels into CthughaDisplay::buffer
 optional horizontal mirror
 palette expansion if target is not 8-bit indexed
 optional vertical mirror

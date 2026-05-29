@@ -14,64 +14,68 @@
 #include <math.h>
 
 /* Wave-display-functions */
-void wave_dotHor();
-void wave_dotVert();
-void wave_lineHor();
-void wave_lineVert();
-void wave_spike();
-void wave_spikeH();
+void wave_dotHor(CthughaBuffer& buffer);
+void wave_dotVert(CthughaBuffer& buffer);
+void wave_lineHor(CthughaBuffer& buffer);
+void wave_lineVert(CthughaBuffer& buffer);
+void wave_spike(CthughaBuffer& buffer);
+void wave_spikeH(CthughaBuffer& buffer);
 
-void wave_buff9();
-void wave_buff10();
-void wave_buff11();
-void wave_buff12();
-void wave_buff13();
-void wave_buff14();
-void wave_buff15();
-void wave_buff16();
-void wave_pete0();
-void wave_pete1();
-void wave_pete2();
-void wave_fract1();
-void wave_fract2();
-void wave_test();
-void wave_aaron();
-void wave_wire1();
-void wave_wire1dot5();
-void wave_wire1dot55();
-void wave_wire1dot6();
-void wave_lineHLdiff();
-void wave_wire2();
-void wave_wire2dot1();
-void wave_spiral();
-void wave_pyro();
-void wave_warp();
-void wave_laser();
-void wave_corner();
-void wave_jump();
-void wave_sticks();
-void wave_grid();
-void wave_none();
+void wave_buff9(CthughaBuffer& buffer);
+void wave_buff10(CthughaBuffer& buffer);
+void wave_buff11(CthughaBuffer& buffer);
+void wave_buff14(CthughaBuffer& buffer);
+void wave_buff15(CthughaBuffer& buffer);
+void wave_buff16(CthughaBuffer& buffer);
+void wave_pete0(CthughaBuffer& buffer);
+void wave_pete1(CthughaBuffer& buffer);
+void wave_pete2(CthughaBuffer& buffer);
+void wave_fract1(CthughaBuffer& buffer);
+void wave_fract2(CthughaBuffer& buffer);
+void wave_test(CthughaBuffer& buffer);
+void wave_aaron(CthughaBuffer& buffer);
+void wave_wire1(CthughaBuffer& buffer);
+void wave_wire1dot5(CthughaBuffer& buffer);
+void wave_wire1dot55(CthughaBuffer& buffer);
+void wave_wire1dot6(CthughaBuffer& buffer);
+void wave_lineHLdiff(CthughaBuffer& buffer);
+void wave_wire2(CthughaBuffer& buffer);
+void wave_wire2dot1(CthughaBuffer& buffer);
+void wave_spiral(CthughaBuffer& buffer);
+void wave_pyro(CthughaBuffer& buffer);
+void wave_warp(CthughaBuffer& buffer);
+void wave_laser(CthughaBuffer& buffer);
+void wave_corner(CthughaBuffer& buffer);
+void wave_jump(CthughaBuffer& buffer);
+void wave_sticks(CthughaBuffer& buffer);
+void wave_grid(CthughaBuffer& buffer);
+void wave_none(CthughaBuffer& buffer);
 
-static void (*last_wave_function)() = NULL;
+static void (*last_wave_function)(CthughaBuffer& buffer) = NULL;
 static int wave_just_started = 1;
 
-WaveEntry::WaveEntry(void (*f)(), const char* name, const char* desc, int inUse)
+WaveEntry::WaveEntry(void (*f)(CthughaBuffer& buffer), const char* name, const char* desc, int inUse)
     : CoreOptionEntry(name, desc, inUse)
     , wave(f) { }
 
 int WaveEntry::operator()() {
+    if (CthughaBuffer::current == 0)
+        return 0;
+
+    return operator()(*CthughaBuffer::current);
+}
+
+int WaveEntry::operator()(CthughaBuffer& buffer) {
     wave_just_started = (last_wave_function != wave);
     last_wave_function = wave;
-    (*wave)();
+    (*wave)(buffer);
     return 0;
 }
 
-void WaveEntry::execute(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context) {
-    (void)frameBuffer;
+void WaveEntry::execute(CthughaBuffer& buffer, const VisualFrameContext& context) {
     (void)context;
 
-    operator()();
+    operator()(buffer);
 }
 
 CoreOptionEntry* _waves[] = {
@@ -124,76 +128,76 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  *   the description when present, falling back to Name(); ncurses/list-style
  *   text displays both.
  * - Does: visible drawing behavior.
- * - Colours: how the wave turns its own values into palette indices.  tcolor()
+ * - Colours: how the wave turns its own values into palette indices.  tableColor(buffer, )
  *   means the current table is applied first; "raw" means the byte written to
- *   active_buffer is already the palette index and bypasses the table.
+ *   buffer.activePixels() is already the palette index and bypasses the table.
  * - Sound: where the wave gets audio information.
  *
  * wave_dotHor
  * - Entry: DotHor (Dots Horizontal)
  * - Does: plots left/right channel dots across the width, with height driven by
  *   each resampled sample value.
- * - Colours: tcolor(sample), so sample value selects a table entry.
+ * - Colours: tableColor(buffer, sample), so sample value selects a table entry.
  * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_dotVert
  * - Entry: DotVert (Dots Vertical)
  * - Does: plots left/right channel dots down the screen, displaced left/right
  *   from the center by sample value.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_lineHor
  * - Entry: LineHor (Lines Horizontal)
  * - Does: draws connected horizontal-scan oscilloscope traces, split into left
  *   and right halves.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_lineVert
  * - Entry: LineVert (Lines Vertical)
  * - Does: draws connected vertical traces, one channel to each side of center.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_spike
  * - Entry: Spike (Spikes)
  * - Does: draws filled vertical bars rising from the bottom, left and right
  *   channels split across the screen.
- * - Colours: tcolor(height), so colour follows distance up the spike rather
+ * - Colours: tableColor(buffer, height), so colour follows distance up the spike rather
  *   than the original sample value.
  * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_spikeH
  * - Entry: SpikeH (Spikes Hollow)
  * - Does: draws only the moving outline of spike heights.
- * - Colours: tcolor(scaled absolute amplitude).
+ * - Colours: tableColor(buffer, scaled absolute amplitude).
  * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_buff9
  * - Entry: Walking (Walking)
  * - Does: draws two vertical traces around a horizontally walking center
  *   column.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_buff10
  * - Entry: Falling (Falling)
  * - Does: writes channel sample dots into a row that advances downward.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(2 * MID_X) from audioFrameProcessedData().
  *
  * wave_buff11
  * - Entry: Lissa (Lissa)
  * - Does: draws a Lissajous-style point cloud, using right channel for x and
  *   left channel for y.
- * - Colours: tcolor(left sample).
+ * - Colours: tableColor(buffer, left sample).
  * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_buff14
  * - Entry: LineX (Line X)
  * - Does: draws two horizontal traces with different center offsets.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedData().
  *
  * wave_buff15
@@ -212,67 +216,67 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  * - Entry: Pete0 (FireFlies)
  * - Does: draws two drifting point clusters whose offsets wander with the
  *   first few samples.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_pete1
  * - Entry: Pete1 (Pete)
  * - Does: draws two sine-shaped rows scaled by average channel energy.
- * - Colours: tcolor(signed sample).
+ * - Colours: tableColor(buffer, signed sample).
  * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_pete2
  * - Entry: Pete2 (Dot VS sine)
  * - Does: plots vertical dots displaced by sample, one channel on each side.
- * - Colours: tcolor(sine[sample]), so colour uses a sine lookup of the sample.
+ * - Colours: tableColor(buffer, sine[sample]), so colour uses a sine lookup of the sample.
  * - Sound: prepareSoundData(BUFF_HEIGHT) from audioFrameProcessedData().
  *
  * wave_fract1
  * - Entry: Fract1 (Zippy 1)
  * - Does: walks two persistent points around the buffer using half-sized
  *   differences between neighboring samples.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_fract2
  * - Entry: Fract2 (Zippy 2)
  * - Does: like Fract1, but uses full sample differences for a sharper walk.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_test
  * - Entry: Test (Test)
  * - Does: draws sine-shaped rows scaled by average channel energy, similar to
  *   Pete1 but with unsigned colour lookup.
- * - Colours: tcolor(sample + 128).
+ * - Colours: tableColor(buffer, sample + 128).
  * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_aaron
  * - Entry: Aaron (Rings of Fire)
  * - Does: draws two moving ring/rosette point sets when the buffer is large
  *   enough, otherwise advances to the next wave.
- * - Colours: tcolor(sample).
+ * - Colours: tableColor(buffer, sample).
  * - Sound: prepareSoundData(BUFF_WIDTH) from audioFrameProcessedData().
  *
  * wave_wire1
  * - Entry: Wire1 (Wire frame 1)
  * - Does: rotates the selected object; each edge endpoint can scale
  *   independently, giving a fractured audio-reactive wireframe.
- * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
+ * - Colours: one startup-random value per wave lifetime, drawn as tableColor(buffer, col).
  * - Sound: directly averages slices of audioFrameProcessedData() per object edge.
  *
  * wave_wire1dot5
  * - Entry: Wire1dot5 (Wire frame 1.5)
  * - Does: rotates the selected object as a rigid model around a startup-random
  *   axis with one frame-wide audio scale.
- * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
+ * - Colours: one startup-random value per wave lifetime, drawn as tableColor(buffer, col).
  * - Sound: wire_sound_scale() averages all 1024 samples from
  *   audioFrameProcessedData().
  *
  * wave_wire1dot55
  * - Entry: Wire1dot55 (Wire frame 1.55)
  * - Does: Wire1dot5 plus a precessing rotation axis.
- * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
+ * - Colours: one startup-random value per wave lifetime, drawn as tableColor(buffer, col).
  * - Sound: wire_sound_scale() averages all 1024 samples from
  *   audioFrameProcessedData().
  *
@@ -280,7 +284,7 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  * - Entry: Wire1dot6 (Wire frame 1.6)
  * - Does: rotates the selected object while stretching each vertex radially
  *   according to a stable audio slice.
- * - Colours: one startup-random value per wave lifetime, drawn as tcolor(col).
+ * - Colours: one startup-random value per wave lifetime, drawn as tableColor(buffer, col).
  * - Sound: vertex_sound_stretch() hashes object-space vertices into small
  *   slices of audioFrameProcessedData().
  *
@@ -288,39 +292,39 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
  * - Entry: Wire2 (Wire frame 2)
  * - Does: draws a swarm of selected-object copies, each with its own position
  *   and local spin.
- * - Colours: one startup-random value per copy, drawn as tcolor(col[j]).
+ * - Colours: one startup-random value per copy, drawn as tableColor(buffer, col[j]).
  * - Sound: no audio source; motion is time/random-state driven.
  *
  * wave_wire2dot1
  * - Entry: Wire2dot1 (Wire frame 2.1)
  * - Does: Wire2 with a different startup-random local rotation axis per copy.
- * - Colours: one startup-random value per copy, drawn as tcolor(col[j]).
+ * - Colours: one startup-random value per copy, drawn as tableColor(buffer, col[j]).
  * - Sound: no audio source; motion is time/random-state driven.
  *
  * wave_lineHLdiff
  * - Entry: LineHLDiff (Difference Hor.)
  * - Does: draws one horizontal trace from the left-minus-right channel
  *   difference.
- * - Colours: tcolor(left - right + 128).
+ * - Colours: tableColor(buffer, left - right + 128).
  * - Sound: prepareSoundData(BUFF_WIDTH, 0) from audioFrameProcessedData().
  *
  * wave_spiral
  * - Entry: Spiral (Spirograph)
  * - Does: draws a changing spirograph from center using current amplitude.
- * - Colours: one cycling value per frame, drawn as tcolor(col).
+ * - Colours: one cycling value per frame, drawn as tableColor(buffer, col).
  * - Sound: audioAnalysis.amplitude, amplitudeLeft, and amplitudeRight shape
  *   the curve; acousticContext.fire() counts down to the next random twist count.
  *
  * wave_pyro
  * - Entry: Pyro (Fire works)
  * - Does: launches and animates bouncing firework streaks on fire events.
- * - Colours: one random value per firework, drawn as tcolor(col).
+ * - Colours: one random value per firework, drawn as tableColor(buffer, col).
  * - Sound: acousticContext.fire() controls launch and vertical velocity.
  *
  * wave_warp
  * - Entry: Warp (Space warp)
  * - Does: launches expanding rotating radial rings on fire events.
- * - Colours: one random value per ring, drawn as tcolor(col).
+ * - Colours: one random value per ring, drawn as tableColor(buffer, col).
  * - Sound: acousticContext.fire() controls ring speed, trail count, and rotation.
  *
  * wave_laser
@@ -365,7 +369,7 @@ int _nWaves = sizeof(_waves) / sizeof(CoreOptionEntry*);
 
 /*****************************************************************************/
 extern int Bsine[MAX_BUFF_WIDTH];
-static void draw_line(int x1, int y1, int x2, int y2, int c);
+static void draw_line(CthughaBuffer& buffer, int x1, int y1, int x2, int y2, int c);
 
 OptionOnOff use_objects("use-objects", 1); /* use 3-D objects */
 CoreOptionEntry* read_object(FILE* file, const char* name, const char* dir, const char* total_name);
@@ -541,7 +545,9 @@ CoreOptionEntry* read_object(
 #define MID_X (BUFF_WIDTH >> 1)
 #define LOW_LINE (BUFF_HEIGHT - BUFF_HEIGHT / 10)
 
-#define tcolor(x) (tables[int(CthughaBuffer::current->table)][(x)])
+static int tableColor(CthughaBuffer& buffer, int value) {
+    return tables[int(buffer.table)][value];
+}
 
 #define PRECESSION_TIME_MIN 4.0
 #define PRECESSION_TIME_MAX 12.0
@@ -683,18 +689,18 @@ struct WireObjectFrame {
  * the origin; the upper corner therefore gives both the midpoint and the
  * largest extent used for normalization.
  */
-static int setup_wire_object(WireObjectFrame& frame) {
+static int setup_wire_object(CthughaBuffer& buffer, WireObjectFrame& frame) {
     int j;
 
-    ObjectEntry* objE = (ObjectEntry*)CthughaBuffer::current->object.current();
+    ObjectEntry* objE = (ObjectEntry*)buffer.object.current();
     if (objE == NULL) {
-        CthughaBuffer::current->wave.change(+1, 0);
+        buffer.wave.change(+1, 0);
         return 0;
     }
 
     frame.obj = objE->obj;
     if (frame.obj == NULL) {
-        CthughaBuffer::current->wave.change(+1, 0);
+        buffer.wave.change(+1, 0);
         return 0;
     }
 
@@ -754,7 +760,7 @@ static void project_wire_point(
     sy = int((double)ay * scale / (az + cameraDistance) + MID_Y);
 }
 
-static void draw_axis_wire_model(
+static void draw_axis_wire_model(CthughaBuffer& buffer,
     const WireObjectFrame& frame, const double axis[3], int theta, double scale, double cameraDistance, int col) {
     int i, x1, y1, x2, y2;
     double x, y, z, ax, ay, az;
@@ -768,38 +774,37 @@ static void draw_axis_wire_model(
         rotate_axis(x, y, z, axis, theta, ax, ay, az);
         project_wire_point(ax, ay, az, scale, cameraDistance, x2, y2);
 
-        draw_line(x1, y1, x2, y2, tcolor(col));
+        draw_line(buffer, x1, y1, x2, y2, tableColor(buffer, col));
     }
 }
 
-// #define putat(x,y,val)	active_buffer[ addr( (x) , (y) ) ] = val
-void putat(int x, int y, int val) {
+void putat(CthughaBuffer& buffer, int x, int y, int val) {
     int a = addr(x, y);
 
-    active_buffer[a] = val;
-    active_buffer[a - 1] = val;
-    active_buffer[a + 1] = val;
-    active_buffer[a + BUFF_WIDTH] = val;
-    active_buffer[a - BUFF_WIDTH] = val;
+    buffer.activePixels()[a] = val;
+    buffer.activePixels()[a - 1] = val;
+    buffer.activePixels()[a + 1] = val;
+    buffer.activePixels()[a + BUFF_WIDTH] = val;
+    buffer.activePixels()[a - BUFF_WIDTH] = val;
 }
 
-void putat_cut(int x, int y, int val) {
+void putat_cut(CthughaBuffer& buffer, int x, int y, int val) {
     if ((x < 0) || (x >= BUFF_WIDTH))
         return;
     if ((y < 0) || (y >= BUFF_HEIGHT))
         return;
-    putat(x, y, val);
+    putat(buffer, x, y, val);
 }
 
-void putpixel_cut(int x, int y, int val) {
+void putpixel_cut(CthughaBuffer& buffer, int x, int y, int val) {
     if ((x < 0) || (x >= BUFF_WIDTH))
         return;
     if ((y < 0) || (y >= BUFF_HEIGHT))
         return;
-    active_buffer[addr(x, y)] = val;
+    buffer.activePixels()[addr(x, y)] = val;
 }
 
-void draw_line(int x1, int y1, int x2, int y2, int c) {
+void draw_line(CthughaBuffer& buffer, int x1, int y1, int x2, int y2, int c) {
     register int lx, ly, dx, dy;
     register int i, j, k;
 
@@ -831,7 +836,7 @@ void draw_line(int x1, int y1, int x2, int y2, int c) {
                 k -= lx;
                 j += dy;
             }
-            active_buffer[i + j * BUFF_WIDTH] = c;
+            buffer.activePixels()[i + j * BUFF_WIDTH] = c;
         }
     } else {
         for (i = y1, j = x1, k = 0; i != y2; i += dy, k += lx) {
@@ -839,12 +844,12 @@ void draw_line(int x1, int y1, int x2, int y2, int c) {
                 k -= ly;
                 j += dx;
             }
-            active_buffer[j + i * BUFF_WIDTH] = c;
+            buffer.activePixels()[j + i * BUFF_WIDTH] = c;
         }
     }
 }
 
-void do_vwave(int ystart, int yend, int x, int val) {
+void do_vwave(CthughaBuffer& buffer, int ystart, int yend, int x, int val) {
     int ys, ye;
     unsigned char* pos;
 
@@ -862,14 +867,14 @@ void do_vwave(int ystart, int yend, int x, int val) {
     if (ye >= BUFF_HEIGHT)
         ye = BUFF_HEIGHT - 1;
 
-    pos = active_buffer + addr(x, ys);
+    pos = buffer.activePixels() + addr(x, ys);
     for (; ys <= ye; ys++) {
         *pos = (char)val;
         pos += BUFF_WIDTH;
     }
 }
 
-void do_hwave(int xstart, int xend, int y, int val) {
+void do_hwave(CthughaBuffer& buffer, int xstart, int xend, int y, int val) {
     int xs, xe;
     unsigned char* pos;
 
@@ -892,7 +897,7 @@ void do_hwave(int xstart, int xend, int y, int val) {
     if (xe >= BUFF_WIDTH)
         xe = BUFF_WIDTH - 1;
 
-    pos = active_buffer + addr(xs, y);
+    pos = buffer.activePixels() + addr(xs, y);
     for (; xs <= xe; xs++) {
         *pos = (char)val;
         pos++;
@@ -929,10 +934,10 @@ void prepareSoundData(int n, int add = 128) {
  *****************************************************************************/
 
 /* Writes no pixels. */
-void wave_none() { }
+void wave_none(CthughaBuffer& buffer) { }
 
 /* Writes fixed raw palette indices: 48, 96, 128, 160, 192, 224, and 255. */
-void wave_grid() {
+void wave_grid(CthughaBuffer& buffer) {
     for (int y = 0; y < BUFF_HEIGHT; y++) {
         for (int x = 0; x < BUFF_WIDTH; x++) {
             int c = 0;
@@ -947,35 +952,35 @@ void wave_grid() {
                 c = 224;
 
             if (c != 0)
-                active_buffer[addr(x, y)] = c;
+                buffer.activePixels()[addr(x, y)] = c;
         }
     }
 
     for (int i = 0; (i < BUFF_WIDTH) && (i < BUFF_HEIGHT); i++)
-        active_buffer[addr(i, i)] = 255;
+        buffer.activePixels()[addr(i, i)] = 255;
 
     for (int i = 0; (i < BUFF_WIDTH) && (i < BUFF_HEIGHT); i++)
-        active_buffer[addr(BUFF_WIDTH - 1 - i, i)] = 160;
+        buffer.activePixels()[addr(BUFF_WIDTH - 1 - i, i)] = 160;
 
-    putat_cut(5, 5, 255);
-    putat_cut(BUFF_WIDTH - 6, 5, 192);
-    putat_cut(5, BUFF_HEIGHT - 6, 160);
-    putat_cut(BUFF_WIDTH - 6, BUFF_HEIGHT - 6, 128);
+    putat_cut(buffer, 5, 5, 255);
+    putat_cut(buffer, BUFF_WIDTH - 6, 5, 192);
+    putat_cut(buffer, 5, BUFF_HEIGHT - 6, 160);
+    putat_cut(buffer, BUFF_WIDTH - 6, BUFF_HEIGHT - 6, 128);
 }
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_dotHor() { /* dot horizontal */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_dotHor(CthughaBuffer& buffer) { /* dot horizontal */
     int x, tmp;
 
     prepareSoundData(BUFF_WIDTH);
 
     for (x = 0; x < BUFF_WIDTH; x++) {
         tmp = data[x][0];
-        putpixel_cut(x >> 1, LOW_LINE - (tmp >> int(CthughaBuffer::current->waveScale)), tcolor(tmp));
+        putpixel_cut(buffer, x >> 1, LOW_LINE - (tmp >> int(buffer.waveScale)), tableColor(buffer, tmp));
 
         tmp = data[x][1];
-        putpixel_cut((x + BUFF_WIDTH) >> 1, LOW_LINE - (tmp >> int(CthughaBuffer::current->waveScale)),
-            tcolor(tmp));
+        putpixel_cut(buffer, (x + BUFF_WIDTH) >> 1, LOW_LINE - (tmp >> int(buffer.waveScale)),
+            tableColor(buffer, tmp));
     }
 }
 
@@ -983,18 +988,18 @@ void wave_dotHor() { /* dot horizontal */
  * Dot vertical
  *****************************************************************************/
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_dotVert() { /* dot vertical */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_dotVert(CthughaBuffer& buffer) { /* dot vertical */
     int tmp, x;
 
     prepareSoundData(BOTTOM);
 
     for (x = 0; x < BOTTOM; x++) {
         tmp = data[x][0];
-        putpixel_cut(MID_X - (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        putpixel_cut(buffer, MID_X - (tmp >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
 
         tmp = data[x][1];
-        putpixel_cut(MID_X + (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        putpixel_cut(buffer, MID_X + (tmp >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
     }
 }
 
@@ -1002,8 +1007,8 @@ void wave_dotVert() { /* dot vertical */
  * Line horizontal
  ****************************************************************************/
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_lineHor() { /* Line horizontal */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_lineHor(CthughaBuffer& buffer) { /* Line horizontal */
     int x, y, tmp;
     static int last = 0;
 
@@ -1012,9 +1017,9 @@ void wave_lineHor() { /* Line horizontal */
     for (y = 0; y < 2; y++)
         for (x = 0; x < BUFF_WIDTH; x++) {
             tmp = data[x][y];
-            do_vwave(MID_Y - ((tmp - 128) >> int(CthughaBuffer::current->waveScale)),
-                MID_Y - ((last - 128) >> int(CthughaBuffer::current->waveScale)),
-                y ? ((x + BUFF_WIDTH) >> 1) : (x >> 1), tcolor(tmp));
+            do_vwave(buffer, MID_Y - ((tmp - 128) >> int(buffer.waveScale)),
+                MID_Y - ((last - 128) >> int(buffer.waveScale)),
+                y ? ((x + BUFF_WIDTH) >> 1) : (x >> 1), tableColor(buffer, tmp));
             last = tmp;
         }
 }
@@ -1023,21 +1028,21 @@ void wave_lineHor() { /* Line horizontal */
  * Line vertical
  ****************************************************************************/
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_lineVert() { /* Line veritcal short */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_lineVert(CthughaBuffer& buffer) { /* Line veritcal short */
     int tmp, x, last1 = 128, last2 = 128;
 
     prepareSoundData(BOTTOM);
 
     for (x = 0; x < BOTTOM; x++) {
         tmp = data[x][0];
-        do_hwave(MID_X - (tmp >> int(CthughaBuffer::current->waveScale)),
-            MID_X - (last1 >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        do_hwave(buffer, MID_X - (tmp >> int(buffer.waveScale)),
+            MID_X - (last1 >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
         last1 = tmp;
 
         tmp = data[x][1];
-        do_hwave(MID_X + (tmp >> int(CthughaBuffer::current->waveScale)),
-            MID_X + (last2 >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        do_hwave(buffer, MID_X + (tmp >> int(buffer.waveScale)),
+            MID_X + (last2 >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
         last2 = tmp;
     }
 }
@@ -1046,38 +1051,38 @@ void wave_lineVert() { /* Line veritcal short */
  * Spikes functions
  ****************************************************************************/
 
-/* Writes table-mapped spike-height indices, tcolor(0..BOTTOM-1). */
-void wave_spike() { /* Spike */
+/* Writes table-mapped spike-height indices, tableColor(buffer, 0..BOTTOM-1). */
+void wave_spike(CthughaBuffer& buffer) { /* Spike */
     int x, tmp, i;
 
     prepareSoundData(BUFF_WIDTH, 0);
 
     for (x = 0; x < BUFF_WIDTH; x++) {
-        tmp = 2 * abs(data[x][0]) >> int(CthughaBuffer::current->waveScale);
+        tmp = 2 * abs(data[x][0]) >> int(buffer.waveScale);
         if (tmp >= BOTTOM)
             tmp = BOTTOM - 1;
         for (i = 0; i < tmp; i++)
-            putat(x >> 1, BOTTOM - i, tcolor(i));
+            putat(buffer, x >> 1, BOTTOM - i, tableColor(buffer, i));
 
-        tmp = 2 * abs(data[x][1]) >> int(CthughaBuffer::current->waveScale);
+        tmp = 2 * abs(data[x][1]) >> int(buffer.waveScale);
         if (tmp >= BOTTOM)
             tmp = BOTTOM - 1;
         for (i = 0; i < tmp; i++)
-            putat((x + BUFF_WIDTH) >> 1, BOTTOM - i, tcolor(i));
+            putat(buffer, (x + BUFF_WIDTH) >> 1, BOTTOM - i, tableColor(buffer, i));
     }
 }
 
-/* Writes table-mapped scaled-amplitude indices, tcolor(amplitude). */
-void wave_spikeH() { /* Spike hollow */
+/* Writes table-mapped scaled-amplitude indices, tableColor(buffer, amplitude). */
+void wave_spikeH(CthughaBuffer& buffer) { /* Spike hollow */
     int tmp, x, y, last = 0;
 
     prepareSoundData(BUFF_WIDTH, 0);
 
     for (y = 0; y < 2; y++) {
         for (x = 0; x < BUFF_WIDTH; x++) {
-            tmp = 2 * abs(data[x][y]) >> int(CthughaBuffer::current->waveScale);
-            do_vwave(
-                BOTTOM - tmp, BOTTOM - last, y ? ((x + BUFF_WIDTH) >> 1) : (x >> 1), tcolor(tmp));
+            tmp = 2 * abs(data[x][y]) >> int(buffer.waveScale);
+            do_vwave(buffer, BOTTOM - tmp, BOTTOM - last,
+                y ? ((x + BUFF_WIDTH) >> 1) : (x >> 1), tableColor(buffer, tmp));
             last = tmp;
         }
     }
@@ -1087,8 +1092,8 @@ void wave_spikeH() { /* Spike hollow */
  * other wave-functions
  *****************************************************************************/
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_buff9() { /* Walking */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_buff9(CthughaBuffer& buffer) { /* Walking */
     int tmp, x, last1 = 128, last2 = 128;
     static int col = 128;
 
@@ -1098,18 +1103,18 @@ void wave_buff9() { /* Walking */
 
     for (x = 0; x < BOTTOM; x++) {
         tmp = data[x][0];
-        do_hwave(col - (tmp >> int(CthughaBuffer::current->waveScale)),
-            col - (last1 >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        do_hwave(buffer, col - (tmp >> int(buffer.waveScale)),
+            col - (last1 >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
         last1 = tmp;
 
         tmp = data[x][1];
-        do_hwave(col + (tmp >> int(CthughaBuffer::current->waveScale)),
-            col + (last2 >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        do_hwave(buffer, col + (tmp >> int(buffer.waveScale)),
+            col + (last2 >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
         last2 = tmp;
     }
 }
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_buff10() { /* Falling */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_buff10(CthughaBuffer& buffer) { /* Falling */
     int i;
     static int row = 0;
 
@@ -1117,15 +1122,15 @@ void wave_buff10() { /* Falling */
 
     row = (row + 1) % BOTTOM;
     for (i = 0; i < MID_X; i++) {
-        putat(i, row + 1, tcolor(data[i][0]));
-        putat(i + MID_X, row + 1, tcolor(data[i][1]));
-        putat(i, row, tcolor(data[i + MID_X][0]));
-        putat(i + MID_X, row, tcolor(data[i + MID_X][1]));
+        putat(buffer, i, row + 1, tableColor(buffer, data[i][0]));
+        putat(buffer, i + MID_X, row + 1, tableColor(buffer, data[i][1]));
+        putat(buffer, i, row, tableColor(buffer, data[i + MID_X][0]));
+        putat(buffer, i + MID_X, row, tableColor(buffer, data[i + MID_X][1]));
     }
 }
 
-/* Writes table-mapped left-channel sample indices, tcolor(sample), across 0..255. */
-void wave_buff11() { /* Lissa */
+/* Writes table-mapped left-channel sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_buff11(CthughaBuffer& buffer) { /* Lissa */
     int tmp, x, tmp2;
 
     prepareSoundData(BUFF_WIDTH);
@@ -1134,32 +1139,32 @@ void wave_buff11() { /* Lissa */
         tmp = data[x][0];
         tmp2 = data[x][1];
 
-        putat((tmp2 + 32) % BUFF_WIDTH, (tmp + 200 - 28) % BOTTOM, tcolor(tmp));
+        putat(buffer, (tmp2 + 32) % BUFF_WIDTH, (tmp + 200 - 28) % BOTTOM, tableColor(buffer, tmp));
     }
 }
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_buff14() { /* Line X */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_buff14(CthughaBuffer& buffer) { /* Line X */
     int tmp, x, last = 128;
 
     prepareSoundData(BOTTOM);
 
     for (x = 0; x < BOTTOM; x++) {
         tmp = data[x][0];
-        do_hwave(MID_X - (tmp >> int(CthughaBuffer::current->waveScale)),
-            MID_X - (last >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        do_hwave(buffer, MID_X - (tmp >> int(buffer.waveScale)),
+            MID_X - (last >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
         last = tmp;
     }
     for (x = 0; x < BOTTOM; x++) {
         tmp = data[x][1];
-        do_hwave(MID_X - 40 + (tmp >> int(CthughaBuffer::current->waveScale)),
-            MID_X - 40 + (last >> int(CthughaBuffer::current->waveScale)), x, tcolor(tmp));
+        do_hwave(buffer, MID_X - 40 + (tmp >> int(buffer.waveScale)),
+            MID_X - 40 + (last >> int(buffer.waveScale)), x, tableColor(buffer, tmp));
         last = tmp;
     }
 }
 
 /* Writes fixed raw palette index 255. */
-void wave_buff15() { /* Lightning 1 */
+void wave_buff15(CthughaBuffer& buffer) { /* Lightning 1 */
     int tmp, x, last = BUFF_WIDTH / 3;
 
     prepareSoundData(BOTTOM, 0);
@@ -1173,7 +1178,7 @@ void wave_buff15() { /* Lightning 1 */
         if (tmp < 0)
             tmp = 0;
 
-        do_hwave(tmp, last, x, 255);
+        do_hwave(buffer, tmp, last, x, 255);
         last = tmp;
     }
 
@@ -1187,12 +1192,12 @@ void wave_buff15() { /* Lightning 1 */
         if (tmp < 0)
             tmp = 0;
 
-        do_hwave(tmp, last, x, 255);
+        do_hwave(buffer, tmp, last, x, 255);
         last = tmp;
     }
 }
 /* Writes fixed raw palette index 255. */
-void wave_buff16() { /* Lightning 2 */
+void wave_buff16(CthughaBuffer& buffer) { /* Lightning 2 */
     int tmp, x, last = BUFF_WIDTH / 3;
 
     prepareSoundData(BUFF_WIDTH, 0);
@@ -1206,7 +1211,7 @@ void wave_buff16() { /* Lightning 2 */
         if (tmp < 0)
             tmp = 0;
 
-        do_hwave(tmp, last, x, 255);
+        do_hwave(buffer, tmp, last, x, 255);
         last = tmp;
     }
 
@@ -1220,13 +1225,13 @@ void wave_buff16() { /* Lightning 2 */
         if (tmp < 0)
             tmp = 0;
 
-        do_hwave(tmp, last, x, 255);
+        do_hwave(buffer, tmp, last, x, 255);
         last = tmp;
     }
 }
 
-/* Writes table-mapped sound sample indices, mostly tcolor(sample) across 0..255. */
-void wave_pete0() { /* FireFlies */
+/* Writes table-mapped sound sample indices, mostly tableColor(buffer, sample) across 0..255. */
+void wave_pete0(CthughaBuffer& buffer) { /* FireFlies */
     int temp, temp2, x;
     static int xoff0 = 160, yoff0 = 100;
     static int xoff1 = 160, yoff1 = 100;
@@ -1259,17 +1264,17 @@ void wave_pete0() { /* FireFlies */
         temp = data[x][0];
         temp2 = data[(x + 80) % BUFF_WIDTH][0];
 
-        putat(((temp2 >> 2) + xoff0) % BUFF_WIDTH, ((temp >> 2) + yoff0) % BOTTOM, tcolor(temp));
+        putat(buffer, ((temp2 >> 2) + xoff0) % BUFF_WIDTH, ((temp >> 2) + yoff0) % BOTTOM, tableColor(buffer, temp));
 
         temp = data[x][1] + 128;
         temp2 = data[(x + 80) % BUFF_WIDTH][1] + 128;
 
-        putat(((temp2 >> 2) + xoff1) % BUFF_WIDTH, ((temp >> 2) + yoff1) % BOTTOM, tcolor(temp));
+        putat(buffer, ((temp2 >> 2) + xoff1) % BUFF_WIDTH, ((temp >> 2) + yoff1) % BOTTOM, tableColor(buffer, temp));
     }
 }
 
-/* Writes table-mapped signed-amplitude indices, tcolor(sample). */
-void wave_pete1() {
+/* Writes table-mapped signed-amplitude indices, tableColor(buffer, sample). */
+void wave_pete1(CthughaBuffer& buffer) {
     int tmp, x, left = 0, right = 0;
 
     prepareSoundData(BUFF_WIDTH, 0);
@@ -1287,30 +1292,30 @@ void wave_pete1() {
 
     for (x = 0; x < MID_X; x++) {
         tmp = data[x][0];
-        putat_cut(x, BOTTOM - (abs(left * Bsine[x]) >> 8), tcolor(tmp));
+        putat_cut(buffer, x, BOTTOM - (abs(left * Bsine[x]) >> 8), tableColor(buffer, tmp));
     }
     for (x = MID_X; x < BUFF_WIDTH; x++) {
         tmp = data[x][1];
-        putat_cut(x, BOTTOM - (abs(right * Bsine[x]) >> 8), tcolor(tmp));
+        putat_cut(buffer, x, BOTTOM - (abs(right * Bsine[x]) >> 8), tableColor(buffer, tmp));
     }
 }
 
-/* Writes table-mapped sine lookup indices, tcolor(sine[sample]). */
-void wave_pete2() { /* Dot VS sine */
+/* Writes table-mapped sine lookup indices, tableColor(buffer, sine[sample]). */
+void wave_pete2(CthughaBuffer& buffer) { /* Dot VS sine */
     int x, tmp;
 
     prepareSoundData(BUFF_HEIGHT);
 
     for (x = 0; x < BUFF_HEIGHT; x++) {
         tmp = data[x][0];
-        putat_cut(MID_X - (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(sine[tmp]));
+        putat_cut(buffer, MID_X - (tmp >> int(buffer.waveScale)), x, tableColor(buffer, sine[tmp]));
         tmp = data[x][1];
-        putat_cut(MID_X + (tmp >> int(CthughaBuffer::current->waveScale)), x, tcolor(sine[tmp]));
+        putat_cut(buffer, MID_X + (tmp >> int(buffer.waveScale)), x, tableColor(buffer, sine[tmp]));
     }
 }
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_fract1() { /* Zippy 1*/
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_fract1(CthughaBuffer& buffer) { /* Zippy 1*/
     int temp, x;
     static int xoff0 = 0, yoff0 = 0;
     static int xoff1 = 0, yoff1 = 0;
@@ -1327,7 +1332,7 @@ void wave_fract1() { /* Zippy 1*/
 
         xoff0 = xoff0 % BUFF_WIDTH;
 
-        putat(xoff0, yoff0, tcolor(temp));
+        putat(buffer, xoff0, yoff0, tableColor(buffer, temp));
 
         yoff0 += (data[x + 1][0] - temp) >> 1;
         temp = data[x + 1][0];
@@ -1337,7 +1342,7 @@ void wave_fract1() { /* Zippy 1*/
 
         yoff0 = yoff0 % BUFF_HEIGHT;
 
-        putat(xoff0, yoff0, tcolor(temp));
+        putat(buffer, xoff0, yoff0, tableColor(buffer, temp));
     }
 
     temp = data[0][1];
@@ -1350,7 +1355,7 @@ void wave_fract1() { /* Zippy 1*/
 
         xoff1 = xoff1 % BUFF_WIDTH;
 
-        putat(xoff1, yoff1, tcolor(temp));
+        putat(buffer, xoff1, yoff1, tableColor(buffer, temp));
 
         yoff1 -= (data[x + 1][1] - temp) >> 1;
         temp = data[x + 1][1];
@@ -1360,12 +1365,12 @@ void wave_fract1() { /* Zippy 1*/
 
         yoff1 = yoff1 % BUFF_HEIGHT;
 
-        putat(xoff1, yoff1, tcolor(temp));
+        putat(buffer, xoff1, yoff1, tableColor(buffer, temp));
     }
 }
 
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_fract2(void) { /* Zippy 2 */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_fract2(CthughaBuffer& buffer) { /* Zippy 2 */
     int temp, x;
     static int xoff0 = 0, yoff0 = 0;
     static int xoff1 = 0, yoff1 = 0;
@@ -1382,7 +1387,7 @@ void wave_fract2(void) { /* Zippy 2 */
 
         xoff0 = xoff0 % BUFF_WIDTH;
 
-        putat(xoff0, yoff0, tcolor(temp));
+        putat(buffer, xoff0, yoff0, tableColor(buffer, temp));
 
         yoff0 += (data[x + 1][0] - temp);
         temp = data[x + 1][0];
@@ -1392,7 +1397,7 @@ void wave_fract2(void) { /* Zippy 2 */
 
         yoff0 = yoff0 % BUFF_HEIGHT;
 
-        putat(xoff0, yoff0, tcolor(temp));
+        putat(buffer, xoff0, yoff0, tableColor(buffer, temp));
     }
 
     temp = data[0][1];
@@ -1405,7 +1410,7 @@ void wave_fract2(void) { /* Zippy 2 */
 
         xoff1 = xoff1 % BUFF_WIDTH;
 
-        putat(xoff1, yoff1, tcolor(temp));
+        putat(buffer, xoff1, yoff1, tableColor(buffer, temp));
 
         yoff1 -= (data[x + 1][1] - temp);
         temp = data[x + 1][1];
@@ -1415,12 +1420,12 @@ void wave_fract2(void) { /* Zippy 2 */
 
         yoff1 = yoff1 % BUFF_HEIGHT;
 
-        putat(xoff1, yoff1, tcolor(temp));
+        putat(buffer, xoff1, yoff1, tableColor(buffer, temp));
     }
 }
 
-/* Writes table-mapped sound sample indices, tcolor(sample + 128), across 0..255. */
-void wave_test() { /* Test */
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample + 128), across 0..255. */
+void wave_test(CthughaBuffer& buffer) { /* Test */
     int temp, x, left = 0, right = 0;
 
     prepareSoundData(BUFF_WIDTH, 0);
@@ -1438,11 +1443,11 @@ void wave_test() { /* Test */
 
     for (x = 0; x < MID_X; x++) {
         temp = data[x][0] + 128;
-        putat_cut(x, BOTTOM - (abs((left)*Bsine[x]) >> 8), tcolor(temp));
+        putat_cut(buffer, x, BOTTOM - (abs((left)*Bsine[x]) >> 8), tableColor(buffer, temp));
     }
     for (x = MID_X; x < BUFF_WIDTH; x++) {
         temp = data[x][1] + 128;
-        putat_cut(x, BOTTOM - (abs((right)*Bsine[x]) >> 8), tcolor(temp));
+        putat_cut(buffer, x, BOTTOM - (abs((right)*Bsine[x]) >> 8), tableColor(buffer, temp));
     }
 }
 
@@ -1453,8 +1458,8 @@ void wave_test() { /* Test */
  *
  * the rings have a radius of 64.
  */
-/* Writes table-mapped sound sample indices, tcolor(sample), across 0..255. */
-void wave_aaron() {
+/* Writes table-mapped sound sample indices, tableColor(buffer, sample), across 0..255. */
+void wave_aaron(CthughaBuffer& buffer) {
     static int x = 40, y = 0;
     static int first = 1;
     static int cxl = -1;
@@ -1488,7 +1493,7 @@ void wave_aaron() {
             sy = (sine[y] * tmp) >> 9;
             tyl += sy;
 
-            putat_cut(cxl + sx, cyl + sy, tcolor(tmp));
+            putat_cut(buffer, cxl + sx, cyl + sy, tableColor(buffer, tmp));
 
             tmp = data[i][1];
 
@@ -1497,7 +1502,7 @@ void wave_aaron() {
             sy = (sine[y] * tmp) >> 9;
             tyr += sy;
 
-            putat_cut(cxr - sx, cyr - sy, tcolor(tmp));
+            putat_cut(buffer, cxr - sx, cyr - sy, tableColor(buffer, tmp));
 
             x++;
             y++;
@@ -1520,13 +1525,13 @@ void wave_aaron() {
             cyr += BUFF_HEIGHT;
 
     } else {
-        CthughaBuffer::current->wave.change(+1, 0);
+        buffer.wave.change(+1, 0);
     }
 }
 
 /* Line horizontal long diff */
-/* Writes table-mapped stereo-difference indices, tcolor(left - right + 128). */
-void wave_lineHLdiff() {
+/* Writes table-mapped stereo-difference indices, tableColor(buffer, left - right + 128). */
+void wave_lineHLdiff(CthughaBuffer& buffer) {
     register int x, tmp;
     static int last = 0;
 
@@ -1535,13 +1540,13 @@ void wave_lineHLdiff() {
     if (BUFF_HEIGHT < 300) {
         for (x = 0; x < BUFF_WIDTH; x++) {
             tmp = data[x][0] - data[x][1];
-            do_vwave(MID_Y - tmp, MID_Y - last, x, tcolor(tmp + 128));
+            do_vwave(buffer, MID_Y - tmp, MID_Y - last, x, tableColor(buffer, tmp + 128));
             last = tmp;
         }
     } else {
         for (x = 0; x < BUFF_WIDTH; x++) {
             tmp = data[x][0] - data[x][1];
-            do_vwave(MID_Y - tmp, MID_Y - last, x, tcolor(tmp + 128));
+            do_vwave(buffer, MID_Y - tmp, MID_Y - last, x, tableColor(buffer, tmp + 128));
             last = tmp << 1;
         }
     }
@@ -1558,15 +1563,15 @@ void wave_lineHLdiff() {
  * object fracture under sound, because a shared vertex can be projected at
  * different radii for different edges.
  */
-/* Writes one startup-random table-mapped wire index, tcolor(random 0..255). */
-void wave_wire1() {
+/* Writes one startup-random table-mapped wire index, tableColor(buffer, random 0..255). */
+void wave_wire1(CthughaBuffer& buffer) {
     static double theta = 0;
     static int col = 255;
     double st, ct, ax, ay, az, x, y, z;
     const double cameraDistance = 3.0;
     WireObjectFrame frame;
 
-    if (!setup_wire_object(frame))
+    if (!setup_wire_object(buffer, frame))
         return;
 
     int i, j, x1, y1, x2, y2;
@@ -1611,7 +1616,7 @@ void wave_wire1() {
 
         project_wire_point(ax, ay, az, scale1, cameraDistance, x2, y2);
 
-        draw_line(x1, y1, x2, y2, tcolor(col));
+        draw_line(buffer, x1, y1, x2, y2, tableColor(buffer, col));
     }
 }
 
@@ -1620,8 +1625,8 @@ void wave_wire1() {
  * model.  The whole audio buffer contributes to one frame-wide scale factor,
  * so all vertices move together and the wireframe remains coherent.
  */
-/* Writes one startup-random table-mapped wire index, tcolor(random 0..255). */
-void wave_wire1dot5() {
+/* Writes one startup-random table-mapped wire index, tableColor(buffer, random 0..255). */
+void wave_wire1dot5(CthughaBuffer& buffer) {
     static int theta = 0;
     static int col = 255;
     static double axis[3] = { 0.0, 1.0, 0.0 };
@@ -1629,7 +1634,7 @@ void wave_wire1dot5() {
     const double cameraDistance = 3.0;
     WireObjectFrame frame;
 
-    if (!setup_wire_object(frame))
+    if (!setup_wire_object(buffer, frame))
         return;
 
     if (object_wave_starting()) {
@@ -1640,7 +1645,7 @@ void wave_wire1dot5() {
     theta += 2;
     scale = wire_sound_scale(frame.screenScale);
 
-    draw_axis_wire_model(frame, axis, theta, scale, cameraDistance, col);
+    draw_axis_wire_model(buffer, frame, axis, theta, scale, cameraDistance, col);
 }
 
 /*
@@ -1649,8 +1654,8 @@ void wave_wire1dot5() {
  * frame the actual rotation axis moves around that cone, while the model still
  * keeps Wire1dot5's coherent frame-wide audio scale.
  */
-/* Writes one startup-random table-mapped wire index, tcolor(random 0..255). */
-void wave_wire1dot55() {
+/* Writes one startup-random table-mapped wire index, tableColor(buffer, random 0..255). */
+void wave_wire1dot55(CthughaBuffer& buffer) {
     static int theta = 0;
     static int col = 255;
     static double baseAxis[3] = { 0.0, 1.0, 0.0 };
@@ -1662,7 +1667,7 @@ void wave_wire1dot55() {
     const double cameraDistance = 3.0;
     WireObjectFrame frame;
 
-    if (!setup_wire_object(frame))
+    if (!setup_wire_object(buffer, frame))
         return;
 
     if (object_wave_starting()) {
@@ -1679,7 +1684,7 @@ void wave_wire1dot55() {
     theta += 2;
     scale = wire_sound_scale(frame.screenScale);
 
-    draw_axis_wire_model(frame, axis, theta, scale, cameraDistance, col);
+    draw_axis_wire_model(buffer, frame, axis, theta, scale, cameraDistance, col);
 }
 
 /*
@@ -1687,8 +1692,8 @@ void wave_wire1dot55() {
  * but each vertex is pushed radially outward according to its own stable audio
  * slice.  The stretch happens before rotation and perspective projection.
  */
-/* Writes one startup-random table-mapped wire index, tcolor(random 0..255). */
-void wave_wire1dot6() {
+/* Writes one startup-random table-mapped wire index, tableColor(buffer, random 0..255). */
+void wave_wire1dot6(CthughaBuffer& buffer) {
     static int theta = 0;
     static int col = 255;
     static double axis[3] = { 0.0, 1.0, 0.0 };
@@ -1697,7 +1702,7 @@ void wave_wire1dot6() {
     const double cameraDistance = 4.0;
     WireObjectFrame frame;
 
-    if (!setup_wire_object(frame))
+    if (!setup_wire_object(buffer, frame))
         return;
 
     int i, x1, y1, x2, y2;
@@ -1737,7 +1742,7 @@ void wave_wire1dot6() {
 
         project_wire_point(ax, ay, az, frame.screenScale, cameraDistance, x2, y2);
 
-        draw_line(x1, y1, x2, y2, tcolor(col));
+        draw_line(buffer, x1, y1, x2, y2, tableColor(buffer, col));
     }
 }
 
@@ -1765,8 +1770,8 @@ static void init_wire2_copy(int loc[3], int& psi, int& rate, int& col) {
  * itself is not reloaded or copied here; every frame reads the currently
  * selected WObject and draws it at each saved swarm location.
  */
-/* Writes per-copy startup-random table-mapped wire indices, tcolor(random 0..255). */
-void wave_wire2() {
+/* Writes per-copy startup-random table-mapped wire indices, tableColor(buffer, random 0..255). */
+void wave_wire2(CthughaBuffer& buffer) {
     /*
      * Persistent swarm state.  Each copy has a position in the blob, its own
      * local spin angle/rate, and a color.  This state belongs to the wave, not
@@ -1800,14 +1805,14 @@ void wave_wire2() {
     double omx, omy, omz, om;
     register int ox, oy;
 
-    ObjectEntry* objE = (ObjectEntry*)CthughaBuffer::current->object.current();
+    ObjectEntry* objE = (ObjectEntry*)buffer.object.current();
     if (objE == NULL) {
-        CthughaBuffer::current->wave.change(+1, 0);
+        buffer.wave.change(+1, 0);
         return;
     }
     WObject* theObj = objE->obj;
     if (theObj == NULL) {
-        CthughaBuffer::current->wave.change(+1, 0);
+        buffer.wave.change(+1, 0);
         return;
     }
 
@@ -1933,7 +1938,7 @@ void wave_wire2() {
             x2 = int((double)ax * scl / (az + m) + ox);
             y2 = int((double)ay * scl / (az + m) + oy);
 
-            draw_line(x1, y1, x2, y2, tcolor(col[j]));
+            draw_line(buffer, x1, y1, x2, y2, tableColor(buffer, col[j]));
         }
     }
 }
@@ -1943,8 +1948,8 @@ void wave_wire2() {
  * local rotation axis.  The blob still rotates around one shared axis, but the
  * individual models no longer all tumble around their local y axes.
  */
-/* Writes per-copy startup-random table-mapped wire indices, tcolor(random 0..255). */
-void wave_wire2dot1() {
+/* Writes per-copy startup-random table-mapped wire indices, tableColor(buffer, random 0..255). */
+void wave_wire2dot1(CthughaBuffer& buffer) {
     /*
      * This mirrors Wire2's persistent swarm state, with modelAxis storing one
      * normalized local spin axis per copy.  The axes are chosen during startup
@@ -1965,14 +1970,14 @@ void wave_wire2dot1() {
     double omx, omy, omz, om;
     register int ox, oy;
 
-    ObjectEntry* objE = (ObjectEntry*)CthughaBuffer::current->object.current();
+    ObjectEntry* objE = (ObjectEntry*)buffer.object.current();
     if (objE == NULL) {
-        CthughaBuffer::current->wave.change(+1, 0);
+        buffer.wave.change(+1, 0);
         return;
     }
     WObject* theObj = objE->obj;
     if (theObj == NULL) {
-        CthughaBuffer::current->wave.change(+1, 0);
+        buffer.wave.change(+1, 0);
         return;
     }
 
@@ -2082,14 +2087,14 @@ void wave_wire2dot1() {
             x2 = int((double)ax * scl / (az + m) + ox);
             y2 = int((double)ay * scl / (az + m) + oy);
 
-            draw_line(x1, y1, x2, y2, tcolor(col[j]));
+            draw_line(buffer, x1, y1, x2, y2, tableColor(buffer, col[j]));
         }
     }
 }
 
 /* by Russ */
-/* Writes one cycling table-mapped index per frame, tcolor(col 0..255). */
-void wave_spiral(void) {
+/* Writes one cycling table-mapped index per frame, tableColor(buffer, col 0..255). */
+void wave_spiral(CthughaBuffer& buffer) {
     int i, amp, mx, cx, cy;
     double x, y, ox, oy, a, la, ra;
     static int ofs = 0, col = 0, loops, loopcount = 0;
@@ -2129,7 +2134,7 @@ void wave_spiral(void) {
         x = a * sine[(i + ofs + 120) % 320] + la * sine[((i)*loops + 120) % 320] / 2;
         y = a * sine[(i + ofs) % 320] + ra * sine[((i)*loops) % 320] / 2;
 
-        draw_line(int(cx + ox), int(cy + oy), int(cx + x), int(cy + y), tcolor(col));
+        draw_line(buffer, int(cx + ox), int(cy + oy), int(cx + x), int(cy + y), tableColor(buffer, col));
 
         ox = x;
         oy = y;
@@ -2150,8 +2155,8 @@ typedef struct {
 } Fwork;
 
 /* by Russ */
-/* Writes per-firework random table-mapped indices, tcolor(random 0..255). */
-void wave_pyro(void) {
+/* Writes per-firework random table-mapped indices, tableColor(buffer, random 0..255). */
+void wave_pyro(CthughaBuffer& buffer) {
     int i, x1, y1;
     static int first = 1, maxV, maxA;
     static Fwork theWorks[maxWorks];
@@ -2183,8 +2188,8 @@ void wave_pyro(void) {
             y1 = theWorks[i].yp + theWorks[i].yv;
 
             /* draw the work */
-            draw_line(theWorks[i].oxp, theWorks[i].oyp, x1, y1, tcolor(theWorks[i].col));
-            draw_line(theWorks[i].oxp + 1, theWorks[i].oyp, x1 + 1, y1, tcolor(theWorks[i].col));
+            draw_line(buffer, theWorks[i].oxp, theWorks[i].oyp, x1, y1, tableColor(buffer, theWorks[i].col));
+            draw_line(buffer, theWorks[i].oxp + 1, theWorks[i].oyp, x1 + 1, y1, tableColor(buffer, theWorks[i].col));
 
             /* bounce off walls */
             if (x1 < 0 || x1 > BUFF_WIDTH)
@@ -2234,8 +2239,8 @@ typedef struct {
     int r, s, theta, omg, trails, col, rgrav;
 } WarpRing;
 
-/* Writes per-ring random table-mapped indices, tcolor(random 0..255). */
-void wave_warp(void) {
+/* Writes per-ring random table-mapped indices, tableColor(buffer, random 0..255). */
+void wave_warp(CthughaBuffer& buffer) {
     int i, x1, y1;
     static int first = 1, cx, cy, maxRad, maxA;
     static WarpRing theWarps[maxWarps];
@@ -2266,7 +2271,7 @@ void wave_warp(void) {
                 y1 = int(cy + ((double)theWarps[i].r) * icos((360 * j) / tr + theWarps[i].theta));
                 x2 = int(cx + (double)r2 * isin(360 * j / tr + t2));
                 y2 = int(cy + (double)r2 * icos(360 * j / tr + t2));
-                draw_line(x1, y1, x2, y2, tcolor(theWarps[i].col));
+                draw_line(buffer, x1, y1, x2, y2, tableColor(buffer, theWarps[i].col));
             }
 
             /* increment the radius and spiral */
@@ -2307,7 +2312,7 @@ static int laser_intensity_index(int sample) {
 }
 
 /* Writes table-mapped channel intensity. */
-void wave_laser() {
+void wave_laser(CthughaBuffer& buffer) {
     static int xl, xr;
     static int y = 0;
     int x, samples;
@@ -2319,19 +2324,19 @@ void wave_laser() {
     //y = BUFF_HEIGHT / 10;
 
     for (x = 0; x < samples; x++) {
-        draw_line(BUFF_WIDTH / 2, BUFF_HEIGHT / 2, xl, y,
-            tcolor(laser_intensity_index(data[x][0])));
+        draw_line(buffer, BUFF_WIDTH / 2, BUFF_HEIGHT / 2, xl, y,
+            tableColor(buffer, laser_intensity_index(data[x][0])));
         xl = (xl + abs(data[x][0] - data[x + 1][0])) % BUFF_WIDTH;
 
-        draw_line(BUFF_WIDTH / 2, BUFF_HEIGHT / 2, xr, BUFF_HEIGHT - y,
-            tcolor(laser_intensity_index(data[x][1])));
+        draw_line(buffer, BUFF_WIDTH / 2, BUFF_HEIGHT / 2, xr, BUFF_HEIGHT - y,
+            tableColor(buffer, laser_intensity_index(data[x][1])));
         xr = (xr + abs(data[x][1] - data[x + 1][1])) % BUFF_WIDTH;
     }
 }
 
 /* by Deischi (inspired by RTL2) */
 /* Writes raw fading indices 255, 127, 63, 31, 15, 7, 3, and 1. */
-void wave_corner() {
+void wave_corner(CthughaBuffer& buffer) {
 
     if (acousticContext.fire()) {
         static int x = 0, y = 0;
@@ -2347,24 +2352,24 @@ void wave_corner() {
             /* draw corner pointing right down */
             for (i = 0; i < t; i++) {
                 for (j = 0; j < x; j++) {
-                    putat(j, y + i, 255 >> i);
-                    putat(j, y - i, 255 >> i);
+                    putat(buffer, j, y + i, 255 >> i);
+                    putat(buffer, j, y - i, 255 >> i);
                 }
                 for (j = 0; j < y; j++) {
-                    putat(x - i, j, 255 >> i);
-                    putat(x + i, j, 255 >> i);
+                    putat(buffer, x - i, j, 255 >> i);
+                    putat(buffer, x + i, j, 255 >> i);
                 }
             }
         } else {
             /* draw corner pointer up left */
             for (i = 0; i < t; i++) {
                 for (j = x; j < BUFF_WIDTH; j++) {
-                    putat(j, y + i, 255 >> i);
-                    putat(j, y - i, 255 >> i);
+                    putat(buffer, j, y + i, 255 >> i);
+                    putat(buffer, j, y - i, 255 >> i);
                 }
                 for (j = y; j < BUFF_HEIGHT; j++) {
-                    putat(x - i, j, 255 >> i);
-                    putat(x + i, j, 255 >> i);
+                    putat(buffer, x - i, j, 255 >> i);
+                    putat(buffer, x + i, j, 255 >> i);
                 }
             }
         }
@@ -2375,7 +2380,7 @@ void wave_corner() {
 
 // by Deischi
 /* Writes fixed raw palette index 255. */
-void wave_jump() {
+void wave_jump(CthughaBuffer& buffer) {
     static int speed[MAX_BUFF_WIDTH];
     static int pos[MAX_BUFF_WIDTH];
     static int dir[MAX_BUFF_WIDTH];
@@ -2389,7 +2394,7 @@ void wave_jump() {
 
     prepareSoundData(BUFF_WIDTH);
 
-    const int scale = 2 + int(CthughaBuffer::current->waveScale);
+    const int scale = 2 + int(buffer.waveScale);
     for (int i = 0; i < BUFF_WIDTH; i++) {
         int e = data[i][0] + data[i][1];
         if (pos[i] < abs(e)) {
@@ -2405,19 +2410,19 @@ void wave_jump() {
             speed[i] -= int(cthughaDisplay->fps);
 
         if (dir[i] > 0)
-            putat_cut(i, (pos[i] >> scale) + BUFF_HEIGHT / 2, 255);
+            putat_cut(buffer, i, (pos[i] >> scale) + BUFF_HEIGHT / 2, 255);
         else
-            putat_cut(i, -(pos[i] >> scale) + BUFF_HEIGHT / 2, 255);
+            putat_cut(buffer, i, -(pos[i] >> scale) + BUFF_HEIGHT / 2, 255);
     }
 }
 
 // by Deischi
 /* Writes raw random palette indices, Random(256). */
-void wave_sticks() {
+void wave_sticks(CthughaBuffer& buffer) {
 
-    int n = acousticContext.fire() >> int(CthughaBuffer::current->waveScale);
+    int n = acousticContext.fire() >> int(buffer.waveScale);
     for (int i = 0; i < n; i++) {
-        draw_line(Random(BUFF_WIDTH), Random(BUFF_HEIGHT), Random(BUFF_WIDTH), Random(BUFF_HEIGHT),
+        draw_line(buffer, Random(BUFF_WIDTH), Random(BUFF_HEIGHT), Random(BUFF_WIDTH), Random(BUFF_HEIGHT),
             Random(256));
     }
 }

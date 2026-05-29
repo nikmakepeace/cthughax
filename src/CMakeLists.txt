@@ -22,7 +22,6 @@ set(CTHUGHA_COMMON_SOURCES
     AutoChanger.cc
     AudioAnalyzer.cc
     CthughaDisplay.cc
-    CthughaFrameBuffer.cc
     Border.cc
     VisualPipeline.cc
     VisualDirector.cc

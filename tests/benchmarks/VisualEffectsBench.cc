@@ -1,6 +1,5 @@
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
-#include "CthughaFrameBuffer.h"
 #include "VisualPipeline.h"
 #include "flames.h"
 #include "imath.h"
@@ -423,17 +422,17 @@ void copyImageWithHiddenRows(unsigned char* visibleBuffer, const ImageFixture& i
 
 void resetForFlame(const BufferFixture& fixture) {
     CthughaBuffer::current = CthughaBuffer::buffers;
-    copyImageWithHiddenRows(CthughaBuffer::current->activeBuffer,
+    copyImageWithHiddenRows(CthughaBuffer::current->activePixels(),
         fixture.active.pixels.empty() ? zeroImage() : fixture.active);
-    copyImageWithHiddenRows(CthughaBuffer::current->passiveBuffer,
+    copyImageWithHiddenRows(CthughaBuffer::current->passivePixels(),
         fixture.passive.pixels.empty() ? fixture.base : fixture.passive);
 }
 
 void resetForTranslate(const BufferFixture& fixture) {
     CthughaBuffer::current = CthughaBuffer::buffers;
-    copyImageWithHiddenRows(CthughaBuffer::current->activeBuffer,
+    copyImageWithHiddenRows(CthughaBuffer::current->activePixels(),
         fixture.active.pixels.empty() ? fixture.base : fixture.active);
-    copyImageWithHiddenRows(CthughaBuffer::current->passiveBuffer,
+    copyImageWithHiddenRows(CthughaBuffer::current->passivePixels(),
         fixture.passive.pixels.empty() ? zeroImage() : fixture.passive);
 }
 
@@ -495,18 +494,15 @@ static void BM_FlameEntry(benchmark::State& state, FlameEntry* flame,
     const BufferFixture* fixture) {
     initializeVisualBenchmarks();
 
-    CthughaFrameBuffer frameBuffer;
-    CthughaBuffer::current->bindFrameBuffer(frameBuffer);
     VisualFrameContext context;
 
     for (auto _ : state) {
         state.PauseTiming();
         resetForFlame(*fixture);
-        CthughaBuffer::current->bindFrameBuffer(frameBuffer);
         state.ResumeTiming();
 
-        flame->execute(frameBuffer, context);
-        benchmark::DoNotOptimize(CthughaBuffer::current->activeBuffer[0]);
+        flame->execute(*CthughaBuffer::current, context);
+        benchmark::DoNotOptimize(CthughaBuffer::current->activePixels()[0]);
         benchmark::ClobberMemory();
     }
 
@@ -517,18 +513,15 @@ static void BM_TranslateEntry(benchmark::State& state, TranslateEntry* translate
     const BufferFixture* fixture) {
     initializeVisualBenchmarks();
 
-    CthughaFrameBuffer frameBuffer;
-    CthughaBuffer::current->bindFrameBuffer(frameBuffer);
     VisualFrameContext context;
 
     for (auto _ : state) {
         state.PauseTiming();
         resetForTranslate(*fixture);
-        CthughaBuffer::current->bindFrameBuffer(frameBuffer);
         state.ResumeTiming();
 
-        translate->execute(frameBuffer, context);
-        benchmark::DoNotOptimize(CthughaBuffer::current->activeBuffer[0]);
+        translate->execute(*CthughaBuffer::current, context);
+        benchmark::DoNotOptimize(CthughaBuffer::current->activePixels()[0]);
         benchmark::ClobberMemory();
     }
 

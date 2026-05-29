@@ -1,16 +1,16 @@
-// Visual border option and frame-buffer mutation.
+// Visual border option and indexed-buffer mutation.
 
 #ifndef __BORDER_H
 #define __BORDER_H
 
 #include "CoreOption.h"
 
-class CthughaFrameBuffer;
+class CthughaBuffer;
 class VisualFrameContext;
 
 extern CoreOption border;
 
 void init_border();
-void apply_border(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context, int borderMode);
+void apply_border(CthughaBuffer& buffer, const VisualFrameContext& context, int borderMode);
 
 #endif

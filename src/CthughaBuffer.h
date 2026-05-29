@@ -11,8 +11,6 @@
 #include "pcx.h"
 #include "translate.h"
 
-class CthughaFrameBuffer;
-
 class CthughaBuffer {
 public:
     int palChanged;
@@ -32,12 +30,18 @@ public:
 
     CthughaBuffer();
 
-    void bindFrameBuffer(CthughaFrameBuffer& frameBuffer);
     void setPalette(const Palette pal);
+    void swapBuffers();
+    unsigned char* activePixels();
+    unsigned char* passivePixels();
+    const unsigned char* activePixels() const;
+    const unsigned char* passivePixels() const;
 
+private:
     unsigned char* activeBuffer; /* buffer next on screen */
     unsigned char* passiveBuffer; /* buffer current on screen */
 
+public:
     static int maxNBuffers; // max. buffers in use
     static int nBuffers; // nr. of currently running buffers
     static CthughaBuffer buffers[];
@@ -52,8 +56,5 @@ public:
         return ((PaletteEntry*)(buffers[0].palette[i]))->pal;
     }
 };
-
-#define active_buffer (CthughaBuffer::current->activeBuffer)
-#define passive_buffer (CthughaBuffer::current->passiveBuffer)
 
 #endif

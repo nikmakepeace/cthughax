@@ -199,10 +199,10 @@ void setTexture(int P) {
 
     if (textureQuality.needMipmaps()) {
         gluBuild2DMipmaps(GL_TEXTURE_2D, GL_COLOR_INDEX8_EXT, BUFF_WIDTH, BUFF_HEIGHT,
-            GL_COLOR_INDEX, GL_UNSIGNED_BYTE, CthughaBuffer::buffers[P].passiveBuffer);
+            GL_COLOR_INDEX, GL_UNSIGNED_BYTE, CthughaBuffer::buffers[P].passivePixels());
     } else {
         glTexImage2D(GL_TEXTURE_2D, 0, GL_COLOR_INDEX8_EXT, BUFF_WIDTH, BUFF_HEIGHT, 0,
-            GL_COLOR_INDEX, GL_UNSIGNED_BYTE, CthughaBuffer::buffers[P].passiveBuffer);
+            GL_COLOR_INDEX, GL_UNSIGNED_BYTE, CthughaBuffer::buffers[P].passivePixels());
     }
     textureQuality.setTexParameters();
 
@@ -435,7 +435,7 @@ int screen_wave() {
 static double sc_x = 1;
 static double sc_y = 1;
 void height1(GLfloat pos[3], GLfloat normal[3], double alpha) {
-    pos[2] = 1.0 / 256.0 * GLfloat(passive_buffer[int(pos[1] * sc_y + pos[0] * sc_x)]);
+    pos[2] = 1.0 / 256.0 * GLfloat(CthughaBuffer::current->passivePixels()[int(pos[1] * sc_y + pos[0] * sc_x)]);
     pos[0] = -1.0 + pos[0] * 2.0;
     pos[1] = -1.0 + pos[1] * 2.0;
 
@@ -589,7 +589,7 @@ int screen_sheight() {
     // take new values from buffer
     for (int i = 0; i < S; i++)
         for (int j = 0; j < S; j++)
-            H[i][j] = GLfloat(passive_buffer[i * sc_yi + j * sc_xi]) / 512.0;
+            H[i][j] = GLfloat(CthughaBuffer::current->passivePixels()[i * sc_yi + j * sc_xi]) / 512.0;
 
     // set border to 0
     for (int i = 0; i < S; i++)

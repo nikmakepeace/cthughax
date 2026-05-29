@@ -79,12 +79,14 @@ void screen_perm(void) {
     }
 }
 
-#define PERM_ADDR(i) (passive_buffer + (i) * BUFF_WIDTH)
+static unsigned char* perm_addr(int i) {
+    return CthughaBuffer::current->passivePixels() + i * BUFF_WIDTH;
+}
 
 int screen_up() {
     int i;
     for (i = 0; i < BUFF_HEIGHT; i++)
-        perm_lines[i] = PERM_ADDR(i);
+        perm_lines[i] = perm_addr(i);
 
     screen_perm();
 
@@ -94,7 +96,7 @@ int screen_up() {
 int screen_down() {
     int i;
     for (i = 0; i < BUFF_HEIGHT; i++)
-        perm_lines[i] = PERM_ADDR(BUFF_HEIGHT - i - 1);
+        perm_lines[i] = perm_addr(BUFF_HEIGHT - i - 1);
 
     screen_perm();
     return 0;
@@ -104,9 +106,9 @@ int screen_2hor() {
     int i;
     for (i = 0; i < BUFF_HEIGHT / 2; i++) {
         /* lower half of buffer maps to upper half of screen */
-        perm_lines[i] = PERM_ADDR(BUFF_HEIGHT / 2 + i);
+        perm_lines[i] = perm_addr(BUFF_HEIGHT / 2 + i);
         /* lower half of buffer get turned around to lower half of screen*/
-        perm_lines[i + BUFF_HEIGHT / 2] = PERM_ADDR(BUFF_HEIGHT - i - 1);
+        perm_lines[i + BUFF_HEIGHT / 2] = perm_addr(BUFF_HEIGHT - i - 1);
     }
 
     screen_perm();
@@ -117,9 +119,9 @@ int screen_r2hor() {
     int i;
     for (i = 0; i < BUFF_HEIGHT / 2; i++) {
         /* lower half of buffer get turned around to upper half of screen*/
-        perm_lines[i] = PERM_ADDR(BUFF_HEIGHT - i - 1);
+        perm_lines[i] = perm_addr(BUFF_HEIGHT - i - 1);
         /* lower half of buffer maps to lower half of screen */
-        perm_lines[i + BUFF_HEIGHT / 2] = PERM_ADDR(BUFF_HEIGHT / 2 + i);
+        perm_lines[i + BUFF_HEIGHT / 2] = perm_addr(BUFF_HEIGHT / 2 + i);
     }
 
     screen_perm();
@@ -131,7 +133,7 @@ int screen_4hor() {
     int x, y;
 
     /* upper half of screen */
-    tmp = passive_buffer + BUFF_SIZE / 2;
+    tmp = CthughaBuffer::current->passivePixels() + BUFF_SIZE / 2;
     scrn = cthughaDisplay->buffer;
     for (y = BUFF_HEIGHT / 2; y != 0; y--) {
 
@@ -151,7 +153,7 @@ int screen_4hor() {
     }
 
     /* lower half of screen */
-    tmp = passive_buffer + BUFF_WIDTH * BUFF_HEIGHT - BUFF_WIDTH;
+    tmp = CthughaBuffer::current->passivePixels() + BUFF_WIDTH * BUFF_HEIGHT - BUFF_WIDTH;
     scrn = cthughaDisplay->buffer + cthughaDisplay->bufferWidth * BUFF_HEIGHT / 2;
     for (y = BUFF_HEIGHT / 2; y != 0; y--) {
 
@@ -176,7 +178,7 @@ int screen_4hor() {
 int screen_2verd() {
     if (BUFF_WIDTH / 2 <= BUFF_HEIGHT) {
         int x, y;
-        unsigned char* tmp = passive_buffer;
+        unsigned char* tmp = CthughaBuffer::current->passivePixels();
         unsigned char* scrn = cthughaDisplay->buffer;
         for (y = BUFF_HEIGHT; y != 0; y--) {
             for (x = BUFF_WIDTH / 2; x != 0; x--) {
@@ -203,7 +205,7 @@ int screen_2verd() {
 int screen_r2verd() {
     if (BUFF_WIDTH / 2 <= BUFF_HEIGHT) {
         int x, y;
-        unsigned char* tmp = passive_buffer;
+        unsigned char* tmp = CthughaBuffer::current->passivePixels();
         unsigned char* scrn = cthughaDisplay->buffer
             + cthughaDisplay->bufferWidth * (BUFF_HEIGHT - 1) + (BUFF_WIDTH - 1);
         for (y = BUFF_HEIGHT; y != 0; y--) {
@@ -232,7 +234,7 @@ int screen_4kal() {
         unsigned char *tmp, *scrn;
         int x, y;
 
-        tmp = passive_buffer;
+        tmp = CthughaBuffer::current->passivePixels();
         scrn = cthughaDisplay->buffer;
         /* upper half */
         for (y = BUFF_HEIGHT / 2; y != 0; y--) {
@@ -250,7 +252,7 @@ int screen_4kal() {
             scrn += cthughaDisplay->bufferWidth - BUFF_WIDTH;
         }
 
-        tmp = passive_buffer;
+        tmp = CthughaBuffer::current->passivePixels();
         scrn = cthughaDisplay->buffer + cthughaDisplay->bufferWidth * (BUFF_HEIGHT - 1) + BUFF_WIDTH
             - 1;
         /* lower half */
@@ -276,7 +278,7 @@ int screen_4kal() {
 }
 
 int screen_scale2() {
-    unsigned char* src = passive_buffer;
+    unsigned char* src = CthughaBuffer::current->passivePixels();
     unsigned char* dst = cthughaDisplay->buffer;
 
     for (int y = BUFF_HEIGHT; y != 0; y--) {
@@ -305,7 +307,7 @@ int screen_scale2() {
 }
 
 int screen_vscale_hmirror() {
-    unsigned char* src = passive_buffer;
+    unsigned char* src = CthughaBuffer::current->passivePixels();
     unsigned char* dst = cthughaDisplay->buffer;
 
     for (int y = BUFF_HEIGHT; y != 0; y--) {
@@ -320,7 +322,7 @@ int screen_vscale_hmirror() {
 }
 
 int screen_hscale_vmirror() {
-    unsigned char* src = passive_buffer;
+    unsigned char* src = CthughaBuffer::current->passivePixels();
     unsigned char* dst = cthughaDisplay->buffer;
 
     for (int y = BUFF_HEIGHT; y != 0; y--) {
@@ -485,7 +487,7 @@ int prepare_3d(int maxZ) {
  * hfield: buffer_value determines height
  */
 int screen_hfield() {
-    unsigned char* src = passive_buffer;
+    unsigned char* src = CthughaBuffer::current->passivePixels();
     unsigned char* dst
         = cthughaDisplay->buffer + BUFF_WIDTH + cthughaDisplay->bufferWidth * BUFF_HEIGHT;
     int i, j;
@@ -512,7 +514,7 @@ int screen_hfield() {
  * bent: height is a sine-wave along x axis
  */
 int screen_bent() {
-    unsigned char* src = passive_buffer;
+    unsigned char* src = CthughaBuffer::current->passivePixels();
     unsigned char* dst
         = cthughaDisplay->buffer + BUFF_WIDTH + cthughaDisplay->bufferWidth * BUFF_HEIGHT;
     int i, j;
@@ -551,7 +553,7 @@ int screen_bent() {
  * plate: height contant to 0
  */
 int screen_plate() {
-    unsigned char* src = passive_buffer;
+    unsigned char* src = CthughaBuffer::current->passivePixels();
     unsigned char* dst
         = cthughaDisplay->buffer + BUFF_WIDTH + cthughaDisplay->bufferWidth * BUFF_HEIGHT;
     int i, j;
@@ -593,7 +595,7 @@ int screen_roll() {
         if (b >= BUFF_HEIGHT)
             b = 2 * BUFF_HEIGHT - b - 1;
 
-        perm_lines[i] = PERM_ADDR(b);
+        perm_lines[i] = perm_addr(b);
     }
     theta += M_PI / 40.0; /* roate a little bit */
     if (theta > 2.0 * M_PI)
@@ -612,7 +614,7 @@ static int zicks[MAX_BUFF_HEIGHT];
 int screen_zick() {
     int i;
     unsigned char* scrn = cthughaDisplay->buffer;
-    unsigned char* src = passive_buffer;
+    unsigned char* src = CthughaBuffer::current->passivePixels();
     static int first = 1;
 
     static int d = 0;

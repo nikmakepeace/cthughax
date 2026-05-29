@@ -8,8 +8,6 @@
 
 #include <vector>
 
-class CthughaFrameBuffer;
-
 class VisualFrameContext {
 public:
     const AudioFrame* audioFrame;
@@ -26,8 +24,7 @@ public:
     virtual ~VisualModule();
 
     virtual void refresh() { }
-    virtual void execute(CthughaFrameBuffer& frameBuffer,
-        const VisualFrameContext& context) = 0;
+    virtual void execute(const VisualFrameContext& context) = 0;
 };
 
 enum VisualStageRunMode {
@@ -67,7 +64,7 @@ public:
     VisualStageRunMode stageMode(unsigned int stage) const;
     VisualModule* stageModule(unsigned int stage);
     void refresh();
-    void run(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context);
+    void run(const VisualFrameContext& context);
     int size() const;
 };
 

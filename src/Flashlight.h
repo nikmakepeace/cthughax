@@ -5,12 +5,12 @@
 
 #include "CoreOption.h"
 
-class CthughaFrameBuffer;
+class CthughaBuffer;
 class VisualFrameContext;
 
 extern CoreOption flashlight;
 
 void init_flashlight();
-void apply_flashlight(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context);
+void apply_flashlight(CthughaBuffer& buffer, const VisualFrameContext& context);
 
 #endif

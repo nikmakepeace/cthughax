@@ -125,9 +125,9 @@
    - Target responsibilities:
      - The visual engine knows nothing about the audio source or PCM file/device format.
      - The visual engine knows nothing about the display backend or display pixel format.
-     - `CthughaFrameBuffer` owns long-lived internal indexed buffers, dimensions, pitch,
-       border storage, active/passive buffers, and swap/clear/pixel/span access.
-     - `CthughaFrameBuffer` should be state, not choreography; it should not run or write
+     - `CthughaBuffer` owns long-lived internal indexed buffers, dimensions, pitch,
+       border storage, active/passive buffers, and swap/pixel access.
+     - `CthughaBuffer` should be state, not choreography; it should not run or write
        itself.
      - The engine consumes pre-processed audio through a stable per-frame context:
        raw `AudioFrame`, FFT/spectrum data, future frequency bands/features, and
@@ -161,8 +161,8 @@
      - If it copies/converts into `cthughaDisplay->buffer` or knows display memory layout,
        it belongs in the display/presentation layer, not the internal visual engine.
    - Completed practical slices:
-     - Added `CthughaFrameBuffer`, `VisualFrameContext`, `VisualModule`, and
-       `VisualPipeline` scaffolding.
+     - Added `VisualFrameContext`, `VisualModule`, and `VisualPipeline`
+       scaffolding.
      - Removed the old monolithic `CthughaBuffer::run()` frame choreography.
      - Added explicit flame, translate, and wave modules that execute selected
        `FlameEntry`, `TranslateEntry`, and `WaveEntry` objects.

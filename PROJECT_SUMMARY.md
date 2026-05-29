@@ -105,9 +105,10 @@ Audio and visual control are now separated:
 - Audio-to-visual seam: `AudioFrame`, `AudioProcessor`, `AudioAnalyzer`, and
   `AudioVisualBridge`.
 - Visual pipeline seam: `VisualDirector`, `VisualPipelineFactory`,
-  `VisualPipeline`, `VisualModule`, `VisualFrameContext`, and
-  `CthughaFrameBuffer`.
-- Classic visual effect seam: `CoreOptionEntry` and `CoreOptionEntryList`.
+  `VisualPipeline`, `VisualModule`, `VisualFrameContext`, and `CthughaBuffer`.
+- Classic visual effect seam: `CoreOptionEntry` / `CoreOptionEntryList`, with
+  flame, translate, and wave entries now receiving explicit `CthughaBuffer&`
+  objects during pipeline execution.
 - Display frontend seam: `DisplayDevice` plus `CthughaDisplay` subclasses.
 - Asset seams: `.map` palettes, `.pcx`/`.pcx.gz` images, `.cmd` table
   descriptors, `.tab` binary translation tables, and optional `.obj` line

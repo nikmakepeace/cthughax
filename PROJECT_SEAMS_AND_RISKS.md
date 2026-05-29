@@ -95,10 +95,11 @@ Add a function to `src/flames.cc`, then add a `new FlameEntry(...)` in
 
 Contract:
 
-- read/write `active_buffer` and `passive_buffer`;
+- accept a `CthughaBuffer&` and read/write `activePixels()` /
+  `passivePixels()`;
 - respect `BUFF_WIDTH`, `BUFF_HEIGHT`, and the extra 3-line top/bottom border;
 - leave coordinate remapping to the dedicated translate stage;
-- expose execution through `FlameEntry::execute(frameBuffer, context)` while
+- expose execution through `FlameEntry::execute(buffer, context)` while
   preserving the legacy `CoreOptionEntry::operator()()` path.
 
 ### Add a Compiled-In Wave
@@ -107,8 +108,8 @@ Add a function to `src/waves.cc`, then add a `new WaveEntry(...)` in `_waves`.
 
 Wave functions should read sound through `audioFrameProcessedData()` and rolling
 state from `audioAnalysis` / `acousticContext`, then draw directly into
-`active_buffer`. `WaveStageModule` executes the selected `WaveEntry` through
-`execute(frameBuffer, context)`.
+the buffer's active pixels. `WaveStageModule` executes the selected `WaveEntry`
+through `execute(buffer, context)`.
 
 ### Add an Audio Processing Mode
 
@@ -154,10 +155,10 @@ translate, wave, and palette smoothing are explicit modules. `VisualDirector`
 updates typed stage bindings before each run; flame, translate, and wave stages
 execute the bound `FlameEntry`, `TranslateOption`, and `WaveEntry` objects.
 
-The next seam to improve is the legacy buffer binding. Stage execution still
-sets `CthughaBuffer::current` because classic effect code uses `active_buffer`
-and `passive_buffer` macros, but entry selection no longer happens inside the
-stage modules.
+The next seam to improve is the remaining selected-buffer global. Stage
+execution synchronizes `CthughaBuffer::current` for UI/display compatibility,
+but stage entries now receive explicit `CthughaBuffer&` objects and entry
+selection no longer happens inside the stage modules.
 
 ### Add a Display Mode
 
@@ -195,7 +196,7 @@ Subsystems communicate mainly through globals:
 - `cthughaDisplay`, `displayDevice`, `cdPlayer`, `autoChanger`;
 - `audioAnalysis`, `acousticContext`;
 - `BUFF_WIDTH`, `BUFF_HEIGHT`;
-- `active_buffer`, `passive_buffer`;
+- `CthughaBuffer::current`;
 - `screen`, `light`, `background`, `fly`;
 - many `Option` and `CoreOption` singletons.
 
@@ -215,14 +216,13 @@ file playback, live input, random input, and silence all present the same
 
 ### VisualPipeline Still Uses Legacy Selection And Binding
 
-`VisualPipeline` now has explicit modules for flashlight, border, indexed-buffer
-begin/end, flame, translate, wave, and palette smoothing. The former
-`CthughaBuffer::run()` loop has been removed.
+`VisualPipeline` now has explicit modules for image, flashlight, border,
+indexed-buffer begin/end, flame, translate, wave, and palette smoothing. The
+former `CthughaBuffer::run()` loop and the temporary frame-buffer binding
+adapter have been removed.
 
-Do not assume this is full inversion of control yet. The flame/translate/wave
-modules still discover current entries through `CthughaBuffer::current`, and
-still bind the shared `CthughaFrameBuffer` by mutating that global current
-buffer pointer. Only `ImageStage` is currently a null placeholder.
+Do not assume this is full inversion of control yet. UI, loading, and display
+code still use `CthughaBuffer::current` to find the selected buffer.
 
 ### Build Wrappers Include `.cc` Files
 

@@ -338,6 +338,13 @@ int TranslateEntry::loadLine(FILE* in, int n) {
 // Do the translate
 //
 int TranslateEntry::operator()() {
+    if (CthughaBuffer::current == 0)
+        return 0;
+
+    return operator()(*CthughaBuffer::current);
+}
+
+int TranslateEntry::operator()(CthughaBuffer& buffer) {
     int i;
     unsigned int* dst;
     unsigned char* src;
@@ -347,10 +354,9 @@ int TranslateEntry::operator()() {
 
     int* trans = this->trans;
 
-    dst = (unsigned int*)passive_buffer;
-    src = active_buffer;
-    active_buffer = passive_buffer;
-    passive_buffer = src;
+    buffer.swapBuffers();
+    dst = (unsigned int*)buffer.activePixels();
+    src = buffer.passivePixels();
 
     src[0] = 0;
 
@@ -384,11 +390,10 @@ int TranslateEntry::operator()() {
     return 0;
 }
 
-void TranslateEntry::execute(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context) {
-    (void)frameBuffer;
+void TranslateEntry::execute(CthughaBuffer& buffer, const VisualFrameContext& context) {
     (void)context;
 
-    operator()();
+    operator()(buffer);
 }
 
 TranslateOption::TranslateOption(int buffer, const char* name)

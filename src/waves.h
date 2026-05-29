@@ -7,17 +7,18 @@
 #include "cthugha.h"
 #include "CoreOption.h"
 
-class CthughaFrameBuffer;
+class CthughaBuffer;
 class VisualFrameContext;
 
 class WaveEntry : public CoreOptionEntry {
-    void (*wave)();
+    void (*wave)(CthughaBuffer& buffer);
 
 public:
-    WaveEntry(void (*f)(), const char* name, const char* desc, int inUse = 1);
+    WaveEntry(void (*f)(CthughaBuffer& buffer), const char* name, const char* desc, int inUse = 1);
 
     int operator()();
-    void execute(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context);
+    int operator()(CthughaBuffer& buffer);
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
 };
 
 int init_tables();

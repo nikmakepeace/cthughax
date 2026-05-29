@@ -1,6 +1,5 @@
 #include "cthugha.h"
 #include "CthughaBuffer.h"
-#include "CthughaFrameBuffer.h"
 #include "cth_buffer.h"
 #include "translate.h"
 #include "waves.h"
@@ -118,12 +117,29 @@ void CthughaBuffer::initAll() {
         buffers[i].init();
 }
 
-void CthughaBuffer::bindFrameBuffer(CthughaFrameBuffer& frameBuffer) {
-    frameBuffer.bind(activeBuffer, passiveBuffer, BUFF_WIDTH, BUFF_HEIGHT, BUFF_WIDTH,
-        &currentPalette, &palChanged, &palette, &lastPalette);
-}
-
 void CthughaBuffer::setPalette(const Palette pal) {
     memcpy(currentPalette, pal, sizeof(Palette));
     palChanged = 1;
+}
+
+void CthughaBuffer::swapBuffers() {
+    unsigned char* t = activeBuffer;
+    activeBuffer = passiveBuffer;
+    passiveBuffer = t;
+}
+
+unsigned char* CthughaBuffer::activePixels() {
+    return activeBuffer;
+}
+
+unsigned char* CthughaBuffer::passivePixels() {
+    return passiveBuffer;
+}
+
+const unsigned char* CthughaBuffer::activePixels() const {
+    return activeBuffer;
+}
+
+const unsigned char* CthughaBuffer::passivePixels() const {
+    return passiveBuffer;
 }

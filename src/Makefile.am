@@ -8,7 +8,7 @@ GENSRC = Option.cc OptionInt.cc CoreOption.cc CoreOptionEntry.cc	\
 	Interface.cc info_title_usage.cc disp-ncurses.cc		\
 	misc.cc DisplayDevice.cc				\
 	AutoChanger.cc AudioAnalyzer.cc  CthughaDisplay.cc 		\
-	CthughaFrameBuffer.cc Border.cc VisualPipeline.cc VisualDirector.cc	\
+	Border.cc VisualPipeline.cc VisualDirector.cc	\
 	keymap.cc InterfaceCredits.cc InterfaceList.cc			\
 	joystick.cc
 
@@ -55,7 +55,7 @@ tabinfo_SOURCES = tabinfo.cc
 #removed  getopt.h
 ## all the header files
 noinst_HEADERS = 	\
-	Audio.h           AudioFrame.h      AudioRuntime.h    AudioSystem.h     AudioOptions.h     AudioTypes.h       RuntimeFactory.h  PcmSourceFactory.h  AudioVisualBridge.h AutoChanger.h     AudioAnalyzer.h    CthughaFrameBuffer.h VisualPipeline.h VisualDirector.h flames.h          pcx.h		\
+	Audio.h           AudioFrame.h      AudioRuntime.h    AudioSystem.h     AudioOptions.h     AudioTypes.h       RuntimeFactory.h  PcmSourceFactory.h  AudioVisualBridge.h AutoChanger.h     AudioAnalyzer.h    VisualPipeline.h VisualDirector.h flames.h          pcx.h		\
         CDPlayer.h        Mixer.h  \
 	CoreOption.h      AudioProcessor.h    Border.h          Flashlight.h      imath.h           tab_header.h	\
 	CthughaBuffer.h   information.h     translate.h	\

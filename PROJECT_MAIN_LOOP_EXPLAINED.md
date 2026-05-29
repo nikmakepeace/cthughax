@@ -30,7 +30,6 @@ Keep these files open:
 - `src/AutoChanger.*`: automatic effect changes.
 - `src/VisualPipeline.*`, `src/VisualDirector.*`: visual-stage executor,
   default stage plan, and pipeline factory.
-- `src/CthughaFrameBuffer.*`: indexed buffer/palette adapter.
 - `src/CthughaBuffer.*`: classic per-buffer options and raw indexed buffers.
 - `src/flames.cc`, `src/translate.cc`, `src/waves.cc`: classic effect entry
   objects used by the visual stages.
@@ -184,8 +183,8 @@ During the visual pipeline's indexed-buffer stages:
 - `passiveBuffer` is the previous/current finished image.
 - `BufferFrameEndModule` swaps the pointers after flame, translate, and wave
   stages have run.
-- Display code reads from `passive_buffer`, so after the swap it sees the newly
-  completed frame.
+- Display code reads the buffer's passive pixels, so after the swap it sees
+  the newly completed frame.
 
 Default dimensions are in `src/CthughaBuffer.cc`:
 
@@ -309,12 +308,12 @@ functions. It asks the CoreOption system to move current selections.
 
 ## 13. Step 4: VisualPipeline
 
-`runVisualPipeline()` initializes the default visual pipeline if needed, binds a
-`CthughaFrameBuffer` to the current classic buffer pointers when needed, builds
-a `VisualFrameContext`, and calls:
+`runVisualPipeline()` initializes the default visual pipeline if needed, builds
+a `VisualFrameContext`, lets `VisualDirector` bind the current stage objects,
+and calls:
 
 ```cpp
-visualPipeline->run(visualFrameBuffer, context);
+visualPipeline->run(context);
 ```
 
 The context contains:
@@ -343,15 +342,14 @@ Image, flame, translate, and wave are real stages now. `ImageStageModule`
 overlays the selected PCX when `VisualDirector` arms the one-shot image stage.
 Before each frame, `VisualDirector` updates stage bindings for the selected
 PCX, per-buffer flames, translate providers, waves, border mode, and palette
-state. Flame, translate, and wave modules iterate those bound objects, bind the
-shared `CthughaFrameBuffer` adapter to the relevant legacy buffer, and call the
-entry/provider API they were given.
+state. Flame, translate, and wave modules iterate those bound objects and pass
+the relevant `CthughaBuffer&` into the entry/provider API they were given.
 
 Important limitation: this is not the final inversion-of-control shape yet.
-Stage execution still mutates `CthughaBuffer::current` while binding the
-classic buffers because the old effect functions use `active_buffer` and
-`passive_buffer` macros. Selection now lives in `VisualDirector`; the remaining
-coupling is the legacy buffer binding used to run those effects.
+Selection now lives in `VisualDirector`, and the pipeline effect path no longer
+uses the old active/passive macros or a frame-buffer binding adapter. The
+remaining coupling is the selected-buffer global used by UI, loading, and
+display code around the pipeline.
 
 ## 14. Step 4a: Flashlight
 
@@ -361,7 +359,7 @@ If `flashlight` is enabled, it:
 
 1. copies the current frame palette;
 2. brightens low palette entries according to `acousticContext.fire()`;
-3. installs that temporary palette on the frame buffer.
+3. installs that temporary palette on the selected buffer.
 
 It does not draw pixels.
 
@@ -387,7 +385,7 @@ pipeline modules. The logical order for a frame is:
 
 ```text
 BufferFrameBeginModule
-  bind the selected buffer to CthughaFrameBuffer
+  synchronize CthughaBuffer::current with the selected buffer
 
 ImageStageModule
   overlay the selected PCX when VisualDirector has armed ImageStage once
@@ -423,7 +421,7 @@ In source:
 
 - entries are registered in `src/flames.cc::_flames`;
 - each entry is a `FlameEntry`;
-- `FlameStageModule` calls `FlameEntry::execute(frameBuffer, context)`;
+- `FlameStageModule` calls `FlameEntry::execute(buffer, context)`;
 - `init_flames()` precomputes lookup tables such as `divsub`.
 
 Mentally:
@@ -445,7 +443,7 @@ Loading is in `src/translate.cc::init_translate()` and
 `TranslateOption::prepareCurrentEntry()`. `.cmd` files can generate tables with
 helper programs, and `.tab` files can be loaded directly. Tables can be loaded
 on demand. That loading/caching work belongs to the option/provider side; the
-selected `TranslateEntry::execute(frameBuffer, context)` just applies a ready
+selected `TranslateEntry::execute(buffer, context)` just applies a ready
 translation table.
 Flames no longer fold translation into their own loops; translate runs as a
 dedicated pipeline stage.
@@ -457,8 +455,8 @@ A wave is the fresh drawing seeded by current sound.
 Wave functions read `audioFrameProcessedData()`, `audioAnalysis`,
 `acousticContext`, `waveScale`, and `table`, then draw points, vertical lines,
 horizontal lines, spikes, Lissajous shapes, lightning, objects, spirals, and
-other geometry into `active_buffer`. `WaveStageModule` calls the selected
-`WaveEntry::execute(frameBuffer, context)`.
+other geometry into the buffer's active pixels. `WaveStageModule` calls the
+selected `WaveEntry::execute(buffer, context)`.
 
 Those marks become fuel for later frames' flames.
 
@@ -533,8 +531,8 @@ Examples from `src/display.cc`:
 - `screen_hfield`: heightfield.
 - `screen_roll`, `screen_bent`, `screen_plate`: more 3D-ish mappings.
 
-These functions read `passive_buffer`, which is the completed Cthugha image
-after the buffer swap.
+These functions read the selected buffer's passive pixels, which are the
+completed Cthugha image after the buffer swap.
 
 ## 20. Concept: CthughaDisplay vs DisplayDevice
 
@@ -559,7 +557,7 @@ after the buffer swap.
 If you are tracing pixels to screen, the route is:
 
 ```text
-CthughaBuffer passive_buffer
+CthughaBuffer passive pixels
   -> src/display.cc screen function
   -> CthughaDisplay buffer/expandedBuffer
   -> DisplayDevice preDraw/postDraw

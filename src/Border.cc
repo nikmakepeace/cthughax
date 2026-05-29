@@ -1,8 +1,9 @@
 #include "cthugha.h"
 #include "AudioFrame.h"
 #include "Border.h"
-#include "CthughaFrameBuffer.h"
+#include "CthughaBuffer.h"
 #include "VisualPipeline.h"
+#include "cth_buffer.h"
 
 static CoreOptionEntry* border_entries[]
     = { new CoreOptionEntry("border0", ""), new CoreOptionEntry("border1", ""),
@@ -15,14 +16,14 @@ void init_border() {
     border.add(border_entries, 4);
 }
 
-void apply_border(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context, int borderMode) {
-    unsigned char* active = frameBuffer.active();
+void apply_border(CthughaBuffer& buffer, const VisualFrameContext& context, int borderMode) {
+    unsigned char* active = buffer.activePixels();
     if (active == 0)
         return;
 
-    int width = frameBuffer.width();
-    int height = frameBuffer.height();
-    int pitch = frameBuffer.pitch();
+    int width = BUFF_WIDTH;
+    int height = BUFF_HEIGHT;
+    int pitch = BUFF_WIDTH;
     unsigned char* top = active - 3 * pitch;
     unsigned char* bottom = active + height * pitch;
 

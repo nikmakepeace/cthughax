@@ -1,5 +1,4 @@
 #include "cthugha.h"
-#include "CthughaFrameBuffer.h"
 #include "VisualPipeline.h"
 
 VisualFrameContext::VisualFrameContext()
@@ -125,7 +124,7 @@ void VisualPipeline::refresh() {
         modules[i].module->refresh();
 }
 
-void VisualPipeline::run(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context) {
+void VisualPipeline::run(const VisualFrameContext& context) {
     for (unsigned int stageIndex = 0; stageIndex < sequence.size(); stageIndex++) {
         unsigned int stage = sequence[stageIndex];
         for (unsigned int moduleIndex = 0; moduleIndex < modules.size(); moduleIndex++) {
@@ -138,7 +137,7 @@ void VisualPipeline::run(CthughaFrameBuffer& frameBuffer, const VisualFrameConte
                 continue;
             }
 
-            modules[moduleIndex].module->execute(frameBuffer, context);
+            modules[moduleIndex].module->execute(context);
 
             if (modules[moduleIndex].mode == VisualStageArmedOnce) {
                 CTH_TRACE("disarming one-shot stage=%u module=%p\n",

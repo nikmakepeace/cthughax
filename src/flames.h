@@ -4,17 +4,17 @@
 #include "cthugha.h"
 #include "CoreOption.h"
 
-class CthughaFrameBuffer;
+class CthughaBuffer;
 class VisualFrameContext;
 
 class FlameEntry : public CoreOptionEntry {
-    void (*flame)();
+    void (*flame)(CthughaBuffer& buffer);
 
 public:
-    FlameEntry(void (*f)(), const char* name, const char* desc, int inUse = 1);
+    FlameEntry(void (*f)(CthughaBuffer& buffer), const char* name, const char* desc, int inUse = 1);
 
     int operator()();
-    void execute(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context);
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
 };
 
 extern CoreOptionEntry* _flames[];
