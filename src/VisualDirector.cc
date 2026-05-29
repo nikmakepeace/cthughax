@@ -10,6 +10,7 @@
 #include "waves.h"
 
 double paletteSmoothingChance = 1.0;
+static int imageStageRequested = 0;
 
 static void bindSelectedBuffer(CthughaFrameBuffer& frameBuffer) {
     CthughaBuffer::current = CthughaBuffer::buffers + CthughaBuffer::nCurrent;
@@ -21,18 +22,13 @@ static void bindBuffer(CthughaFrameBuffer& frameBuffer, int bufferIndex) {
     CthughaBuffer::current->bindFrameBuffer(frameBuffer);
 }
 
-class NullVisualStageModule : public VisualModule {
-    const char* stageName;
-
+class ImageStageModule : public VisualModule {
 public:
-    NullVisualStageModule(const char* stageName_)
-        : stageName(stageName_) { }
-
     void execute(CthughaFrameBuffer& frameBuffer, const VisualFrameContext& context) {
-        (void)frameBuffer;
         (void)context;
 
-        CTH_TRACE("executing null stage=%s\n", "visual pipeline", stageName);
+        CTH_TRACE("executing image stage\n", "visual pipeline");
+        show_pcx(frameBuffer);
     }
 };
 
@@ -239,8 +235,20 @@ VisualPlan VisualDirector::planDefaultPipeline() const {
     return plan;
 }
 
+void VisualDirector::requestImageStage() {
+    imageStageRequested = 1;
+}
+
+int VisualDirector::consumeImageStageRequest() {
+    int requested = imageStageRequested;
+    imageStageRequested = 0;
+    return requested;
+}
+
 void VisualDirector::configurePipeline(VisualPipeline& pipeline) const {
     pipeline.setStageMode(VisualPlan::BufferFrameBeginStage, VisualStageEnabled);
+    if (consumeImageStageRequest())
+        pipeline.setStageMode(VisualPlan::ImageStage, VisualStageArmedOnce);
     pipeline.setStageMode(VisualPlan::FlashlightStage,
         (int(flashlight) != 0) ? VisualStageEnabled : VisualStageDisabled);
     pipeline.setStageMode(VisualPlan::BorderStage, VisualStageEnabled);
@@ -261,7 +269,7 @@ VisualPipeline* VisualPipelineFactory::create(const VisualPlan& plan) const {
     if (plan.includes(VisualPlan::BufferFrameBeginStage))
         pipeline->add(VisualPlan::BufferFrameBeginStage, new BufferFrameBeginModule(), 1);
     if (plan.includes(VisualPlan::ImageStage))
-        pipeline->add(VisualPlan::ImageStage, new NullVisualStageModule("image"), 1);
+        pipeline->add(VisualPlan::ImageStage, new ImageStageModule(), 1);
     if (plan.includes(VisualPlan::FlashlightStage))
         pipeline->add(VisualPlan::FlashlightStage, new FlashlightVisualModule(), 1);
     if (plan.includes(VisualPlan::BorderStage))

@@ -4,7 +4,9 @@
 #include "disp-sys.h"
 #include "cth_buffer.h"
 #include "CthughaBuffer.h"
+#include "CthughaFrameBuffer.h"
 #include "CthughaDisplay.h"
+#include "VisualDirector.h"
 #include "imath.h"
 
 #include <unistd.h>
@@ -62,10 +64,22 @@ int init_pcx() {
     return 0;
 }
 
-/*
- * bring the active_pcx to the screen
- */
 int show_pcx() {
+    VisualDirector::requestImageStage();
+    return 0;
+}
+
+static int choose_image_left(int imageSize, int bufferSize) {
+    if (imageSize > bufferSize)
+        return -(Random(imageSize - bufferSize + 1));
+
+    return Random(bufferSize - imageSize + 1);
+}
+
+/*
+ * bring the active_pcx to the frame buffer
+ */
+int show_pcx(CthughaFrameBuffer& frameBuffer) {
 
     CTH_DEBUG("showing pcx `%s'...\n", CthughaBuffer::current->pcx.currentName());
     PCXEntry* pcxE = (PCXEntry*)CthughaBuffer::current->pcx.current();
@@ -73,28 +87,37 @@ int show_pcx() {
     if ((pcxE == NULL) || (pcxE->data == NULL))
         return 0;
 
-    int x = (BUFF_WIDTH - pcxE->width) / 2;
-    int y = (BUFF_HEIGHT - pcxE->height) / 2;
+    unsigned char* active = frameBuffer.active();
+    unsigned char* passive = frameBuffer.passive();
+    if (active == NULL || passive == NULL)
+        return 0;
+
+    int width = frameBuffer.width();
+    int height = frameBuffer.height();
+    int pitch = frameBuffer.pitch();
+
+    int x = choose_image_left(pcxE->width, width);
+    int y = choose_image_left(pcxE->height, height);
 
     int src_x = (x < 0) ? -x : 0;
     int dst_x = (x > 0) ? x : 0;
-    int copy_w = min(pcxE->width - src_x, BUFF_WIDTH - dst_x);
+    int copy_w = min(pcxE->width - src_x, width - dst_x);
 
     int src_y = (y < 0) ? -y : 0;
     int dst_y = (y > 0) ? y : 0;
-    int copy_h = min(pcxE->height - src_y, BUFF_HEIGHT - dst_y);
+    int copy_h = min(pcxE->height - src_y, height - dst_y);
+
+    if (copy_w <= 0 || copy_h <= 0)
+        return 0;
 
     for (int row = 0; row < copy_h; row++) {
         unsigned char* src = pcxE->data + (src_y + row) * pcxE->width + src_x;
-        unsigned char* active_dst = active_buffer + (dst_y + row) * BUFF_WIDTH + dst_x;
-        unsigned char* passive_dst = passive_buffer + (dst_y + row) * BUFF_WIDTH + dst_x;
+        unsigned char* active_dst = active + (dst_y + row) * pitch + dst_x;
+        unsigned char* passive_dst = passive + (dst_y + row) * pitch + dst_x;
 
         memcpy(active_dst, src, copy_w);
         memcpy(passive_dst, src, copy_w);
     }
-
-    // use the correct colors for just a short time
-    CthughaBuffer::current->setPalette(CthughaBuffer::getPalette(pcxE->pal));
 
     return 0;
 }

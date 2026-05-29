@@ -35,6 +35,10 @@ class VisualDirector {
 public:
     VisualPlan planDefaultPipeline() const;
     void configurePipeline(VisualPipeline& pipeline) const;
+    static void requestImageStage();
+
+private:
+    static int consumeImageStageRequest();
 };
 
 extern double paletteSmoothingChance;

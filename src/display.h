@@ -94,8 +94,11 @@ int palette_set_metadata_energy(PaletteEntry* palette, const char* value);
 /*
  *  Stuff for PCX
  */
+class CthughaFrameBuffer;
+
 int init_pcx(); /* initalize pcx */
-int show_pcx();
+int show_pcx(); /* request a one-shot PCX image stage */
+int show_pcx(CthughaFrameBuffer& frameBuffer); /* execute the PCX image stage */
 extern int display_use_pcx; /* allow pcx-usage */
 extern int* pcx_palettes; /* index to corresp. palette */
 
