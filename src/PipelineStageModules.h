@@ -2,23 +2,27 @@
 #define __PIPELINE_STAGE_MODULES_H
 
 #include "FramePalette.h"
+#include "Image.h"
 #include "PaletteTransition.h"
 #include "VisualPipeline.h"
 #include "VisualPipelineSequence.h"
 
 class Flame;
 class PaletteEntry;
-class PCXEntry;
 class TranslateOption;
 class Wave;
 
 class ImageStageModule : public VisualModule {
-    PCXEntry* image;
+    const IndexedImage* image;
+    ImagePlacement placement;
+    int overlayPassiveBuffer;
 
 public:
     ImageStageModule();
 
-    void setImage(PCXEntry* image_);
+    void setImage(const IndexedImage* image_);
+    void setPlacement(const ImagePlacement& placement_);
+    void setOverlayPassiveBuffer(int enabled);
     void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
 };
 

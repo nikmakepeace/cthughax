@@ -1,120 +1,8 @@
 #include "cthugha.h"
-#include "display.h"
-#include "Interface.h"
-#include "disp-sys.h"
 #include "cth_buffer.h"
-#include "CthughaBuffer.h"
-#include "CthughaDisplay.h"
-#include "imath.h"
-
-#include <unistd.h>
-
-int display_use_pcx = 1; /* allow pcx-usage */
-
-static CoreOptionEntry* _pcx = new PCXEntry("none", "");
-
-CoreOptionEntryList pcxEntries(_pcx);
-
-int* pcx_palettes = NULL; /* index to corresp. palette */
-
-static const char* pcx_path[] = { "./", "./pcx/", CTH_LIBDIR "/pcx/", "" };
-CoreOptionEntry* read_pcx(FILE* file, const char* name, const char* dir, const char* total_name);
-
-unsigned char* tempscrn = NULL;
-
-char display_prt_file[PATH_MAX] = "PrintScreen"; /* filename used by PrtScrn */
-
-//
-// generate a new filename for print screen (-> move to different file)
-//
-char* prtFileName(const char* ext) {
-    static char name[PATH_MAX];
-    static int count = 0;
-
-    if (count == 0) {
-        sprintf(name, "%s.%s", display_prt_file, ext);
-    } else {
-        sprintf(name, "%s.%d.%s", display_prt_file, count, ext);
-    }
-    count++;
-
-    return name;
-}
-
-/*
- * Initialization
- */
-int init_pcx() {
-
-    if (display_use_pcx) {
-
-        CTH_INFO("  loading PCX-files...\n");
-
-        tempscrn = new unsigned char[BUFF_SIZE];
-
-        CthughaBuffer::current->pcx.load(pcx_path, "/pcx/", ".pcx", read_pcx);
-
-        delete[] tempscrn;
-
-        CTH_INFO("  number of loaded PCX-files: %d\n", CthughaBuffer::current->pcx.getNEntries());
-    }
-
-    return 0;
-}
-
-static int choose_image_left(int imageSize, int bufferSize) {
-    if (imageSize > bufferSize)
-        return -(Random(imageSize - bufferSize + 1));
-
-    return Random(bufferSize - imageSize + 1);
-}
-
-/*
- * Overlay this PCX onto the selected indexed buffer.
- */
-int PCXEntry::overlay(CthughaBuffer& buffer) const {
-
-    CTH_DEBUG("overlaying pcx `%s'...\n", Name());
-
-    if (data == NULL)
-        return 0;
-
-    unsigned char* active = buffer.activePixels();
-    unsigned char* passive = buffer.passivePixels();
-    if (active == NULL || passive == NULL)
-        return 0;
-
-    int width = BUFF_WIDTH;
-    int height = BUFF_HEIGHT;
-    int pitch = BUFF_WIDTH;
-
-    int x = choose_image_left(this->width, width);
-    int y = choose_image_left(this->height, height);
-
-    int src_x = (x < 0) ? -x : 0;
-    int dst_x = (x > 0) ? x : 0;
-    int copy_w = min(this->width - src_x, width - dst_x);
-
-    int src_y = (y < 0) ? -y : 0;
-    int dst_y = (y > 0) ? y : 0;
-    int copy_h = min(this->height - src_y, height - dst_y);
-
-    if (copy_w <= 0 || copy_h <= 0)
-        return 0;
-
-    for (int row = 0; row < copy_h; row++) {
-        unsigned char* src = data + (src_y + row) * this->width + src_x;
-        unsigned char* active_dst = active + (dst_y + row) * pitch + dst_x;
-        unsigned char* passive_dst = passive + (dst_y + row) * pitch + dst_x;
-
-        memcpy(active_dst, src, copy_w);
-        memcpy(passive_dst, src, copy_w);
-    }
-
-    return 0;
-}
-
-/*****************************************************************************/
+#include "display.h"
+#include "Image.h"
+#include "Screenshot.h"
 
 /* load 1 pcx-file from disk
 
@@ -134,8 +22,6 @@ int PCXEntry::overlay(CthughaBuffer& buffer) const {
 */
 typedef unsigned char byte;
 typedef unsigned short word;
-typedef int boolean;
-#define MAXLINLEN 2048 /* maximum length of screen line */
 typedef struct {
     byte id; /* must be $0A  */
     byte version; /* 0, 2, 3, or 5  */
@@ -156,68 +42,76 @@ typedef struct {
     byte filler[58];
 } headrec;
 
-static headrec header;
-static int iread, thisbyte;
-static boolean zdecomp, zcompr;
-static byte repeatct;
+class PcxByteReader {
+    static const int ChunkSize = 8192;
 
-FILE* picf;
+    FILE* file;
+    byte chunk[ChunkSize];
+    int bytesRead;
+    int position;
+    int compressed;
+    byte repeatValue;
+    int repeatCount;
 
-/* get next chunk from input file  */
-void getnextchunk(void) {
-    if (feof(picf))
-        iread = 0;
-    else {
-        iread = fread(tempscrn, 1, BUFF_SIZE, picf);
-        if (ferror(picf))
-            iread = 0;
-    }
-
-    thisbyte = 0;
-}
-
-/* reads next byte from input file, handling compression */
-byte getnextbyte(void) {
-    byte res;
-    if (!zdecomp) {
-        if (thisbyte >= iread)
-            getnextchunk();
-        if (thisbyte < iread) {
-            thisbyte++;
-            if (zcompr && tempscrn[thisbyte - 1] >= 192) {
-                repeatct = tempscrn[thisbyte - 1] & 0x3F;
-                zdecomp = (repeatct > 0) ? 1 : 0;
-                if (thisbyte >= iread)
-                    getnextchunk();
-                thisbyte++;
+    int readRawByte() {
+        if (position >= bytesRead) {
+            if (feof(file)) {
+                bytesRead = 0;
+            } else {
+                bytesRead = fread(chunk, 1, ChunkSize, file);
+                if (ferror(file))
+                    bytesRead = 0;
             }
+            position = 0;
         }
-    }
-    if (zdecomp) {
-        res = tempscrn[thisbyte - 1];
-        repeatct--;
-        zdecomp = (repeatct > 0) ? 1 : 0;
-    } else {
-        if (iread > 0) {
-            res = tempscrn[thisbyte - 1];
-        } else
-            res = 0;
-    }
-    return res;
-}
 
-CoreOptionEntry* read_pcx(
+        if (position >= bytesRead)
+            return 0;
+
+        return chunk[position++];
+    }
+
+public:
+    PcxByteReader(FILE* file_, int compressed_)
+        : file(file_)
+        , bytesRead(0)
+        , position(0)
+        , compressed(compressed_)
+        , repeatValue(0)
+        , repeatCount(0) { }
+
+    void setCompressed(int compressed_) {
+        compressed = compressed_;
+        repeatCount = 0;
+    }
+
+    byte nextByte() {
+        if (repeatCount > 0) {
+            repeatCount--;
+            return repeatValue;
+        }
+
+        int value = readRawByte();
+        if (compressed && value >= 192) {
+            repeatCount = value & 0x3F;
+            repeatValue = (byte)readRawByte();
+            if (repeatCount > 0)
+                repeatCount--;
+            return repeatValue;
+        }
+
+        return (byte)value;
+    }
+};
+
+CoreOptionEntry* read_pcx_image(
     FILE* file, const char* name, const char* /* dir */, const char* /*total_name*/) {
     int x, y;
     byte bitsperplane;
-
-    unsigned char* buff; /* target-buffer */
-    unsigned char* pal; /* palette for this pcx */
-
-    picf = file;
+    headrec header;
 
     /* read header */
-    iread = fread(&header, 1, sizeof(header), picf);
+    int iread = fread(&header, 1, sizeof(header), file);
     if (iread != sizeof(header)) {
         CTH_ERROR("Can't read head of file: %s\n", name);
         return NULL;
@@ -256,52 +150,51 @@ CoreOptionEntry* read_pcx(
         return NULL;
     }
 
-    PCXEntry* new_pcx = new PCXEntry(name, "");
+    x = header.xmax - header.xmin + 1;
+    y = header.ymax - header.ymin + 1;
+    if (x <= 0 || y <= 0
+        || ((unsigned long long)x * (unsigned long long)y > 1024ULL * 1024ULL * 64ULL)) {
+        CTH_ERROR("PCX `%s' has unsupported dimensions %dx%d.\n", name, x, y);
+        return NULL;
+    }
 
-    new_pcx->width = x = header.xmax - header.xmin + 1;
-    new_pcx->height = y = header.ymax - header.ymin + 1;
     if ((x > BUFF_WIDTH) || (y > BUFF_HEIGHT)) {
         CTH_WARN("PCX `%s' is %dx%d, larger than buffer %dx%d; image will be cropped.\n",
             name, x, y, BUFF_WIDTH, BUFF_HEIGHT);
     }
-    new_pcx->data = buff = new unsigned char[x * y];
 
-    zcompr = (header.compr == 1) ? 1 : 0;
-
-    thisbyte = iread + 1;
-    zdecomp = 0;
+    IndexedImage* image = new IndexedImage(name, x, y);
+    unsigned char* buff = image->mutablePixels();
+    PcxByteReader reader(file, header.compr == 1);
 
     for (int i = 0; i < y; i++) {
         int j;
         for (j = 0; j < x; j++) {
-            *buff = getnextbyte();
+            *buff = reader.nextByte();
             buff++;
         }
         for (; j < header.bytesperline; j++)
-            getnextbyte();
+            reader.nextByte();
     }
+
+    ColorPalette* sourcePalette = 0;
 
     /* read palette */
     if ((header.version == 2) || (header.version == 5)) {
-        PaletteEntry* new_pal = new PaletteEntry(name, "");
+        sourcePalette = new ColorPalette();
+        unsigned char* pal = (unsigned char*)sourcePalette->raw();
 
-        pal = (unsigned char*)new_pal->colors().raw();
-
-        zcompr = 0; /* palette is not compressed */
-        if (getnextbyte() != 12) /* should be 12 */
+        reader.setCompressed(0); /* palette is not compressed */
+        if (reader.nextByte() != 12) /* should be 12 */
             CTH_WARN("\n    Palette marker not found. Trying anyway.");
 
         for (y = 0; y < 768; y++)
-            pal[y] = getnextbyte();
+            pal[y] = reader.nextByte();
 
-        palette.add(new_pal);
-
-        new_pcx->pal = palette.getNEntries() - 1;
-
-        CTH_DEBUG("\n    loaded palette %d from PCX", palette.getNEntries());
+        CTH_DEBUG("pcx: loaded source palette from `%s'\n", name);
     }
 
-    return new_pcx;
+    return new ImageEntry(name, "", image, sourcePalette);
 }
 
 int save_pcx(unsigned char* buffer, int width, int height, Palette pal) {

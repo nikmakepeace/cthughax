@@ -37,16 +37,17 @@ Palette metadata can be used with:
 requested value. If no palette matches, the code warns and leaves all palettes
 enabled.
 
-### Add a PCX Image
+### Add an Indexed Image
 
-Drop `.pcx` or `.pcx.gz` into `pcx/`, current directory, installed
-`CTH_LIBDIR/pcx/`, or `--path DIR/pcx/`.
+Drop `.pcx`, `.pcx.gz`, indexed `.png`, or `.png.gz` into `pcx/`, current
+directory, installed `CTH_LIBDIR/pcx/`, or `--path DIR/pcx/`.
 
-Loader: `src/pcx.cc`.
+Loaders: `src/pcx.cc` and `src/PngImageCodec.cc`.
 
-PCX images become entries in the `pcx` CoreOption, and their palettes are added
-to the palette registry. Current PCX display code centers/clips images to the
-active visual buffer.
+Image files become entries in the image option owned by `VisualDirector`.
+PCX/PNG source palettes are retained with the image entry for future policy, but
+image display does not mutate the current frame palette. `ImageStageModule`
+clips the selected `IndexedImage` into the active visual buffer when armed.
 
 ### Add a Translation Effect Without Recompiling
 
@@ -307,7 +308,7 @@ first, then render it as a texture through SDL2/SDL3, GLFW, or similar.
 The effect code is mostly self-contained and should be preserved. The safest
 path is:
 
-1. keep `CoreOption`, `flames`, `waves`, `translate`, palettes, and PCX behavior
+1. keep `CoreOption`, `flames`, `waves`, `translate`, palettes, and indexed image behavior
    stable;
 2. continue moving `CthughaBuffer::current` lookups behind explicit
    display/provider objects;
@@ -349,7 +350,8 @@ with safer metadata.
 ### Lower Risk
 
 - Palette/map loading is relatively isolated.
-- PCX loading is isolated, though format support is intentionally narrow.
+- Indexed image loading is isolated. PNG support is intentionally limited to
+  non-interlaced indexed-color PNGs.
 - Keymap parsing is standalone and a good candidate for targeted tests.
 - Translation table generators are separate command-line programs and can be
   tested independently.
@@ -363,7 +365,7 @@ with safer metadata.
 - `PcmSourceFactory::selectAudioSourceStrategy()`.
 - `AudioBuffer` append/read/history behavior.
 - Palette loader metadata, short files, malformed lines, and set filtering.
-- PCX loading, centering, clipping, and palette behavior.
+- Indexed image loading, placement, clipping, and source-palette retention.
 - `.cmd` parser and generated command assembly.
 - `.tab` header parser and stretch behavior.
 - `Keymap::parseBinding()` with `src/default.keymap` examples.

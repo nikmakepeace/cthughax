@@ -249,16 +249,16 @@ FlashlightVisualModule
 ```
 
 `ImageStageModule`, `FlameStageModule`, `TranslateStageModule`, and
-`WaveStageModule` are real stages. Image overlays the current PCX when
-`VisualDirector` arms the one-shot image stage. Before each frame,
-`VisualDirector` updates the stage modules with the selected PCX, selected
+`WaveStageModule` are real stages. Image overlays the current `IndexedImage`
+when `VisualDirector` arms the one-shot image stage. PCX and indexed PNG files
+are decoded into that domain object before the frame loop. Before each frame,
+`VisualDirector` updates the stage modules with the selected image, selected
 flame, general-flame value, translate provider, wave, and border mode.
 `VisualPipeline::run()` then passes the same `CthughaBuffer&` through each
 enabled stage.
 
-Current limitation: entry selection is now director-owned and stage execution
-receives an explicit `CthughaBuffer&`, but UI and loading code still use
-`CthughaBuffer::current`.
+Current limitation: translate selection still lives on the compatibility
+`CthughaBuffer::current` path. Image selection has moved to `VisualDirector`.
 
 ### Flashlight
 
@@ -288,7 +288,7 @@ modules. The frame-level order is:
 
 ```text
 ImageStageModule
-  overlay the selected PCX when VisualDirector has armed ImageStage once
+  overlay the selected IndexedImage when VisualDirector has armed ImageStage once
 
 FlameStageModule
   execute the selected Flame against the frame buffer

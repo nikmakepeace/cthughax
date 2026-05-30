@@ -2,13 +2,13 @@
 
 ## general source files
 GENSRC = Option.cc OptionInt.cc CoreOption.cc CoreOptionEntry.cc	\
-	Audio.cc AudioFrame.cc AudioRuntime.cc Settings.cc RuntimeFactory.cc		\
+	Audio.cc AudioFrame.cc AudioRuntime.cc Settings.cc RuntimeFactory.cc Screenshot.cc		\
 	PcmSourceFactory.cc AudioVisualBridge.cc			\
 	Mixer.cc CDPlayer.cc imath.cc AudioSystem.cc IniFiles.cc		\
 	Interface.cc info_title_usage.cc disp-ncurses.cc		\
 	misc.cc DisplayDevice.cc				\
 	AutoChanger.cc AudioAnalyzer.cc  CthughaDisplay.cc 		\
-	Border.cc ColorPalette.cc VisualPipeline.cc VisualPipelineSequence.cc	\
+	Border.cc ColorPalette.cc Image.cc PngImageCodec.cc VisualPipeline.cc VisualPipelineSequence.cc	\
 	PipelineStageModules.cc VisualPipelineFactory.cc VisualDirector.cc	\
 	keymap.cc InterfaceCredits.cc InterfaceList.cc
 
@@ -36,7 +36,7 @@ tabinfo_SOURCES = tabinfo.cc
 #removed  getopt.h
 ## all the header files
 noinst_HEADERS = 	\
-	Audio.h           AudioFrame.h      AudioRuntime.h    AudioSystem.h     AudioOptions.h     AudioTypes.h       Settings.h RuntimeFactory.h  PcmSourceFactory.h  AudioVisualBridge.h AutoChanger.h     AudioAnalyzer.h    VisualPipeline.h VisualPipelineSequence.h VisualPipelineFactory.h PipelineStageModules.h VisualDirector.h Flame.h flames.h FramePalette.h PaletteTransition.h Wave.h          pcx.h		\
+	Audio.h           AudioFrame.h      AudioRuntime.h    AudioSystem.h     AudioOptions.h     AudioTypes.h       Settings.h RuntimeFactory.h  Screenshot.h PcmSourceFactory.h  AudioVisualBridge.h AutoChanger.h     AudioAnalyzer.h    VisualPipeline.h VisualPipelineSequence.h VisualPipelineFactory.h PipelineStageModules.h VisualDirector.h Flame.h flames.h FramePalette.h PaletteTransition.h Wave.h Image.h          pcx.h		\
         CDPlayer.h        Mixer.h  \
 	CoreOption.h      AudioProcessor.h    Border.h          ColorPalette.h Flashlight.h      imath.h           tab_header.h	\
 	CthughaBuffer.h   information.h     translate.h	\

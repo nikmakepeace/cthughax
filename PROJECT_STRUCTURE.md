@@ -7,7 +7,7 @@
 |-- src/                 application source and frontend-specific source files
 |-- tab/                 translation-table generators and .cmd descriptors
 |-- map/                 256-color palette maps and PNG palette previews
-|-- pcx/                 PCX image assets, both plain and gzip-compressed
+|-- pcx/                 indexed image assets: PCX, PCX.GZ, and indexed PNG
 |-- doc/                 original Texinfo/manual/manpage documentation
 |-- tests/headers/       header/source self-containment check harness
 |-- tools/               small asset-generation helpers
@@ -114,7 +114,10 @@ files.
   heightfield, roll, bent, and plate.
 - `src/palettes.cc`: palette loading, metadata, filtering, random palettes, and
   palette handling.
-- `src/pcx.*`: PCX loading, indexed-buffer overlay, and screenshot save.
+- `src/Image.*`: indexed image domain objects, placement, and image option adapter.
+- `src/pcx.*`: PCX decode/encode support for indexed images.
+- `src/PngImageCodec.cc`: indexed PNG decode support for indexed images.
+- `src/Screenshot.*`: screenshot filename state.
 
 ### Display Frontends
 
@@ -165,7 +168,7 @@ Current CMake targets:
 
 - `GENSRC`: shared options, audio/runtime files, UI, misc, base
   display classes, autochanger, analyzer, and pipeline scaffolding.
-- `DISPSRC`: `GENSRC` plus visual effects, palettes, PCX, translation,
+- `DISPSRC`: `GENSRC` plus visual effects, palettes, indexed images, translation,
   `AudioProcessor`, `CthughaBuffer`, `initExitDisp`, flashlight, and help UI.
 
 Autotools target source sets:
@@ -205,8 +208,11 @@ CTH_LIBDIR/map/
 
 ### `pcx/`
 
-Contains 12 PCX assets: 6 plain `.pcx` files and 6 `.pcx.gz` copies. Loader:
-`src/pcx.cc`, through `CoreOption::load`, which can read `.gz` by spawning
+Contains the classic indexed image assets. Existing content is 12 PCX files:
+6 plain `.pcx` files and 6 `.pcx.gz` copies. The image option now also accepts
+indexed `.png` and `.png.gz` files from the same locations. PCX loading lives in
+`src/pcx.cc`; indexed PNG loading lives in `src/PngImageCodec.cc`. Compressed
+files still go through `CoreOption::load`, which can read `.gz` by spawning
 `gzip -cd`.
 
 Search path:

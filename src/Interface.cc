@@ -10,6 +10,7 @@
 #include "AudioProcessor.h"
 #include "Border.h"
 #include "Flashlight.h"
+#include "VisualDirector.h"
 #include "flames.h"
 #include "waves.h"
 
@@ -408,7 +409,8 @@ public:
             elements[9]
                 = new InterfaceElementCoreOption("Palette (p,P)         : %s", &palette);
             elements[10]
-                = new InterfaceElementCoreOption("PCX (x,X))            : %s", &CthughaBuffer::buffer.pcx);
+                = new InterfaceElementCoreOption("Image (x,X))          : %s",
+                    &visualDirector().imageOption());
             elements[11] = new InterfaceElementCoreOption("3D-Object (j,J)       : %s", &object);
             elements[12]
                 = new InterfaceElementCoreOption("Flashlight (s)        : %s", &flashlight);
@@ -428,7 +430,7 @@ public:
         O(7) = &table;
         O(8) = &waveScale;
         O(9) = &palette;
-        O(10) = &b.pcx;
+        O(10) = &visualDirector().imageOption();
         O(11) = &object;
         O(12) = &flashlight;
     }

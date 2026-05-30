@@ -56,5 +56,5 @@ source names or removed extension instructions.
 - Live input still depends on OSS-compatible `/dev/dsp` support.
 - Mixer and CD controls still use old Unix/Linux ioctls.
 - Visual effects still rely heavily on global indexed-buffer state.
-- Translation-table loading and compressed PCX loading can still spawn helper
+- Translation-table loading and compressed indexed-image loading can still spawn helper
   commands.

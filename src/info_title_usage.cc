@@ -138,7 +138,7 @@ void usage() {
     PH(" --load-on-demand    Load translation tables only when needed", transLoadOnDemand.text());
     PH(" --load-late         Load translation tables when Cthugha is running",
         transLoadLate.text());
-    PH(" -X, --no-pcx        Disable PCX image files");
+    PH(" -X, --no-pcx        Disable indexed image files");
     PH(" --palette-smoothing F  Chance palette changes smooth, 0..1", "1");
     PH(" --no-palette-smoothing Disable palette smoothing");
     PH(" --no-object         Disable 3-D objects");
@@ -157,7 +157,7 @@ void usage() {
     PH(" --palette-set SETS  Enable palettes matching one of the named sets");
     PH(" -m, --sound-processing N  Start with sound processing N");
     PH(" -a, --table N       Start with table N (how palette is used in wave)");
-    PH(" -P, --pcx N         Start with PCX N");
+    PH(" -P, --pcx N         Start with image N");
     PH("Display options:");
     PH(" -D, --disp-mode MODE    Set graphics mode (window size)");
     for (int i = 0; i < nScreenSizes; i++) {
@@ -181,11 +181,11 @@ void usage() {
     PH(" --font F            Font to use for Cthugha");
     PH("");
     PH("General options:");
-    PH(" -E, --path LIBDIR   An extra searchpath for map, pcx and tab-files");
+    PH(" -E, --path LIBDIR   An extra searchpath for map, image and tab-files");
     PH("                     cthugha searches in LIBDIR/map, LIBDIR/pcx and LIBDIR/tab");
     PH(" --ini-file FILE     Read settings from FILE instead of default ini files");
     PH(" --keymap KEYMAP     Load keyboard definitions from KEYMAP file");
-    PH(" --dbl-load          Allow double loading of palettes, pcx, translations");
+    PH(" --dbl-load          Allow double loading of palettes, images, translations");
     PH(" --prt-file FILE     Filename used at print screen");
     PH(" --no-esc            Disable quit on ESC");
     PH(" --save              Save settings on exit");

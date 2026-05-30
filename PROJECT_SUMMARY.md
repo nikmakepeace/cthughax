@@ -60,8 +60,9 @@ deferred suspend handling
   build outputs.
 - `map/` contains 100 `.map` palettes and `map/png/` contains 23 palette preview
   PNGs.
-- `pcx/` contains 12 PCX assets: 6 plain `.pcx` files and 6 gzip-compressed
-  copies.
+- `pcx/` contains classic indexed image assets: currently 6 plain `.pcx` files
+  and 6 gzip-compressed copies. The same loader path now accepts indexed PNGs,
+  including `.png.gz`.
 - `external/minimp3/` is the embedded MP3 decoder used by the modern audio path.
 - `external/cthugha-js/` is a separate JavaScript port/reference tree.
 - `tests/headers/` contains the current local verification script for checking
@@ -77,7 +78,8 @@ registry for selectable visual entries. The current active categories include:
 - global/display-ish options: `display`, `border`, `flashlight`,
   `sound-processing`, `flame`, `flame-general`, `wave`, `object`,
   `wave-scale`, `table`, and `palette`;
-- visual-buffer option holders: `pcx` and `translate`.
+- visual option adapters: `VisualDirector` owns image selection; the buffer still
+  owns the translate option holder for compatibility.
 
 Audio and visual control are now separated:
 
@@ -91,7 +93,7 @@ Audio and visual control are now separated:
   rolling intensity/fire state for effects and automatic changes.
 - `AudioVisualBridge` runs processing, analysis, and `AutoChanger` policy before
   visual mutation.
-- `VisualPipeline` is the visual-stage executor. One-shot PCX image overlay,
+- `VisualPipeline` is the visual-stage executor. One-shot indexed image overlay,
   border, flame, translate, wave, frame commit, palette smoothing, and
   flashlight now run as explicit modules. `VisualDirector` updates those modules
   with the selected image/effect objects and `VisualPipeline::run()` passes the
@@ -114,7 +116,7 @@ Audio and visual control are now separated:
   `TranslateEntry` objects.
 - Display frontend seam: `DisplayDevice` plus the X11 `CthughaDisplay`
   subclass.
-- Asset seams: `.map` palettes, `.pcx`/`.pcx.gz` images, `.cmd` table
+- Asset seams: `.map` palettes, `.pcx`/`.pcx.gz`/indexed `.png` images, `.cmd` table
   descriptors, `.tab` binary translation tables, and optional `.obj` line
   objects.
 - Control seam: `Keymap` action registry and `Interface` screens.

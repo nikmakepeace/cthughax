@@ -89,9 +89,9 @@
      after a short cooldown, small events change one option, strong section events change
      everything, and per-option locks are always respected.
 
-7. Stabilize PCX behavior.
-   - ~~Verify loading from `pcx/`, `.pcx.gz`, clipping, centering, palette selection,~~ and
-     screenshot save behavior.
+7. Stabilize image behavior.
+   - ~~Verify loading from `pcx/`, `.pcx.gz`, clipping, centering, and palette selection.~~
+   - Add PNG loader coverage and keep screenshot save behavior verified.
    - Review init/load return-code behavior: several `init_*` functions currently always
      return `0`, while `CthughaBuffer::initAll()` still checks them and calls `exit(0)`.
      Decide whether those functions should be `void`, or whether startup should have real
@@ -99,8 +99,8 @@
    - ~~Keep PCX working as classic content while preparing for a modern image path.~~
 
 8. Add a modern image loader.
-   - Add a small image-loader abstraction, with PNG as the first supported modern format.
-   - Keep the internal indexed-buffer behavior intact initially.
+   - ~~Add a small image-loader abstraction, with PNG as the first supported modern format.~~
+   - ~~Keep the internal indexed-buffer behavior intact initially.~~
    - Define transparency semantics deliberately: alpha mask, alpha blend into indexed
      output, or separate overlay layer.
 

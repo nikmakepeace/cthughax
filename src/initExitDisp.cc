@@ -35,7 +35,6 @@
 
 static VisualPipeline* visualPipeline = NULL;
 static VisualPipelineSequence visualPipelineSequence;
-static VisualDirector visualDirector;
 static AudioVisualBridge* audioVisualBridge = NULL;
 
 static void initVisualPipeline() {
@@ -43,7 +42,7 @@ static void initVisualPipeline() {
         return;
 
     VisualPipelineFactory factory;
-    visualPipelineSequence = visualDirector.defaultPipelineSequence();
+    visualPipelineSequence = visualDirector().defaultPipelineSequence();
     visualPipeline = factory.create(visualPipelineSequence);
 
     if (displayDevice != NULL)
@@ -89,7 +88,7 @@ static void runVisualPipeline() {
 
     CTH_TRACE("running pipeline=%p modules=%d\n", "visual runtime",
         visualPipeline, visualPipeline ? visualPipeline->size() : 0);
-    CthughaBuffer* buffer = visualDirector.configurePipeline(*visualPipeline);
+    CthughaBuffer* buffer = visualDirector().configurePipeline(*visualPipeline);
     if (buffer != NULL)
         visualPipeline->run(*buffer, context);
 }
@@ -155,6 +154,8 @@ int main(int argc, char* argv[]) {
 
     CTH_INFO("Initializing cthugha Buffer...\n");
     CthughaBuffer::initAll();
+    if (visualDirector().loadImages())
+        exit(0);
     init_border();
     init_flashlight();
 

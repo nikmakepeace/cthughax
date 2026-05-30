@@ -3,6 +3,7 @@
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
 #include "Flashlight.h"
+#include "Image.h"
 #include "PipelineStageModules.h"
 #include "VisualDirector.h"
 #include "cth_buffer.h"
@@ -57,7 +58,38 @@ static int paletteChangeFrameBudget() {
 }
 
 VisualDirector::VisualDirector()
-    : lastPcxSelection(-1) { }
+    : images(0, "pcx")
+    , imagePlacementStrategy()
+    , imageLoadingEnabledValue(1)
+    , lastImageSelection(-1) { }
+
+VisualDirector& visualDirector() {
+    static VisualDirector director;
+    return director;
+}
+
+ImageOption& VisualDirector::imageOption() {
+    return images;
+}
+
+int VisualDirector::imageLoadingEnabled() const {
+    return imageLoadingEnabledValue;
+}
+
+void VisualDirector::setImageLoadingEnabled(int enabled) {
+    imageLoadingEnabledValue = enabled ? 1 : 0;
+}
+
+int VisualDirector::loadImages() {
+    if (!imageLoadingEnabledValue)
+        return 0;
+
+    CTH_INFO("  loading image files...\n");
+    int result = images.loadImages();
+    CTH_INFO("  number of loaded image files: %d\n", images.getNEntries());
+
+    return result;
+}
 
 VisualPipelineSequence VisualDirector::defaultPipelineSequence() const {
     VisualPipelineSequence sequence;
@@ -76,17 +108,12 @@ VisualPipelineSequence VisualDirector::defaultPipelineSequence() const {
     return sequence;
 }
 
-int VisualDirector::pcxSelectionChanged() {
-    CthughaBuffer* buffer = currentBuffer();
-    if (buffer == 0)
-        return 0;
+int VisualDirector::imageSelectionChanged() const {
+    return lastImageSelection != images.currentN();
+}
 
-    int selectedPcx = buffer->pcx.currentN();
-    if (lastPcxSelection == selectedPcx)
-        return 0;
-
-    lastPcxSelection = selectedPcx;
-    return 1;
+void VisualDirector::markImageSelectionSeen() {
+    lastImageSelection = images.currentN();
 }
 
 void VisualDirector::syncCurrentBuffer() {
@@ -96,8 +123,15 @@ void VisualDirector::syncCurrentBuffer() {
 void VisualDirector::updatePipelineStages(VisualPipeline& pipeline, CthughaBuffer& buffer) {
     ImageStageModule* imageModule
         = stageModule<ImageStageModule>(pipeline, VisualPipelineSequence::ImageStage);
-    if (imageModule != 0)
-        imageModule->setImage(static_cast<PCXEntry*>(buffer.pcx.current()));
+    if (imageModule != 0) {
+        const IndexedImage* currentImage = images.currentImage();
+        imageModule->setImage(currentImage);
+        if (imageSelectionChanged() && currentImage != 0) {
+            imageModule->setPlacement(imagePlacementStrategy.choose(*currentImage,
+                BUFF_WIDTH, BUFF_HEIGHT));
+            imageModule->setOverlayPassiveBuffer(1);
+        }
+    }
 
     const Flame* currentFlame = flame.currentFlame();
     FlameStageModule* flameModule
@@ -153,8 +187,12 @@ CthughaBuffer* VisualDirector::configurePipeline(VisualPipeline& pipeline) {
 
     updatePipelineStages(pipeline, *buffer);
 
-    if (pcxSelectionChanged())
+    int selectedImageChanged = imageSelectionChanged();
+    const IndexedImage* selectedImage = images.currentImage();
+    if (selectedImageChanged && selectedImage != 0)
         pipeline.setStageMode(VisualPipelineSequence::ImageStage, VisualStageArmedOnce);
+    if (selectedImageChanged)
+        markImageSelectionSeen();
     pipeline.setStageMode(VisualPipelineSequence::FlashlightStage,
         (int(flashlight) != 0) ? VisualStageEnabled : VisualStageDisabled);
     pipeline.setStageMode(VisualPipelineSequence::BorderStage, VisualStageEnabled);

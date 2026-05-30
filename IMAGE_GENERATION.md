@@ -61,11 +61,12 @@ PaletteStageModule
 ```
 
 Image, flame, translate, and wave are real object-executing stages now. The
-image stage overlays the selected PCX when `VisualDirector` arms it once.
-Before each frame, `VisualDirector` synchronizes the selected-buffer global and
-updates the stage bindings for the selected PCX, per-buffer flames, translate
-providers, waves, and palette state. That compatibility detail cannot be
-affected by stage order.
+image stage overlays the selected `IndexedImage` when `VisualDirector` arms it
+once. PCX and indexed PNG files are decoded into the same image domain object;
+format-specific code does not run in the pipeline stage. Before each frame,
+`VisualDirector` synchronizes the selected-buffer global and updates the stage
+bindings for the selected image, per-buffer flames, translate providers, waves,
+and palette state. That compatibility detail cannot be affected by stage order.
 
 ## Where Audio Affects Pixels
 

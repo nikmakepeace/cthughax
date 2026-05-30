@@ -65,6 +65,8 @@ enum option_nr {
     opt_pulse_latency_ms,
     opt_audio_output_dump,
     opt_ini_file,
+    opt_use_pcx,
+    opt_no_pcx,
 };
 
 struct option long_options[] = {
@@ -134,8 +136,8 @@ struct option long_options[] = {
 
 // display options
     { "disp-mode", 1, 0, 'D' }, { "palette", 1, 0, 'p' }, { "display", 1, 0, 'd' },
-    { "pcx", 1, 0, 'P' }, { "use-pcx", 0, &display_use_pcx, 1 },
-    { "no-pcx", 0, &display_use_pcx, 0 },
+    { "pcx", 1, 0, 'P' }, { "use-pcx", 0, 0, opt_use_pcx },
+    { "no-pcx", 0, 0, opt_no_pcx },
     { "palette-smoothing", 1, 0, opt_palette_smoothing },
     { "no-palette-smoothing", 0, 0, opt_no_palette_smoothing },
     { "palette-set", 1, 0, opt_palette_set },
@@ -236,7 +238,7 @@ int do_param(int c, int value, char* str) {
         break;
 
     case 'P':
-        CthughaBuffer::current->pcx.setInitialEntry(str);
+        visualDirector().imageOption().setInitialEntry(str);
         break;
 
     case 'a':
@@ -354,7 +356,15 @@ int do_param(int c, int value, char* str) {
         break;
 
     case 'X': /* disable PCX */
-        display_use_pcx = 0;
+        visualDirector().setImageLoadingEnabled(0);
+        break;
+
+    case opt_use_pcx:
+        visualDirector().setImageLoadingEnabled(1);
+        break;
+
+    case opt_no_pcx:
+        visualDirector().setImageLoadingEnabled(0);
         break;
 
     case 'D': /* display-mode */
@@ -420,7 +430,7 @@ int do_param(int c, int value, char* str) {
 
     case opt_test:
         use_translates.value = 0;
-        display_use_pcx = 0;
+        visualDirector().setImageLoadingEnabled(0);
         break;
 
     case opt_zoom:

@@ -8,6 +8,7 @@ set(CTHUGHA_COMMON_SOURCES
     AudioRuntime.cc
     Settings.cc
     RuntimeFactory.cc
+    Screenshot.cc
     PcmSourceFactory.cc
     AudioVisualBridge.cc
     Mixer.cc
@@ -25,6 +26,8 @@ set(CTHUGHA_COMMON_SOURCES
     CthughaDisplay.cc
     Border.cc
     ColorPalette.cc
+    Image.cc
+    PngImageCodec.cc
     VisualPipeline.cc
     VisualPipelineSequence.cc
     PipelineStageModules.cc

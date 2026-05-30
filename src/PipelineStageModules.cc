@@ -3,26 +3,60 @@
 #include "CthughaBuffer.h"
 #include "Flame.h"
 #include "Flashlight.h"
+#include "Image.h"
 #include "PipelineStageModules.h"
 #include "cth_buffer.h"
 #include "display.h"
-#include "pcx.h"
 #include "translate.h"
 #include "waves.h"
 
 ImageStageModule::ImageStageModule()
-    : image(0) { }
+    : image(0)
+    , placement()
+    , overlayPassiveBuffer(1) { }
 
-void ImageStageModule::setImage(PCXEntry* image_) {
+void ImageStageModule::setImage(const IndexedImage* image_) {
     image = image_;
+}
+
+void ImageStageModule::setPlacement(const ImagePlacement& placement_) {
+    placement = placement_;
+}
+
+void ImageStageModule::setOverlayPassiveBuffer(int enabled) {
+    overlayPassiveBuffer = enabled;
 }
 
 void ImageStageModule::execute(CthughaBuffer& buffer, const VisualFrameContext& context) {
     (void)context;
 
     CTH_TRACE("executing image stage\n", "visual pipeline");
-    if (image != 0)
-        image->overlay(buffer);
+    if (image == 0 || !placement.visible())
+        return;
+
+    unsigned char* active = buffer.activePixels();
+    unsigned char* passive = buffer.passivePixels();
+    const unsigned char* sourcePixels = image->pixels();
+    if (active == 0 || sourcePixels == 0)
+        return;
+
+    for (int row = 0; row < placement.height; row++) {
+        const unsigned char* source = sourcePixels
+            + (placement.sourceY + row) * image->width()
+            + placement.sourceX;
+        unsigned char* activeDestination = active
+            + (placement.destinationY + row) * BUFF_WIDTH
+            + placement.destinationX;
+
+        memcpy(activeDestination, source, placement.width);
+
+        if (overlayPassiveBuffer && passive != 0) {
+            unsigned char* passiveDestination = passive
+                + (placement.destinationY + row) * BUFF_WIDTH
+                + placement.destinationX;
+            memcpy(passiveDestination, source, placement.width);
+        }
+    }
 }
 
 FlameStageModule::FlameStageModule()

@@ -14,6 +14,7 @@
 #include "cthugha.h"
 #include "ColorPalette.h"
 #include "CoreOption.h"
+#include "Screenshot.h"
 
 /*
  *  initialize and shut down ncurses
@@ -101,16 +102,6 @@ int palette_set_filter(const char* value);
 void apply_palette_set_filter();
 int palette_set_metadata_set(PaletteEntry* palette, const char* value);
 int palette_set_metadata_energy(PaletteEntry* palette, const char* value);
-
-/*
- *  Stuff for PCX
- */
-int init_pcx(); /* initalize pcx */
-extern int display_use_pcx; /* allow pcx-usage */
-extern int* pcx_palettes; /* index to corresp. palette */
-
-extern char display_prt_file[]; /* filename used by PrtScrn */
-char* prtFileName(const char* ext);
 
 int save_pcx(unsigned char* v, int w, int h, Palette pal);
 

@@ -17,8 +17,7 @@ CthughaBuffer CthughaBuffer::buffer;
 CthughaBuffer* CthughaBuffer::current = &CthughaBuffer::buffer;
 
 CthughaBuffer::CthughaBuffer()
-    : pcx(CthughaBuffer::nInit, "pcx")
-    , translate(CthughaBuffer::nInit, "translate") {
+    : translate(CthughaBuffer::nInit, "translate") {
     nInit++;
 }
 
@@ -55,9 +54,6 @@ void CthughaBuffer::initAll() {
         exit(0);
 
     if (load_palettes())
-        exit(0);
-
-    if (init_pcx())
         exit(0);
 
     // allocate memory for the buffers

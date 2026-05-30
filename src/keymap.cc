@@ -12,6 +12,7 @@
 #include "Border.h"
 #include "CthughaBuffer.h"
 #include "Flashlight.h"
+#include "VisualDirector.h"
 #include "flames.h"
 #include "waves.h"
 #include "imath.h"
@@ -543,7 +544,7 @@ ACTION(deletePaletteChg) {
     palette.change(int(v), 0);
 }
 ACTION(tableChg) { table.change(int(v), 0); }
-ACTION(pcxChg) { CthughaBuffer::current->pcx.change(int(v), 0); }
+ACTION(pcxChg) { visualDirector().imageOption().change(int(v), 0); }
 ACTION(lockChg) { lock.change(+1); }
 
 ACTION(screen) { screen.change(p, 0); }
@@ -558,7 +559,7 @@ ACTION(border) { border.change(p, 0); }
 ACTION(flashlight) { flashlight.change(p, 0); }
 ACTION(palette) { palette.change(p, 0); }
 ACTION(table) { table.change(p, 0); }
-ACTION(pcx) { CthughaBuffer::current->pcx.change(p, 0); }
+ACTION(pcx) { visualDirector().imageOption().change(p, 0); }
 ACTION(lock) { lock.change(+1); }
 
 ACTION(writeIni) { write_ini(); } // when net-sound: re-sent request to server

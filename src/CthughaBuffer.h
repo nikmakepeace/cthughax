@@ -4,12 +4,10 @@
 #define __CTHUGHA_BUFFER_H
 
 #include "cthugha.h"
-#include "pcx.h"
 #include "translate.h"
 
 class CthughaBuffer {
 public:
-    OptionPCX pcx;
     TranslateOption translate;
 
     CthughaBuffer();

@@ -306,7 +306,7 @@ Highest-value tests:
 - `AudioProcessor` modes over fixed 1024-sample frames;
 - `AudioAnalyzer` and `AcousticContext` fire/intensity behavior;
 - palette loading, metadata, and set filtering;
-- PCX metadata/loading/clipping;
+- indexed image metadata/loading/clipping for PCX and PNG;
 - `.cmd` parser and command assembly;
 - `.tab` header parser and stretch behavior;
 - keymap parsing with examples from `src/default.keymap`;

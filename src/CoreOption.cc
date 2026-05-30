@@ -622,7 +622,8 @@ void CoreOption::loadDir(const char* dir, const char* extension,
 
             /*
              * Plain and compressed files share the same feature name:
-             * `foo.pcx' and `foo.pcx.gz' both become `foo'. Without
+             * `foo.pcx' and `foo.pcx.gz' both become `foo'. This also
+             * applies to other asset extensions such as `foo.png'. Without
              * --dbl-load, the alphabetically first filename wins and later
              * duplicates are skipped.
              */

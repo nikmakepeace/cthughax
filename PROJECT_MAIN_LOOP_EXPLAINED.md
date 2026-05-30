@@ -338,8 +338,10 @@ FlashlightVisualModule
 ```
 
 Image, flame, translate, and wave are real stages now. `ImageStageModule`
-overlays the selected PCX when `VisualDirector` arms the one-shot image stage.
-Before each frame, `VisualDirector` updates the modules with the selected PCX,
+overlays the selected `IndexedImage` when `VisualDirector` arms the one-shot
+image stage. PCX and indexed PNG files are decoded into that shared image
+domain object before the frame loop. Before each frame, `VisualDirector`
+updates the modules with the selected image,
 selected flame, general-flame value, translate provider, wave, and border mode.
 The pipeline then passes the same `CthughaBuffer&` through each enabled module.
 
@@ -347,8 +349,8 @@ Important limitation: this is not the final inversion-of-control shape yet.
 `VisualDirector` now injects selected values into stage modules, and the
 pipeline effect path no longer uses the old active/passive macros or a
 frame-buffer binding adapter. The remaining coupling is the
-`CthughaBuffer::current` compatibility pointer used by UI, loading, and display
-code around the pipeline.
+`CthughaBuffer::current` compatibility pointer still used by translate and some
+display code around the pipeline.
 
 ## 14. Step 4a: Flashlight
 
@@ -384,7 +386,7 @@ pipeline modules. The logical order for a frame is:
 
 ```text
 ImageStageModule
-  overlay the selected PCX when VisualDirector has armed ImageStage once
+  overlay the selected IndexedImage when VisualDirector has armed ImageStage once
 
 FlameStageModule
   execute bound Flame objects

@@ -11,6 +11,7 @@
 #include "cth_buffer.h"
 #include "CthughaDisplay.h"
 #include "flames.h"
+#include "VisualDirector.h"
 #include "waves.h"
 
 #include <unistd.h>
@@ -755,7 +756,7 @@ void DisplayDeviceX11::xcth_create_panel() {
         = add_menu("Translation", &CthughaBuffer::current->translate, panel, quit_button, menu[2]);
     menu[4] = add_menu("Palette", &palette, panel, quit_button, menu[3]);
     menu[5] = add_menu("Table", &table, panel, quit_button, menu[4]);
-    menu[6] = add_menu("PCX", &CthughaBuffer::current->pcx, panel, quit_button, menu[5]);
+    menu[6] = add_menu("Image", &visualDirector().imageOption(), panel, quit_button, menu[5]);
     menu[7] = add_menu("Objects", &object, panel, quit_button, menu[6]);
 
     // create the panelText Widget
