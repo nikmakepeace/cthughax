@@ -39,8 +39,6 @@ Option& soundSilent = soundSilentImpl;
 
 int audioInputLoop = 0;
 char dev_dsp[PATH_MAX] = "";
-int BUFF_WIDTH = 160;
-int BUFF_HEIGHT = 100;
 
 int init_mixer() {
     return 0;

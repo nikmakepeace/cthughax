@@ -467,8 +467,7 @@ void initializeVisualBenchmarks() {
         return;
 
     initialized = 1;
-    BUFF_WIDTH = config().width;
-    BUFF_HEIGHT = config().height;
+    CthughaBuffer::buffer.setDimensions(config().width, config().height);
 
     srand(0);
     init_imath();

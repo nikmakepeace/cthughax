@@ -45,14 +45,14 @@ void ImageStageModule::execute(CthughaBuffer& buffer, const VisualFrameContext& 
             + (placement.sourceY + row) * image->width()
             + placement.sourceX;
         unsigned char* activeDestination = active
-            + (placement.destinationY + row) * BUFF_WIDTH
+            + (placement.destinationY + row) * buffer.pitch()
             + placement.destinationX;
 
         memcpy(activeDestination, source, placement.width);
 
         if (overlayPassiveBuffer && passive != 0) {
             unsigned char* passiveDestination = passive
-                + (placement.destinationY + row) * BUFF_WIDTH
+                + (placement.destinationY + row) * buffer.pitch()
                 + placement.destinationX;
             memcpy(passiveDestination, source, placement.width);
         }
@@ -123,7 +123,7 @@ void FrameCommitModule::execute(CthughaBuffer& buffer, const VisualFrameContext&
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
         int nonzero = 0;
         int peak = 0;
-        for (int i = 0; i < BUFF_SIZE; i++) {
+        for (int i = 0; i < buffer.size(); i++) {
             int value = buffer.activePixels()[i];
             if (value != 0)
                 nonzero++;
@@ -136,7 +136,7 @@ void FrameCommitModule::execute(CthughaBuffer& buffer, const VisualFrameContext&
             waveScale.currentName(),
             flameName,
             table.currentName(),
-            nonzero, peak, BUFF_SIZE);
+            nonzero, peak, buffer.size());
     }
 
     buffer.swapBuffers();

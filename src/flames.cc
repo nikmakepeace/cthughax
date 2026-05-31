@@ -174,11 +174,11 @@ int init_flames() {
     return 0;
 }
 
-static void general_offset(int generalFlame) {
+static void general_offset(int generalFlame, int width) {
     int i;
     /* offset to the neighbors */
-    int position[9] = { -BUFF_WIDTH - 1, -BUFF_WIDTH, -BUFF_WIDTH + 1, -1, 0, 1, +BUFF_WIDTH - 1,
-        +BUFF_WIDTH, +BUFF_WIDTH + 1 };
+    int position[9] = { -width - 1, -width, -width + 1, -1, 0, 1, +width - 1,
+        +width, +width + 1 };
 
     int gen = generalFlame;
     int shift = gen % 9;
@@ -199,7 +199,7 @@ static void general_offset(int generalFlame) {
  * border rows.
  * Sound/border: ignores sound and border input.
  */
-void flame_clear(CthughaBuffer& buffer, int) { memset(buffer.activePixels(), 0, BUFF_SIZE); }
+void flame_clear(CthughaBuffer& buffer, int) { memset(buffer.activePixels(), 0, buffer.size()); }
 
 /*****************************************************************************
  *  FLAME-UP
@@ -220,15 +220,15 @@ void flame_upslow(CthughaBuffer& buffer, int) {
     unsigned int tmp;
     unsigned int tmp2;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + BUFF_WIDTH;
+    unsigned char* ptr = buffer.activePixels() + buffer.width();
 
     ptr++;
     tmp = (unsigned int)(*(ptr - 2 - 1)) + (unsigned int)(*(ptr - 1 - 1))
         + (unsigned int)(*(ptr - 1));
-    for (i = BUFF_SIZE; i != 0; i--) {
+    for (i = buffer.size(); i != 0; i--) {
         tmp = tmp - (unsigned int)(*(ptr - 2 - 1)) + (unsigned int)(*(ptr + 1 - 1));
-        tmp2 = tmp + (unsigned int)(*(ptr + BUFF_WIDTH - 1));
-        *(ptr - BUFF_WIDTH - 1) = divsub[tmp2];
+        tmp2 = tmp + (unsigned int)(*(ptr + buffer.width() - 1));
+        *(ptr - buffer.width() - 1) = divsub[tmp2];
         ptr++;
     }
 }
@@ -242,10 +242,10 @@ void flame_upslow(CthughaBuffer& buffer, int) {
  * Sound/border: bottom border rows affect the lower-neighbor samples.
  */
 void flame_upsubtle(CthughaBuffer& buffer, int) {
-    flame_offset[0] = -1 + BUFF_WIDTH;
-    flame_offset[1] = 0 + BUFF_WIDTH;
-    flame_offset[2] = 1 + BUFF_WIDTH;
-    flame_offset[3] = BUFF_WIDTH + BUFF_WIDTH;
+    flame_offset[0] = -1 + buffer.width();
+    flame_offset[1] = 0 + buffer.width();
+    flame_offset[2] = 1 + buffer.width();
+    flame_offset[3] = buffer.width() + buffer.width();
 
     flame_general_subtle_filter(buffer);
 }
@@ -261,11 +261,11 @@ void flame_upfast(CthughaBuffer& buffer, int) {
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + BUFF_SIZE;
+    unsigned char* ptr = buffer.activePixels() + buffer.size();
 
-    for (i = BUFF_SIZE; i != 0; i--) {
-        tmp = (int)(*ptr) + (int)(*(ptr + BUFF_WIDTH - 1)) + (int)(*(ptr + BUFF_WIDTH + 1))
-            + (int)(*(ptr + BUFF_WIDTH));
+    for (i = buffer.size(); i != 0; i--) {
+        tmp = (int)(*ptr) + (int)(*(ptr + buffer.width() - 1)) + (int)(*(ptr + buffer.width() + 1))
+            + (int)(*(ptr + buffer.width()));
         *ptr = divsub[tmp];
         ptr--;
     }
@@ -287,12 +287,12 @@ void flame_leftslow(CthughaBuffer& buffer, int) {
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + BUFF_WIDTH;
+    unsigned char* ptr = buffer.activePixels() + buffer.width();
 
-    for (i = BUFF_SIZE; i != 0; i--) {
-        tmp = (int)(*(ptr - BUFF_WIDTH + 1)) + (int)(*ptr) + (int)(*(ptr + 1))
-            + (int)(*(ptr + BUFF_WIDTH));
-        *(ptr - BUFF_WIDTH) = divsub[tmp];
+    for (i = buffer.size(); i != 0; i--) {
+        tmp = (int)(*(ptr - buffer.width() + 1)) + (int)(*ptr) + (int)(*(ptr + 1))
+            + (int)(*(ptr + buffer.width()));
+        *(ptr - buffer.width()) = divsub[tmp];
         ptr++;
     }
 }
@@ -307,9 +307,9 @@ void flame_leftslow(CthughaBuffer& buffer, int) {
  */
 void flame_leftsubtle(CthughaBuffer& buffer, int) {
     flame_offset[0] = +1;
-    flame_offset[1] = +BUFF_WIDTH;
-    flame_offset[2] = 1 + BUFF_WIDTH;
-    flame_offset[3] = BUFF_WIDTH + BUFF_WIDTH;
+    flame_offset[1] = +buffer.width();
+    flame_offset[2] = 1 + buffer.width();
+    flame_offset[3] = buffer.width() + buffer.width();
 
     flame_general_subtle_filter(buffer);
 }
@@ -325,11 +325,11 @@ void flame_leftfast(CthughaBuffer& buffer, int) {
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + BUFF_SIZE;
+    unsigned char* ptr = buffer.activePixels() + buffer.size();
 
-    for (i = BUFF_SIZE; i != 0; i--) {
-        tmp = (int)(*ptr) + (int)(*(ptr + BUFF_WIDTH + 1)) + (int)(*(ptr + BUFF_WIDTH + 1))
-            + (int)(*(ptr + BUFF_WIDTH));
+    for (i = buffer.size(); i != 0; i--) {
+        tmp = (int)(*ptr) + (int)(*(ptr + buffer.width() + 1)) + (int)(*(ptr + buffer.width() + 1))
+            + (int)(*(ptr + buffer.width()));
         *ptr = divsub[tmp];
         ptr--;
     }
@@ -350,12 +350,12 @@ void flame_leftfast(CthughaBuffer& buffer, int) {
 void flame_rightslow(CthughaBuffer& buffer, int) {
     int i;
     int tmp;
-    unsigned char* src = buffer.passivePixels() + BUFF_WIDTH + 1;
+    unsigned char* src = buffer.passivePixels() + buffer.width() + 1;
     unsigned char* dst = buffer.activePixels() + 1;
 
-    for (i = BUFF_SIZE; i != 0; i--) {
-        tmp = (int)(*(src - BUFF_WIDTH - 1)) + (int)(*src) + (int)(*(src - 1))
-            + (int)(*(src + BUFF_WIDTH));
+    for (i = buffer.size(); i != 0; i--) {
+        tmp = (int)(*(src - buffer.width() - 1)) + (int)(*src) + (int)(*(src - 1))
+            + (int)(*(src + buffer.width()));
         *dst = divsub[tmp];
         dst++;
         src++;
@@ -372,9 +372,9 @@ void flame_rightslow(CthughaBuffer& buffer, int) {
  */
 void flame_rightsubtle(CthughaBuffer& buffer, int) {
     flame_offset[0] = -1;
-    flame_offset[1] = BUFF_WIDTH - 1;
-    flame_offset[2] = BUFF_WIDTH;
-    flame_offset[3] = BUFF_WIDTH + BUFF_WIDTH;
+    flame_offset[1] = buffer.width() - 1;
+    flame_offset[2] = buffer.width();
+    flame_offset[3] = buffer.width() + buffer.width();
 
     flame_general_subtle_filter(buffer);
 }
@@ -390,11 +390,11 @@ void flame_rightfast(CthughaBuffer& buffer, int) {
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + BUFF_SIZE;
+    unsigned char* ptr = buffer.activePixels() + buffer.size();
 
-    for (i = BUFF_SIZE; i != 0; i--) {
-        tmp = (int)(*ptr) + (int)(*(ptr + BUFF_WIDTH - 1)) + (int)(*(ptr + BUFF_WIDTH - 1))
-            + (int)(*(ptr + BUFF_WIDTH));
+    for (i = buffer.size(); i != 0; i--) {
+        tmp = (int)(*ptr) + (int)(*(ptr + buffer.width() - 1)) + (int)(*(ptr + buffer.width() - 1))
+            + (int)(*(ptr + buffer.width()));
         *ptr = divsub[tmp];
         ptr--;
     }
@@ -416,21 +416,21 @@ void flame_rightfast(CthughaBuffer& buffer, int) {
 void flame_water(CthughaBuffer& buffer, int) {
     int i;
     int tmp;
-    unsigned char* src = buffer.passivePixels() + BUFF_WIDTH;
+    unsigned char* src = buffer.passivePixels() + buffer.width();
     unsigned char* dst = buffer.activePixels();
 
-    for (i = BUFF_SIZE / 2 + BUFF_WIDTH; i != 0; i--) {
-        tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + BUFF_WIDTH));
+    for (i = buffer.size() / 2 + buffer.width(); i != 0; i--) {
+        tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + buffer.width()));
         *dst = divsub[tmp];
         dst++;
         src++;
     }
 
-    src = buffer.passivePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 1);
-    dst = buffer.activePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 0);
-    for (i = BUFF_SIZE / 2; i != 0; i--) {
-        tmp = (int)(*(src - BUFF_WIDTH + 1)) + (int)(*src) + (int)(*(src + 1))
-            + (int)(*(src - BUFF_WIDTH));
+    src = buffer.passivePixels() + buffer.width() * (buffer.height() - 1);
+    dst = buffer.activePixels() + buffer.width() * (buffer.height() - 0);
+    for (i = buffer.size() / 2; i != 0; i--) {
+        tmp = (int)(*(src - buffer.width() + 1)) + (int)(*src) + (int)(*(src + 1))
+            + (int)(*(src - buffer.width()));
         *dst = divsub[tmp];
         dst--;
         src--;
@@ -447,21 +447,21 @@ void flame_water(CthughaBuffer& buffer, int) {
 void flame_watersubtle(CthughaBuffer& buffer, int) {
     int i;
     unsigned char tmp;
-    char* src = (char*)(buffer.passivePixels() + BUFF_WIDTH);
+    char* src = (char*)(buffer.passivePixels() + buffer.width());
     char* dst = (char*)buffer.activePixels();
 
-    for (i = BUFF_SIZE / 2 + BUFF_WIDTH; i != 0; i--) {
-        tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + BUFF_WIDTH));
+    for (i = buffer.size() / 2 + buffer.width(); i != 0; i--) {
+        tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + buffer.width()));
         *dst = divsub[tmp];
         dst++;
         src++;
     }
 
-    src = (char*)buffer.passivePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 1);
-    dst = (char*)buffer.activePixels() + BUFF_WIDTH * (BUFF_HEIGHT - 0);
-    for (i = BUFF_SIZE / 2; i != 0; i--) {
-        tmp = (int)(*(src - BUFF_WIDTH + 1)) + (int)(*src) + (int)(*(src + 1))
-            + (int)(*(src - BUFF_WIDTH));
+    src = (char*)buffer.passivePixels() + buffer.width() * (buffer.height() - 1);
+    dst = (char*)buffer.activePixels() + buffer.width() * (buffer.height() - 0);
+    for (i = buffer.size() / 2; i != 0; i--) {
+        tmp = (int)(*(src - buffer.width() + 1)) + (int)(*src) + (int)(*(src + 1))
+            + (int)(*(src - buffer.width()));
         *dst = divsub[tmp];
         dst--;
         src--;
@@ -482,10 +482,10 @@ void flame_watersubtle(CthughaBuffer& buffer, int) {
 void flame_skyline(CthughaBuffer& buffer, int) {
     int i;
     int tmp;
-    unsigned char* src = buffer.passivePixels() + BUFF_WIDTH + 1;
+    unsigned char* src = buffer.passivePixels() + buffer.width() + 1;
     unsigned char* dst = buffer.activePixels();
 
-    for (i = BUFF_SIZE; i != 0; i--) {
+    for (i = buffer.size(); i != 0; i--) {
         tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src));
         *dst = divsub[tmp];
         dst++;
@@ -504,11 +504,11 @@ void flame_skyline(CthughaBuffer& buffer, int) {
 void flame_weird(CthughaBuffer& buffer, int) {
     int i;
     unsigned char tmp;
-    char* src = (char*)buffer.passivePixels() + BUFF_WIDTH + 1;
+    char* src = (char*)buffer.passivePixels() + buffer.width() + 1;
     char* dst = (char*)buffer.activePixels() + 1;
 
-    for (i = BUFF_SIZE; i != 0; i--) {
-        tmp = (*(src - 1)) | (*src) | (*(src + 1)) | (*(src + BUFF_WIDTH));
+    for (i = buffer.size(); i != 0; i--) {
+        tmp = (*(src - 1)) | (*src) | (*(src + 1)) | (*(src + buffer.width()));
         *dst = divsub[tmp];
         dst++;
         src++;
@@ -530,11 +530,11 @@ void flame_zzz(CthughaBuffer& buffer, int) {
     int i;
     unsigned char tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + BUFF_WIDTH;
+    unsigned char* ptr = buffer.activePixels() + buffer.width();
 
-    for (i = BUFF_SIZE; i != 0; i--) {
-        tmp = (*(ptr - 1)) + (*(ptr + BUFF_WIDTH));
-        *(ptr - BUFF_WIDTH) = divsub2[tmp];
+    for (i = buffer.size(); i != 0; i--) {
+        tmp = (*(ptr - 1)) + (*(ptr + buffer.width()));
+        *(ptr - buffer.width()) = divsub2[tmp];
         ptr++;
     }
 }
@@ -552,7 +552,7 @@ void flame_fade(CthughaBuffer& buffer, int) {
     buffer.swapBuffers();
     unsigned char* ptr = buffer.activePixels();
 
-    for (i = BUFF_SIZE / 4; i != 0; i--) {
+    for (i = buffer.size() / 4; i != 0; i--) {
         tmp = (*(unsigned int*)ptr);
         *(unsigned int*)ptr = divsub4[(tmp) & 0xff] + (divsub4[(tmp >> 8) & 0xff] << 8)
             + (divsub4[(tmp >> 16) & 0xff] << 16) + (divsub4[(tmp >> 24) & 0xff] << 24);
@@ -579,7 +579,7 @@ void flame_fade(CthughaBuffer& buffer, int) {
  * bottom can use the hidden border rows.
  */
 void flame_general_subtle(CthughaBuffer& buffer, int generalFlame) {
-    general_offset(generalFlame);
+    general_offset(generalFlame, buffer.width());
 
     flame_general_subtle_filter(buffer);
 }
@@ -608,7 +608,7 @@ void flame_general_subtle_filter(CthughaBuffer& buffer) {
     offset3 = flame_offset[2] + (buffer.passivePixels() - buffer.activePixels());
     offset4 = flame_offset[3] + (buffer.passivePixels() - buffer.activePixels());
 
-    for (i = BUFF_SIZE / 4; i != 0; i--) {
+    for (i = buffer.size() / 4; i != 0; i--) {
         tmp = (*(ptr + offset1)) + (*(ptr + offset2)) + (*(ptr + offset3)) + (*(ptr + offset4));
         t2 = divsub_s0[tmp];
         tmp = (*(ptr + offset1 + 1)) + (*(ptr + offset2 + 1)) + (*(ptr + offset3 + 1))
@@ -644,7 +644,7 @@ void flame_general_subtle_filter(CthughaBuffer& buffer) {
  * bottom can use the hidden border rows.
  */
 void flame_general_slow(CthughaBuffer& buffer, int generalFlame) {
-    general_offset(generalFlame);
+    general_offset(generalFlame, buffer.width());
 
     flame_general_slow_filter(buffer);
 }
@@ -672,7 +672,7 @@ void flame_general_slow_filter(CthughaBuffer& buffer) {
     offset3 = flame_offset[2] + (buffer.passivePixels() - buffer.activePixels());
     offset4 = flame_offset[3] + (buffer.passivePixels() - buffer.activePixels());
 
-    for (i = BUFF_SIZE; i != 0; i--) {
+    for (i = buffer.size(); i != 0; i--) {
         tmp = (int)(*(ptr + offset1)) + (int)(*(ptr + offset2)) + (int)(*(ptr + offset3))
             + (int)(*(ptr + offset4));
         *ptr = divsub[tmp];
@@ -690,12 +690,12 @@ void flame_general_slow_filter(CthughaBuffer& buffer) {
  */
 void flame_down(CthughaBuffer& buffer, int) {
     int i;
-    unsigned char* src = buffer.passivePixels() - BUFF_WIDTH;
+    unsigned char* src = buffer.passivePixels() - buffer.width();
     unsigned char* dst = buffer.activePixels();
 
-    for (i = BUFF_HEIGHT; i != 0; i--) {
-        memcpy(dst, src, BUFF_WIDTH);
-        src += BUFF_WIDTH;
-        dst += BUFF_WIDTH;
+    for (i = buffer.height(); i != 0; i--) {
+        memcpy(dst, src, buffer.width());
+        src += buffer.width();
+        dst += buffer.width();
     }
 }

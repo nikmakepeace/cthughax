@@ -1,6 +1,5 @@
 #include "cthugha.h"
 #include "CthughaBuffer.h"
-#include "cth_buffer.h"
 #include "translate.h"
 #include "waves.h"
 #include "display.h"
@@ -8,17 +7,47 @@
 #include "flames.h"
 #include "imath.h"
 
-int BUFF_WIDTH = 160;
-int BUFF_HEIGHT = 100;
-
 int CthughaBuffer::nInit = 0;
 CthughaBuffer CthughaBuffer::buffer;
 
 CthughaBuffer* CthughaBuffer::current = &CthughaBuffer::buffer;
 
 CthughaBuffer::CthughaBuffer()
-    : translate(CthughaBuffer::nInit, "translate") {
+    : translate(CthughaBuffer::nInit, "translate")
+    , activeBuffer(0)
+    , passiveBuffer(0)
+    , widthValue(160)
+    , heightValue(100) {
     nInit++;
+}
+
+int CthughaBuffer::width() const {
+    return widthValue;
+}
+
+int CthughaBuffer::height() const {
+    return heightValue;
+}
+
+int CthughaBuffer::pitch() const {
+    return widthValue;
+}
+
+int CthughaBuffer::size() const {
+    return widthValue * heightValue;
+}
+
+int CthughaBuffer::bottom() const {
+    return heightValue - 1;
+}
+
+int CthughaBuffer::maxDimension() const {
+    return max(widthValue, heightValue);
+}
+
+void CthughaBuffer::setDimensions(int width_, int height_) {
+    widthValue = width_;
+    heightValue = height_;
 }
 
 void CthughaBuffer::init() {
@@ -27,12 +56,12 @@ void CthughaBuffer::init() {
        lines are set to some boundary value before the 'flame' function is called.
        The border is not displayed to the screen
        */
-    activeBuffer = new unsigned char[BUFF_SIZE + 6 * BUFF_WIDTH] + 3 * BUFF_WIDTH;
-    passiveBuffer = new unsigned char[BUFF_SIZE + 6 * BUFF_WIDTH] + 3 * BUFF_WIDTH;
+    activeBuffer = new unsigned char[size() + 6 * pitch()] + 3 * pitch();
+    passiveBuffer = new unsigned char[size() + 6 * pitch()] + 3 * pitch();
 
     /* clear buffers */
-    memset(activeBuffer, 0, BUFF_SIZE);
-    memset(passiveBuffer, 0, BUFF_SIZE);
+    memset(activeBuffer, 0, size());
+    memset(passiveBuffer, 0, size());
 }
 
 void CthughaBuffer::initAll() {

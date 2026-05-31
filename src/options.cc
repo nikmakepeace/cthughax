@@ -386,22 +386,23 @@ int do_param(int c, int value, char* str) {
                 value = 0;
             if (value >= nBufferSizes)
                 value = nBufferSizes;
-            BUFF_WIDTH = bufferSizes[value].x;
-            BUFF_HEIGHT = bufferSizes[value].y;
+            CthughaBuffer::buffer.setDimensions(bufferSizes[value].x,
+                bufferSizes[value].y);
 
             display_mode = max(display_mode, value);
         } else {
             /* use a special size */
-            BUFF_WIDTH = value;
-            BUFF_HEIGHT = atoi(strchr(str, 'x') + 1);
-            if (BUFF_WIDTH < 64)
-                BUFF_WIDTH = 64;
-            if (BUFF_HEIGHT < 64)
-                BUFF_HEIGHT = 64;
-            if (BUFF_WIDTH > MAX_BUFF_WIDTH)
-                BUFF_WIDTH = MAX_BUFF_WIDTH;
-            if (BUFF_HEIGHT > MAX_BUFF_WIDTH)
-                BUFF_HEIGHT = MAX_BUFF_WIDTH;
+            int bufferWidth = value;
+            int bufferHeight = atoi(strchr(str, 'x') + 1);
+            if (bufferWidth < 64)
+                bufferWidth = 64;
+            if (bufferHeight < 64)
+                bufferHeight = 64;
+            if (bufferWidth > MAX_BUFF_WIDTH)
+                bufferWidth = MAX_BUFF_WIDTH;
+            if (bufferHeight > MAX_BUFF_HEIGHT)
+                bufferHeight = MAX_BUFF_HEIGHT;
+            CthughaBuffer::buffer.setDimensions(bufferWidth, bufferHeight);
         }
         break;
 

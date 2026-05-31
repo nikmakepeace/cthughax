@@ -10,6 +10,10 @@
 
 #include <stdint.h>
 
+static CthughaBuffer& visualBuffer() {
+    return *CthughaBuffer::current;
+}
+
 void newCthughaDisplay() { cthughaDisplay = new CthughaDisplayX11(); }
 
 CthughaDisplayX11::CthughaDisplayX11()
@@ -33,7 +37,7 @@ void CthughaDisplayX11::prepareExpandedBuffer() {
     if ((expandedBuffer0 == NULL) || (expandedBuffer0 == buffer0) || (expandedBufferBypp != bypp)) {
         if (expandedBuffer0 && (expandedBuffer0 != buffer0))
             delete[] expandedBuffer0;
-        expandedBuffer0 = new unsigned char[4 * BUFF_SIZE * bypp];
+        expandedBuffer0 = new unsigned char[4 * visualBuffer().size() * bypp];
         expandedBufferBypp = bypp;
     }
 }
@@ -42,7 +46,7 @@ void CthughaDisplayX11::prepareExpandedBuffer() {
  * expand the palette
  */
 void CthughaDisplayX11::expandPalette(int narrow) {
-    int height = narrow ? BUFF_HEIGHT : 2 * BUFF_HEIGHT;
+    int height = narrow ? visualBuffer().height() : 2 * visualBuffer().height();
     unsigned char* dst = expandedBuffer;
 
     switch (draw_mode) {
@@ -51,7 +55,7 @@ void CthughaDisplayX11::expandPalette(int narrow) {
         for (int i = height; i != 0; i--) {
             uint32_t* scrn = (uint32_t*)dst;
             uint32_t* buff = (uint32_t*)buffer;
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t b = *buff;
                 buff++;
                 uint32_t a;
@@ -66,14 +70,14 @@ void CthughaDisplayX11::expandPalette(int narrow) {
                 scrn++;
             }
             dst += expandedBufferWidth;
-            buffer += 2 * BUFF_WIDTH;
+            buffer += 2 * visualBuffer().width();
         }
         break;
     case DM_mapped2:
         for (int i = height; i != 0; i--) {
             uint32_t* scrn = (uint32_t*)dst;
             uint32_t* buff = (uint32_t*)buffer;
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t b = *buff;
                 buff++;
                 uint32_t a;
@@ -90,14 +94,14 @@ void CthughaDisplayX11::expandPalette(int narrow) {
                 scrn++;
             }
             dst += expandedBufferWidth;
-            buffer += 2 * BUFF_WIDTH;
+            buffer += 2 * visualBuffer().width();
         }
         break;
     case DM_mapped3:
         for (int i = height; i != 0; i--) {
             uint32_t* scrn = (uint32_t*)dst;
             uint32_t* buff = (uint32_t*)buffer;
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t a, b;
                 uint32_t c = *buff;
                 buff++;
@@ -120,14 +124,14 @@ void CthughaDisplayX11::expandPalette(int narrow) {
                 scrn++;
             }
             dst += expandedBufferWidth;
-            buffer += 2 * BUFF_WIDTH;
+            buffer += 2 * visualBuffer().width();
         }
         break;
     case DM_mapped4:
         for (int i = height; i != 0; i--) {
             uint32_t* scrn = (uint32_t*)dst;
             uint32_t* buff = (uint32_t*)buffer;
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t b = *buff;
                 buff++;
                 *scrn = bitmap_colors0[b & 0xff];
@@ -143,7 +147,7 @@ void CthughaDisplayX11::expandPalette(int narrow) {
                 scrn++;
             }
             dst += expandedBufferWidth;
-            buffer += 2 * BUFF_WIDTH;
+            buffer += 2 * visualBuffer().width();
         }
         break;
     case DM_direct:;
@@ -159,11 +163,11 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
     switch (draw_mode) {
     case DM_mapped1:
     case DM_tmp_mapped:
-        for (int i = BUFF_HEIGHT; i != 0; i--) {
+        for (int i = visualBuffer().height(); i != 0; i--) {
             uint32_t* scrn = (uint32_t*)dst;
 
             uint32_t* buff = (uint32_t*)buffer;
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t b = *buff;
                 buff++;
                 uint32_t a;
@@ -179,14 +183,14 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
                 scrn++;
             }
             dst += expandedBufferWidth;
-            buffer += 2 * BUFF_WIDTH;
+            buffer += 2 * visualBuffer().width();
         }
         break;
     case DM_mapped2:
-        for (int i = BUFF_HEIGHT; i != 0; i--) {
+        for (int i = visualBuffer().height(); i != 0; i--) {
             uint32_t* scrn = (uint32_t*)dst;
             uint32_t* buff = (uint32_t*)buffer;
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t b = *buff;
                 buff++;
                 uint32_t a;
@@ -203,14 +207,14 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
                 scrn++;
             }
             dst += expandedBufferWidth;
-            buffer += 2 * BUFF_WIDTH;
+            buffer += 2 * visualBuffer().width();
         }
         break;
     case DM_mapped3:
-        for (int i = BUFF_HEIGHT; i != 0; i--) {
+        for (int i = visualBuffer().height(); i != 0; i--) {
             uint32_t* scrn = (uint32_t*)dst;
             uint32_t* buff = (uint32_t*)buffer;
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t a, b;
                 uint32_t c = *buff;
                 buff++;
@@ -233,21 +237,21 @@ void CthughaDisplayX11::expandPaletteMirrorHV() {
                 scrn++;
             }
             dst += expandedBufferWidth;
-            buffer += 2 * BUFF_WIDTH;
+            buffer += 2 * visualBuffer().width();
         }
         break;
     case DM_mapped4: {
-        for (int i = 0; i < BUFF_HEIGHT; i++) {
+        for (int i = 0; i < visualBuffer().height(); i++) {
             uint32_t* scrn1 = (uint32_t*)(expandedBuffer + i * expandedBufferWidth);
-            uint32_t* scrn2 = scrn1 + 2 * BUFF_WIDTH - 1;
+            uint32_t* scrn2 = scrn1 + 2 * visualBuffer().width() - 1;
             uint32_t* scrn3
-                = (uint32_t*)(expandedBuffer + (2 * BUFF_HEIGHT - i) * expandedBufferWidth);
+                = (uint32_t*)(expandedBuffer + (2 * visualBuffer().height() - i) * expandedBufferWidth);
 
-            uint32_t* scrn4 = scrn3 + 2 * BUFF_WIDTH - 1;
+            uint32_t* scrn4 = scrn3 + 2 * visualBuffer().width() - 1;
 
-            uint32_t* buff = (uint32_t*)(buffer + i * 2 * BUFF_WIDTH);
+            uint32_t* buff = (uint32_t*)(buffer + i * 2 * visualBuffer().width());
 
-            for (int j = 2 * BUFF_WIDTH / 4; j != 0; j--) {
+            for (int j = 2 * visualBuffer().width() / 4; j != 0; j--) {
                 uint32_t b = *buff;
                 buff++;
 
@@ -333,7 +337,7 @@ void CthughaDisplayX11::operator()() {
         bufferWidth = bytes_per_line;
     } else {
         buffer = buffer0;
-        bufferWidth = 2 * BUFF_WIDTH;
+        bufferWidth = 2 * visualBuffer().width();
     }
 
     /*
@@ -346,7 +350,7 @@ void CthughaDisplayX11::operator()() {
         expandedBufferWidth = bufferWidth;
     } else {
         expandedBuffer = expandedBuffer0;
-        expandedBufferWidth = 2 * BUFF_WIDTH * bypp;
+        expandedBufferWidth = 2 * visualBuffer().width() * bypp;
     }
 
     checkZoom();
@@ -368,7 +372,7 @@ void CthughaDisplayX11::operator()() {
      * missing pieces before the image is copied to the display device.
      */
     if (s.x == 1)
-        mirrorHorizontally(s.y * BUFF_HEIGHT);
+        mirrorHorizontally(s.y * visualBuffer().height());
 
     /*
      * expand the palette (right now only the palette of buffer 0,

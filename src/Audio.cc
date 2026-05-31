@@ -4,6 +4,10 @@
 #include "imath.h"
 #include "cth_buffer.h"
 
+#ifndef CTH_AUDIO_FRAME_NO_RUNTIME
+#include "CthughaBuffer.h"
+#endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
@@ -127,6 +131,14 @@ static unsigned int readUnsigned16Le(const unsigned char* p) {
 
 static unsigned int readUnsigned16Be(const unsigned char* p) {
     return ((unsigned int)p[0] << 8) | (unsigned int)p[1];
+}
+
+static int audioVisualMaxDimension() {
+#ifdef CTH_AUDIO_FRAME_NO_RUNTIME
+    return 160;
+#else
+    return CthughaBuffer::current->maxDimension();
+#endif
 }
 
 static int audioPcmPeak(const char* data, int samples) {
@@ -1132,7 +1144,7 @@ void AudioDSPOutput::init() {
 
     switch (method) {
     case 0: {
-        int sampleWindow = 1 << ilog2(max(BUFF_WIDTH, BUFF_HEIGHT));
+        int sampleWindow = 1 << ilog2(audioVisualMaxDimension());
         CTH_INFO("   Using sound method 0 - optimal fragment size\n");
         soundDSPFragmentSize.setValue(ilog2(sampleWindow) - 1);
         setFragment();
@@ -2157,7 +2169,7 @@ AudioInputProcessor::AudioInputProcessor(AudioInput* input_, int takeOwnership)
     , tmpSize(0)
     , rawSize(0)
     , bytesPerSample(0) {
-    size = 1 << ilog2(max(BUFF_WIDTH, BUFF_HEIGHT));
+    size = 1 << ilog2(audioVisualMaxDimension());
     data = new char2[1024];
     memset(data, 0, 1024 * sizeof(char2));
     memset(dataProc, 0, 1024 * sizeof(char2));
@@ -2310,7 +2322,7 @@ DspPcmSource::DspPcmSource()
     , handle(-1)
     , dmaBuffer(NULL)
     , dmaSize(0)
-    , sampleWindow(1 << ilog2(max(BUFF_WIDTH, BUFF_HEIGHT))) {
+    , sampleWindow(1 << ilog2(audioVisualMaxDimension())) {
     init();
 }
 

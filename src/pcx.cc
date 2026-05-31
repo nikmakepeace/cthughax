@@ -2,6 +2,7 @@
 #include "cth_buffer.h"
 #include "display.h"
 #include "Image.h"
+#include "CthughaBuffer.h"
 #include "Screenshot.h"
 
 /* load 1 pcx-file from disk
@@ -158,9 +159,10 @@ CoreOptionEntry* read_pcx_image(
         return NULL;
     }
 
-    if ((x > BUFF_WIDTH) || (y > BUFF_HEIGHT)) {
+    CthughaBuffer& buffer = *CthughaBuffer::current;
+    if ((x > buffer.width()) || (y > buffer.height())) {
         CTH_WARN("PCX `%s' is %dx%d, larger than buffer %dx%d; image will be cropped.\n",
-            name, x, y, BUFF_WIDTH, BUFF_HEIGHT);
+            name, x, y, buffer.width(), buffer.height());
     }
 
     IndexedImage* image = new IndexedImage(name, x, y);

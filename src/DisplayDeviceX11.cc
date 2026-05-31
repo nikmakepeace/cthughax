@@ -14,6 +14,7 @@
 #include "keys.h"
 #include "Interface.h"
 #include "cth_buffer.h"
+#include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
 #include "xcthugha.h"
 
@@ -38,6 +39,10 @@
 
 #include <X11/Xutil.h>
 #include <X11/extensions/XShm.h>
+
+static CthughaBuffer& visualBuffer() {
+    return *CthughaBuffer::current;
+}
 
 xy screenSizes[]
     = { xy(320, 200), xy(640, 480), xy(800, 600), xy(1024, 768), xy(1152, 864), xy(1280, 1024) };
@@ -716,8 +721,8 @@ void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
     if ((new_width == disp_size.x) && (new_height == disp_size.y))
         return;
 
-    disp_size.x = max(new_width, 2 * BUFF_WIDTH);
-    disp_size.y = max(new_height, 2 * BUFF_HEIGHT);
+    disp_size.x = max(new_width, 2 * visualBuffer().width());
+    disp_size.y = max(new_height, 2 * visualBuffer().height());
 
     if (!text_on_term && !panelTextWidget) {
         text_size.x = disp_size.x / fontSize.x;
@@ -733,8 +738,8 @@ void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
 }
 
 unsigned char* DisplayDeviceX11::preDraw() {
-    if ((disp_size.x < 2 * BUFF_WIDTH) || (disp_size.y < 2 * BUFF_HEIGHT)) {
-        resizeDisplay(2 * BUFF_WIDTH, 2 * BUFF_HEIGHT);
+    if ((disp_size.x < 2 * visualBuffer().width()) || (disp_size.y < 2 * visualBuffer().height())) {
+        resizeDisplay(2 * visualBuffer().width(), 2 * visualBuffer().height());
     }
 
     return (unsigned char*)image->data;

@@ -59,6 +59,7 @@ int main(int argc, char* argv[]) {
 
     BUFF_WIDTH = atoi(argv[1]);
     BUFF_HEIGHT = atoi(argv[2]);
+    int bufferSize = BUFF_WIDTH * BUFF_HEIGHT;
 
     if (argc > 3) {
         if (strcmp(argv[3], "-s") == 0) {
@@ -168,7 +169,7 @@ int main(int argc, char* argv[]) {
                 int dx = int((double)(ox - x) / xs);
                 int dy = int((double)(oy - y) / ys);
 
-                line[i] = abs(i + dx + (j + dy) * BUFF_WIDTH) % BUFF_SIZE;
+                line[i] = abs(i + dx + (j + dy) * BUFF_WIDTH) % bufferSize;
             }
             if (fwrite(line, sizeof(uint32_t), BUFF_WIDTH, out) != (size_t)BUFF_WIDTH) {
                 fprintf(stderr, "cmdRead: writing failed.\n");

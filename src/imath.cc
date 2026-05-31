@@ -3,6 +3,10 @@
  */
 #include "imath.h"
 #include "cth_buffer.h"
+#if defined(__cplusplus) && !defined(CTH_AUDIO_FRAME_NO_RUNTIME) && !defined(CONST_BUFF)        \
+    && !defined(BUFF_WIDTH) && !defined(BUFF_HEIGHT)
+#include "CthughaBuffer.h"
+#endif
 
 #include <stdlib.h>
 #include <math.h>
@@ -45,9 +49,22 @@ int ilog2(int n) {
  * sine
  */
 int sine[320]; /* sine in 1/320° */
-int Bsine[MAX_BUFF_WIDTH]; /* sine in 1/BUFF_WIDTH° */
+int Bsine[MAX_BUFF_WIDTH]; /* sine in 1/current buffer width */
 
 double sin360[360];
+
+static int imathBufferWidth() {
+#if defined(CONST_BUFF) || defined(BUFF_WIDTH) || defined(BUFF_HEIGHT)
+    return BUFF_WIDTH;
+#elif defined(CTH_AUDIO_FRAME_NO_RUNTIME)
+    return 160;
+#elif defined(__cplusplus)
+    return CthughaBuffer::current->width();
+#else
+    extern int BUFF_WIDTH;
+    return (BUFF_WIDTH > 0) ? BUFF_WIDTH : 320;
+#endif
+}
 
 int init_imath() {
     int i;
@@ -58,8 +75,9 @@ int init_imath() {
     for (i = 0; i < 360; i++)
         sin360[i] = sin((double)i * (2.0 * M_PI / 360.0));
 
-    for (i = 0; i < BUFF_WIDTH; i++)
-        Bsine[i] = (int)(128 * sin((float)i / ((float)BUFF_WIDTH) * 2.0 * M_PI));
+    int bufferWidth = imathBufferWidth();
+    for (i = 0; i < bufferWidth; i++)
+        Bsine[i] = (int)(128 * sin((float)i / ((float)bufferWidth) * 2.0 * M_PI));
 
     return 0;
 }

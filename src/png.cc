@@ -1,5 +1,6 @@
 #include "cthugha.h"
 #include "cth_buffer.h"
+#include "CthughaBuffer.h"
 #include "Image.h"
 #include "png.h"
 
@@ -243,9 +244,10 @@ CoreOptionEntry* read_png_image(
         return NULL;
     }
 
-    if ((width > BUFF_WIDTH) || (height > BUFF_HEIGHT)) {
+    CthughaBuffer& buffer = *CthughaBuffer::current;
+    if ((width > buffer.width()) || (height > buffer.height())) {
         CTH_WARN("PNG `%s' is %dx%d, larger than buffer %dx%d; image will be cropped.\n",
-            name, width, height, BUFF_WIDTH, BUFF_HEIGHT);
+            name, width, height, buffer.width(), buffer.height());
     }
 
     int rowBytes = pngScanlineBytes(width, bitDepth);

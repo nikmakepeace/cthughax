@@ -128,7 +128,7 @@ void VisualDirector::updatePipelineStages(VisualPipeline& pipeline, CthughaBuffe
         imageModule->setImage(currentImage);
         if (imageSelectionChanged() && currentImage != 0) {
             imageModule->setPlacement(imagePlacementStrategy.choose(*currentImage,
-                BUFF_WIDTH, BUFF_HEIGHT));
+                buffer.width(), buffer.height()));
             imageModule->setOverlayPassiveBuffer(1);
         }
     }
@@ -150,7 +150,7 @@ void VisualDirector::updatePipelineStages(VisualPipeline& pipeline, CthughaBuffe
         = stageModule<WaveStageModule>(pipeline, VisualPipelineSequence::WaveStage);
     if (waveModule != 0) {
         WaveConfig waveConfig(int(waveScale), int(table), currentWaveObject(),
-            BUFF_WIDTH, BUFF_HEIGHT);
+            buffer.width(), buffer.height());
         Wave* currentWave = selectRunnableWave(waveConfig);
         if (currentWave != 0)
             currentWave->configure(waveConfig);

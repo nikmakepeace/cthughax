@@ -12,6 +12,14 @@ public:
 
     CthughaBuffer();
 
+    int width() const;
+    int height() const;
+    int pitch() const;
+    int size() const;
+    int bottom() const;
+    int maxDimension() const;
+    void setDimensions(int width_, int height_);
+
     void swapBuffers();
     unsigned char* activePixels();
     unsigned char* passivePixels();
@@ -21,6 +29,8 @@ public:
 private:
     unsigned char* activeBuffer; /* buffer next on screen */
     unsigned char* passiveBuffer; /* buffer current on screen */
+    int widthValue;
+    int heightValue;
 
 public:
     static CthughaBuffer buffer;

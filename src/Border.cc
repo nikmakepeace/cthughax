@@ -21,9 +21,9 @@ void apply_border(CthughaBuffer& buffer, const VisualFrameContext& context, int 
     if (active == 0)
         return;
 
-    int width = BUFF_WIDTH;
-    int height = BUFF_HEIGHT;
-    int pitch = BUFF_WIDTH;
+    int width = buffer.width();
+    int height = buffer.height();
+    int pitch = buffer.pitch();
     unsigned char* top = active - 3 * pitch;
     unsigned char* bottom = active + height * pitch;
 

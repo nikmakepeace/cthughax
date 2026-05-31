@@ -12,6 +12,7 @@
 #include <sys/wait.h>
 #include <signal.h>
 #include <stdint.h>
+#include <vector>
 
 OptionOnOff use_translates("use-translate", 1); /* allow translations */
 OptionOnOff trans_stretch("stretching", 1); /* allow stretching */
@@ -37,7 +38,8 @@ int init_translate() {
         if (transLoadLate)
             transLoadOnDemand.setValue(1);
 
-        sprintf(lib_size, CTH_LIBDIR "/tab/%dx%d/", BUFF_WIDTH, BUFF_HEIGHT);
+        CthughaBuffer& buffer = *CthughaBuffer::current;
+        sprintf(lib_size, CTH_LIBDIR "/tab/%dx%d/", buffer.width(), buffer.height());
 
         CthughaBuffer::current->translate.load(
             translate_path, "/tab/", ".cmd", TranslateEntry::loaderCmd);
@@ -114,25 +116,26 @@ static int* read_trans_data(FILE* file, const tab_header& header, int BSize, con
     return trans;
 }
 
-static int* stretch_trans(const int* src, const tab_header& header) {
+static int* stretch_trans(const int* src, const tab_header& header,
+    const CthughaBuffer& buffer) {
     double xs, ys;
     int x, y, tp, ox, oy, dx, dy;
     int i, j;
 
     CTH_DEBUG(" ... stretching");
 
-    int* dst = new int[BUFF_HEIGHT * BUFF_WIDTH];
+    int* dst = new int[buffer.size()];
 
-    xs = (double)header.size_x / BUFF_WIDTH;
-    ys = (double)header.size_y / BUFF_HEIGHT;
+    xs = (double)header.size_x / buffer.width();
+    ys = (double)header.size_y / buffer.height();
 
-    for (j = 0; j < BUFF_HEIGHT; j++) {
+    for (j = 0; j < buffer.height(); j++) {
 
         y = int((double)j * ys);
         if (y >= header.size_y)
             y = header.size_y - 1;
 
-        for (i = 0; i < BUFF_WIDTH; i++) {
+        for (i = 0; i < buffer.width(); i++) {
 
             x = int((double)i * xs);
             if (x >= header.size_x)
@@ -143,7 +146,7 @@ static int* stretch_trans(const int* src, const tab_header& header) {
             oy = tp / header.size_x;
             dx = int((double)(ox - x) / xs);
             dy = int((double)(oy - y) / ys);
-            dst[i + j * BUFF_WIDTH] = abs(i + dx + (j + dy) * BUFF_WIDTH) % BUFF_SIZE;
+            dst[i + j * buffer.width()] = abs(i + dx + (j + dy) * buffer.width()) % buffer.size();
         }
     }
     return dst;
@@ -153,7 +156,8 @@ CoreOptionEntry* TranslateEntry::loaderTab(
     FILE* file, const char* name, const char* dir, const char* total_name) {
     tab_header header;
 
-    int BSize = BUFF_SIZE;
+    CthughaBuffer& buffer = *CthughaBuffer::current;
+    int BSize = buffer.size();
     int stretch = 0;
     TranslateEntry* new_trans;
 
@@ -170,15 +174,15 @@ CoreOptionEntry* TranslateEntry::loaderTab(
         rewind(file); // back to start of file
 
         /* fill in header */
-        header.size_x = BUFF_WIDTH;
-        header.size_y = BUFF_HEIGHT;
+        header.size_x = buffer.width();
+        header.size_y = buffer.height();
 
         new_trans = new TranslateEntry(name, "");
     } else {
         /* ID OK - now test size */
-        if ((header.size_x != BUFF_WIDTH) || (header.size_y != BUFF_HEIGHT)) {
+        if ((header.size_x != buffer.width()) || (header.size_y != buffer.height())) {
             CTH_WARN("\n    Size mismatch (%dx%d instead of %dx%d)", header.size_x, header.size_y,
-                BUFF_WIDTH, BUFF_HEIGHT);
+                buffer.width(), buffer.height());
             if (int(trans_stretch)) { /* allow stretching */
                 stretch = 1;
             } else {
@@ -217,7 +221,7 @@ CoreOptionEntry* TranslateEntry::loaderTab(
 
     /* do the stretching if necessary (from: Rus Maxham) */
     if (stretch) {
-        new_trans->trans = stretch_trans(trans, header);
+        new_trans->trans = stretch_trans(trans, header, buffer);
         delete[] trans;
     } else
         new_trans->trans = trans;
@@ -238,6 +242,7 @@ CoreOptionEntry* TranslateEntry::loaderCmd(
     char command[PATH_MAX];
     FILE* cmd_file;
     TranslateEntry* new_trans;
+    CthughaBuffer& buffer = *CthughaBuffer::current;
 
     /* check ID */
     fgets(line, 512, file);
@@ -264,7 +269,7 @@ CoreOptionEntry* TranslateEntry::loaderCmd(
         CTH_ERROR("  Translation command path too long in %s.\n", name);
         return NULL;
     }
-    if (snprintf(command, sizeof(command), cmd2, BUFF_WIDTH, BUFF_HEIGHT) >= (int)sizeof(command)) {
+    if (snprintf(command, sizeof(command), cmd2, buffer.width(), buffer.height()) >= (int)sizeof(command)) {
         CTH_ERROR("  Translation command too long in %s.\n", name);
         return NULL;
     }
@@ -294,9 +299,9 @@ CoreOptionEntry* TranslateEntry::loaderCmd(
             return NULL;
         }
 
-        new_trans->trans = new int[BUFF_SIZE];
+        new_trans->trans = new int[buffer.size()];
 
-        for (int i = 0; i < BUFF_HEIGHT; i++) {
+        for (int i = 0; i < buffer.height(); i++) {
             if (new_trans->loadLine(cmd_file, i)) {
                 delete new_trans;
                 return NULL;
@@ -312,19 +317,20 @@ CoreOptionEntry* TranslateEntry::loaderCmd(
 char TranslateEntry::cmdRead[PATH_MAX] = "";
 
 int TranslateEntry::loadLine(FILE* in, int n) {
+    CthughaBuffer& buffer = *CthughaBuffer::current;
 
     // load line into temporary buffer
-    uint32_t line[BUFF_WIDTH];
-    if (fread(line, sizeof(uint32_t), BUFF_WIDTH, in) != (size_t)BUFF_WIDTH) {
+    std::vector<uint32_t> line(buffer.width());
+    if (fread(&line[0], sizeof(uint32_t), buffer.width(), in) != (size_t)buffer.width()) {
         CTH_ERRNO(errno, "  reading translation table %s. failed at line %d.", name, n);
         return 1;
     }
 
     // check for errors in the line,
     // copy into the real buffer
-    int* d = trans + BUFF_WIDTH * n;
-    for (int i = 0; i < BUFF_WIDTH; i++, d++) {
-        if (line[i] >= (uint32_t)BUFF_SIZE) {
+    int* d = trans + buffer.width() * n;
+    for (int i = 0; i < buffer.width(); i++, d++) {
+        if (line[i] >= (uint32_t)buffer.size()) {
             CTH_ERROR("  illegal value in translation table %s.\n", name);
             return 1;
         }
@@ -355,7 +361,7 @@ int TranslateEntry::operator()(CthughaBuffer& buffer) {
 
 #if (__BYTE_ORDER == __BIG_ENDIAN)
     /* always write 4 values at once */
-    for (i = BUFF_SIZE / 4; i != 0; i--) { /* do the translation */
+    for (i = buffer.size() / 4; i != 0; i--) { /* do the translation */
         unsigned int D = src[*trans++];
         D <<= 8;
         D += src[*trans++];
@@ -365,7 +371,7 @@ int TranslateEntry::operator()(CthughaBuffer& buffer) {
         *dst++ = D + src[*trans++];
     }
 #elif (__BYTE_ORDER == __LITTLE_ENDIAN)
-    for (i = BUFF_SIZE / 4; i != 0; i--) { /* do the translation */
+    for (i = buffer.size() / 4; i != 0; i--) { /* do the translation */
         unsigned int D = src[trans[0]];
         D += src[trans[1]] << 8;
         D += src[trans[2]] << 16;
@@ -456,8 +462,9 @@ int TranslateOption::prepareCurrentEntry(TranslateEntry*& entry) {
 
     // initialize the common translation table
     if (lodCommonTrans == NULL) {
-        lodCommonTrans = new int[BUFF_SIZE];
-        for (int i = 0; i < BUFF_SIZE; i++)
+        CthughaBuffer& buffer = *CthughaBuffer::current;
+        lodCommonTrans = new int[buffer.size()];
+        for (int i = 0; i < buffer.size(); i++)
             lodCommonTrans[i] = i;
     }
 
@@ -490,7 +497,8 @@ int TranslateOption::prepareCurrentEntry(TranslateEntry*& entry) {
 
     } else if (lodPipe != NULL) {
 
-        if (lodLine < BUFF_HEIGHT) {
+        CthughaBuffer& buffer = *CthughaBuffer::current;
+        if (lodLine < buffer.height()) {
             fd_set rfds;
             FD_ZERO(&rfds);
             FD_SET(fileno(lodPipe), &rfds);
@@ -501,7 +509,7 @@ int TranslateOption::prepareCurrentEntry(TranslateEntry*& entry) {
 
             // load at most 10 lines at once, and only as long as there is
             // some input data available
-            for (int l = 0; (l < 10) && (lodLine < BUFF_HEIGHT)
+            for (int l = 0; (l < 10) && (lodLine < buffer.height())
                 && (select(FD_SETSIZE, &rfds, NULL, NULL, &timeout) > 0);
                 l++) {
                 if (current->loadLine(lodPipe, lodLine)) {
@@ -520,8 +528,8 @@ int TranslateOption::prepareCurrentEntry(TranslateEntry*& entry) {
 
             if (transLoadLate) {
                 // keep a copy of this translation table
-                current->trans = new int[BUFF_SIZE];
-                memcpy(current->trans, lodCommonTrans, BUFF_SIZE * sizeof(int));
+                current->trans = new int[buffer.size()];
+                memcpy(current->trans, lodCommonTrans, buffer.size() * sizeof(int));
                 // do not load again
                 current->command[0] = '\0';
             } else {

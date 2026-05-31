@@ -30,17 +30,9 @@ typedef short tint;
 typedef unsigned short utint;
 #endif
 
-#else
-
-extern int BUFF_WIDTH;
-extern int BUFF_HEIGHT;
-
 #endif
 
 #define MAX_BUFF_WIDTH 1024
 #define MAX_BUFF_HEIGHT 1024
-
-#define BUFF_BOTTOM (BUFF_HEIGHT - 1)
-#define BUFF_SIZE (BUFF_WIDTH * BUFF_HEIGHT)
 
 #endif
