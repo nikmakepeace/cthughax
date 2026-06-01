@@ -124,7 +124,7 @@ void OptionVolume::change(int by) {
 //
 // called while parsing options and ini files
 //
-int mixer_initial_volume(char* name, int volume) {
+int mixer_initial_volume(const char* name, int volume) {
 
     if (mixer_initials == 0) {
         // init initial volumes
@@ -266,7 +266,7 @@ char dev_mixer[PATH_MAX] = "";
 // dummy initialization
 int init_mixer() { return 0; }
 
-int mixer_initial_volume(char* /*name*/, int /*volume*/) {
+int mixer_initial_volume(const char* /*name*/, int /*volume*/) {
     CTH_WARN("mixer was disabled at compile time.\n");
     return 0;
 }

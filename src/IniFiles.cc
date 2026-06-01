@@ -24,9 +24,9 @@ static char ini_file_path[PATH_MAX] = "";
 /*
  * create the name of an ini file
  */
-char* ini_file_name(int ini_nr) {
+const char* ini_file_name(int ini_nr) {
     static char fname[PATH_MAX];
-    char* var;
+    const char* var;
 
     switch (ini_nr) {
     case 0:
@@ -69,7 +69,7 @@ int open_ini_start() {
  * 0 -> OK, 1 -> error
  */
 int open_ini_file() {
-    char* fname;
+    const char* fname;
 
     ini_file_path[0] = '\0';
 
@@ -424,7 +424,7 @@ int read_ini_usage() {
  * move old ini-file to backup file
  * ~/.cthugha.auto -> ~/.cthugha.auto.old
  */
-static int move(char* src, char* dst) {
+static int move(const char* src, const char* dst) {
 
     unlink(dst);
 
@@ -466,7 +466,7 @@ static int is_in_ini(char* line) {
  *  Create the automatic ini-file
  */
 int write_ini() {
-    char* fname = ini_file_name(-1);
+    const char* fname = ini_file_name(-1);
     char fname_dst[PATH_MAX];
     FILE* f;
 

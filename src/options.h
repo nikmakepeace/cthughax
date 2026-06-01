@@ -38,7 +38,7 @@ int write_ini();
 
 int open_ini_start();
 int open_ini_file();
-char* ini_file_name(int ini_nr);
+const char* ini_file_name(int ini_nr);
 extern FILE* ini_file;
 int open_ini_sys();
 int get_ini_str_sys(const char* name, char* value);

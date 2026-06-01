@@ -674,7 +674,7 @@ void DisplayDeviceX11::palettePreviewExpose(
 }
 
 Widget DisplayDeviceX11::add_menu(
-    char* name, CoreOption* what, Widget parent, Widget under, Widget right) {
+    const char* name, CoreOption* what, Widget parent, Widget under, Widget right) {
     Arg wargs[3];
     int n;
     Widget button, menu, item;

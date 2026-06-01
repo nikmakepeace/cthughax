@@ -220,7 +220,7 @@ int DisplayDeviceX11::getAttributes() {
     return (wa.map_state == IsViewable);
 }
 
-void DisplayDeviceX11::CreateWindow(char* name, int full_screen) {
+void DisplayDeviceX11::CreateWindow(const char* name, int full_screen) {
     XSetWindowAttributes attr;
     unsigned long mask;
     XSizeHints* sh;

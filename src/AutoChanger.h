@@ -29,7 +29,7 @@ class AutoChanger {
     int waitTime;
     int lastChange;
 
-    static char* silenceStrings[MAX_SILENCE_STRINGS];
+    static const char* silenceStrings[MAX_SILENCE_STRINGS];
     static int nSilenceStrings;
 
 public:

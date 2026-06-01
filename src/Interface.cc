@@ -246,7 +246,7 @@ void Interface::display() {
         displayDevice->print(silenceMsg, silenceLine, 'c', TEXT_COLOR_NORMAL);
 }
 
-void Interface::msg(char* msg) {
+void Interface::msg(const char* msg) {
     silenceMsg = msg;
     silenceLine = rand() % (text_size.y - 5);
 }

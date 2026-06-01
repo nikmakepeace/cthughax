@@ -106,7 +106,7 @@ protected:
 
     // window creation stuff
     int getAttributes();
-    void CreateWindow(char* name, int full_screen);
+    void CreateWindow(const char* name, int full_screen);
     Cursor xcth_cursor();
     void checkDisplaySize();
 
@@ -128,7 +128,7 @@ protected:
     static void revertPaletteMetadataCB(Widget item, XtPointer data, XtPointer data2);
     static void nextUntaggedPaletteCB(Widget item, XtPointer data, XtPointer data2);
     static void palettePreviewExpose(Widget item, XtPointer data, XEvent* event, Boolean* cont);
-    Widget add_menu(char* name, CoreOption* what, Widget parent, Widget under, Widget right);
+    Widget add_menu(const char* name, CoreOption* what, Widget parent, Widget under, Widget right);
     unsigned long palettePreviewPixel(unsigned char r, unsigned char g, unsigned char b);
     void updatePalettePreview();
     void drawPalettePreview();

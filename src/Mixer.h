@@ -10,7 +10,7 @@
 
 extern char dev_mixer[];
 
-int mixer_initial_volume(char* name, int volume);
+int mixer_initial_volume(const char* name, int volume);
 int init_mixer();
 
 #endif

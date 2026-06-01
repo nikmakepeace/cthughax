@@ -105,7 +105,7 @@ void AutoChanger::change() {
     }
 }
 
-char* AutoChanger::silenceStrings[MAX_SILENCE_STRINGS] = {
+const char* AutoChanger::silenceStrings[MAX_SILENCE_STRINGS] = {
     /*   1234567890123456789012345678901234567890	*/
     "Where is the music?", /* 0 */
     "JOLT !", /* 1 */
@@ -133,7 +133,7 @@ int AutoChanger::nSilenceStrings = 20;
 void AutoChanger::loadSilenceStrings(const char* fname) {
 
     FILE* file;
-    char* s;
+    char* line;
 
     if ((fname == NULL) || (*fname == '\0'))
         return;
@@ -146,17 +146,21 @@ void AutoChanger::loadSilenceStrings(const char* fname) {
     nSilenceStrings = 0;
     do {
         /* read a line */
-        silenceStrings[nSilenceStrings] = new char[256];
-        s = fgets(silenceStrings[nSilenceStrings], 255, file);
-        if (s != NULL)
+        line = new char[256];
+        if (fgets(line, 255, file) != NULL) {
+            silenceStrings[nSilenceStrings] = line;
             nSilenceStrings++;
-    } while ((nSilenceStrings < MAX_SILENCE_STRINGS) && (s != NULL));
+        } else {
+            delete[] line;
+            line = NULL;
+        }
+    } while ((nSilenceStrings < MAX_SILENCE_STRINGS) && (line != NULL));
 
     /* check if file was empty */
     if (nSilenceStrings == 0) {
         CTH_WARN("silence strings file `%s' was empty.\n", fname);
         nSilenceStrings = 1;
-        strcpy(silenceStrings[0], "Where is the music?");
+        silenceStrings[0] = "Where is the music?";
     }
 }
 
