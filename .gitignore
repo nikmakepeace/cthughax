@@ -62,8 +62,6 @@ core.*
 /doc/Makefile.in
 /src/Makefile
 /src/Makefile.in
-/resources/tab/Makefile
-/resources/tab/Makefile.in
 
 # CMake build output
 /CMakeCache.txt
@@ -83,13 +81,6 @@ core.*
 /src/cthugha-server
 /src/tabheader
 /src/tabinfo
-/resources/tab/cmd_bighalfwheel
-/resources/tab/cmd_downspiral
-/resources/tab/cmd_gentable
-/resources/tab/cmd_huricn
-/resources/tab/cmd_randswirls
-/resources/tab/cmd_smoke
-/resources/tab/cmd_space
 
 # Generated project files
 /src/default.keymap.str

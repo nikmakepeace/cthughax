@@ -1,10 +1,10 @@
 ## -*- Makefile -*-
 
-SUBDIRS = src resources/tab
+SUBDIRS = src
 if BUILD_DOCS
 SUBDIRS += doc
 endif
-DIST_SUBDIRS = src resources/tab doc
+DIST_SUBDIRS = src doc
 
 EXTRA_DIST = cthugha-L.lsm Makefile.pre  cthugha.ini.eg tga2jpeg \
 	external/minimp3/LICENSE external/minimp3/minimp3.h external/minimp3/minimp3_ex.h

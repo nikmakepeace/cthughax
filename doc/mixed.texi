@@ -57,7 +57,7 @@ palette files and images:
 
 @enumerate
 @item Current directory for all 3 kinds of files
-@item @code{./resources/tab}, @code{./resources/map} and @code{./resources/img}
+@item @code{./resources/map} and @code{./resources/img}
 @item In @code{@value{INSTLIB}/tab/BUFF_WIDTHxBUFF_HEIGHT} for
 translation tables
 @item @code{@value{INSTLIB}/tab}, @*
@@ -291,7 +291,6 @@ you for private use. I think about putting the whole thing under the GNU
 public license.
 
 @end itemize
-
 
 
 

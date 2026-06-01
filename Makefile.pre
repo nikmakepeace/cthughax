@@ -29,15 +29,9 @@ install-pre:
 	${mkinstalldirs} ${pkglibdir}/tab
 	${mkinstalldirs} ${pkglibdir}/obj
 	-${INSTALL} -m 0755 precompiled/xcthugha		${bindir}/xcthugha
-	-${INSTALL} -m 0755 precompiled/tabheader		${bindir}/tabheader
-	-${INSTALL} -m 0755 precompiled/tabinfo			${bindir}/tabinfo
 	-cp resources/map/*.map		${pkglibdir}/map
 	-cp resources/img/*		${pkglibdir}/img
-	-cp resources/tab/*.tab*		${pkglibdir}/tab
-	-cp resources/tab/*.cmd*		${pkglibdir}/tab
-	-cp resources/tab/cmd*		${pkglibdir}/tab
 	-cp resources/obj/*.obj		${pkglibdir}/obj
-	-cp precompiled/tab/cmd*	${pkglibdir}/tab
 	-${INSTALL} -m 0644 doc/cthugha.info		${infodir}/cthugha.info
 	-${INSTALL} -m 0644 doc/cthugha.1		${mandir}/man1/cthugha.1
 

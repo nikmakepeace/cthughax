@@ -258,9 +258,6 @@ Disable translation tables. Translation tables are used to define almost
 any affect you can think of. Use this option if Cthugha is not running
 fast enough.
 
-@item --stretch
-Allow stretching of translation tables to fit buffer size.
-
 @item --images
 Enable usage of indexed image files. This is the default.
 

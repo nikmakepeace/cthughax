@@ -6,7 +6,7 @@ The project currently has two build paths:
 
 - modern CMake, which is the verified reference path in this workspace;
 - old autoconf/automake files, still maintained enough to describe/build the
-  X11 frontend and helper tools.
+  X11 frontend.
 
 The CMake files are:
 
@@ -15,7 +15,6 @@ CMakeLists.txt
 cmake/config.h.in
 cmake/generate_keymap.cmake
 src/CMakeLists.txt
-resources/tab/CMakeLists.txt
 ```
 
 The autotools files are:
@@ -27,8 +26,6 @@ Makefile.am
 Makefile
 src/Makefile.am
 src/Makefile
-resources/tab/Makefile.am
-resources/tab/Makefile
 doc/Makefile.am
 doc/Makefile
 config.h
@@ -47,21 +44,10 @@ cmake --build build
 The populated `build/` directory currently contains:
 
 - `build/src/xcthugha`
-- `build/src/tabheader`
-- `build/src/tabinfo`
-- `build/resources/tab/cmd_huricn`
-- `build/resources/tab/cmd_smoke`
-- `build/resources/tab/cmd_space`
-- `build/resources/tab/cmd_gentable`
-- `build/resources/tab/cmd_bighalfwheel`
-- `build/resources/tab/cmd_downspiral`
-- `build/resources/tab/cmd_randswirls`
 
 Major CMake options:
 
 - `CTH_BUILD_X11`: build the X11 frontend. Default: `ON`.
-- `CTH_BUILD_TAB_TOOLS`: build/install `resources/tab/cmd_*` helper tools.
-  Default: `ON`.
 - `CTH_ENABLE_PULSE`: enable PulseAudio/PipeWire-Pulse output when
   `libpulse-simple` is available. Default: `ON`.
 - `CTH_ENABLE_DSP`: enable OSS `/dev/dsp` support when soundcard headers are
@@ -95,28 +81,26 @@ The old build still uses:
 
 - `configure.in`
 - generated `configure`
-- generated `Makefile`, `src/Makefile`, `resources/tab/Makefile`, and
-  `doc/Makefile`
-- `Makefile.am` files in root, `src/`, `resources/tab/`, and `doc/`
+- generated `Makefile`, `src/Makefile`, and `doc/Makefile`
+- `Makefile.am` files in root, `src/`, and `doc/`
 
 Root `Makefile.am` recurses into:
 
 ```text
-src resources/tab
+src
 ```
 
 and adds `doc` only when the generated `BUILD_DOCS` conditional is true.
 
 Current generated autotools target state:
 
-- selected programs: `xcthugha tabheader tabinfo`;
+- selected programs: `xcthugha`;
 - selected setuid programs: none;
 - the old server-mode program is not a current target.
 
 Major `configure.in` options:
 
 - `--disable-xwin`: skip the X11 target.
-- `--disable-tabtools`: skip `tabheader` and `tabinfo`.
 - `--with-dsp=DEV` / `--without-dsp`: OSS DSP.
 - `--without-pulse`: disable PulseAudio-compatible output.
 - `--with-cdrom=DEV` / `--without-cdrom`: CD-ROM ioctl support.
@@ -138,7 +122,7 @@ Makefiles:
 - `WITH_CDROM` is enabled in the autotools `config.h`.
 - `USE_XPM` is enabled.
 - `PACKAGE` is `cthughanix`, and `pkglibdir` is `$(libdir)/cthughanix`.
-- `TARGETS` is `xcthugha tabheader tabinfo`.
+- `TARGETS` is `xcthugha`.
 - `TARGETS_SUID` is empty.
 
 `config.log` is from this workspace on Linux/x86_64 with GCC 14.2.0 and was
@@ -235,7 +219,7 @@ local logging path rather than adding a new one.
   for X11-specific options and key handling.
 - CMake generates `default.keymap.str` under `build/src/`; in-tree builds
   may generate `src/default.keymap.str`.
-- Local object files in `src/` and `resources/tab/` are not authoritative.
+- Local object files in `src/` are not authoritative.
   Check source lists in `CMakeLists.txt` and `Makefile.am`.
 
 ## Porting Strategy
@@ -308,7 +292,6 @@ Highest-value tests:
 - `AudioAnalyzer` and `AcousticContext` fire/intensity behavior;
 - palette loading, metadata, and set filtering;
 - indexed image metadata/loading/clipping for PCX and PNG;
-- `.cmd` parser and command assembly;
-- `.tab` header parser and stretch behavior;
+- built-in translation generator catalog entries;
 - keymap parsing with examples from `src/default.keymap`;
 - deterministic flame/wave transforms after they are exposed as testable stages.

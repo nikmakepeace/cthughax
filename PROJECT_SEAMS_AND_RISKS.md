@@ -49,32 +49,15 @@ PCX/PNG source palettes are retained with the image entry for future policy, but
 image display does not mutate the current frame palette. `ImageStageModule`
 clips the selected `IndexedImage` into the active visual buffer when armed.
 
-### Add a Translation Effect Without Recompiling
+### Add a Translation Effect
 
-Add a `.cmd` descriptor and a generator program under `resources/tab/`.
+Add a `TranslateGenerator` implementation and register it in
+`defaultTranslationCatalog()` in `src/TranslateGenerator.cc`. A catalog entry
+pairs an id, a display description, a generator, and per-entry options, so the
+same generator can appear multiple times with different names and parameters.
 
-Descriptor format:
-
-```text
-cmdtab
-Human-readable description
-command %d %d [args]
-```
-
-The command receives `BUFF_WIDTH` and `BUFF_HEIGHT` and writes one source-pixel
-index per destination pixel to stdout. `src/translate.cc` eagerly loads these
-tables during visual startup so the running pipeline only executes ready maps.
-
-This remains the best non-code visual effect seam.
-
-### Add a Precomputed `.tab`
-
-`.tab` files store a `tab_header` followed by table entries. `tabheader` and
-`tabinfo` add/inspect headers.
-
-Loader: `TranslateEntry::loaderTab` in `src/translate.cc`.
-
-If table dimensions do not match the active buffer, stretching can be enabled.
+`src/translate.cc` eagerly generates these tables during visual startup so the
+running pipeline only executes ready maps.
 
 ### Add a 3D Line Object
 
@@ -352,8 +335,8 @@ with safer metadata.
 - Indexed image loading is isolated. PNG support is intentionally limited to
   non-interlaced indexed-color PNGs.
 - Keymap parsing is standalone and a good candidate for targeted tests.
-- Translation table generators are separate command-line programs and can be
-  tested independently.
+- Translation table generators are now in-process domain objects and can be
+  tested without subprocess plumbing.
 - `AudioProcessor` and `AudioAnalyzer` are much easier to test than the old
   monolithic sound path.
 
@@ -365,8 +348,7 @@ with safer metadata.
 - `AudioBuffer` append/read/history behavior.
 - Palette loader metadata, short files, malformed lines, and set filtering.
 - Indexed image loading, placement, clipping, and source-palette retention.
-- `.cmd` parser and generated command assembly.
-- `.tab` header parser and stretch behavior.
+- built-in translation generator catalog entries and deterministic seeds.
 - `Keymap::parseBinding()` with `src/default.keymap` examples.
 - Flame, translate, and wave transforms through their domain-object `execute()`
   paths, or all three through a small harness.

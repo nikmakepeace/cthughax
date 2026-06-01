@@ -100,40 +100,13 @@ Read the source of some @code{mk*.c} files to try to work out how it works, or
 send me some email! 
 
 
-@subheading Translation tables on demand
+@subheading Translation table generation
 
-Since translation tables need quite a lot of disk space, take lots of
-time to load and need stretching to fit different buffer sizes, I
-included a new method to generate translation tables. 
-
-The generation program is activated when the translation table is
-needed. It gets the desired size for the table as parameters and should
-write the table to stdout. The output is just the table (always as
-@code{long}s without any header). 
-
-An additional file (@code{.cmd}) defines the description and what
-arguments are passed to the generation program. So one program can be
-used to generate lots of different translation tables. 
-
-
-
-@subheading tabheader, tabinfo
-
-Since version 0.3 Cthugha uses an improved format for tab-files. 
-The new format starts
-with a header (@code{tab_header} defined in @code{translate.h}). 
-
-You can convert (add the header) old tab-files to new ones by using 
-@code{tabheader}. To display the header use @code{tabinfo}. 
-
-Usage of @code{tabheader} and @code{tabinfo}: 
-
-@example
-tabheader [in-tab-file] [size-x  size-y] [description] > [out-tab-file]
-tabinfo [tab-file]
-@end example
-
-
+Built-in translation tables are generated in-process during visual
+startup.  A generator receives the desired buffer size and an option
+set, then creates one source-pixel index for each destination pixel.
+The same generator can be registered multiple times with different
+names and parameters.
 
 @c %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @node PCX Files, ,Translation Tables, Technical Stuff

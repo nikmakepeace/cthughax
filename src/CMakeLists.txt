@@ -44,6 +44,7 @@ set(CTHUGHA_COMMON_SOURCES
     FramePalette.cc
     PaletteTransition.cc
     Translate.cc
+    TranslateGenerator.cc
     Wave.cc
     waves.cc
     sound_tables.cc
@@ -123,11 +124,3 @@ if(CTH_BUILD_X11)
 
     install(TARGETS xcthugha RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
-
-add_executable(tabheader tabheader.cc)
-target_include_directories(tabheader PRIVATE ${CMAKE_BINARY_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
-install(TARGETS tabheader RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
-
-add_executable(tabinfo tabinfo.cc)
-target_include_directories(tabinfo PRIVATE ${CMAKE_BINARY_DIR}/src ${CMAKE_CURRENT_SOURCE_DIR})
-install(TARGETS tabinfo RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

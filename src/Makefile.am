@@ -15,7 +15,7 @@ GENSRC = Option.cc OptionInt.cc CoreOption.cc CoreOptionEntry.cc	\
 
 DISPSRC = $(GENSRC)							\
 	palettes.cc pcx.cc png.cc			\
-	Flame.cc flames.cc FramePalette.cc PaletteTransition.cc Translate.cc Wave.cc waves.cc sound_tables.cc	\
+	Flame.cc flames.cc FramePalette.cc PaletteTransition.cc Translate.cc TranslateGenerator.cc Wave.cc waves.cc sound_tables.cc	\
 	translate.cc 	 AudioProcessor.cc \
 	CthughaBuffer.cc initExitDisp.cc	\
 	Flashlight.cc  InterfaceHelp.cc 
@@ -29,17 +29,13 @@ xcthugha_INCLUDES = ${X_CFLAGS}
 xcthugha_LDADD = ${N_LIBS} ${X_LIBS} -lz ${PULSE_LIBS} ${LIBOBJS}
 
 
-tabheader_SOURCES = tabheader.cc
-
-tabinfo_SOURCES = tabinfo.cc
-
 #removed  getopt.h
 ## all the header files
 noinst_HEADERS = 	\
 	Audio.h           AudioFrame.h      AudioRuntime.h    AudioSystem.h     AudioOptions.h     AudioTypes.h       Settings.h RuntimeFactory.h  Scene.h Screenshot.h PcmSourceFactory.h  AudioVisualBridge.h AutoChanger.h     AudioAnalyzer.h    VisualPipeline.h VisualPipelineSequence.h VisualPipelineFactory.h PipelineStageModules.h VisualDirector.h Flame.h flames.h FramePalette.h PaletteTransition.h Wave.h Image.h          pcx.h png.h		\
         CDPlayer.h        Mixer.h  \
-	CoreOption.h      AudioProcessor.h    Border.h          ColorPalette.h Flashlight.h      imath.h           tab_header.h	\
-	CthughaBuffer.h   information.h     Translate.h TranslationTable.h translate.h	\
+	CoreOption.h      AudioProcessor.h    Border.h          ColorPalette.h Flashlight.h      imath.h	\
+	CthughaBuffer.h   information.h     Translate.h TranslateGenerator.h TranslationTable.h translate.h	\
 	CthughaDisplay.h  cth_buffer.h      vroot.h		\
 	DisplayDevice.h   cthugha.h         keys.h            waves.h		\
 	Option.h          disp-sys.h        xcthugha.h	\
@@ -59,7 +55,7 @@ bin_PROGRAMS = @TARGETS@
 ## programs that need special treatment (manual installation)
 noinst_PROGRAMS = @TARGETS_SUID@
 
-EXTRA_PROGRAMS = xcthugha tabheader tabinfo
+EXTRA_PROGRAMS = xcthugha
 
 ## for debugging
 ## display.s: 
@@ -87,8 +83,6 @@ uninstall-local:
 
 #dist-hook:
 #	cp -p $(bindir)/xcthugha $(distdir)/xcthugha
-#	cp -p $(bindir)/tabinfo $(distdir)/tabinfo
-#	cp -p $(bindir)/tabheader $(distdir)/tabheader
 
 
 

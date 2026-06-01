@@ -438,11 +438,11 @@ which source pixel to read:
 dst_pixel[i] = src_pixel[translation_table[i]]
 ```
 
-Loading is in `src/translate.cc::init_translate()`. `.cmd` files generate
-tables with helper programs, and `.tab` files can be loaded directly. By the
-time the visualizer runs, selected translations are ready tables. `VisualDirector`
-constructs a `Translate` executor for the selected entry and binds it into the
-translate stage.
+Loading is in `src/translate.cc::init_translate()`. Built-in
+`TranslateGenerator` catalog entries generate tables in-process. By the time the
+visualizer runs, selected translations are ready tables. `VisualDirector` passes
+the selected table into the translate stage, whose module owns the runtime
+`Translate` executor.
 Flames no longer fold translation into their own loops; translate runs as a
 dedicated pipeline stage.
 

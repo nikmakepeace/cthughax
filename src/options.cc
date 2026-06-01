@@ -128,8 +128,7 @@ struct option long_options[] = {
     { "wave-scale", 1, 0, opt_wave_scale }, { "object", 1, 0, 'o' },
     { "no-object", 0, &use_objects.value, 0 },
     { "use-object", 0, &use_objects.value, 1 }, { "trans", 0, &use_translates.value, 1 },
-    { "no-trans", 0, &use_translates.value, 0 }, { "stretch", 0, &trans_stretch.value, 1 },
-    { "no-stretch", 0, &trans_stretch.value, 0 },
+    { "no-trans", 0, &use_translates.value, 0 },
     { "table", 1, 0, 'a' }, { "border", 1, 0, opt_border },
 
 // display options
