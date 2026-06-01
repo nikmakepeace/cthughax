@@ -21,7 +21,8 @@ public:
 class TranslateGeneratorOptions {
 public:
     int speed;
-    int randomness;
+    int speedJitterPercent;
+    int offsetJitterPercent;
     int reverse;
     int slowX;
     int slowY;

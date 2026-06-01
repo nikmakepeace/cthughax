@@ -1,13 +1,14 @@
 #include "cthugha.h"
 #include "TranslateGenerator.h"
 
+#include <chrono>
 #include <math.h>
-#include <time.h>
+#include <stdint.h>
 
 static const double PI = 3.14159265358979323846;
 
 class GeneratorRandom {
-    unsigned int state;
+    uint32_t state;
 
 public:
     GeneratorRandom(unsigned int seed)
@@ -18,7 +19,7 @@ public:
             return 0;
 
         state = state * 1664525u + 1013904223u;
-        return (int)((state >> 1) % (unsigned int)range);
+        return (int)(((uint64_t)state * (uint32_t)range) >> 32);
     }
 };
 
@@ -40,9 +41,19 @@ static int clampInt(int value, int low, int high) {
     return value;
 }
 
+static unsigned int randomSeedBase() {
+    unsigned long long ticks = (unsigned long long)
+        std::chrono::high_resolution_clock::now().time_since_epoch().count();
+    ticks ^= ticks >> 33;
+    ticks *= 0xff51afd7ed558ccdULL;
+    ticks ^= ticks >> 33;
+    return (unsigned int)(ticks ^ (ticks >> 32));
+}
+
 TranslateGeneratorOptions::TranslateGeneratorOptions()
     : speed(100)
-    , randomness(70)
+    , speedJitterPercent(70)
+    , offsetJitterPercent(70)
     , reverse(0)
     , slowX(0)
     , slowY(1)
@@ -79,12 +90,12 @@ void TranslationCatalog::generateAll(int width, int height,
     tables.clear();
     tables.reserve(entries.size());
 
-    unsigned int now = (unsigned int)time(0);
+    unsigned int seedBase = randomSeedBase();
 
     for (unsigned int i = 0; i < entries.size(); i++) {
         TranslateGeneratorOptions options = entries[i].options;
         if (options.randomizeSeed)
-            options.seed = now ^ (0x9e3779b9u * (i + 1));
+            options.seed = seedBase ^ (0x9e3779b9u * (i + 1));
 
         GeneratedTranslationTable table;
         table.id = entries[i].id;
@@ -123,7 +134,7 @@ public:
                     double ang;
 
                     if (x == cx) {
-                        if (y > cx)
+                        if (y > cy)
                             ang = q;
                         else
                             ang = -q;
@@ -180,7 +191,7 @@ public:
                     double ang;
 
                     if (x == cx) {
-                        if (y > cx)
+                        if (y > cy)
                             ang = q;
                         else
                             ang = -q;
@@ -293,15 +304,16 @@ public:
         int xCenter = target.width / 3;
         int yCenter = target.height / 2 - 10;
         int speed = clampInt(options.speed, 30, 300);
-        int randomness = clampInt(options.randomness, 0, 100);
+        int speedJitterPercent = clampInt(options.speedJitterPercent, 0, 100);
 
         for (int y = 0; y < target.height; y++) {
             for (int x = 0; x < target.width; x++) {
                 long sp;
-                if (randomness == 0)
+                if (speedJitterPercent == 0)
                     sp = speed;
                 else {
-                    int speedFactor = random.next(randomness + 1) - randomness / 3;
+                    int speedFactor = random.next(speedJitterPercent + 1)
+                        - speedJitterPercent / 3;
                     sp = speed * (100L + speedFactor) / 100L;
                 }
 
@@ -424,14 +436,19 @@ public:
         table.assign(target.size, 0);
 
         int speed = clampInt(options.speed, 30, 300);
-        int randomness = clampInt(options.randomness, 0, 100);
+        int offsetJitterPercent = clampInt(options.offsetJitterPercent, 0, 100);
+        int offsetRange = 12 * offsetJitterPercent / 100;
+        int maxOffset = (5 + ((offsetRange > 0) ? offsetRange - 1 : 0)) * speed / 100;
 
         for (int y = 0; y < target.height; y++) {
             for (int x = 0; x < target.width; x++) {
-                int offsetRange = 12 * randomness / 100;
                 int mapX = x - (5 + random.next(offsetRange)) * speed / 100;
                 int mapY = y - (5 + random.next(offsetRange)) * speed / 100;
-                table[x + y * target.width] = clampedSource(mapX, mapY, target);
+                // Do not pull edge pixels inward; outside the framebuffer is black.
+                if (mapX < maxOffset || mapY < maxOffset)
+                    table[x + y * target.width] = 0;
+                else
+                    table[x + y * target.width] = clampedSource(mapX, mapY, target);
             }
         }
     }
@@ -446,7 +463,7 @@ public:
         table.assign(target.size, 0);
 
         int speed = clampInt(options.speed, 30, 300);
-        int randomness = clampInt(options.randomness, 0, 100);
+        int speedJitterPercent = clampInt(options.speedJitterPercent, 0, 100);
         int centerX = target.width / 2;
         int centerY = target.height / 2;
 
@@ -463,10 +480,11 @@ public:
                     mapY = random.next(target.height);
                 } else {
                     long sp;
-                    if (randomness == 0)
+                    if (speedJitterPercent == 0)
                         sp = speed;
                     else {
-                        int speedFactor = random.next(randomness + 1) - randomness / 3;
+                        int speedFactor = random.next(speedJitterPercent + 1)
+                            - speedJitterPercent / 3;
                         sp = speed * (100L + speedFactor) / 100L;
                     }
 
@@ -483,7 +501,7 @@ public:
     }
 };
 
-static TranslateGeneratorOptions randomOptions() {
+static TranslateGeneratorOptions randomizeSeed() {
     TranslateGeneratorOptions options;
     options.randomizeSeed = 1;
     return options;
@@ -491,7 +509,7 @@ static TranslateGeneratorOptions randomOptions() {
 
 static TranslateGeneratorOptions genericOptions(int spiralCount, double yyWidth,
     double deltaR, double deltaA, int yinYang) {
-    TranslateGeneratorOptions options = randomOptions();
+    TranslateGeneratorOptions options = randomizeSeed();
     options.spiralCount = spiralCount;
     options.yyWidth = yyWidth;
     options.deltaR = deltaR;
@@ -500,10 +518,10 @@ static TranslateGeneratorOptions genericOptions(int spiralCount, double yyWidth,
     return options;
 }
 
-static TranslateGeneratorOptions spaceOptions(int speed, int randomness) {
+static TranslateGeneratorOptions spaceOptions(int speed, int speedJitterPercent) {
     TranslateGeneratorOptions options;
     options.speed = speed;
-    options.randomness = randomness;
+    options.speedJitterPercent = speedJitterPercent;
     return options;
 }
 
@@ -519,19 +537,19 @@ const TranslationCatalog& defaultTranslationCatalog() {
     static int initialized = 0;
 
     if (!initialized) {
-        catalog.add("bighalfwheel", "Krusty Wheel 1", bigHalfWheel);
-        catalog.add("downspiral", "Krusty Wheel 2", downSpiral);
-        catalog.add("gentable", "", genericSpiral,
+        catalog.add("bighalfwheel", "Krusty wheel 1", bigHalfWheel);
+        catalog.add("downspiral", "Krusty wheel 2", downSpiral);
+        catalog.add("gentable", "Black holes", genericSpiral,
             genericOptions(10, 10.0, 2.0, 0.1, 0));
-        catalog.add("hurricane", "Hurricane/Jupiters Eye", hurricane);
-        catalog.add("randswirls", "", randomSwirls, randomOptions());
-        catalog.add("rotate", "", genericSpiral,
+        catalog.add("hurricane", "Hurricane/Jupiters Eye", hurricane, randomizeSeed());
+        catalog.add("randswirls", "Vines", randomSwirls, randomizeSeed());
+        catalog.add("rotate", "Rotate", genericSpiral,
             genericOptions(0, 10.0, 2.0, 0.1, 0));
-        catalog.add("smoke", "", smoke);
+        catalog.add("smoke", "Falling smoke", smoke);
         catalog.add("space-fast", "Fast space flight", space);
         catalog.add("space-slow", "Slow space flight", space,
             spaceOptions(30, 10));
-        catalog.add("yin-yang", "", genericSpiral,
+        catalog.add("yin-yang", "Yin yang", genericSpiral,
             genericOptions(0, 60.0, 0.0, -0.025, 1));
         initialized = 1;
     }
