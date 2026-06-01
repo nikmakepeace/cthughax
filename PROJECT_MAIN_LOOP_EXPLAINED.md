@@ -343,11 +343,12 @@ image stage. PCX and indexed PNG files are decoded into that shared image
 domain object before the frame loop. Before each frame, `VisualDirector`
 updates the modules with the selected image, flame, general-flame value,
 translation table, wave, border mode, palette target, and flashlight mode. The
-pipeline then passes the same `CthughaBuffer&` through each enabled module.
+pipeline then wraps the current buffer, frame context, and display palette in a
+`VisualFrame` and passes that frame through each enabled module.
 
 Important limitation: this is not the final inversion-of-control shape yet.
-`VisualDirector` injects selected values into stage modules, and display code
-still reads `CthughaBuffer::current` as a compatibility pointer when mapping the
+`VisualDirector` injects selected values into stage modules. Display code still
+reads `CthughaBuffer::current` as a compatibility pointer when mapping the
 finished passive buffer to the frontend.
 
 ## 14. Step 4a: Flashlight
@@ -400,8 +401,8 @@ FrameCommitModule
   swap(activeBuffer, passiveBuffer)
 ```
 
-This order matters. `VisualPipeline::run()` passes one explicit
-`CthughaBuffer&` through each enabled module in sequence.
+This order matters. `VisualPipeline::run()` passes one explicit `VisualFrame`
+through each enabled module in sequence.
 
 ### What Is A Flame?
 

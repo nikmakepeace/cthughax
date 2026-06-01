@@ -60,8 +60,8 @@ PaletteStageModule
 FlashlightVisualModule
 ```
 
-Image, flame, translate, and wave execute domain objects against the same
-`CthughaBuffer&`. The image stage overlays the selected `IndexedImage` when
+Image, flame, translate, and wave execute domain objects through the same
+`VisualFrame`. The image stage overlays the selected `IndexedImage` when
 `VisualDirector` arms it once. PCX and indexed PNG files are decoded into the
 same image domain object; format-specific code does not run in the pipeline
 stage. Before each frame, `VisualDirector` updates the stage bindings for the

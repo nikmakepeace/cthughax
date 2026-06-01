@@ -12,6 +12,8 @@
 
 class PaletteEntry;
 
+// Contract: one-shot pixel injector. Writes the selected image into the active
+// buffer, and can mirror the same pixels into passive for immediate display.
 class ImageStageModule : public VisualModule {
     const IndexedImage* image;
     ImagePlacement placement;
@@ -23,9 +25,11 @@ public:
     void setImage(const IndexedImage* image_);
     void setPlacement(const ImagePlacement& placement_);
     void setOverlayPassiveBuffer(int enabled);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
+// Contract: feedback filter. Runs the selected Flame over the buffer, usually
+// reading passive pixels and hidden border rows while writing active pixels.
 class FlameStageModule : public VisualModule {
     const Flame* flame;
     int generalFlame;
@@ -36,9 +40,11 @@ public:
 
     void setFlame(const Flame* flame_);
     void setGeneralFlame(int generalFlame_);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
+// Contract: coordinate remap filter. The Translate executor owns any
+// active/passive swap it needs before remapping passive pixels into active.
 class TranslateStageModule : public VisualModule {
     Translate translate;
 
@@ -46,9 +52,11 @@ public:
     TranslateStageModule();
 
     void setTranslate(const TranslationTable& table);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
+// Contract: sound-reactive drawing filter. Draws into active pixels using the
+// current frame context plus wave-local state; it does not commit the frame.
 class WaveStageModule : public VisualModule {
     Wave* wave;
     WaveConfig config;
@@ -61,9 +69,11 @@ public:
     WaveStageModule();
 
     void setWave(Wave* wave_, const WaveConfig& config_);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
+// Contract: frame boundary. Emits optional diagnostics, then swaps active and
+// passive so the finished indexed image becomes the display source.
 class FrameCommitModule : public VisualModule {
     const char* flameName;
     const char* waveName;
@@ -75,19 +85,20 @@ public:
 
     void setSceneNames(const char* flameName_, const char* waveName_,
         const char* waveScaleName_, const char* tableName_);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
+// Contract: palette post-filter. Reads acoustic context and writes temporary
+// flashlight output into the frame palette; it ignores indexed pixels.
 class FlashlightVisualModule : public VisualModule {
-    FramePalette* framePalette;
-
 public:
     FlashlightVisualModule();
 
-    void setFramePalette(FramePalette* framePalette_);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
+// Contract: hidden-row writer. Fills the active buffer border rows used by
+// flame feedback; visible pixels are left to later stages.
 class BorderVisualModule : public VisualModule {
     int borderMode;
 
@@ -95,9 +106,11 @@ public:
     BorderVisualModule();
 
     void setBorderMode(int borderMode_);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
+// Contract: palette transition filter. Advances the display-facing
+// FramePalette toward the configured target; it ignores indexed pixels.
 class PaletteStageModule : public VisualModule {
     PaletteTransition transition;
     FramePalette framePaletteValue;
@@ -109,7 +122,7 @@ public:
     int needsTarget(PaletteEntry* paletteEntry) const;
     void setTargetPalette(PaletteEntry* paletteEntry, int frameBudget,
         const PaletteTransitionStrategy& strategy);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(VisualFrame& frame);
 };
 
 FramePalette* framePaletteFromPipeline(VisualPipeline& pipeline);

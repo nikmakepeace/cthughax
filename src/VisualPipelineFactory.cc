@@ -26,13 +26,10 @@ VisualPipeline* VisualPipelineFactory::create(const VisualPipelineSequence& sequ
     if (sequence.includes(VisualPipelineSequence::PaletteStage)) {
         paletteModule = new PaletteStageModule();
         pipeline->add(VisualPipelineSequence::PaletteStage, paletteModule, 1);
+        pipeline->setFramePalette(&paletteModule->framePalette());
     }
-    if (sequence.includes(VisualPipelineSequence::FlashlightStage)) {
-        FlashlightVisualModule* flashlightModule = new FlashlightVisualModule();
-        if (paletteModule != 0)
-            flashlightModule->setFramePalette(&paletteModule->framePalette());
-        pipeline->add(VisualPipelineSequence::FlashlightStage, flashlightModule, 1);
-    }
+    if (sequence.includes(VisualPipelineSequence::FlashlightStage))
+        pipeline->add(VisualPipelineSequence::FlashlightStage, new FlashlightVisualModule(), 1);
 
     CTH_DEBUG("visual pipeline factory: created pipeline=%p stages=%d modules=%d\n",
         pipeline, int(sequence.sequence().size()), pipeline->size());

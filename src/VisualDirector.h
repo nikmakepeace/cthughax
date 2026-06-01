@@ -22,7 +22,6 @@ class VisualDirector : public SceneObserver {
     unsigned int appliedImageCueId;
     int imageLoadingEnabledValue;
 
-    void syncCurrentBuffer();
     void applySceneToPipeline(unsigned int changes);
     void applyPendingImageCue();
 

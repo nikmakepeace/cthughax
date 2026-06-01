@@ -143,15 +143,14 @@ smoothing, and flashlight are explicit modules. `VisualDirector`
 updates typed stage objects before each run; `FlameStageModule` owns the
 current `Flame` and general-flame value. `VisualDirector` chooses a runnable
 `Wave`, configures it with wave scale/table/object, and binds only that `Wave`
-into `WaveStageModule`. The stages execute selected `Flame`, `Translate`,
-and `Wave` objects against the `CthughaBuffer&` passed through the pipeline.
+into `WaveStageModule`. The pipeline passes a `VisualFrame` through each stage;
+that frame carries the current `CthughaBuffer`, frame context, and display
+palette.
 
 The next seam to improve is the remaining compatibility global. Stage entries
-receive explicit `CthughaBuffer&` objects and entry selection does not happen
-inside the stage modules, but display code still consults
-`CthughaBuffer::current` while mapping the finished passive buffer to the
-frontend. `VisualDirector` also keeps that pointer synchronized to the singleton
-`CthughaBuffer::buffer`.
+receive an explicit `VisualFrame` and entry selection does not happen inside
+the stage modules, but display code still consults `CthughaBuffer::current`
+while mapping the finished passive buffer to the frontend.
 
 ### Add a Display Mode
 
@@ -207,9 +206,9 @@ file playback, live input, random input, and silence all present the same
 ### VisualPipeline Still Shares Display Globals
 
 `VisualPipeline` has explicit modules for image, border, flame, translate, wave,
-frame commit, palette smoothing, and flashlight. It receives one
-`CthughaBuffer&` from `VisualDirector` and passes that buffer through enabled
-modules in stage order.
+frame commit, palette smoothing, and flashlight. It creates one `VisualFrame`
+from the current buffer, context, and display palette, then passes that frame
+through enabled modules in stage order.
 
 Do not assume this is full inversion of control yet. The display path still uses
 `CthughaBuffer::current` as a compatibility pointer for buffer geometry and

@@ -9,6 +9,7 @@
 #include <vector>
 
 class CthughaBuffer;
+class FramePalette;
 
 class VisualFrameContext {
 public:
@@ -23,12 +24,27 @@ public:
     VisualFrameContext();
 };
 
+class VisualFrame {
+    CthughaBuffer* bufferValue;
+    const VisualFrameContext* contextValue;
+    FramePalette* framePaletteValue;
+
+public:
+    VisualFrame(CthughaBuffer& buffer_, const VisualFrameContext& context_,
+        FramePalette* framePalette_);
+
+    CthughaBuffer& buffer();
+    const VisualFrameContext& context() const;
+    FramePalette* framePalette();
+    const FramePalette* framePalette() const;
+};
+
 class VisualModule {
 public:
     virtual ~VisualModule();
 
     virtual void refresh() { }
-    virtual void execute(CthughaBuffer& buffer, const VisualFrameContext& context) = 0;
+    virtual void execute(VisualFrame& frame) = 0;
 };
 
 enum VisualStageRunMode {
@@ -54,6 +70,7 @@ class VisualPipeline {
 
     std::vector<Entry> modules;
     std::vector<unsigned int> sequence;
+    FramePalette* framePaletteValue;
 
 public:
     VisualPipeline();
@@ -67,6 +84,8 @@ public:
     int setStageMode(unsigned int stage, VisualStageRunMode mode);
     VisualStageRunMode stageMode(unsigned int stage) const;
     VisualModule* stageModule(unsigned int stage);
+    void setFramePalette(FramePalette* framePalette);
+    FramePalette* framePalette() const;
     void refresh();
     void run(CthughaBuffer& buffer, const VisualFrameContext& context);
     int size() const;

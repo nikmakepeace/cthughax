@@ -255,8 +255,9 @@ when `VisualDirector` arms the one-shot image stage. PCX and indexed PNG files
 are decoded into that domain object before the frame loop. Before each frame,
 `VisualDirector` updates the stage modules with the selected image, selected
 flame, general-flame value, prepared translation object, wave, and border mode.
-`VisualPipeline::run()` then passes the same `CthughaBuffer&` through each
-enabled stage.
+`VisualPipeline::run()` then wraps the current buffer, frame context, and
+display palette in a `VisualFrame` and passes that frame through each enabled
+stage.
 
 Image and translate selection flow through `VisualDirector`.
 

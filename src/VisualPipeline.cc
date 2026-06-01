@@ -12,6 +12,28 @@ VisualFrameContext::VisualFrameContext()
 
 VisualModule::~VisualModule() { }
 
+VisualFrame::VisualFrame(CthughaBuffer& buffer_, const VisualFrameContext& context_,
+    FramePalette* framePalette_)
+    : bufferValue(&buffer_)
+    , contextValue(&context_)
+    , framePaletteValue(framePalette_) { }
+
+CthughaBuffer& VisualFrame::buffer() {
+    return *bufferValue;
+}
+
+const VisualFrameContext& VisualFrame::context() const {
+    return *contextValue;
+}
+
+FramePalette* VisualFrame::framePalette() {
+    return framePaletteValue;
+}
+
+const FramePalette* VisualFrame::framePalette() const {
+    return framePaletteValue;
+}
+
 static int findStageIndex(const std::vector<unsigned int>& sequence, unsigned int stage) {
     for (unsigned int i = 0; i < sequence.size(); i++) {
         if (sequence[i] == stage)
@@ -21,7 +43,8 @@ static int findStageIndex(const std::vector<unsigned int>& sequence, unsigned in
     return -1;
 }
 
-VisualPipeline::VisualPipeline() { }
+VisualPipeline::VisualPipeline()
+    : framePaletteValue(0) { }
 
 VisualPipeline::~VisualPipeline() {
     clear();
@@ -34,6 +57,7 @@ void VisualPipeline::clear() {
     }
     modules.clear();
     sequence.clear();
+    framePaletteValue = 0;
 }
 
 void VisualPipeline::add(unsigned int stage, VisualModule* module, int takeOwnership) {
@@ -121,12 +145,22 @@ VisualModule* VisualPipeline::stageModule(unsigned int stage) {
     return 0;
 }
 
+void VisualPipeline::setFramePalette(FramePalette* framePalette) {
+    framePaletteValue = framePalette;
+}
+
+FramePalette* VisualPipeline::framePalette() const {
+    return framePaletteValue;
+}
+
 void VisualPipeline::refresh() {
     for (unsigned int i = 0; i < modules.size(); i++)
         modules[i].module->refresh();
 }
 
 void VisualPipeline::run(CthughaBuffer& buffer, const VisualFrameContext& context) {
+    VisualFrame frame(buffer, context, framePaletteValue);
+
     for (unsigned int stageIndex = 0; stageIndex < sequence.size(); stageIndex++) {
         unsigned int stage = sequence[stageIndex];
         for (unsigned int moduleIndex = 0; moduleIndex < modules.size(); moduleIndex++) {
@@ -139,7 +173,7 @@ void VisualPipeline::run(CthughaBuffer& buffer, const VisualFrameContext& contex
                 continue;
             }
 
-            modules[moduleIndex].module->execute(buffer, context);
+            modules[moduleIndex].module->execute(frame);
 
             if (modules[moduleIndex].mode == VisualStageArmedOnce) {
                 CTH_TRACE("disarming one-shot stage=%u module=%p\n",

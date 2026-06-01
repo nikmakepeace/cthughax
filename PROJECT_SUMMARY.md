@@ -95,8 +95,9 @@ Audio and visual control are separated:
 - `VisualPipeline` is the visual-stage executor. One-shot indexed image overlay,
   border, flame, translate, wave, frame commit, palette smoothing, and
   flashlight run as explicit modules. `VisualDirector` updates those modules
-  with the selected image/effect objects and `VisualPipeline::run()` passes one
-  `CthughaBuffer&` through each enabled stage.
+  with the selected image/effect objects. `VisualPipeline::run()` builds a
+  `VisualFrame` carrying the current `CthughaBuffer`, frame context, and display
+  palette, then passes that frame through each enabled stage.
 - `ColorPalette` is the palette data object wrapped by `PaletteEntry`; the
   display-facing per-frame palette lives in `FramePalette`.
 
@@ -108,7 +109,7 @@ Audio and visual control are separated:
   `AudioVisualBridge`.
 - Visual pipeline seam: `VisualDirector`, `VisualPipelineFactory`,
   `VisualPipelineSequence`, `PipelineStageModules`, `VisualPipeline`,
-  `VisualModule`, `VisualFrameContext`, and `CthughaBuffer`.
+  `VisualModule`, `VisualFrame`, `VisualFrameContext`, and `CthughaBuffer`.
 - Classic visual effect seam: `CoreOption` still drives UI/keymap/config
   selection, while flame, translate, and wave execution runs through standalone
   `Flame`/`Translate`/`Wave` domain objects.

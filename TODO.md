@@ -146,11 +146,11 @@
    - `VisualDirector` updates stage modules with the selected image, flame,
      general-flame value, translation table, wave config, border mode, palette
      target, and flashlight mode.
-   - `VisualPipeline::run()` passes one explicit `CthughaBuffer&` through each
-     enabled module.
+   - `VisualPipeline::run()` passes one explicit `VisualFrame` through each
+     enabled module. The frame carries the current `CthughaBuffer`,
+     `VisualFrameContext`, and display `FramePalette`.
    - The display path still uses `CthughaBuffer::current` for buffer geometry
-     and passive-pixel reads; `VisualDirector` keeps it synchronized to the
-     singleton `CthughaBuffer::buffer`.
+     and passive-pixel reads.
    - Treat classic `screen` functions carefully:
      - If a screen function mutates the internal indexed frame as an artistic transform,
        it belongs in the visual pipeline.

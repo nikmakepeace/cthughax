@@ -12,10 +12,6 @@
 
 double paletteSmoothingChance = 1.0;
 
-static CthughaBuffer* currentBuffer() {
-    return CthughaBuffer::current;
-}
-
 template <class Module>
 static Module* stageModule(VisualPipeline& pipeline, VisualPipelineSequence::Stage stage) {
     return dynamic_cast<Module*>(pipeline.stageModule(stage));
@@ -129,10 +125,6 @@ VisualPipelineSequence VisualDirector::defaultPipelineSequence() const {
     return sequence;
 }
 
-void VisualDirector::syncCurrentBuffer() {
-    CthughaBuffer::current = &CthughaBuffer::buffer;
-}
-
 void VisualDirector::applySceneToPipeline(unsigned int changes) {
     if (scene == 0 || pipeline == 0 || buffer == 0)
         return;
@@ -228,17 +220,14 @@ void VisualDirector::sceneCue(Scene& scene_, const SceneCue& cue) {
 }
 
 CthughaBuffer* VisualDirector::configurePipeline(VisualPipeline& pipeline_) {
-    syncCurrentBuffer();
-    CthughaBuffer* current = currentBuffer();
-    if (current == 0)
-        return 0;
+    CthughaBuffer* targetBuffer = &CthughaBuffer::buffer;
 
     if (pipeline != &pipeline_) {
         pipeline = &pipeline_;
         pendingSceneChanges |= SceneAllChanged;
     }
-    if (buffer != current) {
-        buffer = current;
+    if (buffer != targetBuffer) {
+        buffer = targetBuffer;
         pendingSceneChanges |= SceneAllChanged;
     }
 
@@ -248,5 +237,5 @@ CthughaBuffer* VisualDirector::configurePipeline(VisualPipeline& pipeline_) {
     }
     applyPendingImageCue();
 
-    return current;
+    return targetBuffer;
 }
