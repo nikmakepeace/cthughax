@@ -16,7 +16,7 @@ int Translate::ready() const {
     return tableValue.ready();
 }
 
-void Translate::execute(CthughaBuffer& buffer, const VisualFrameContext& context) const {
+void Translate::execute(CthughaBuffer& buffer, const VideoFrameContext& context) const {
     (void)context;
 
     int i;

@@ -2,7 +2,7 @@
 #define __FLAME_H
 
 class CthughaBuffer;
-class VisualFrameContext;
+class VideoFrameContext;
 
 class FlameLookupTables {
 public:
@@ -28,7 +28,7 @@ public:
 class Flame {
 public:
     typedef void (*Function)(CthughaBuffer& buffer,
-        const VisualFrameContext& context, FlameRuntime& runtime);
+        const VideoFrameContext& context, FlameRuntime& runtime);
 
 private:
     Function functionValue;
@@ -40,7 +40,7 @@ public:
 
     const char* name() const;
     const char* description() const;
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context,
+    void execute(CthughaBuffer& buffer, const VideoFrameContext& context,
         int generalFlame, const FlameLookupTables& lookupTables) const;
 };
 

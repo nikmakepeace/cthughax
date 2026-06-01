@@ -2,7 +2,7 @@
 #include "AudioFrame.h"
 #include "Border.h"
 #include "CthughaBuffer.h"
-#include "VisualPipeline.h"
+#include "VideoPipeline.h"
 #include "cth_buffer.h"
 
 static CoreOptionEntry* border_entries[]
@@ -16,7 +16,7 @@ void init_border() {
     border.add(border_entries, 4);
 }
 
-void apply_border(CthughaBuffer& buffer, const VisualFrameContext& context, int borderMode) {
+void apply_border(CthughaBuffer& buffer, const VideoFrameContext& context, int borderMode) {
     unsigned char* active = buffer.activePixels();
     if (active == 0)
         return;

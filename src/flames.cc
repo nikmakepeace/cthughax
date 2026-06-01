@@ -214,7 +214,7 @@ static FlameOffsets general_offsets(int generalFlame, int width) {
  * border rows.
  * Sound/border: ignores sound and border input.
  */
-void flame_clear(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) { memset(buffer.activePixels(), 0, buffer.size()); }
+void flame_clear(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) { memset(buffer.activePixels(), 0, buffer.size()); }
 
 /*****************************************************************************
  *  FLAME-UP
@@ -230,7 +230,7 @@ void flame_clear(CthughaBuffer& buffer, const VisualFrameContext& context, Flame
  * Sound/border: reads from the hidden bottom border through the below-neighbor
  * samples, so border modes can feed or damp the upward flame.
  */
-void flame_upslow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_upslow(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned int tmp;
     unsigned int tmp2;
@@ -256,7 +256,7 @@ void flame_upslow(CthughaBuffer& buffer, const VisualFrameContext& context, Flam
  * as its own pipeline stage.
  * Sound/border: bottom border rows affect the lower-neighbor samples.
  */
-void flame_upsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_upsubtle(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(-1 + buffer.width(), 0 + buffer.width(),
         1 + buffer.width(), buffer.width() + buffer.width());
 
@@ -270,7 +270,7 @@ void flame_upsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, Fl
  * from itself plus three lower neighbors, then applying divsub.
  * Sound/border: bottom border rows can inject energy into the upward motion.
  */
-void flame_upfast(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_upfast(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -296,7 +296,7 @@ void flame_upfast(CthughaBuffer& buffer, const VisualFrameContext& context, Flam
  * and lower samples into the pixel one row above.
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_leftslow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_leftslow(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -318,7 +318,7 @@ void flame_leftslow(CthughaBuffer& buffer, const VisualFrameContext& context, Fl
  * own pipeline stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_leftsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_leftsubtle(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(+1, +buffer.width(),
         1 + buffer.width(), buffer.width() + buffer.width());
 
@@ -332,7 +332,7 @@ void flame_leftsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, 
  * and lower into each destination pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_leftfast(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_leftfast(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -358,7 +358,7 @@ void flame_leftfast(CthughaBuffer& buffer, const VisualFrameContext& context, Fl
  * left, and lower samples into buffer.activePixels().
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_rightslow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_rightslow(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     unsigned char* src = buffer.passivePixels() + buffer.width() + 1;
@@ -381,7 +381,7 @@ void flame_rightslow(CthughaBuffer& buffer, const VisualFrameContext& context, F
  * own pipeline stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_rightsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_rightsubtle(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(-1, buffer.width() - 1,
         buffer.width(), buffer.width() + buffer.width());
 
@@ -395,7 +395,7 @@ void flame_rightsubtle(CthughaBuffer& buffer, const VisualFrameContext& context,
  * and lower into each destination pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_rightfast(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_rightfast(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -422,7 +422,7 @@ void flame_rightfast(CthughaBuffer& buffer, const VisualFrameContext& context, F
  * halves use divsub for averaging and decay.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_water(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_water(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     unsigned char* src = buffer.passivePixels() + buffer.width();
@@ -453,7 +453,7 @@ void flame_water(CthughaBuffer& buffer, const VisualFrameContext& context, Flame
  * temporaries, preserving the old compact arithmetic behavior.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_watersubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_watersubtle(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     char* src = (char*)(buffer.passivePixels() + buffer.width());
@@ -488,7 +488,7 @@ void flame_watersubtle(CthughaBuffer& buffer, const VisualFrameContext& context,
  * How: averages left, current, right, and current again through divsub.
  * Sound/border: does not intentionally sample vertical border rows.
  */
-void flame_skyline(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_skyline(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     unsigned char* src = buffer.passivePixels() + buffer.width() + 1;
@@ -510,7 +510,7 @@ void flame_skyline(CthughaBuffer& buffer, const VisualFrameContext& context, Fla
  * averaging, which gives this flame its sharper texture.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_weird(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_weird(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     char* src = (char*)buffer.passivePixels() + buffer.width() + 1;
@@ -535,7 +535,7 @@ void flame_weird(CthughaBuffer& buffer, const VisualFrameContext& context, Flame
  * uses divsub2, which divides by two and subtracts one.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_zzz(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_zzz(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     buffer.swapBuffers();
@@ -555,7 +555,7 @@ void flame_zzz(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRu
  * at zero, four pixels at a time through divsub4.
  * Sound/border: ignores sound and border input.
  */
-void flame_fade(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_fade(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned int tmp;
     buffer.swapBuffers();
@@ -587,7 +587,7 @@ void flame_fade(CthughaBuffer& buffer, const VisualFrameContext& context, FlameR
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_subtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_general_subtle(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets = general_offsets(runtime.generalFlame, buffer.width());
 
     flame_general_subtle_filter(buffer, runtime.lookupTables, offsets);
@@ -653,7 +653,7 @@ void flame_general_subtle_filter(CthughaBuffer& buffer,
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_slow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_general_slow(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets = general_offsets(runtime.generalFlame, buffer.width());
 
     flame_general_slow_filter(buffer, runtime.lookupTables, offsets);
@@ -699,7 +699,7 @@ void flame_general_slow_filter(CthughaBuffer& buffer,
  * Sound/border: the top hidden border row becomes the new top visible row, so
  * border mode has a direct visible effect here.
  */
-void flame_down(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime) {
+void flame_down(CthughaBuffer& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char* src = buffer.passivePixels() - buffer.width();
     unsigned char* dst = buffer.activePixels();

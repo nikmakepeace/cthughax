@@ -26,7 +26,7 @@ void ImageStageModule::setOverlayPassiveBuffer(int enabled) {
     overlayPassiveBuffer = enabled;
 }
 
-void ImageStageModule::execute(VisualFrame& frame) {
+void ImageStageModule::execute(VideoFrame& frame) {
     CTH_TRACE("executing image stage\n", "visual pipeline");
     if (image == 0 || !placement.visible())
         return;
@@ -69,7 +69,7 @@ void FlameStageModule::setGeneralFlame(int generalFlame_) {
     generalFlame = generalFlame_;
 }
 
-void FlameStageModule::execute(VisualFrame& frame) {
+void FlameStageModule::execute(VideoFrame& frame) {
     CTH_TRACE("executing flame stage\n", "visual pipeline");
 
     if (flame != 0)
@@ -83,7 +83,7 @@ void TranslateStageModule::setTranslate(const TranslationTable& table) {
     translate = Translate(table);
 }
 
-void TranslateStageModule::execute(VisualFrame& frame) {
+void TranslateStageModule::execute(VideoFrame& frame) {
     CTH_TRACE("executing translate stage\n", "visual pipeline");
     translate.execute(frame.buffer(), frame.context());
 }
@@ -109,7 +109,7 @@ void WaveStageModule::setWave(Wave* wave_, const WaveConfig& config_) {
     configured = 1;
 }
 
-void WaveStageModule::execute(VisualFrame& frame) {
+void WaveStageModule::execute(VideoFrame& frame) {
     CTH_TRACE("executing wave stage\n", "visual pipeline");
     if (wave != NULL) {
         wave->execute(frame.buffer(), frame.context(), config,
@@ -132,7 +132,7 @@ void FrameCommitModule::setSceneNames(const char* flameName_, const char* waveNa
     tableName = (tableName_ != 0) ? tableName_ : "unknown";
 }
 
-void FrameCommitModule::execute(VisualFrame& frame) {
+void FrameCommitModule::execute(VideoFrame& frame) {
     CTH_TRACE("committing indexed buffer frame\n", "visual pipeline");
     static int debugReports = 0;
     CthughaBuffer& buffer = frame.buffer();
@@ -159,23 +159,23 @@ void FrameCommitModule::execute(VisualFrame& frame) {
     buffer.swapBuffers();
 }
 
-FlashlightVisualModule::FlashlightVisualModule() { }
+FlashlightVideoModule::FlashlightVideoModule() { }
 
-void FlashlightVisualModule::execute(VisualFrame& frame) {
+void FlashlightVideoModule::execute(VideoFrame& frame) {
     CTH_TRACE("executing flashlight stage\n", "visual pipeline");
     FramePalette* framePalette = frame.framePalette();
     if (framePalette != 0)
         apply_flashlight(*framePalette, frame.context());
 }
 
-BorderVisualModule::BorderVisualModule()
+BorderVideoModule::BorderVideoModule()
     : borderMode(0) { }
 
-void BorderVisualModule::setBorderMode(int borderMode_) {
+void BorderVideoModule::setBorderMode(int borderMode_) {
     borderMode = borderMode_;
 }
 
-void BorderVisualModule::execute(VisualFrame& frame) {
+void BorderVideoModule::execute(VideoFrame& frame) {
     CTH_TRACE("executing border stage mode=%d\n", "visual pipeline", borderMode);
     apply_border(frame.buffer(), frame.context(), borderMode);
 }
@@ -196,12 +196,12 @@ void PaletteStageModule::setTargetPalette(PaletteEntry* paletteEntry, int frameB
         transition.achieve(paletteEntry->colors(), frameBudget, strategy);
 }
 
-void PaletteStageModule::execute(VisualFrame& frame) {
+void PaletteStageModule::execute(VideoFrame& frame) {
     CTH_TRACE("executing palette stage\n", "visual pipeline");
     FramePalette* framePalette = frame.framePalette();
     transition.execute((framePalette != 0) ? *framePalette : framePaletteValue);
 }
 
-FramePalette* framePaletteFromPipeline(VisualPipeline& pipeline) {
+FramePalette* framePaletteFromPipeline(VideoPipeline& pipeline) {
     return pipeline.framePalette();
 }

@@ -19,7 +19,7 @@
 #include "flames.h"
 #include "DisplayDevice.h"
 #include "AudioAnalyzer.h"
-#include "VisualDirector.h"
+#include "VideoDirector.h"
 #ifdef CTH_XWIN
 #include "xcthugha.h"
 #endif
@@ -235,7 +235,7 @@ int do_param(int c, int value, char* str) {
         break;
 
     case opt_image:
-        visualDirector().imageOption().setInitialEntry(str);
+        videoDirector().imageOption().setInitialEntry(str);
         break;
 
     case 'a':
@@ -353,11 +353,11 @@ int do_param(int c, int value, char* str) {
         break;
 
     case opt_images:
-        visualDirector().setImageLoadingEnabled(1);
+        videoDirector().setImageLoadingEnabled(1);
         break;
 
     case opt_no_images:
-        visualDirector().setImageLoadingEnabled(0);
+        videoDirector().setImageLoadingEnabled(0);
         break;
 
     case 'D': /* display-mode */
@@ -424,7 +424,7 @@ int do_param(int c, int value, char* str) {
 
     case opt_test:
         use_translates.value = 0;
-        visualDirector().setImageLoadingEnabled(0);
+        videoDirector().setImageLoadingEnabled(0);
         break;
 
     case opt_zoom:

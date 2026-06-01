@@ -42,7 +42,7 @@ if(WITH_PULSE)
 endif()
 
 add_executable(visual_effects_bench
-    VisualEffectsBench.cc
+    VideoEffectsBench.cc
     ${CMAKE_SOURCE_DIR}/src/CoreOption.cc
     ${CMAKE_SOURCE_DIR}/src/CoreOptionEntry.cc
     ${CMAKE_SOURCE_DIR}/src/CthughaBuffer.cc
@@ -55,7 +55,7 @@ add_executable(visual_effects_bench
     ${CMAKE_SOURCE_DIR}/src/Translate.cc
     ${CMAKE_SOURCE_DIR}/src/TranslateGenerator.cc
     ${CMAKE_SOURCE_DIR}/src/translate.cc
-    ${CMAKE_SOURCE_DIR}/src/VisualPipeline.cc
+    ${CMAKE_SOURCE_DIR}/src/VideoPipeline.cc
 )
 
 target_compile_definitions(visual_effects_bench PRIVATE

@@ -61,9 +61,9 @@ There is no current server-mode source entry point in `src/`.
   windows to the rest of the program.
 - `src/AudioVisualBridge.*`: runs audio processing, analysis, and auto-changing
   before visual mutation.
-- `src/VisualPipeline.*`, `src/VisualPipelineSequence.*`,
-  `src/VisualPipelineFactory.*`, `src/PipelineStageModules.*`,
-  `src/VisualDirector.*`: visual-stage executor, stage ordering, module
+- `src/VideoPipeline.*`, `src/VideoPipelineSequence.*`,
+  `src/VideoPipelineFactory.*`, `src/PipelineStageModules.*`,
+  `src/VideoDirector.*`: visual-stage executor, stage ordering, module
   composition, concrete stage modules, and visual policy.
 ### Legacy Visual Core
 

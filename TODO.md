@@ -143,12 +143,12 @@
      - `FrameCommitStage`
      - `PaletteStage`
      - `FlashlightStage`
-   - `VisualDirector` updates stage modules with the selected image, flame,
+   - `VideoDirector` updates stage modules with the selected image, flame,
      general-flame value, translation table, wave config, border mode, palette
      target, and flashlight mode.
-   - `VisualPipeline::run()` passes one explicit `VisualFrame` through each
+   - `VideoPipeline::run()` passes one explicit `VideoFrame` through each
      enabled module. The frame carries the current `CthughaBuffer`,
-     `VisualFrameContext`, and display `FramePalette`.
+     `VideoFrameContext`, and display `FramePalette`.
    - The display path still uses `CthughaBuffer::current` for buffer geometry
      and passive-pixel reads.
    - Treat classic `screen` functions carefully:

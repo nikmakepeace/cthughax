@@ -1,43 +1,43 @@
 #include "Wave.h"
-#include "VisualPipeline.h"
+#include "VideoPipeline.h"
 
 #include <math.h>
 
-void wave_dotHor(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_dotVert(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_lineHor(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_lineVert(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_spike(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_spikeH(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_buff9(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_buff10(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_buff11(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_buff14(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_buff15(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_buff16(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_pete0(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_pete1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_pete2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_fract1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_fract2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_test(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_aaron(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_wire1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_wire1dot5(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_wire1dot55(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_wire1dot6(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_wire2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_wire2dot1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_lineHLdiff(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_spiral(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_pyro(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_warp(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_laser(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_corner(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_jump(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_sticks(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_grid(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
-void wave_none(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_dotHor(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_dotVert(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_lineHor(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_lineVert(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_spike(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_spikeH(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_buff9(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_buff10(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_buff11(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_buff14(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_buff15(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_buff16(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_pete0(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_pete1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_pete2(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_fract1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_fract2(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_test(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_aaron(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_wire1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_wire1dot5(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_wire1dot55(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_wire1dot6(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_wire2(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_wire2dot1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_lineHLdiff(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_spiral(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_pyro(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_warp(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_laser(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_corner(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_jump(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_sticks(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_grid(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_none(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
 
 static int waveCanAlwaysRun(const WaveConfig& config) {
     (void)config;
@@ -147,7 +147,7 @@ int Wave::canRun(const WaveConfig& config) const {
     return (*canRunFunctionValue)(config);
 }
 
-void Wave::execute(CthughaBuffer& buffer, const VisualFrameContext& context,
+void Wave::execute(CthughaBuffer& buffer, const VideoFrameContext& context,
     const WaveConfig& config, int needsConfiguration, WaveState& state,
     WaveLookupTables& lookupTables) const {
     if (functionValue != 0) {

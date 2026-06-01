@@ -2,7 +2,7 @@
 #include "CthughaDisplay.h"
 #include "Flame.h"
 #include "Translate.h"
-#include "VisualPipeline.h"
+#include "VideoPipeline.h"
 #include "imath.h"
 #include "translate.h"
 #include "cth_buffer.h"
@@ -493,7 +493,7 @@ static void BM_Flame(benchmark::State& state, const Flame* flame,
     const BufferFixture* fixture) {
     initializeVisualBenchmarks();
 
-    VisualFrameContext context;
+    VideoFrameContext context;
     static FlameLookupTables lookupTables;
     CthughaBuffer& buffer = benchmarkBuffer();
 
@@ -514,7 +514,7 @@ static void BM_TranslateEntry(benchmark::State& state, TranslateEntry* entry,
     const BufferFixture* fixture) {
     initializeVisualBenchmarks();
 
-    VisualFrameContext context;
+    VideoFrameContext context;
     Translate translate(entry->table());
     CthughaBuffer& buffer = benchmarkBuffer();
 

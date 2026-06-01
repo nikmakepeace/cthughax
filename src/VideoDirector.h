@@ -1,20 +1,20 @@
 // Visual pipeline policy.
 
-#ifndef __VISUAL_DIRECTOR_H
-#define __VISUAL_DIRECTOR_H
+#ifndef __VIDEO_DIRECTOR_H
+#define __VIDEO_DIRECTOR_H
 
 #include "Image.h"
 #include "Scene.h"
-#include "VisualPipelineSequence.h"
+#include "VideoPipelineSequence.h"
 
 class CthughaBuffer;
-class VisualPipeline;
+class VideoPipeline;
 
-class VisualDirector : public SceneObserver {
+class VideoDirector : public SceneObserver {
     ImageOption images;
     RandomLegalImagePlacementStrategy imagePlacementStrategy;
     Scene* scene;
-    VisualPipeline* pipeline;
+    VideoPipeline* pipeline;
     CthughaBuffer* buffer;
     unsigned int pendingSceneChanges;
     const IndexedImage* pendingImageCue;
@@ -26,8 +26,8 @@ class VisualDirector : public SceneObserver {
     void applyPendingImageCue();
 
 public:
-    VisualDirector();
-    ~VisualDirector();
+    VideoDirector();
+    ~VideoDirector();
 
     void bindScene(Scene& scene_);
     void unbindScene();
@@ -37,14 +37,14 @@ public:
     void setImageLoadingEnabled(int enabled);
     int loadImages();
 
-    VisualPipelineSequence defaultPipelineSequence() const;
-    CthughaBuffer* configurePipeline(VisualPipeline& pipeline);
+    VideoPipelineSequence defaultPipelineSequence() const;
+    CthughaBuffer* configurePipeline(VideoPipeline& pipeline);
 
     virtual void sceneChanged(Scene& scene, unsigned int changes);
     virtual void sceneCue(Scene& scene, const SceneCue& cue);
 };
 
-VisualDirector& visualDirector();
+VideoDirector& videoDirector();
 
 extern double paletteSmoothingChance;
 

@@ -1,7 +1,7 @@
 // Internal visual pipeline scaffold.
 
-#ifndef __VISUAL_PIPELINE_H
-#define __VISUAL_PIPELINE_H
+#ifndef __VIDEO_PIPELINE_H
+#define __VIDEO_PIPELINE_H
 
 #include "AudioFrame.h"
 #include "AudioAnalyzer.h"
@@ -11,7 +11,7 @@
 class CthughaBuffer;
 class FramePalette;
 
-class VisualFrameContext {
+class VideoFrameContext {
 public:
     const AudioFrame* audioFrame;
     const char2* rawAudioData;
@@ -21,51 +21,51 @@ public:
     double now;
     double deltaT;
 
-    VisualFrameContext();
+    VideoFrameContext();
 };
 
-class VisualFrame {
+class VideoFrame {
     CthughaBuffer* bufferValue;
-    const VisualFrameContext* contextValue;
+    const VideoFrameContext* contextValue;
     FramePalette* framePaletteValue;
 
 public:
-    VisualFrame(CthughaBuffer& buffer_, const VisualFrameContext& context_,
+    VideoFrame(CthughaBuffer& buffer_, const VideoFrameContext& context_,
         FramePalette* framePalette_);
 
     CthughaBuffer& buffer();
-    const VisualFrameContext& context() const;
+    const VideoFrameContext& context() const;
     FramePalette* framePalette();
     const FramePalette* framePalette() const;
 };
 
-class VisualModule {
+class VideoModule {
 public:
-    virtual ~VisualModule();
+    virtual ~VideoModule();
 
     virtual void refresh() { }
-    virtual void execute(VisualFrame& frame) = 0;
+    virtual void execute(VideoFrame& frame) = 0;
 };
 
-enum VisualStageRunMode {
-    VisualStageDisabled,
-    VisualStageEnabled,
+enum VideoStageRunMode {
+    VideoStageDisabled,
+    VideoStageEnabled,
     // Executes on the next run, then the pipeline changes it to Disabled.
-    VisualStageArmedOnce
+    VideoStageArmedOnce
 };
 
-class VisualPipeline {
+class VideoPipeline {
     struct Entry {
         unsigned int stage;
-        VisualModule* module;
+        VideoModule* module;
         int owned;
-        VisualStageRunMode mode;
+        VideoStageRunMode mode;
 
-        Entry(unsigned int stage_, VisualModule* module_, int owned_)
+        Entry(unsigned int stage_, VideoModule* module_, int owned_)
             : stage(stage_)
             , module(module_)
             , owned(owned_)
-            , mode(VisualStageDisabled) { }
+            , mode(VideoStageDisabled) { }
     };
 
     std::vector<Entry> modules;
@@ -73,21 +73,21 @@ class VisualPipeline {
     FramePalette* framePaletteValue;
 
 public:
-    VisualPipeline();
-    ~VisualPipeline();
+    VideoPipeline();
+    ~VideoPipeline();
 
     void clear();
-    void add(unsigned int stage, VisualModule* module, int takeOwnership = 0);
+    void add(unsigned int stage, VideoModule* module, int takeOwnership = 0);
     void setStageSequence(const std::vector<unsigned int>& stages);
     int moveStageBefore(unsigned int stage, unsigned int beforeStage);
     int moveStageAfter(unsigned int stage, unsigned int afterStage);
-    int setStageMode(unsigned int stage, VisualStageRunMode mode);
-    VisualStageRunMode stageMode(unsigned int stage) const;
-    VisualModule* stageModule(unsigned int stage);
+    int setStageMode(unsigned int stage, VideoStageRunMode mode);
+    VideoStageRunMode stageMode(unsigned int stage) const;
+    VideoModule* stageModule(unsigned int stage);
     void setFramePalette(FramePalette* framePalette);
     FramePalette* framePalette() const;
     void refresh();
-    void run(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void run(CthughaBuffer& buffer, const VideoFrameContext& context);
     int size() const;
 };
 

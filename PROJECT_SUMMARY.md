@@ -21,7 +21,7 @@ audio source -> AudioRuntime / AudioFrame
              -> AudioProcessor
              -> AudioAnalyzer / AcousticContext
              -> AutoChanger
-             -> VisualPipeline
+             -> VideoPipeline
              -> CthughaDisplay
              -> DisplayDevice frontend
 ```
@@ -33,7 +33,7 @@ runs, in order:
 CthughaDisplay::nextFrame()
 audioFrameTick()
 AudioVisualBridge::runFrame()
-VisualPipeline::run()
+VideoPipeline::run()
 CthughaDisplay::operator()()  # when the frontend asks run() to draw
 CDPlayer::operator()()
 deferred suspend handling
@@ -77,7 +77,7 @@ registry for selectable visual entries. The current active categories include:
 - global/display-ish options: `display`, `border`, `flashlight`,
   `sound-processing`, `flame`, `flame-general`, `wave`, `object`,
   `wave-scale`, `table`, and `palette`;
-- visual option adapters: `VisualDirector` owns image selection, and translation
+- visual option adapters: `VideoDirector` owns image selection, and translation
   selection is backed by built-in generator/catalog entries.
 
 Audio and visual control are separated:
@@ -92,11 +92,11 @@ Audio and visual control are separated:
   rolling intensity/fire state for effects and automatic changes.
 - `AudioVisualBridge` runs processing, analysis, and `AutoChanger` policy before
   visual mutation.
-- `VisualPipeline` is the visual-stage executor. One-shot indexed image overlay,
+- `VideoPipeline` is the visual-stage executor. One-shot indexed image overlay,
   border, flame, translate, wave, frame commit, palette smoothing, and
-  flashlight run as explicit modules. `VisualDirector` updates those modules
-  with the selected image/effect objects. `VisualPipeline::run()` builds a
-  `VisualFrame` carrying the current `CthughaBuffer`, frame context, and display
+  flashlight run as explicit modules. `VideoDirector` updates those modules
+  with the selected image/effect objects. `VideoPipeline::run()` builds a
+  `VideoFrame` carrying the current `CthughaBuffer`, frame context, and display
   palette, then passes that frame through each enabled stage.
 - `ColorPalette` is the palette data object wrapped by `PaletteEntry`; the
   display-facing per-frame palette lives in `FramePalette`.
@@ -107,9 +107,9 @@ Audio and visual control are separated:
   `AudioInput`, `AudioOutput`, and `AudioInputProcessor`.
 - Audio-to-visual seam: `AudioFrame`, `AudioProcessor`, `AudioAnalyzer`, and
   `AudioVisualBridge`.
-- Visual pipeline seam: `VisualDirector`, `VisualPipelineFactory`,
-  `VisualPipelineSequence`, `PipelineStageModules`, `VisualPipeline`,
-  `VisualModule`, `VisualFrame`, `VisualFrameContext`, and `CthughaBuffer`.
+- Visual pipeline seam: `VideoDirector`, `VideoPipelineFactory`,
+  `VideoPipelineSequence`, `PipelineStageModules`, `VideoPipeline`,
+  `VideoModule`, `VideoFrame`, `VideoFrameContext`, and `CthughaBuffer`.
 - Classic visual effect seam: `CoreOption` still drives UI/keymap/config
   selection, while flame, translate, and wave execution runs through standalone
   `Flame`/`Translate`/`Wave` domain objects.

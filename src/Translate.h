@@ -6,7 +6,7 @@
 #include "TranslationTable.h"
 
 class CthughaBuffer;
-class VisualFrameContext;
+class VideoFrameContext;
 
 class Translate {
     TranslationTable tableValue;
@@ -17,7 +17,7 @@ public:
 
     const char* name() const;
     int ready() const;
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context) const;
+    void execute(CthughaBuffer& buffer, const VideoFrameContext& context) const;
 };
 
 #endif

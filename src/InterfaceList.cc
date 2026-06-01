@@ -7,7 +7,7 @@
 #include "CthughaBuffer.h"
 #include "Flashlight.h"
 #include "Scene.h"
-#include "VisualDirector.h"
+#include "VideoDirector.h"
 #include "flames.h"
 #include "translate.h"
 #include "waves.h"
@@ -166,6 +166,6 @@ InterfaceList interfaceList8("Object", "Select 3D Object (for some waves)", &obj
 
 InterfaceList interfaceList9("Palette", "Select Palette", &palette);
 
-InterfaceList interfaceListA("Image", "Select Image", &(visualDirector().imageOption()));
+InterfaceList interfaceListA("Image", "Select Image", &(videoDirector().imageOption()));
 
 InterfaceList interfaceListB("Flashlight", "Select Flashlight", &flashlight);

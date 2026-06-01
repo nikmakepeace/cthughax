@@ -12,7 +12,7 @@
 #include "Border.h"
 #include "CthughaBuffer.h"
 #include "Flashlight.h"
-#include "VisualDirector.h"
+#include "VideoDirector.h"
 #include "flames.h"
 #include "waves.h"
 #include "imath.h"

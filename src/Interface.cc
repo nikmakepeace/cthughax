@@ -11,7 +11,7 @@
 #include "Border.h"
 #include "Flashlight.h"
 #include "Scene.h"
-#include "VisualDirector.h"
+#include "VideoDirector.h"
 #include "flames.h"
 #include "translate.h"
 #include "waves.h"
@@ -502,7 +502,7 @@ public:
                     &palette, SceneOptionPalette);
             elements[10]
                 = new InterfaceElementCoreOption("Image (x,X))          : %s",
-                    &visualDirector().imageOption());
+                    &videoDirector().imageOption());
             elements[11] = new InterfaceElementSceneCoreOption("3D-Object (j,J)       : %s",
                 &object, SceneOptionObject);
             elements[12]
@@ -523,7 +523,7 @@ public:
         O(7) = &table;
         O(8) = &waveScale;
         O(9) = &palette;
-        O(10) = &visualDirector().imageOption();
+        O(10) = &videoDirector().imageOption();
         O(11) = &object;
         O(12) = &flashlight;
     }

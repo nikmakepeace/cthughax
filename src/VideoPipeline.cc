@@ -1,7 +1,7 @@
 #include "cthugha.h"
-#include "VisualPipeline.h"
+#include "VideoPipeline.h"
 
-VisualFrameContext::VisualFrameContext()
+VideoFrameContext::VideoFrameContext()
     : audioFrame(0)
     , rawAudioData(0)
     , processedWaveData(0)
@@ -10,27 +10,27 @@ VisualFrameContext::VisualFrameContext()
     , now(0.0)
     , deltaT(0.0) { }
 
-VisualModule::~VisualModule() { }
+VideoModule::~VideoModule() { }
 
-VisualFrame::VisualFrame(CthughaBuffer& buffer_, const VisualFrameContext& context_,
+VideoFrame::VideoFrame(CthughaBuffer& buffer_, const VideoFrameContext& context_,
     FramePalette* framePalette_)
     : bufferValue(&buffer_)
     , contextValue(&context_)
     , framePaletteValue(framePalette_) { }
 
-CthughaBuffer& VisualFrame::buffer() {
+CthughaBuffer& VideoFrame::buffer() {
     return *bufferValue;
 }
 
-const VisualFrameContext& VisualFrame::context() const {
+const VideoFrameContext& VideoFrame::context() const {
     return *contextValue;
 }
 
-FramePalette* VisualFrame::framePalette() {
+FramePalette* VideoFrame::framePalette() {
     return framePaletteValue;
 }
 
-const FramePalette* VisualFrame::framePalette() const {
+const FramePalette* VideoFrame::framePalette() const {
     return framePaletteValue;
 }
 
@@ -43,14 +43,14 @@ static int findStageIndex(const std::vector<unsigned int>& sequence, unsigned in
     return -1;
 }
 
-VisualPipeline::VisualPipeline()
+VideoPipeline::VideoPipeline()
     : framePaletteValue(0) { }
 
-VisualPipeline::~VisualPipeline() {
+VideoPipeline::~VideoPipeline() {
     clear();
 }
 
-void VisualPipeline::clear() {
+void VideoPipeline::clear() {
     for (unsigned int i = 0; i < modules.size(); i++) {
         if (modules[i].owned)
             delete modules[i].module;
@@ -60,20 +60,20 @@ void VisualPipeline::clear() {
     framePaletteValue = 0;
 }
 
-void VisualPipeline::add(unsigned int stage, VisualModule* module, int takeOwnership) {
+void VideoPipeline::add(unsigned int stage, VideoModule* module, int takeOwnership) {
     if (module == 0)
         return;
     modules.push_back(Entry(stage, module, takeOwnership));
     CTH_DEBUG("visual pipeline: added stage=%u module=%p owned=%d mode=%d size=%d\n",
-        stage, module, takeOwnership, int(VisualStageDisabled), size());
+        stage, module, takeOwnership, int(VideoStageDisabled), size());
 }
 
-void VisualPipeline::setStageSequence(const std::vector<unsigned int>& stages) {
+void VideoPipeline::setStageSequence(const std::vector<unsigned int>& stages) {
     sequence = stages;
     CTH_DEBUG("visual pipeline: set sequence stages=%d\n", int(sequence.size()));
 }
 
-int VisualPipeline::moveStageBefore(unsigned int stage, unsigned int beforeStage) {
+int VideoPipeline::moveStageBefore(unsigned int stage, unsigned int beforeStage) {
     if (stage == beforeStage)
         return 1;
 
@@ -92,7 +92,7 @@ int VisualPipeline::moveStageBefore(unsigned int stage, unsigned int beforeStage
     return 1;
 }
 
-int VisualPipeline::moveStageAfter(unsigned int stage, unsigned int afterStage) {
+int VideoPipeline::moveStageAfter(unsigned int stage, unsigned int afterStage) {
     if (stage == afterStage)
         return 1;
 
@@ -111,7 +111,7 @@ int VisualPipeline::moveStageAfter(unsigned int stage, unsigned int afterStage) 
     return 1;
 }
 
-int VisualPipeline::setStageMode(unsigned int stage, VisualStageRunMode mode) {
+int VideoPipeline::setStageMode(unsigned int stage, VideoStageRunMode mode) {
     int matched = 0;
 
     for (unsigned int i = 0; i < modules.size(); i++) {
@@ -127,16 +127,16 @@ int VisualPipeline::setStageMode(unsigned int stage, VisualStageRunMode mode) {
     return matched;
 }
 
-VisualStageRunMode VisualPipeline::stageMode(unsigned int stage) const {
+VideoStageRunMode VideoPipeline::stageMode(unsigned int stage) const {
     for (unsigned int i = 0; i < modules.size(); i++) {
         if (modules[i].stage == stage)
             return modules[i].mode;
     }
 
-    return VisualStageDisabled;
+    return VideoStageDisabled;
 }
 
-VisualModule* VisualPipeline::stageModule(unsigned int stage) {
+VideoModule* VideoPipeline::stageModule(unsigned int stage) {
     for (unsigned int i = 0; i < modules.size(); i++) {
         if (modules[i].stage == stage)
             return modules[i].module;
@@ -145,21 +145,21 @@ VisualModule* VisualPipeline::stageModule(unsigned int stage) {
     return 0;
 }
 
-void VisualPipeline::setFramePalette(FramePalette* framePalette) {
+void VideoPipeline::setFramePalette(FramePalette* framePalette) {
     framePaletteValue = framePalette;
 }
 
-FramePalette* VisualPipeline::framePalette() const {
+FramePalette* VideoPipeline::framePalette() const {
     return framePaletteValue;
 }
 
-void VisualPipeline::refresh() {
+void VideoPipeline::refresh() {
     for (unsigned int i = 0; i < modules.size(); i++)
         modules[i].module->refresh();
 }
 
-void VisualPipeline::run(CthughaBuffer& buffer, const VisualFrameContext& context) {
-    VisualFrame frame(buffer, context, framePaletteValue);
+void VideoPipeline::run(CthughaBuffer& buffer, const VideoFrameContext& context) {
+    VideoFrame frame(buffer, context, framePaletteValue);
 
     for (unsigned int stageIndex = 0; stageIndex < sequence.size(); stageIndex++) {
         unsigned int stage = sequence[stageIndex];
@@ -167,7 +167,7 @@ void VisualPipeline::run(CthughaBuffer& buffer, const VisualFrameContext& contex
             if (modules[moduleIndex].stage != stage)
                 continue;
 
-            if (modules[moduleIndex].mode == VisualStageDisabled) {
+            if (modules[moduleIndex].mode == VideoStageDisabled) {
                 CTH_TRACE("skipping disabled stage=%u module=%p\n",
                     "visual pipeline", modules[moduleIndex].stage, modules[moduleIndex].module);
                 continue;
@@ -175,15 +175,15 @@ void VisualPipeline::run(CthughaBuffer& buffer, const VisualFrameContext& contex
 
             modules[moduleIndex].module->execute(frame);
 
-            if (modules[moduleIndex].mode == VisualStageArmedOnce) {
+            if (modules[moduleIndex].mode == VideoStageArmedOnce) {
                 CTH_TRACE("disarming one-shot stage=%u module=%p\n",
                     "visual pipeline", modules[moduleIndex].stage, modules[moduleIndex].module);
-                modules[moduleIndex].mode = VisualStageDisabled;
+                modules[moduleIndex].mode = VideoStageDisabled;
             }
         }
     }
 }
 
-int VisualPipeline::size() const {
+int VideoPipeline::size() const {
     return int(modules.size());
 }

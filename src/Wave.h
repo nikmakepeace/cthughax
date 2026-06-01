@@ -4,7 +4,7 @@
 #include <vector>
 
 class CthughaBuffer;
-class VisualFrameContext;
+class VideoFrameContext;
 
 // A 3D object is a list of lines, each line is two 3-space points.
 // The list is terminated by the final line having coordinates that are all -1.
@@ -98,7 +98,7 @@ public:
 class Wave {
 public:
     typedef void (*Function)(CthughaBuffer& buffer,
-        const VisualFrameContext& context, WaveRuntime& runtime);
+        const VideoFrameContext& context, WaveRuntime& runtime);
     typedef int (*CanRunFunction)(const WaveConfig& config);
 
 private:
@@ -114,7 +114,7 @@ public:
     const char* name() const;
     const char* description() const;
     int canRun(const WaveConfig& config) const;
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context,
+    void execute(CthughaBuffer& buffer, const VideoFrameContext& context,
         const WaveConfig& config, int needsConfiguration, WaveState& state,
         WaveLookupTables& lookupTables) const;
 };

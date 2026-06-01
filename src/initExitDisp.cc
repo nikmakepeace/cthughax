@@ -26,16 +26,16 @@
 #include "Interface.h"
 #include "PipelineStageModules.h"
 #include "Scene.h"
-#include "VisualDirector.h"
-#include "VisualPipeline.h"
-#include "VisualPipelineFactory.h"
+#include "VideoDirector.h"
+#include "VideoPipeline.h"
+#include "VideoPipelineFactory.h"
 #include "keymap.h"
 
 #include <unistd.h>
 #include <signal.h>
 
-static VisualPipeline* visualPipeline = NULL;
-static VisualPipelineSequence visualPipelineSequence;
+static VideoPipeline* videoPipeline = NULL;
+static VideoPipelineSequence videoPipelineSequence;
 static AudioVisualBridge* audioVisualBridge = NULL;
 static Scene* scene = NULL;
 static SceneCommands* sceneCommands = NULL;
@@ -45,36 +45,36 @@ static void initSceneRuntime() {
         return;
 
     scene = new Scene;
-    visualDirector().bindScene(*scene);
+    videoDirector().bindScene(*scene);
     sceneCommands = new SceneCommands(*scene, CthughaBuffer::buffer,
-        visualDirector().imageOption());
+        videoDirector().imageOption());
     bindSceneCommandsForLegacyCallbacks(sceneCommands);
 }
 
 static void shutdownSceneRuntime() {
     bindSceneCommandsForLegacyCallbacks(NULL);
-    visualDirector().unbindScene();
+    videoDirector().unbindScene();
     delete sceneCommands;
     sceneCommands = NULL;
     delete scene;
     scene = NULL;
 }
 
-static void initVisualPipeline() {
-    if (visualPipeline != NULL)
+static void initVideoPipeline() {
+    if (videoPipeline != NULL)
         return;
 
-    VisualPipelineFactory factory;
-    visualPipelineSequence = visualDirector().defaultPipelineSequence();
-    visualPipeline = factory.create(visualPipelineSequence);
+    VideoPipelineFactory factory;
+    videoPipelineSequence = videoDirector().defaultPipelineSequence();
+    videoPipeline = factory.create(videoPipelineSequence);
 
     if (displayDevice != NULL)
-        displayDevice->setFramePalette(framePaletteFromPipeline(*visualPipeline));
+        displayDevice->setFramePalette(framePaletteFromPipeline(*videoPipeline));
 }
 
-static void shutdownVisualPipeline() {
-    delete visualPipeline;
-    visualPipeline = NULL;
+static void shutdownVideoPipeline() {
+    delete videoPipeline;
+    videoPipeline = NULL;
 }
 
 static void initAudioVisualBridge() {
@@ -92,17 +92,17 @@ static void runAudioVisualBridge() {
     audioVisualBridge->runFrame();
 
     if (audioVisualBridge->pipelineRefreshRequested()) {
-        initVisualPipeline();
-        VisualPipelineFactory factory;
-        factory.refresh(*visualPipeline, visualPipelineSequence);
+        initVideoPipeline();
+        VideoPipelineFactory factory;
+        factory.refresh(*videoPipeline, videoPipelineSequence);
         audioVisualBridge->clearPipelineRefreshRequest();
     }
 }
 
-static void runVisualPipeline() {
-    initVisualPipeline();
+static void runVideoPipeline() {
+    initVideoPipeline();
 
-    VisualFrameContext context;
+    VideoFrameContext context;
     context.audioFrame = audioFrameCurrent();
     context.rawAudioData = audioFrameRawData();
     context.processedWaveData = audioFrameProcessedWaveData();
@@ -112,10 +112,10 @@ static void runVisualPipeline() {
     context.deltaT = deltaT;
 
     CTH_TRACE("running pipeline=%p modules=%d\n", "visual runtime",
-        visualPipeline, visualPipeline ? visualPipeline->size() : 0);
-    CthughaBuffer* buffer = visualDirector().configurePipeline(*visualPipeline);
+        videoPipeline, videoPipeline ? videoPipeline->size() : 0);
+    CthughaBuffer* buffer = videoDirector().configurePipeline(*videoPipeline);
     if (buffer != NULL)
-        visualPipeline->run(*buffer, context);
+        videoPipeline->run(*buffer, context);
 }
 
 void sig_tty_cont(int);
@@ -143,7 +143,7 @@ void deleter() {
     delete cthughaDisplay;
     audioRuntimeShutdown();
     delete cdPlayer;
-    shutdownVisualPipeline();
+    shutdownVideoPipeline();
     shutdownSceneRuntime();
 }
 
@@ -182,7 +182,7 @@ int main(int argc, char* argv[]) {
 
     CTH_INFO("Initializing cthugha Buffer...\n");
     CthughaBuffer::initAll();
-    if (visualDirector().loadImages())
+    if (videoDirector().loadImages())
         exit(0);
     init_border();
     init_flashlight();
@@ -259,7 +259,7 @@ void run(int doDisplay) {
         frameTiming[3] = getTime();
 
     PROFILING();
-    runVisualPipeline();
+    runVideoPipeline();
     if (traceFrameTiming)
         frameTiming[4] = getTime();
 

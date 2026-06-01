@@ -44,7 +44,7 @@ current directory, installed `CTH_LIBDIR/img/`, or `--path DIR/img/`.
 
 Loaders: `src/pcx.cc` and `src/png.cc`.
 
-Image files become entries in the image option owned by `VisualDirector`.
+Image files become entries in the image option owned by `VideoDirector`.
 PCX/PNG source palettes are retained with the image entry for future policy, but
 image display does not mutate the current frame palette. `ImageStageModule`
 clips the selected `IndexedImage` into the active visual buffer when armed.
@@ -136,19 +136,19 @@ Contract:
 
 ### Add a Visual Pipeline Stage
 
-Implement `VisualModule` and add it through `VisualPipelineFactory`.
+Implement `VideoModule` and add it through `VideoPipelineFactory`.
 
 Current reality: image, border, flame, translate, wave, frame-commit, palette
-smoothing, and flashlight are explicit modules. `VisualDirector`
+smoothing, and flashlight are explicit modules. `VideoDirector`
 updates typed stage objects before each run; `FlameStageModule` owns the
-current `Flame` and general-flame value. `VisualDirector` chooses a runnable
+current `Flame` and general-flame value. `VideoDirector` chooses a runnable
 `Wave`, configures it with wave scale/table/object, and binds only that `Wave`
-into `WaveStageModule`. The pipeline passes a `VisualFrame` through each stage;
+into `WaveStageModule`. The pipeline passes a `VideoFrame` through each stage;
 that frame carries the current `CthughaBuffer`, frame context, and display
 palette.
 
 The next seam to improve is the remaining compatibility global. Stage entries
-receive an explicit `VisualFrame` and entry selection does not happen inside
+receive an explicit `VideoFrame` and entry selection does not happen inside
 the stage modules, but display code still consults `CthughaBuffer::current`
 while mapping the finished passive buffer to the frontend.
 
@@ -203,10 +203,10 @@ Visual code should use `audioFrameRawData()` and `audioFrameProcessedWaveData()`
 file playback, live input, random input, and silence all present the same
 1024-sample frame contract.
 
-### VisualPipeline Still Shares Display Globals
+### VideoPipeline Still Shares Display Globals
 
-`VisualPipeline` has explicit modules for image, border, flame, translate, wave,
-frame commit, palette smoothing, and flashlight. It creates one `VisualFrame`
+`VideoPipeline` has explicit modules for image, border, flame, translate, wave,
+frame commit, palette smoothing, and flashlight. It creates one `VideoFrame`
 from the current buffer, context, and display palette, then passes that frame
 through enabled modules in stage order.
 
@@ -319,7 +319,7 @@ with safer metadata.
 
 - File playback has a single buffered runtime path; the riskiest edges are
   playback latency accounting, EOF/drain behavior, and raw PCM option handling.
-- `VisualPipeline` stage order is explicit, and stage execution uses
+- `VideoPipeline` stage order is explicit, and stage execution uses
   director-provided buffers. The remaining risk is non-pipeline code that still
   consults `CthughaBuffer::current`.
 - Many fixed-size string buffers use `sprintf`, `strncpy`, and `strncat` with

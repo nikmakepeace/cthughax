@@ -7,11 +7,11 @@
 
 class CthughaBuffer;
 class FramePalette;
-class VisualFrameContext;
+class VideoFrameContext;
 
 extern CoreOption flashlight;
 
 void init_flashlight();
-void apply_flashlight(FramePalette& framePalette, const VisualFrameContext& context);
+void apply_flashlight(FramePalette& framePalette, const VideoFrameContext& context);
 
 #endif

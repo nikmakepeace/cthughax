@@ -46,7 +46,7 @@ int init_mixer() {
 
 namespace {
 
-const int kVisualFrameSamples = 1024;
+const int kVideoFrameSamples = 1024;
 const int kAudioSliceMs = 10;
 const int kProtectedHistorySamples = 44100;
 const int kBufferCapacitySamples = 44100 * 3;
@@ -87,8 +87,8 @@ struct PcmFixture {
         sliceSamples = samplesForAudioSlice(format);
         applyFormat(format);
 
-        frame1024.resize(format.bytesForSamples(kVisualFrameSamples));
-        source.read(frame1024.data(), (int)frame1024.size(), kVisualFrameSamples);
+        frame1024.resize(format.bytesForSamples(kVideoFrameSamples));
+        source.read(frame1024.data(), (int)frame1024.size(), kVideoFrameSamples);
 
         slice10ms.resize(format.bytesForSamples(sliceSamples));
         source.read(slice10ms.data(), (int)slice10ms.size(), sliceSamples);
@@ -112,13 +112,13 @@ const PcmFixture& pcmFixture() {
 
 void fillFrameFromFixture(AudioFrame& frame) {
     const PcmFixture& fixture = pcmFixture();
-    AudioBuffer buffer(kVisualFrameSamples * 2, fixture.bytesPerSample(), kVisualFrameSamples);
+    AudioBuffer buffer(kVideoFrameSamples * 2, fixture.bytesPerSample(), kVideoFrameSamples);
     AudioFrameBuilder builder;
 
     applyFormat(fixture.format);
     frame.clear();
-    buffer.appendDecodedPcm(fixture.frame1024.data(), kVisualFrameSamples);
-    builder.build(frame, buffer, kVisualFrameSamples / 2);
+    buffer.appendDecodedPcm(fixture.frame1024.data(), kVideoFrameSamples);
+    builder.build(frame, buffer, kVideoFrameSamples / 2);
 }
 
 void primeBuffer(AudioBuffer& buffer) {
@@ -148,16 +148,16 @@ static void BM_Wav_OpenParse(benchmark::State& state) {
 
 static void BM_Wav_Read1024(benchmark::State& state) {
     WavPcmSource source(primaryFixturePath());
-    std::vector<char> scratch(source.format().bytesForSamples(kVisualFrameSamples));
+    std::vector<char> scratch(source.format().bytesForSamples(kVideoFrameSamples));
     long long totalSamples = 0;
 
     for (auto _ : state) {
-        int samples = source.read(scratch.data(), (int)scratch.size(), kVisualFrameSamples);
+        int samples = source.read(scratch.data(), (int)scratch.size(), kVideoFrameSamples);
         if (samples <= 0) {
             state.PauseTiming();
             source.rewind();
             state.ResumeTiming();
-            samples = source.read(scratch.data(), (int)scratch.size(), kVisualFrameSamples);
+            samples = source.read(scratch.data(), (int)scratch.size(), kVideoFrameSamples);
         }
         totalSamples += samples;
         benchmark::DoNotOptimize(samples);
@@ -297,7 +297,7 @@ static void BM_AudioFrameBuilder_Build1024(benchmark::State& state) {
         kProtectedHistorySamples);
     AudioFrameBuilder builder;
     AudioFrame frame;
-    long long centerSample = kVisualFrameSamples;
+    long long centerSample = kVideoFrameSamples;
     long long totalSamples = 0;
 
     applyFormat(fixture.format);
@@ -305,9 +305,9 @@ static void BM_AudioFrameBuilder_Build1024(benchmark::State& state) {
 
     for (auto _ : state) {
         builder.build(frame, buffer, centerSample);
-        centerSample += kVisualFrameSamples;
-        if (centerSample + kVisualFrameSamples >= fixture.threeSecondSamples()) {
-            centerSample = kVisualFrameSamples;
+        centerSample += kVideoFrameSamples;
+        if (centerSample + kVideoFrameSamples >= fixture.threeSecondSamples()) {
+            centerSample = kVideoFrameSamples;
         }
         totalSamples += frame.samples;
         benchmark::DoNotOptimize(frame.samples);

@@ -8,8 +8,8 @@ GENSRC = Option.cc OptionInt.cc CoreOption.cc CoreOptionEntry.cc	\
 	Interface.cc info_title_usage.cc disp-ncurses.cc		\
 	misc.cc DisplayDevice.cc				\
 	AutoChanger.cc AudioAnalyzer.cc  CthughaDisplay.cc 		\
-	Border.cc ColorPalette.cc Image.cc VisualPipeline.cc VisualPipelineSequence.cc	\
-	PipelineStageModules.cc VisualPipelineFactory.cc VisualDirector.cc	\
+	Border.cc ColorPalette.cc Image.cc VideoPipeline.cc VideoPipelineSequence.cc	\
+	PipelineStageModules.cc VideoPipelineFactory.cc VideoDirector.cc	\
 	keymap.cc InterfaceCredits.cc InterfaceList.cc
 
 
@@ -32,7 +32,7 @@ xcthugha_LDADD = ${N_LIBS} ${X_LIBS} -lz ${PULSE_LIBS} ${LIBOBJS}
 #removed  getopt.h
 ## all the header files
 noinst_HEADERS = 	\
-	Audio.h           AudioFrame.h      AudioRuntime.h    AudioSystem.h     AudioOptions.h     AudioTypes.h       Settings.h RuntimeFactory.h  Scene.h Screenshot.h PcmSourceFactory.h  AudioVisualBridge.h AutoChanger.h     AudioAnalyzer.h    VisualPipeline.h VisualPipelineSequence.h VisualPipelineFactory.h PipelineStageModules.h VisualDirector.h Flame.h flames.h FramePalette.h PaletteTransition.h Wave.h Image.h          pcx.h png.h		\
+	Audio.h           AudioFrame.h      AudioRuntime.h    AudioSystem.h     AudioOptions.h     AudioTypes.h       Settings.h RuntimeFactory.h  Scene.h Screenshot.h PcmSourceFactory.h  AudioVisualBridge.h AutoChanger.h     AudioAnalyzer.h    VideoPipeline.h VideoPipelineSequence.h VideoPipelineFactory.h PipelineStageModules.h VideoDirector.h Flame.h flames.h FramePalette.h PaletteTransition.h Wave.h Image.h          pcx.h png.h		\
         CDPlayer.h        Mixer.h  \
 	CoreOption.h      AudioProcessor.h    Border.h          ColorPalette.h Flashlight.h      imath.h	\
 	CthughaBuffer.h   information.h     Translate.h TranslateGenerator.h TranslationTable.h translate.h	\

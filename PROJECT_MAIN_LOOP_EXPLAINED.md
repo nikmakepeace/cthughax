@@ -29,9 +29,9 @@ Keep these files open:
 - `src/AudioAnalyzer.*`: frame analysis and rolling acoustic state.
 - `src/AudioVisualBridge.*`: processing, analysis, and autochanger bridge.
 - `src/AutoChanger.*`: automatic effect changes.
-- `src/VisualPipeline.*`, `src/VisualPipelineSequence.*`,
-  `src/VisualPipelineFactory.*`, `src/PipelineStageModules.*`,
-  `src/VisualDirector.*`: visual-stage executor, ordering, composition,
+- `src/VideoPipeline.*`, `src/VideoPipelineSequence.*`,
+  `src/VideoPipelineFactory.*`, `src/PipelineStageModules.*`,
+  `src/VideoDirector.*`: visual-stage executor, ordering, composition,
   concrete modules, and policy.
 - `src/CthughaBuffer.*`: classic visual buffer dimensions and raw indexed
   active/passive buffers.
@@ -97,7 +97,7 @@ The core scheduler is short and worth reading directly:
 cthughaDisplay->nextFrame()
 audioFrameTick()
 runAudioVisualBridge()
-runVisualPipeline()
+runVideoPipeline()
 if (doDisplay)
     (*cthughaDisplay)()
 (*cdPlayer)()
@@ -152,12 +152,12 @@ The visual pipeline uses explicit internal image stages:
 `WaveStageModule` render the current domain objects through stage-specific APIs.
 
 Flame selection lives in global `FlameOption` and `GeneralFlameOption` objects
-from `src/flames.cc`; `VisualDirector` injects their current values into
+from `src/flames.cc`; `VideoDirector` injects their current values into
 `FlameStageModule`.
 
 Wave selection lives in the global wave option state exposed by `src/waves.cc`
 for UI/keymap/config code, while `src/Wave.cc` defines the standalone `Wave`
-catalog. `VisualDirector` injects the selected `Wave`, wave scale, table, and
+catalog. `VideoDirector` injects the selected `Wave`, wave scale, table, and
 object into `WaveStageModule`.
 
 `sound-processing` is adjacent and implemented by `AudioProcessingOption` in
@@ -247,7 +247,7 @@ autoChanger()
 ```
 
 It also contains a future pipeline-refresh flag. The current code can ask
-`VisualPipelineFactory` to refresh the existing pipeline, although the bridge
+`VideoPipelineFactory` to refresh the existing pipeline, although the bridge
 does not yet set that flag itself.
 
 ## 10. Step 3a: Sound Processing
@@ -306,14 +306,14 @@ CoreOption::changeAll()
 So the autochanger does not directly know about specific flame or wave
 functions. It asks the CoreOption system to move current selections.
 
-## 13. Step 4: VisualPipeline
+## 13. Step 4: VideoPipeline
 
-`runVisualPipeline()` initializes the default visual pipeline if needed, builds
-a `VisualFrameContext`, lets `VisualDirector` update the current stage objects,
+`runVideoPipeline()` initializes the default visual pipeline if needed, builds
+a `VideoFrameContext`, lets `VideoDirector` update the current stage objects,
 and calls:
 
 ```cpp
-visualPipeline->run(buffer, context);
+videoPipeline->run(buffer, context);
 ```
 
 The context contains:
@@ -328,26 +328,26 @@ The default pipeline currently has these modules:
 
 ```text
 ImageStageModule
-BorderVisualModule
+BorderVideoModule
 FlameStageModule
 TranslateStageModule
 WaveStageModule
 FrameCommitModule
 PaletteStageModule
-FlashlightVisualModule
+FlashlightVideoModule
 ```
 
 Image, flame, translate, and wave are explicit stages. `ImageStageModule`
-overlays the selected `IndexedImage` when `VisualDirector` arms the one-shot
+overlays the selected `IndexedImage` when `VideoDirector` arms the one-shot
 image stage. PCX and indexed PNG files are decoded into that shared image
-domain object before the frame loop. Before each frame, `VisualDirector`
+domain object before the frame loop. Before each frame, `VideoDirector`
 updates the modules with the selected image, flame, general-flame value,
 translation table, wave, border mode, palette target, and flashlight mode. The
 pipeline then wraps the current buffer, frame context, and display palette in a
-`VisualFrame` and passes that frame through each enabled module.
+`VideoFrame` and passes that frame through each enabled module.
 
 Important limitation: this is not the final inversion-of-control shape yet.
-`VisualDirector` injects selected values into stage modules. Display code still
+`VideoDirector` injects selected values into stage modules. Display code still
 reads `CthughaBuffer::current` as a compatibility pointer when mapping the
 finished passive buffer to the frontend.
 
@@ -385,7 +385,7 @@ logical order for a frame is:
 
 ```text
 ImageStageModule
-  overlay the selected IndexedImage when VisualDirector has armed ImageStage once
+  overlay the selected IndexedImage when VideoDirector has armed ImageStage once
 
 FlameStageModule
   execute bound Flame objects
@@ -401,7 +401,7 @@ FrameCommitModule
   swap(activeBuffer, passiveBuffer)
 ```
 
-This order matters. `VisualPipeline::run()` passes one explicit `VisualFrame`
+This order matters. `VideoPipeline::run()` passes one explicit `VideoFrame`
 through each enabled module in sequence.
 
 ### What Is A Flame?
@@ -418,7 +418,7 @@ In source:
 - `src/flames.cc::_flames` adapts those flames into the current `CoreOption`
   interface through the global `FlameOption`;
 - `FlameStageModule` executes the bound `Flame` objects selected by
-  `VisualDirector`;
+  `VideoDirector`;
 - `init_flames()` precomputes lookup tables such as `divsub`.
 
 Mentally:
@@ -438,7 +438,7 @@ dst_pixel[i] = src_pixel[translation_table[i]]
 
 Loading is in `src/translate.cc::init_translate()`. Built-in
 `TranslateGenerator` catalog entries generate tables in-process. By the time the
-visualizer runs, selected translations are ready tables. `VisualDirector` passes
+visualizer runs, selected translations are ready tables. `VideoDirector` passes
 the selected table into the translate stage, whose module owns the runtime
 `Translate` executor.
 Flame and translation are separate stages; translate owns coordinate remapping.
@@ -458,7 +458,7 @@ Those marks become fuel for later frames' flames.
 ## 17. Step 4d: Palette Stage
 
 `PaletteOption` is the global CoreOption adapter for loaded palettes, and each
-`PaletteEntry` wraps a `ColorPalette`. `VisualDirector` binds the selected
+`PaletteEntry` wraps a `ColorPalette`. `VideoDirector` binds the selected
 entry into `PaletteStageModule`, and the stage delegates the transition math to
 `PaletteTransition`. That object stores the target palette, remaining frame
 budget, and selected interpolation strategy, then writes the current output
@@ -479,7 +479,7 @@ those indexes mean on screen. `FramePalette::paletteDirty()` tells the display
 device whether that meaning changed. Palette smoothing is why color changes can
 drift rather than snap.
 
-When a palette change smooths, `VisualDirector` chooses one of three named
+When a palette change smooths, `VideoDirector` chooses one of three named
 strategies at random: RGB linear, RGB squared, or HSL interpolation.
 
 `--palette-smoothing` controls the chance that a palette change smooths instead
@@ -640,9 +640,9 @@ If you want to step through one frame in your editor:
 11. Step into `src/AudioProcessor.cc` for the selected audio processing mode.
 12. Step into `src/AudioAnalyzer.cc::AudioAnalyzer::operator()()`.
 13. Step into `src/AutoChanger.cc::AutoChanger::operator()()`.
-14. Step into `src/VisualPipelineFactory.cc::VisualPipelineFactory::create()` to see
+14. Step into `src/VideoPipelineFactory.cc::VideoPipelineFactory::create()` to see
    the current stage ordering.
-15. Step into `src/VisualPipeline.cc::VisualPipeline::run()`.
+15. Step into `src/VideoPipeline.cc::VideoPipeline::run()`.
 16. Step into `src/Border.cc::apply_border()`.
 17. Step through `FlameStageModule`, then jump to the current flame entry in
    `src/flames.cc`.

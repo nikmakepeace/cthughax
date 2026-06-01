@@ -6,11 +6,11 @@
 #include "CoreOption.h"
 
 class CthughaBuffer;
-class VisualFrameContext;
+class VideoFrameContext;
 
 extern CoreOption border;
 
 void init_border();
-void apply_border(CthughaBuffer& buffer, const VisualFrameContext& context, int borderMode);
+void apply_border(CthughaBuffer& buffer, const VideoFrameContext& context, int borderMode);
 
 #endif

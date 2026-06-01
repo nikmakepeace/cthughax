@@ -52,7 +52,7 @@ AudioVisualBridge::runFrame()
   updates AcousticContext
   runs AutoChanger
 
-VisualPipeline::run()
+VideoPipeline::run()
   runs visual-stage modules over the indexed visual buffers
 
 CthughaDisplay::operator()()
@@ -208,7 +208,7 @@ analysis and before visual mutation. Waves normally read
 
 `CthughaBuffer` owns the single classic visual buffer dimensions and the raw
 active/passive indexed pixel buffers. It does not own per-frame
-flame/translate/wave choreography or the current frame palette; `VisualDirector`
+flame/translate/wave choreography or the current frame palette; `VideoDirector`
 configures pipeline modules with the currently selected effect entries. Default
 dimensions are:
 
@@ -220,9 +220,9 @@ BUFF_HEIGHT = 100
 Each allocation has three hidden rows above and below the visible buffer. Flame
 code reads those rows as boundary data.
 
-### VisualPipeline Order
+### VideoPipeline Order
 
-`VisualDirector::defaultPipelineSequence()` currently includes these stages:
+`VideoDirector::defaultPipelineSequence()` currently includes these stages:
 
 ```text
 ImageStage
@@ -235,36 +235,36 @@ PaletteStage
 FlashlightStage
 ```
 
-`VisualPipelineFactory::create()` in `src/VisualPipelineFactory.cc` currently
+`VideoPipelineFactory::create()` in `src/VideoPipelineFactory.cc` currently
 expands that sequence into this module order:
 
 ```text
 ImageStageModule
-BorderVisualModule
+BorderVideoModule
 FlameStageModule
 TranslateStageModule
 WaveStageModule
 FrameCommitModule
 PaletteStageModule
-FlashlightVisualModule
+FlashlightVideoModule
 ```
 
 `ImageStageModule`, `FlameStageModule`, `TranslateStageModule`, and
 `WaveStageModule` are real stages. Image overlays the current `IndexedImage`
-when `VisualDirector` arms the one-shot image stage. PCX and indexed PNG files
+when `VideoDirector` arms the one-shot image stage. PCX and indexed PNG files
 are decoded into that domain object before the frame loop. Before each frame,
-`VisualDirector` updates the stage modules with the selected image, selected
+`VideoDirector` updates the stage modules with the selected image, selected
 flame, general-flame value, prepared translation object, wave, and border mode.
-`VisualPipeline::run()` then wraps the current buffer, frame context, and
-display palette in a `VisualFrame` and passes that frame through each enabled
+`VideoPipeline::run()` then wraps the current buffer, frame context, and
+display palette in a `VideoFrame` and passes that frame through each enabled
 stage.
 
-Image and translate selection flow through `VisualDirector`.
+Image and translate selection flow through `VideoDirector`.
 
 ### Flashlight
 
 `apply_flashlight()` is a palette effect. If the `flashlight` CoreOption is on,
-`VisualDirector` enables the flashlight stage. The stage copies the current
+`VideoDirector` enables the flashlight stage. The stage copies the current
 `FramePalette`, brightens low palette entries according to
 `acousticContext.fire()`, and writes the temporary palette back to
 `FramePalette`.
@@ -289,7 +289,7 @@ frame-level order is:
 
 ```text
 ImageStageModule
-  overlay the selected IndexedImage when VisualDirector has armed ImageStage once
+  overlay the selected IndexedImage when VideoDirector has armed ImageStage once
 
 FlameStageModule
   execute the selected Flame against the frame buffer
@@ -319,7 +319,7 @@ Palette smoothing is separate from the indexed pixel mutation stages.
 
 `PaletteOption` is the global CoreOption adapter for loaded palettes.
 `PaletteEntry` wraps a `ColorPalette` plus UI/config metadata, while
-`VisualDirector` binds the selected entry into `PaletteStageModule`.
+`VideoDirector` binds the selected entry into `PaletteStageModule`.
 `PaletteStageModule` delegates transition mechanics to `PaletteTransition`,
 which moves the output palette toward the target `ColorPalette` over a frame
 budget.
@@ -330,7 +330,7 @@ overlay the final frame palette without becoming the starting point for the
 next smoothing step.
 The global `paletteSmoothingChance` controls whether a palette change smooths
 or jumps directly to the new palette.
-When smoothing is used, `VisualDirector` asks `PaletteTransition` to use a
+When smoothing is used, `VideoDirector` asks `PaletteTransition` to use a
 random named strategy: RGB linear, RGB squared, or HSL interpolation.
 
 Command-line options:
@@ -339,7 +339,7 @@ Command-line options:
 - `--no-palette-smoothing`;
 - `--palette-set SET`, which filters palettes by metadata set.
 
-`FlashlightVisualModule` runs after palette smoothing so it brightens the final
+`FlashlightVideoModule` runs after palette smoothing so it brightens the final
 palette output for the frame instead of being diluted by the smoothing step.
 
 ## CoreOption System

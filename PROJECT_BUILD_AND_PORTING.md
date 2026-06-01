@@ -258,11 +258,11 @@ Good next steps:
 
 ### Phase 3: Continue The Visual Pipeline Migration
 
-`VisualPipeline` has explicit image, border, flame, translate, wave,
-frame-commit, palette, and flashlight modules. `VisualDirector` updates the
+`VideoPipeline` has explicit image, border, flame, translate, wave,
+frame-commit, palette, and flashlight modules. `VideoDirector` updates the
 current stage objects before each pipeline run.
 
-The visual stage path passes one `VisualFrame` through the pipeline. The frame
+The visual stage path passes one `VideoFrame` through the pipeline. The frame
 contains the current `CthughaBuffer`, frame context, and display palette. The
 remaining compatibility coupling is in the display path:
 `CthughaBuffer::current` still supplies buffer geometry and passive-pixel reads.
