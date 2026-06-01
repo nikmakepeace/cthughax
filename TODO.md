@@ -114,6 +114,21 @@
    - Prefer SDL2 or SDL3 as the first modern frontend.
    - Preserve the core contract: the engine produces an indexed 8-bit buffer plus a
      palette; the frontend presents it.
+   - Introduce an explicit `IndexedFrame` handoff from the video filterchain to
+     display presentation. Shape should be close to:
+     `pixels`, `width`, `height`, `pitch`, and `FramePalette`.
+   - Teach `CthughaDisplay` to consume `IndexedFrame` directly instead of discovering
+     pixels and geometry through `CthughaBuffer::current`.
+     - Replace presentation reads from `CthughaBuffer::current->passivePixels()` with
+       `IndexedFrame::pixels`.
+     - Replace presentation geometry reads from the current buffer with
+       `IndexedFrame` width/height/pitch.
+     - Allocate presentation scratch buffers lazily from the incoming frame geometry.
+     - Pass the frame palette explicitly into palette synchronization.
+   - Keep X11 `DM_direct` as a legacy/backend optimization, not as part of the new
+     shared display contract. The clean path should render screen transforms into an
+     indexed presentation buffer, then palette-expand or upload into the backend's
+     native surface.
    - Define the new frontend contract explicitly so buffer size, presentation-surface size,
      and actual window size can vary independently where useful.
    - Use SDL to cover Wayland/X11/fullscreen/input for modern users before considering a
@@ -151,6 +166,12 @@
      `VideoFrameContext`, and display `FramePalette`.
    - The display path still uses `CthughaBuffer::current` for buffer geometry
      and passive-pixel reads.
+   - Final filterchain handoff target:
+     - Add a final/export filter that exposes the committed passive buffer as an
+       `IndexedFrame`.
+     - `runVideoFilterchain()` should retain or return that `IndexedFrame` for display.
+     - `CthughaDisplay` should present that explicit frame, making the source independent
+       of `CthughaBuffer` and suitable for headless tests or future render sources.
    - Treat classic `screen` functions carefully:
      - If a screen function mutates the internal indexed frame as an artistic transform,
        it belongs in the video filterchain.
