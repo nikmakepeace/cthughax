@@ -1,3 +1,3 @@
 cmdtab
-Hurricane/Jupiters Eye
+Jupiter's Eye
 cmd_huricn %d %d
