@@ -1,41 +1,43 @@
 #include "Wave.h"
 #include "VisualPipeline.h"
 
-void wave_dotHor(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_dotVert(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_lineHor(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_lineVert(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_spike(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_spikeH(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_buff9(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_buff10(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_buff11(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_buff14(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_buff15(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_buff16(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_pete0(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_pete1(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_pete2(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_fract1(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_fract2(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_test(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_aaron(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_wire1(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_wire1dot5(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_wire1dot55(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_wire1dot6(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_wire2(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_wire2dot1(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_lineHLdiff(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_spiral(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_pyro(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_warp(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_laser(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_corner(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_jump(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_sticks(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_grid(CthughaBuffer& buffer, WaveRuntime& runtime);
-void wave_none(CthughaBuffer& buffer, WaveRuntime& runtime);
+#include <math.h>
+
+void wave_dotHor(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_dotVert(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_lineHor(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_lineVert(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_spike(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_spikeH(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_buff9(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_buff10(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_buff11(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_buff14(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_buff15(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_buff16(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_pete0(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_pete1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_pete2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_fract1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_fract2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_test(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_aaron(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_wire1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_wire1dot5(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_wire1dot55(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_wire1dot6(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_wire2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_wire2dot1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_lineHLdiff(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_spiral(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_pyro(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_warp(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_laser(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_corner(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_jump(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_sticks(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_grid(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
+void wave_none(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime);
 
 static int waveCanAlwaysRun(const WaveConfig& config) {
     (void)config;
@@ -74,10 +76,30 @@ int WaveConfig::sameAs(const WaveConfig& other) const {
         && bufferHeight == other.bufferHeight;
 }
 
+WaveLookupTables::WaveLookupTables()
+    : sineWidth(0) { }
+
+const int* WaveLookupTables::sineForWidth(int width) {
+    if (width <= 0)
+        return 0;
+
+    if (sineWidth != width) {
+        static const double fullCircle = 6.28318530717958647692;
+
+        sineWidth = width;
+        sineValues.resize(sineWidth);
+        for (int i = 0; i < sineWidth; i++)
+            sineValues[i] = (int)(128 * sin((double)i / (double)sineWidth * fullCircle));
+    }
+
+    return &sineValues[0];
+}
+
 WaveRuntime::WaveRuntime(const WaveConfig& config, int needsConfiguration_,
-    WaveState& state_, int fireBudget)
+    WaveState& state_, WaveLookupTables& lookupTables_, int fireBudget)
     : needsConfigurationValue(needsConfiguration_)
     , stateValue(state_)
+    , lookupTables(lookupTables_)
     , fireBudgetValue(fireBudget)
     , waveScale(config.waveScale)
     , table(config.table)
@@ -102,14 +124,16 @@ void WaveRuntime::scaleFire(int numerator, int denominator) {
         fireBudgetValue = fireBudgetValue * numerator / denominator;
 }
 
+const int* WaveRuntime::sineForWidth(int width) {
+    return lookupTables.sineForWidth(width);
+}
+
 Wave::Wave(Function function, const char* name, const char* description,
     CanRunFunction canRunFunction)
     : functionValue(function)
     , canRunFunctionValue(canRunFunction != 0 ? canRunFunction : waveCanAlwaysRun)
     , nameValue(name)
-    , descriptionValue(description)
-    , configuredValue(0)
-    , needsConfigurationValue(1) { }
+    , descriptionValue(description) { }
 
 const char* Wave::name() const {
     return nameValue;
@@ -123,19 +147,14 @@ int Wave::canRun(const WaveConfig& config) const {
     return (*canRunFunctionValue)(config);
 }
 
-void Wave::configure(const WaveConfig& config) {
-    needsConfigurationValue = !configuredValue || !configValue.sameAs(config);
-    configValue = config;
-    configuredValue = 1;
-}
-
-void Wave::execute(CthughaBuffer& buffer, const VisualFrameContext& context) {
+void Wave::execute(CthughaBuffer& buffer, const VisualFrameContext& context,
+    const WaveConfig& config, int needsConfiguration, WaveState& state,
+    WaveLookupTables& lookupTables) const {
     if (functionValue != 0) {
         int fireBudget = (context.acousticContext != 0) ? context.acousticContext->fire() : 0;
-        WaveRuntime runtime(configValue, needsConfigurationValue, stateValue,
-            fireBudget);
-        needsConfigurationValue = 0;
-        (*functionValue)(buffer, runtime);
+        WaveRuntime runtime(config, needsConfiguration, state,
+            lookupTables, fireBudget);
+        (*functionValue)(buffer, context, runtime);
     }
 }
 

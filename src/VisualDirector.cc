@@ -153,11 +153,8 @@ void VisualDirector::applySceneToPipeline(unsigned int changes) {
 
     WaveStageModule* waveModule
         = stageModule<WaveStageModule>(*pipeline, VisualPipelineSequence::WaveStage);
-    if (waveModule != 0) {
-        if (settings.wave != 0)
-            settings.wave->configure(settings.waveConfig);
-        waveModule->setWave(settings.wave);
-    }
+    if (waveModule != 0)
+        waveModule->setWave(settings.wave, settings.waveConfig);
 
     BorderVisualModule* borderModule
         = stageModule<BorderVisualModule>(*pipeline, VisualPipelineSequence::BorderStage);

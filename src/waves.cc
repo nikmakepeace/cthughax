@@ -1,5 +1,4 @@
 #include "cthugha.h"
-#include "AudioFrame.h"
 #include "display.h"
 #include "Interface.h"
 #include "information.h"
@@ -7,9 +6,8 @@
 #include "waves.h"
 #include "disp-sys.h"
 #include "cth_buffer.h"
-#include "AudioAnalyzer.h"
 #include "CthughaBuffer.h"
-#include "CthughaDisplay.h"
+#include "VisualPipeline.h"
 
 #include <math.h>
 
@@ -122,27 +120,27 @@ static void init_wave_options() {
  * - Does: plots left/right channel dots across the width, with height driven by
  *   each resampled sample value.
  * - Colours: tableColor(runtime, sample), so sample value selects a table entry.
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data.
  *
  * wave_dotVert
  * - Entry: DotVert (Dots Vertical)
  * - Does: plots left/right channel dots down the screen, displaced left/right
  *   from the center by sample value.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, BOTTOM) from context processed wave data.
  *
  * wave_lineHor
  * - Entry: LineHor (Lines Horizontal)
  * - Does: draws connected horizontal-scan oscilloscope traces, split into left
  *   and right halves.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data.
  *
  * wave_lineVert
  * - Entry: LineVert (Lines Vertical)
  * - Does: draws connected vertical traces, one channel to each side of center.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, BOTTOM) from context processed wave data.
  *
  * wave_spike
  * - Entry: Spike (Spikes)
@@ -150,104 +148,104 @@ static void init_wave_options() {
  *   channels split across the screen.
  * - Colours: tableColor(runtime, height), so colour follows distance up the spike rather
  *   than the original sample value.
- * - Sound: prepareSoundData(buffer.width(), 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width(), 0) from context processed wave data.
  *
  * wave_spikeH
  * - Entry: SpikeH (Spikes Hollow)
  * - Does: draws only the moving outline of spike heights.
  * - Colours: tableColor(runtime, scaled absolute amplitude).
- * - Sound: prepareSoundData(buffer.width(), 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width(), 0) from context processed wave data.
  *
  * wave_buff9
  * - Entry: Walking (Walking)
  * - Does: draws two vertical traces around a horizontally walking center
  *   column.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, BOTTOM) from context processed wave data.
  *
  * wave_buff10
  * - Entry: Falling (Falling)
  * - Does: writes channel sample dots into a row that advances downward.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(2 * MID_X) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, 2 * MID_X) from context processed wave data.
  *
  * wave_buff11
  * - Entry: Lissa (Lissa)
  * - Does: draws a Lissajous-style point cloud, using right channel for x and
  *   left channel for y.
  * - Colours: tableColor(runtime, left sample).
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data.
  *
  * wave_buff14
  * - Entry: LineX (Line X)
  * - Does: draws two horizontal traces with different center offsets.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(BOTTOM) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, BOTTOM) from context processed wave data.
  *
  * wave_buff15
  * - Entry: Light1 (Lightning 1)
  * - Does: draws jagged lightning paths for each channel.
  * - Colours: raw palette index 255 for every segment.
- * - Sound: prepareSoundData(BOTTOM, 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, BOTTOM, 0) from context processed wave data.
  *
  * wave_buff16
  * - Entry: Light2 (Lightning 2)
  * - Does: draws a second jagged lightning variant with gentler sample scaling.
  * - Colours: raw palette index 255 for every segment.
- * - Sound: prepareSoundData(buffer.width(), 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width(), 0) from context processed wave data.
  *
  * wave_pete0
  * - Entry: Pete0 (FireFlies)
  * - Does: draws two drifting point clusters whose offsets wander with the
  *   first few samples.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data.
  *
  * wave_pete1
  * - Entry: Pete1 (Pete)
  * - Does: draws two sine-shaped rows scaled by average channel energy.
  * - Colours: tableColor(runtime, signed sample).
- * - Sound: prepareSoundData(buffer.width(), 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width(), 0) from context processed wave data.
  *
  * wave_pete2
  * - Entry: Pete2 (Dot VS sine)
  * - Does: plots vertical dots displaced by sample, one channel on each side.
  * - Colours: tableColor(runtime, sine[sample]), so colour uses a sine lookup of the sample.
- * - Sound: prepareSoundData(buffer.height()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.height()) from context processed wave data.
  *
  * wave_fract1
  * - Entry: Fract1 (Zippy 1)
  * - Does: walks two persistent points around the buffer using half-sized
  *   differences between neighboring samples.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data.
  *
  * wave_fract2
  * - Entry: Fract2 (Zippy 2)
  * - Does: like Fract1, but uses full sample differences for a sharper walk.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data.
  *
  * wave_test
  * - Entry: Test (Test)
  * - Does: draws sine-shaped rows scaled by average channel energy, similar to
  *   Pete1 but with unsigned colour lookup.
  * - Colours: tableColor(runtime, sample + 128).
- * - Sound: prepareSoundData(buffer.width(), 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width(), 0) from context processed wave data.
  *
  * wave_aaron
  * - Entry: Aaron (Rings of Fire)
  * - Does: draws two moving ring/rosette point sets when the buffer is large
  *   enough, otherwise advances to the next wave.
  * - Colours: tableColor(runtime, sample).
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data.
  *
  * wave_wire1
  * - Entry: Wire1 (Wire frame 1)
  * - Does: rotates the selected object; each edge endpoint can scale
  *   independently, giving a fractured audio-reactive wireframe.
  * - Colours: one startup-random value per wave lifetime, drawn as tableColor(runtime, col).
- * - Sound: directly averages slices of audioFrameProcessedWaveData() per object edge.
+ * - Sound: directly averages slices of context processed wave data per object edge.
  *
  * wave_wire1dot5
  * - Entry: Wire1dot5 (Wire frame 1.5)
@@ -255,14 +253,14 @@ static void init_wave_options() {
  *   axis with one frame-wide audio scale.
  * - Colours: one startup-random value per wave lifetime, drawn as tableColor(runtime, col).
  * - Sound: wire_sound_scale() averages all 1024 samples from
- *   audioFrameProcessedWaveData().
+ *   context processed wave data.
  *
  * wave_wire1dot55
  * - Entry: Wire1dot55 (Wire frame 1.55)
  * - Does: Wire1dot5 plus a precessing rotation axis.
  * - Colours: one startup-random value per wave lifetime, drawn as tableColor(runtime, col).
  * - Sound: wire_sound_scale() averages all 1024 samples from
- *   audioFrameProcessedWaveData().
+ *   context processed wave data.
  *
  * wave_wire1dot6
  * - Entry: Wire1dot6 (Wire frame 1.6)
@@ -270,7 +268,7 @@ static void init_wave_options() {
  *   according to a stable audio slice.
  * - Colours: one startup-random value per wave lifetime, drawn as tableColor(runtime, col).
  * - Sound: vertex_sound_stretch() hashes object-space vertices into small
- *   slices of audioFrameProcessedWaveData().
+ *   slices of context processed wave data.
  *
  * wave_wire2
  * - Entry: Wire2 (Wire frame 2)
@@ -290,13 +288,13 @@ static void init_wave_options() {
  * - Does: draws one horizontal trace from the left-minus-right channel
  *   difference.
  * - Colours: tableColor(runtime, left - right + 128).
- * - Sound: prepareSoundData(buffer.width(), 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, buffer.width(), 0) from context processed wave data.
  *
  * wave_spiral
  * - Entry: Spiral (Spirograph)
  * - Does: draws a changing spirograph from center using current amplitude.
  * - Colours: one cycling value per frame, drawn as tableColor(runtime, col).
- * - Sound: audioMetrics.amplitude, amplitudeLeft, and amplitudeRight shape
+ * - Sound: context.audioMetrics amplitude, amplitudeLeft, and amplitudeRight shape
  *   the curve; runtime.fire() counts down to the next random twist count.
  *
  * wave_pyro
@@ -317,7 +315,7 @@ static void init_wave_options() {
  *   sample differences.
  * - Colours: table-mapped channel intensity, so louder samples use higher
  *   palette table entries.
- * - Sound: prepareSoundData((buffer.width() / 10) + 1, 0) from audioFrameProcessedWaveData().
+ * - Sound: PreparedWaveSamples(context, (buffer.width() / 10) + 1, 0) from context processed wave data.
  *
  * wave_corner
  * - Entry: Corner (Corner)
@@ -329,7 +327,7 @@ static void init_wave_options() {
  * - Entry: Jump (Jumping points)
  * - Does: per-column points jump away from the vertical center with inertia.
  * - Colours: raw palette index 255.
- * - Sound: prepareSoundData(buffer.width()) from audioFrameProcessedWaveData(); left and
+ * - Sound: PreparedWaveSamples(context, buffer.width()) from context processed wave data; left and
  *   right samples are summed per column.
  *
  * wave_sticks
@@ -350,19 +348,6 @@ static void init_wave_options() {
  * - Colours: none.
  * - Sound: none.
  */
-
-/*****************************************************************************/
-static int Bsine[MAX_BUFF_WIDTH]; /* sine in 1/current buffer width */
-static int BsineWidth = 0;
-
-static void prepareBsine(CthughaBuffer& buffer) {
-    if (BsineWidth == buffer.width())
-        return;
-
-    BsineWidth = buffer.width();
-    for (int i = 0; i < BsineWidth; i++)
-        Bsine[i] = (int)(128 * sin((float)i / ((float)BsineWidth) * 2.0 * M_PI));
-}
 
 static void draw_line(CthughaBuffer& buffer, int x1, int y1, int x2, int y2, int c);
 
@@ -546,6 +531,36 @@ static int tableColor(WaveRuntime& runtime, int value) {
     return tables[runtime.table][value];
 }
 
+static const char2* processedWaveData(const VisualFrameContext& context) {
+    if (context.processedWaveData != 0)
+        return context.processedWaveData;
+
+    if (context.audioFrame != 0)
+        return context.audioFrame->processedWaveData;
+
+    static char2 silentProcessedWaveData[1024];
+    return silentProcessedWaveData;
+}
+
+static const AudioMetrics& metrics(const VisualFrameContext& context) {
+    if (context.audioMetrics != 0)
+        return *context.audioMetrics;
+
+    static AudioMetrics silentMetrics;
+    return silentMetrics;
+}
+
+static double frameNow(const VisualFrameContext& context) {
+    return context.now;
+}
+
+static int frameRate(const VisualFrameContext& context) {
+    if (context.deltaT > 0.0)
+        return max(1, int((1.0 / context.deltaT) + 0.5));
+
+    return 60;
+}
+
 #define PRECESSION_TIME_MIN 4.0
 #define PRECESSION_TIME_MAX 12.0
 
@@ -648,16 +663,17 @@ static void precess_axis(const double baseAxis[3], double coneAngle, double phas
  * and returns a modest radial stretch.  The same vertex coordinate therefore
  * gets the same stretch wherever it appears in the line list.
  */
-static double vertex_sound_stretch(int x, int y, int z) {
+static double vertex_sound_stretch(const VisualFrameContext& context, int x, int y, int z) {
     int i;
     int sound = 0;
     int slice = mod(x * 73 + y * 151 + z * 251, 1024);
     const int samples = 8;
+    const char2* waveData = processedWaveData(context);
 
     for (i = 0; i < samples; i++) {
         int sample = (slice + i) & 1023;
-        sound += abs(audioFrameProcessedWaveData()[sample][0]);
-        sound += abs(audioFrameProcessedWaveData()[sample][1]);
+        sound += abs(waveData[sample][0]);
+        sound += abs(waveData[sample][1]);
     }
 
     double amp = (double)sound / (double)(samples * 2 * 128);
@@ -725,13 +741,14 @@ static int setup_wire_object(CthughaBuffer& buffer, WaveRuntime& runtime,
     return 1;
 }
 
-static double wire_sound_scale(double screenScale) {
+static double wire_sound_scale(const VisualFrameContext& context, double screenScale) {
     int i;
     int sound = 0;
+    const char2* waveData = processedWaveData(context);
 
     for (i = 0; i < 1024; i++) {
-        sound += abs(audioFrameProcessedWaveData()[i][0]);
-        sound += abs(audioFrameProcessedWaveData()[i][1]);
+        sound += abs(waveData[i][0]);
+        sound += abs(waveData[i][1]);
     }
 
     return screenScale * (0.60 + 1.40 * ((double)sound / (double)(1024 * 2 * 128)));
@@ -894,22 +911,359 @@ void do_hwave(CthughaBuffer& buffer, int xstart, int xend, int y, int val) {
     }
 }
 
-static int data[MAX_BUFF_WIDTH][2];
+class PreparedWaveSamples {
+    const char2* waveData;
+    int step;
+    int addValue;
 
-//
-// scale the sound data to the number of samples needed
-//
-void prepareSoundData(int n, int add = 128) {
-    int p = 0;
-    int s = (1024 << 16) / n;
+public:
+    PreparedWaveSamples(const VisualFrameContext& context, int n, int add = 128)
+        : waveData(processedWaveData(context))
+        , step(n > 0 ? (1024 << 16) / n : 0)
+        , addValue(add) { }
 
-    for (int i = 0; i < n; i++) {
-        data[i][0] = audioFrameProcessedWaveData()[p >> 16][0] + add;
-        data[i][1] = audioFrameProcessedWaveData()[p >> 16][1] + add;
+    int sample(int index, int channel) const {
+        int source = (index * step) >> 16;
 
-        p += s;
+        if (source < 0)
+            source = 0;
+        if (source > 1023)
+            source = 1023;
+
+        return waveData[source][channel] + addValue;
     }
-}
+};
+
+class WaveRenderer {
+public:
+    virtual ~WaveRenderer() { }
+    virtual void execute(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) const = 0;
+};
+
+class ProcessedWaveDataRenderer : public WaveRenderer {
+protected:
+    static int color(WaveRuntime& runtime, int value) {
+        return tableColor(runtime, value);
+    }
+
+    static int scaledSample(int value, int waveScale) {
+        return value >> waveScale;
+    }
+};
+
+class DotWaveRenderer : public ProcessedWaveDataRenderer {
+public:
+    enum Orientation {
+        Horizontal,
+        Vertical
+    };
+
+private:
+    Orientation orientation;
+
+public:
+    DotWaveRenderer(Orientation orientation_)
+        : orientation(orientation_) { }
+
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) const {
+        int x, sample;
+
+        if (orientation == Horizontal) {
+            PreparedWaveSamples sound(context, buffer.width());
+
+            for (x = 0; x < buffer.width(); x++) {
+                sample = sound.sample(x, 0);
+                putpixel_cut(buffer, x >> 1,
+                    LOW_LINE - scaledSample(sample, runtime.waveScale),
+                    color(runtime, sample));
+
+                sample = sound.sample(x, 1);
+                putpixel_cut(buffer, (x + buffer.width()) >> 1,
+                    LOW_LINE - scaledSample(sample, runtime.waveScale),
+                    color(runtime, sample));
+            }
+            return;
+        }
+
+        PreparedWaveSamples sound(context, BOTTOM);
+
+        for (x = 0; x < BOTTOM; x++) {
+            sample = sound.sample(x, 0);
+            putpixel_cut(buffer,
+                MID_X - scaledSample(sample, runtime.waveScale), x,
+                color(runtime, sample));
+
+            sample = sound.sample(x, 1);
+            putpixel_cut(buffer,
+                MID_X + scaledSample(sample, runtime.waveScale), x,
+                color(runtime, sample));
+        }
+    }
+};
+
+class LineWaveRenderer : public ProcessedWaveDataRenderer {
+public:
+    enum Variant {
+        Horizontal,
+        Vertical,
+        Walking,
+        OffsetPair
+    };
+
+private:
+    struct HorizontalState {
+        int last;
+
+        HorizontalState()
+            : last(0) { }
+    };
+
+    struct WalkingState {
+        int column;
+
+        WalkingState()
+            : column(128) { }
+    };
+
+    Variant variant;
+
+public:
+    LineWaveRenderer(Variant variant_)
+        : variant(variant_) { }
+
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) const {
+        switch (variant) {
+        case Horizontal:
+            executeHorizontal(buffer, context, runtime);
+            break;
+        case Vertical:
+            executeVertical(buffer, context, runtime);
+            break;
+        case Walking:
+            executeWalking(buffer, context, runtime);
+            break;
+        case OffsetPair:
+            executeOffsetPair(buffer, context, runtime);
+            break;
+        }
+    }
+
+private:
+    void executeHorizontal(CthughaBuffer& buffer, const VisualFrameContext& context,
+        WaveRuntime& runtime) const {
+        int x, y, sample;
+        HorizontalState& state = runtime.state<HorizontalState>();
+
+        PreparedWaveSamples sound(context, buffer.width());
+
+        for (y = 0; y < 2; y++) {
+            for (x = 0; x < buffer.width(); x++) {
+                sample = sound.sample(x, y);
+                do_vwave(buffer,
+                    MID_Y - ((sample - 128) >> runtime.waveScale),
+                    MID_Y - ((state.last - 128) >> runtime.waveScale),
+                    y ? ((x + buffer.width()) >> 1) : (x >> 1),
+                    color(runtime, sample));
+                state.last = sample;
+            }
+        }
+    }
+
+    void executeVertical(CthughaBuffer& buffer, const VisualFrameContext& context,
+        WaveRuntime& runtime) const {
+        int x, sample;
+        int last1 = 128;
+        int last2 = 128;
+
+        PreparedWaveSamples sound(context, BOTTOM);
+
+        for (x = 0; x < BOTTOM; x++) {
+            sample = sound.sample(x, 0);
+            do_hwave(buffer,
+                MID_X - scaledSample(sample, runtime.waveScale),
+                MID_X - scaledSample(last1, runtime.waveScale), x,
+                color(runtime, sample));
+            last1 = sample;
+
+            sample = sound.sample(x, 1);
+            do_hwave(buffer,
+                MID_X + scaledSample(sample, runtime.waveScale),
+                MID_X + scaledSample(last2, runtime.waveScale), x,
+                color(runtime, sample));
+            last2 = sample;
+        }
+    }
+
+    void executeWalking(CthughaBuffer& buffer, const VisualFrameContext& context,
+        WaveRuntime& runtime) const {
+        int x, sample;
+        int last1 = 128;
+        int last2 = 128;
+        WalkingState& state = runtime.state<WalkingState>();
+
+        state.column = (state.column + 1) % buffer.width();
+
+        PreparedWaveSamples sound(context, BOTTOM);
+
+        for (x = 0; x < BOTTOM; x++) {
+            sample = sound.sample(x, 0);
+            do_hwave(buffer,
+                state.column - scaledSample(sample, runtime.waveScale),
+                state.column - scaledSample(last1, runtime.waveScale), x,
+                color(runtime, sample));
+            last1 = sample;
+
+            sample = sound.sample(x, 1);
+            do_hwave(buffer,
+                state.column + scaledSample(sample, runtime.waveScale),
+                state.column + scaledSample(last2, runtime.waveScale), x,
+                color(runtime, sample));
+            last2 = sample;
+        }
+    }
+
+    void executeOffsetPair(CthughaBuffer& buffer, const VisualFrameContext& context,
+        WaveRuntime& runtime) const {
+        int x, sample;
+        int last = 128;
+
+        PreparedWaveSamples sound(context, BOTTOM);
+
+        for (x = 0; x < BOTTOM; x++) {
+            sample = sound.sample(x, 0);
+            do_hwave(buffer,
+                MID_X - scaledSample(sample, runtime.waveScale),
+                MID_X - scaledSample(last, runtime.waveScale), x,
+                color(runtime, sample));
+            last = sample;
+        }
+        for (x = 0; x < BOTTOM; x++) {
+            sample = sound.sample(x, 1);
+            do_hwave(buffer,
+                MID_X - 40 + scaledSample(sample, runtime.waveScale),
+                MID_X - 40 + scaledSample(last, runtime.waveScale), x,
+                color(runtime, sample));
+            last = sample;
+        }
+    }
+};
+
+class SpikeWaveRenderer : public ProcessedWaveDataRenderer {
+public:
+    enum Style {
+        Filled,
+        Hollow
+    };
+
+private:
+    Style style;
+
+public:
+    SpikeWaveRenderer(Style style_)
+        : style(style_) { }
+
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) const {
+        if (style == Filled)
+            executeFilled(buffer, context, runtime);
+        else
+            executeHollow(buffer, context, runtime);
+    }
+
+private:
+    void executeFilled(CthughaBuffer& buffer, const VisualFrameContext& context,
+        WaveRuntime& runtime) const {
+        int x, sample, y;
+
+        PreparedWaveSamples sound(context, buffer.width(), 0);
+
+        for (x = 0; x < buffer.width(); x++) {
+            sample = (2 * abs(sound.sample(x, 0))) >> runtime.waveScale;
+            if (sample >= BOTTOM)
+                sample = BOTTOM - 1;
+            for (y = 0; y < sample; y++)
+                putat(buffer, x >> 1, BOTTOM - y, color(runtime, y));
+
+            sample = (2 * abs(sound.sample(x, 1))) >> runtime.waveScale;
+            if (sample >= BOTTOM)
+                sample = BOTTOM - 1;
+            for (y = 0; y < sample; y++)
+                putat(buffer, (x + buffer.width()) >> 1, BOTTOM - y,
+                    color(runtime, y));
+        }
+    }
+
+    void executeHollow(CthughaBuffer& buffer, const VisualFrameContext& context,
+        WaveRuntime& runtime) const {
+        int channel, x, sample;
+        int last = 0;
+
+        PreparedWaveSamples sound(context, buffer.width(), 0);
+
+        for (channel = 0; channel < 2; channel++) {
+            for (x = 0; x < buffer.width(); x++) {
+                sample = (2 * abs(sound.sample(x, channel))) >> runtime.waveScale;
+                do_vwave(buffer, BOTTOM - sample, BOTTOM - last,
+                    channel ? ((x + buffer.width()) >> 1) : (x >> 1),
+                    color(runtime, sample));
+                last = sample;
+            }
+        }
+    }
+};
+
+class LightningWaveRenderer : public WaveRenderer {
+public:
+    enum SamplePreparation {
+        HeightSamples,
+        WidthSamples
+    };
+
+private:
+    SamplePreparation samplePreparation;
+    int sampleShift;
+
+public:
+    LightningWaveRenderer(SamplePreparation samplePreparation_, int sampleShift_)
+        : samplePreparation(samplePreparation_)
+        , sampleShift(sampleShift_) { }
+
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) const {
+        (void)runtime;
+
+        PreparedWaveSamples sound(context, samplePreparation == HeightSamples ? BOTTOM : buffer.width(), 0);
+        drawChannel(buffer, sound, 0, buffer.width() / 3);
+        drawChannel(buffer, sound, 1, 2 * buffer.width() / 3);
+    }
+
+private:
+    void drawChannel(CthughaBuffer& buffer, const PreparedWaveSamples& sound,
+        int channel, int startX) const {
+        int last = startX;
+
+        for (int y = 0; y < BOTTOM; y++) {
+            int x = (sound.sample(y, channel) >> sampleShift) + last;
+
+            if (x >= buffer.width())
+                x = buffer.width() - 1;
+            if (x < 0)
+                x = 0;
+
+            do_hwave(buffer, x, last, y, 255);
+            last = x;
+        }
+    }
+};
+
+static const DotWaveRenderer dotHorizontalWave(DotWaveRenderer::Horizontal);
+static const DotWaveRenderer dotVerticalWave(DotWaveRenderer::Vertical);
+static const LineWaveRenderer lineHorizontalWave(LineWaveRenderer::Horizontal);
+static const LineWaveRenderer lineVerticalWave(LineWaveRenderer::Vertical);
+static const LineWaveRenderer walkingLineWave(LineWaveRenderer::Walking);
+static const LineWaveRenderer offsetPairLineWave(LineWaveRenderer::OffsetPair);
+static const SpikeWaveRenderer filledSpikeWave(SpikeWaveRenderer::Filled);
+static const SpikeWaveRenderer hollowSpikeWave(SpikeWaveRenderer::Hollow);
+static const LightningWaveRenderer lightningHeightWave(LightningWaveRenderer::HeightSamples, 4);
+static const LightningWaveRenderer lightningWidthWave(LightningWaveRenderer::WidthSamples, 5);
 
 /*****************************************************************************
  *
@@ -924,10 +1278,10 @@ void prepareSoundData(int n, int add = 128) {
  *****************************************************************************/
 
 /* Writes no pixels. */
-void wave_none(CthughaBuffer& buffer, WaveRuntime& runtime) { }
+void wave_none(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { }
 
 /* Writes fixed raw palette indices: 48, 96, 128, 160, 192, 224, and 255. */
-void wave_grid(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_grid(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     for (int y = 0; y < buffer.height(); y++) {
         for (int x = 0; x < buffer.width(); x++) {
             int c = 0;
@@ -959,19 +1313,8 @@ void wave_grid(CthughaBuffer& buffer, WaveRuntime& runtime) {
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_dotHor(CthughaBuffer& buffer, WaveRuntime& runtime) { /* dot horizontal */
-    int x, tmp;
-
-    prepareSoundData(buffer.width());
-
-    for (x = 0; x < buffer.width(); x++) {
-        tmp = data[x][0];
-        putpixel_cut(buffer, x >> 1, LOW_LINE - (tmp >> runtime.waveScale), tableColor(runtime, tmp));
-
-        tmp = data[x][1];
-        putpixel_cut(buffer, (x + buffer.width()) >> 1, LOW_LINE - (tmp >> runtime.waveScale),
-            tableColor(runtime, tmp));
-    }
+void wave_dotHor(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* dot horizontal */
+    dotHorizontalWave.execute(buffer, context, runtime);
 }
 
 /*****************************************************************************
@@ -979,18 +1322,8 @@ void wave_dotHor(CthughaBuffer& buffer, WaveRuntime& runtime) { /* dot horizonta
  *****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_dotVert(CthughaBuffer& buffer, WaveRuntime& runtime) { /* dot vertical */
-    int tmp, x;
-
-    prepareSoundData(BOTTOM);
-
-    for (x = 0; x < BOTTOM; x++) {
-        tmp = data[x][0];
-        putpixel_cut(buffer, MID_X - (tmp >> runtime.waveScale), x, tableColor(runtime, tmp));
-
-        tmp = data[x][1];
-        putpixel_cut(buffer, MID_X + (tmp >> runtime.waveScale), x, tableColor(runtime, tmp));
-    }
+void wave_dotVert(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* dot vertical */
+    dotVerticalWave.execute(buffer, context, runtime);
 }
 
 /****************************************************************************
@@ -998,25 +1331,8 @@ void wave_dotVert(CthughaBuffer& buffer, WaveRuntime& runtime) { /* dot vertical
  ****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_lineHor(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Line horizontal */
-    int x, y, tmp;
-    struct State {
-        int last;
-        State()
-            : last(0) { }
-    };
-    State& state = runtime.state<State>();
-
-    prepareSoundData(buffer.width());
-
-    for (y = 0; y < 2; y++)
-        for (x = 0; x < buffer.width(); x++) {
-            tmp = data[x][y];
-            do_vwave(buffer, MID_Y - ((tmp - 128) >> runtime.waveScale),
-                MID_Y - ((state.last - 128) >> runtime.waveScale),
-                y ? ((x + buffer.width()) >> 1) : (x >> 1), tableColor(runtime, tmp));
-            state.last = tmp;
-        }
+void wave_lineHor(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Line horizontal */
+    lineHorizontalWave.execute(buffer, context, runtime);
 }
 
 /****************************************************************************
@@ -1024,22 +1340,8 @@ void wave_lineHor(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Line horizon
  ****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_lineVert(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Line veritcal short */
-    int tmp, x, last1 = 128, last2 = 128;
-
-    prepareSoundData(BOTTOM);
-
-    for (x = 0; x < BOTTOM; x++) {
-        tmp = data[x][0];
-        do_hwave(buffer, MID_X - (tmp >> runtime.waveScale),
-            MID_X - (last1 >> runtime.waveScale), x, tableColor(runtime, tmp));
-        last1 = tmp;
-
-        tmp = data[x][1];
-        do_hwave(buffer, MID_X + (tmp >> runtime.waveScale),
-            MID_X + (last2 >> runtime.waveScale), x, tableColor(runtime, tmp));
-        last2 = tmp;
-    }
+void wave_lineVert(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Line veritcal short */
+    lineVerticalWave.execute(buffer, context, runtime);
 }
 
 /****************************************************************************
@@ -1047,40 +1349,13 @@ void wave_lineVert(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Line veritc
  ****************************************************************************/
 
 /* Writes table-mapped spike-height indices, tableColor(runtime, 0..BOTTOM-1). */
-void wave_spike(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Spike */
-    int x, tmp, i;
-
-    prepareSoundData(buffer.width(), 0);
-
-    for (x = 0; x < buffer.width(); x++) {
-        tmp = 2 * abs(data[x][0]) >> runtime.waveScale;
-        if (tmp >= BOTTOM)
-            tmp = BOTTOM - 1;
-        for (i = 0; i < tmp; i++)
-            putat(buffer, x >> 1, BOTTOM - i, tableColor(runtime, i));
-
-        tmp = 2 * abs(data[x][1]) >> runtime.waveScale;
-        if (tmp >= BOTTOM)
-            tmp = BOTTOM - 1;
-        for (i = 0; i < tmp; i++)
-            putat(buffer, (x + buffer.width()) >> 1, BOTTOM - i, tableColor(runtime, i));
-    }
+void wave_spike(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Spike */
+    filledSpikeWave.execute(buffer, context, runtime);
 }
 
 /* Writes table-mapped scaled-amplitude indices, tableColor(runtime, amplitude). */
-void wave_spikeH(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Spike hollow */
-    int tmp, x, y, last = 0;
-
-    prepareSoundData(buffer.width(), 0);
-
-    for (y = 0; y < 2; y++) {
-        for (x = 0; x < buffer.width(); x++) {
-            tmp = 2 * abs(data[x][y]) >> runtime.waveScale;
-            do_vwave(buffer, BOTTOM - tmp, BOTTOM - last,
-                y ? ((x + buffer.width()) >> 1) : (x >> 1), tableColor(runtime, tmp));
-            last = tmp;
-        }
-    }
+void wave_spikeH(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Spike hollow */
+    hollowSpikeWave.execute(buffer, context, runtime);
 }
 
 /*****************************************************************************
@@ -1088,33 +1363,11 @@ void wave_spikeH(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Spike hollow 
  *****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff9(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Walking */
-    int tmp, x, last1 = 128, last2 = 128;
-    struct State {
-        int col;
-        State()
-            : col(128) { }
-    };
-    State& state = runtime.state<State>();
-
-    state.col = (state.col + 1) % buffer.width();
-
-    prepareSoundData(BOTTOM);
-
-    for (x = 0; x < BOTTOM; x++) {
-        tmp = data[x][0];
-        do_hwave(buffer, state.col - (tmp >> runtime.waveScale),
-            state.col - (last1 >> runtime.waveScale), x, tableColor(runtime, tmp));
-        last1 = tmp;
-
-        tmp = data[x][1];
-        do_hwave(buffer, state.col + (tmp >> runtime.waveScale),
-            state.col + (last2 >> runtime.waveScale), x, tableColor(runtime, tmp));
-        last2 = tmp;
-    }
+void wave_buff9(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Walking */
+    walkingLineWave.execute(buffer, context, runtime);
 }
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff10(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Falling */
+void wave_buff10(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Falling */
     int i;
     struct State {
         int row;
@@ -1123,120 +1376,47 @@ void wave_buff10(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Falling */
     };
     State& state = runtime.state<State>();
 
-    prepareSoundData(2 * MID_X);
+    PreparedWaveSamples sound(context, 2 * MID_X);
 
     state.row = (state.row + 1) % BOTTOM;
     for (i = 0; i < MID_X; i++) {
-        putat(buffer, i, state.row + 1, tableColor(runtime, data[i][0]));
-        putat(buffer, i + MID_X, state.row + 1, tableColor(runtime, data[i][1]));
-        putat(buffer, i, state.row, tableColor(runtime, data[i + MID_X][0]));
-        putat(buffer, i + MID_X, state.row, tableColor(runtime, data[i + MID_X][1]));
+        putat(buffer, i, state.row + 1, tableColor(runtime, sound.sample(i, 0)));
+        putat(buffer, i + MID_X, state.row + 1, tableColor(runtime, sound.sample(i, 1)));
+        putat(buffer, i, state.row, tableColor(runtime, sound.sample(i + MID_X, 0)));
+        putat(buffer, i + MID_X, state.row, tableColor(runtime, sound.sample(i + MID_X, 1)));
     }
 }
 
 /* Writes table-mapped left-channel sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff11(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Lissa */
+void wave_buff11(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Lissa */
     int tmp, x, tmp2;
 
-    prepareSoundData(buffer.width());
+    PreparedWaveSamples sound(context, buffer.width());
 
     for (x = 0; x < buffer.width(); x++) {
-        tmp = data[x][0];
-        tmp2 = data[x][1];
+        tmp = sound.sample(x, 0);
+        tmp2 = sound.sample(x, 1);
 
         putat(buffer, (tmp2 + 32) % buffer.width(), (tmp + 200 - 28) % BOTTOM, tableColor(runtime, tmp));
     }
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff14(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Line X */
-    int tmp, x, last = 128;
-
-    prepareSoundData(BOTTOM);
-
-    for (x = 0; x < BOTTOM; x++) {
-        tmp = data[x][0];
-        do_hwave(buffer, MID_X - (tmp >> runtime.waveScale),
-            MID_X - (last >> runtime.waveScale), x, tableColor(runtime, tmp));
-        last = tmp;
-    }
-    for (x = 0; x < BOTTOM; x++) {
-        tmp = data[x][1];
-        do_hwave(buffer, MID_X - 40 + (tmp >> runtime.waveScale),
-            MID_X - 40 + (last >> runtime.waveScale), x, tableColor(runtime, tmp));
-        last = tmp;
-    }
+void wave_buff14(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Line X */
+    offsetPairLineWave.execute(buffer, context, runtime);
 }
 
 /* Writes fixed raw palette index 255. */
-void wave_buff15(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Lightning 1 */
-    int tmp, x, last = buffer.width() / 3;
-
-    prepareSoundData(BOTTOM, 0);
-
-    for (x = 0; x < BOTTOM; x++) {
-
-        tmp = (data[x][0] >> 4) + last;
-
-        if (tmp >= buffer.width())
-            tmp = buffer.width() - 1;
-        if (tmp < 0)
-            tmp = 0;
-
-        do_hwave(buffer, tmp, last, x, 255);
-        last = tmp;
-    }
-
-    last = 2 * buffer.width() / 3;
-    for (x = 0; x < BOTTOM; x++) {
-
-        tmp = (data[x][1] >> 4) + last;
-
-        if (tmp >= buffer.width())
-            tmp = buffer.width() - 1;
-        if (tmp < 0)
-            tmp = 0;
-
-        do_hwave(buffer, tmp, last, x, 255);
-        last = tmp;
-    }
+void wave_buff15(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Lightning 1 */
+    lightningHeightWave.execute(buffer, context, runtime);
 }
 /* Writes fixed raw palette index 255. */
-void wave_buff16(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Lightning 2 */
-    int tmp, x, last = buffer.width() / 3;
-
-    prepareSoundData(buffer.width(), 0);
-
-    for (x = 0; x < BOTTOM; x++) {
-
-        tmp = (data[x][0] >> 5) + last;
-
-        if (tmp >= buffer.width())
-            tmp = buffer.width() - 1;
-        if (tmp < 0)
-            tmp = 0;
-
-        do_hwave(buffer, tmp, last, x, 255);
-        last = tmp;
-    }
-
-    last = 2 * buffer.width() / 3;
-    for (x = 0; x < BOTTOM; x++) {
-
-        tmp = (data[x][1] >> 5) + last;
-
-        if (tmp >= buffer.width())
-            tmp = buffer.width() - 1;
-        if (tmp < 0)
-            tmp = 0;
-
-        do_hwave(buffer, tmp, last, x, 255);
-        last = tmp;
-    }
+void wave_buff16(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Lightning 2 */
+    lightningWidthWave.execute(buffer, context, runtime);
 }
 
 /* Writes table-mapped sound sample indices, mostly tableColor(runtime, sample) across 0..255. */
-void wave_pete0(CthughaBuffer& buffer, WaveRuntime& runtime) { /* FireFlies */
+void wave_pete0(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* FireFlies */
     int temp, temp2, x;
     struct State {
         int xoff0, yoff0;
@@ -1249,13 +1429,13 @@ void wave_pete0(CthughaBuffer& buffer, WaveRuntime& runtime) { /* FireFlies */
     };
     State& state = runtime.state<State>();
 
-    prepareSoundData(buffer.width());
+    PreparedWaveSamples sound(context, buffer.width());
 
-    state.xoff0 += (data[0][0]) % 9 - 4;
-    state.yoff0 += (data[1][0]) % 9 - 4;
+    state.xoff0 += (sound.sample(0, 0)) % 9 - 4;
+    state.yoff0 += (sound.sample(1, 0)) % 9 - 4;
 
-    state.xoff1 += (data[0][1]) % 9 - 4;
-    state.yoff1 += (data[1][1]) % 9 - 4;
+    state.xoff1 += (sound.sample(0, 1)) % 9 - 4;
+    state.yoff1 += (sound.sample(1, 1)) % 9 - 4;
 
     while (state.xoff0 < 0)
         state.xoff0 += buffer.width();
@@ -1274,28 +1454,31 @@ void wave_pete0(CthughaBuffer& buffer, WaveRuntime& runtime) { /* FireFlies */
     state.yoff1 = state.yoff1 % buffer.height();
 
     for (x = 0; x < buffer.width(); x++) {
-        temp = data[x][0];
-        temp2 = data[(x + 80) % buffer.width()][0];
+        temp = sound.sample(x, 0);
+        temp2 = sound.sample((x + 80) % buffer.width(), 0);
 
         putat(buffer, ((temp2 >> 2) + state.xoff0) % buffer.width(), ((temp >> 2) + state.yoff0) % BOTTOM, tableColor(runtime, temp));
 
-        temp = data[x][1] + 128;
-        temp2 = data[(x + 80) % buffer.width()][1] + 128;
+        temp = sound.sample(x, 1) + 128;
+        temp2 = sound.sample((x + 80) % buffer.width(), 1) + 128;
 
         putat(buffer, ((temp2 >> 2) + state.xoff1) % buffer.width(), ((temp >> 2) + state.yoff1) % BOTTOM, tableColor(runtime, temp));
     }
 }
 
 /* Writes table-mapped signed-amplitude indices, tableColor(runtime, sample). */
-void wave_pete1(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_pete1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     int tmp, x, left = 0, right = 0;
+    const int* widthSine = runtime.sineForWidth(buffer.width());
 
-    prepareBsine(buffer);
-    prepareSoundData(buffer.width(), 0);
+    if (widthSine == 0)
+        return;
+
+    PreparedWaveSamples sound(context, buffer.width(), 0);
 
     for (x = 0; x < buffer.width(); x++) {
-        left += abs(data[x][0]);
-        right += abs(data[x][1]);
+        left += abs(sound.sample(x, 0));
+        right += abs(sound.sample(x, 1));
     }
 
     left = left / MID_X;
@@ -1305,31 +1488,31 @@ void wave_pete1(CthughaBuffer& buffer, WaveRuntime& runtime) {
     right = min(right, BOTTOM);
 
     for (x = 0; x < MID_X; x++) {
-        tmp = data[x][0];
-        putat_cut(buffer, x, BOTTOM - (abs(left * Bsine[x]) >> 8), tableColor(runtime, tmp));
+        tmp = sound.sample(x, 0);
+        putat_cut(buffer, x, BOTTOM - (abs(left * widthSine[x]) >> 8), tableColor(runtime, tmp));
     }
     for (x = MID_X; x < buffer.width(); x++) {
-        tmp = data[x][1];
-        putat_cut(buffer, x, BOTTOM - (abs(right * Bsine[x]) >> 8), tableColor(runtime, tmp));
+        tmp = sound.sample(x, 1);
+        putat_cut(buffer, x, BOTTOM - (abs(right * widthSine[x]) >> 8), tableColor(runtime, tmp));
     }
 }
 
 /* Writes table-mapped sine lookup indices, tableColor(runtime, sine[sample]). */
-void wave_pete2(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Dot VS sine */
+void wave_pete2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Dot VS sine */
     int x, tmp;
 
-    prepareSoundData(buffer.height());
+    PreparedWaveSamples sound(context, buffer.height());
 
     for (x = 0; x < buffer.height(); x++) {
-        tmp = data[x][0];
+        tmp = sound.sample(x, 0);
         putat_cut(buffer, MID_X - (tmp >> runtime.waveScale), x, tableColor(runtime, sine[tmp]));
-        tmp = data[x][1];
+        tmp = sound.sample(x, 1);
         putat_cut(buffer, MID_X + (tmp >> runtime.waveScale), x, tableColor(runtime, sine[tmp]));
     }
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_fract1(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 1*/
+void wave_fract1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Zippy 1*/
     int temp, x;
     struct State {
         int xoff0, yoff0;
@@ -1342,12 +1525,12 @@ void wave_fract1(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 1*/
     };
     State& state = runtime.state<State>();
 
-    prepareSoundData(buffer.width());
+    PreparedWaveSamples sound(context, buffer.width());
 
-    temp = data[0][0];
+    temp = sound.sample(0, 0);
     for (x = 0; x < buffer.width() - 2; x += 2) {
-        state.xoff0 += (data[x][0] - temp) >> 1;
-        temp = data[x][0];
+        state.xoff0 += (sound.sample(x, 0) - temp) >> 1;
+        temp = sound.sample(x, 0);
 
         while (state.xoff0 < 0)
             state.xoff0 = buffer.width() - 1;
@@ -1356,8 +1539,8 @@ void wave_fract1(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 1*/
 
         putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
 
-        state.yoff0 += (data[x + 1][0] - temp) >> 1;
-        temp = data[x + 1][0];
+        state.yoff0 += (sound.sample(x + 1, 0) - temp) >> 1;
+        temp = sound.sample(x + 1, 0);
 
         while (state.yoff0 < 0)
             state.yoff0 = buffer.height() - 1;
@@ -1367,10 +1550,10 @@ void wave_fract1(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 1*/
         putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
     }
 
-    temp = data[0][1];
+    temp = sound.sample(0, 1);
     for (x = 0; x < buffer.width() - 2; x += 2) {
-        state.xoff1 += (data[x][1] - temp) >> 1;
-        temp = data[x][1];
+        state.xoff1 += (sound.sample(x, 1) - temp) >> 1;
+        temp = sound.sample(x, 1);
 
         if (state.xoff1 < 0)
             state.xoff1 = buffer.width() - 1;
@@ -1379,8 +1562,8 @@ void wave_fract1(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 1*/
 
         putat(buffer, state.xoff1, state.yoff1, tableColor(runtime, temp));
 
-        state.yoff1 -= (data[x + 1][1] - temp) >> 1;
-        temp = data[x + 1][1];
+        state.yoff1 -= (sound.sample(x + 1, 1) - temp) >> 1;
+        temp = sound.sample(x + 1, 1);
 
         if (state.yoff1 < 0)
             state.yoff1 = buffer.height() - 1;
@@ -1392,7 +1575,7 @@ void wave_fract1(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 1*/
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_fract2(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 2 */
+void wave_fract2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Zippy 2 */
     int temp, x;
     struct State {
         int xoff0, yoff0;
@@ -1405,12 +1588,12 @@ void wave_fract2(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 2 */
     };
     State& state = runtime.state<State>();
 
-    prepareSoundData(buffer.width());
+    PreparedWaveSamples sound(context, buffer.width());
 
-    temp = data[0][0];
+    temp = sound.sample(0, 0);
     for (x = 0; x < buffer.width() - 2; x += 2) {
-        state.xoff0 += (data[x][0] - temp);
-        temp = data[x][0];
+        state.xoff0 += (sound.sample(x, 0) - temp);
+        temp = sound.sample(x, 0);
 
         if (state.xoff0 < 0)
             state.xoff0 = buffer.width() - 1;
@@ -1419,8 +1602,8 @@ void wave_fract2(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 2 */
 
         putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
 
-        state.yoff0 += (data[x + 1][0] - temp);
-        temp = data[x + 1][0];
+        state.yoff0 += (sound.sample(x + 1, 0) - temp);
+        temp = sound.sample(x + 1, 0);
 
         if (state.yoff0 < 0)
             state.yoff0 = buffer.height() - 1;
@@ -1430,10 +1613,10 @@ void wave_fract2(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 2 */
         putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
     }
 
-    temp = data[0][1];
+    temp = sound.sample(0, 1);
     for (x = 0; x < buffer.width() - 2; x += 2) {
-        state.xoff1 += (data[x][1] - temp);
-        temp = data[x][1];
+        state.xoff1 += (sound.sample(x, 1) - temp);
+        temp = sound.sample(x, 1);
 
         if (state.xoff1 < 0)
             state.xoff1 = buffer.width() - 1;
@@ -1442,8 +1625,8 @@ void wave_fract2(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 2 */
 
         putat(buffer, state.xoff1, state.yoff1, tableColor(runtime, temp));
 
-        state.yoff1 -= (data[x + 1][1] - temp);
-        temp = data[x + 1][1];
+        state.yoff1 -= (sound.sample(x + 1, 1) - temp);
+        temp = sound.sample(x + 1, 1);
 
         if (state.yoff1 < 0)
             state.yoff1 = buffer.height() - 1;
@@ -1455,15 +1638,18 @@ void wave_fract2(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Zippy 2 */
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample + 128), across 0..255. */
-void wave_test(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Test */
+void wave_test(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) { /* Test */
     int temp, x, left = 0, right = 0;
+    const int* widthSine = runtime.sineForWidth(buffer.width());
 
-    prepareBsine(buffer);
-    prepareSoundData(buffer.width(), 0);
+    if (widthSine == 0)
+        return;
+
+    PreparedWaveSamples sound(context, buffer.width(), 0);
 
     for (x = 0; x < buffer.width(); x++) {
-        left += abs(data[x][0]);
-        right += abs(data[x][1]);
+        left += abs(sound.sample(x, 0));
+        right += abs(sound.sample(x, 1));
     }
 
     left = left / (128);
@@ -1473,12 +1659,12 @@ void wave_test(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Test */
     right = min(right, 199);
 
     for (x = 0; x < MID_X; x++) {
-        temp = data[x][0] + 128;
-        putat_cut(buffer, x, BOTTOM - (abs((left)*Bsine[x]) >> 8), tableColor(runtime, temp));
+        temp = sound.sample(x, 0) + 128;
+        putat_cut(buffer, x, BOTTOM - (abs((left)*widthSine[x]) >> 8), tableColor(runtime, temp));
     }
     for (x = MID_X; x < buffer.width(); x++) {
-        temp = data[x][1] + 128;
-        putat_cut(buffer, x, BOTTOM - (abs((right)*Bsine[x]) >> 8), tableColor(runtime, temp));
+        temp = sound.sample(x, 1) + 128;
+        putat_cut(buffer, x, BOTTOM - (abs((right)*widthSine[x]) >> 8), tableColor(runtime, temp));
     }
 }
 
@@ -1490,7 +1676,7 @@ void wave_test(CthughaBuffer& buffer, WaveRuntime& runtime) { /* Test */
  * the rings have a radius of 64.
  */
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_aaron(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_aaron(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         int x, y;
         int first;
@@ -1518,14 +1704,14 @@ void wave_aaron(CthughaBuffer& buffer, WaveRuntime& runtime) {
     if ((buffer.height() > 128) && (buffer.width() >= 256)) {
         register int tmp, i, sx, sy;
 
-        prepareSoundData(buffer.width());
+        PreparedWaveSamples sound(context, buffer.width());
 
         for (i = 0; i < buffer.width(); i++) {
             if (state.y >= 320)
                 state.y -= 320;
             if (state.x >= 320)
                 state.x -= 320;
-            tmp = data[i][0];
+            tmp = sound.sample(i, 0);
 
             sx = (sine[state.x] * tmp) >> 9;
             txl += sx;
@@ -1534,7 +1720,7 @@ void wave_aaron(CthughaBuffer& buffer, WaveRuntime& runtime) {
 
             putat_cut(buffer, state.cxl + sx, state.cyl + sy, tableColor(runtime, tmp));
 
-            tmp = data[i][1];
+            tmp = sound.sample(i, 1);
 
             sx = (sine[state.x] * tmp) >> 9;
             txr += sx;
@@ -1568,7 +1754,7 @@ void wave_aaron(CthughaBuffer& buffer, WaveRuntime& runtime) {
 
 /* Line horizontal long diff */
 /* Writes table-mapped stereo-difference indices, tableColor(runtime, left - right + 128). */
-void wave_lineHLdiff(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_lineHLdiff(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     register int x, tmp;
     struct State {
         int last;
@@ -1577,17 +1763,17 @@ void wave_lineHLdiff(CthughaBuffer& buffer, WaveRuntime& runtime) {
     };
     State& state = runtime.state<State>();
 
-    prepareSoundData(buffer.width(), 0);
+    PreparedWaveSamples sound(context, buffer.width(), 0);
 
     if (buffer.height() < 300) {
         for (x = 0; x < buffer.width(); x++) {
-            tmp = data[x][0] - data[x][1];
+            tmp = sound.sample(x, 0) - sound.sample(x, 1);
             do_vwave(buffer, MID_Y - tmp, MID_Y - state.last, x, tableColor(runtime, tmp + 128));
             state.last = tmp;
         }
     } else {
         for (x = 0; x < buffer.width(); x++) {
-            tmp = data[x][0] - data[x][1];
+            tmp = sound.sample(x, 0) - sound.sample(x, 1);
             do_vwave(buffer, MID_Y - tmp, MID_Y - state.last, x, tableColor(runtime, tmp + 128));
             state.last = tmp << 1;
         }
@@ -1606,7 +1792,7 @@ void wave_lineHLdiff(CthughaBuffer& buffer, WaveRuntime& runtime) {
  * different radii for different edges.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_wire1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         double theta;
         int col;
@@ -1623,6 +1809,7 @@ void wave_wire1(CthughaBuffer& buffer, WaveRuntime& runtime) {
         return;
 
     int i, j, x1, y1, x2, y2;
+    const char2* waveData = processedWaveData(context);
 
     if (object_wave_needs_configuration(runtime))
         state.col = random_wire_color();
@@ -1641,8 +1828,8 @@ void wave_wire1(CthughaBuffer& buffer, WaveRuntime& runtime) {
         sampleCount = max(1024 / frame.n, 1);
         for (j = 0; j < sampleCount; j++) {
             int sample = min(i * sampleCount + j, 1023);
-            s[0] += abs(audioFrameProcessedWaveData()[sample][0]);
-            s[1] += abs(audioFrameProcessedWaveData()[sample][1]);
+            s[0] += abs(waveData[sample][0]);
+            s[1] += abs(waveData[sample][1]);
         }
 
         scale0 = frame.screenScale * (0.60 + 1.40 * ((double)s[0] / (double)(sampleCount * 128)));
@@ -1674,7 +1861,7 @@ void wave_wire1(CthughaBuffer& buffer, WaveRuntime& runtime) {
  * so all vertices move together and the wireframe remains coherent.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1dot5(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_wire1dot5(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         int theta;
         int col;
@@ -1701,7 +1888,7 @@ void wave_wire1dot5(CthughaBuffer& buffer, WaveRuntime& runtime) {
     }
 
     state.theta += 2;
-    scale = wire_sound_scale(frame.screenScale);
+    scale = wire_sound_scale(context, frame.screenScale);
 
     draw_axis_wire_model(buffer, runtime, frame, state.axis, state.theta, scale, cameraDistance, state.col);
 }
@@ -1713,7 +1900,7 @@ void wave_wire1dot5(CthughaBuffer& buffer, WaveRuntime& runtime) {
  * keeps Wire1dot5's coherent frame-wide audio scale.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1dot55(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_wire1dot55(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         int theta;
         int col;
@@ -1746,15 +1933,15 @@ void wave_wire1dot55(CthughaBuffer& buffer, WaveRuntime& runtime) {
         state.coneAngle = random_unit() * M_PI;
         state.precessionTime = PRECESSION_TIME_MIN
             + random_unit() * (PRECESSION_TIME_MAX - PRECESSION_TIME_MIN);
-        state.precessionStart = now;
+        state.precessionStart = frameNow(context);
         state.col = random_wire_color();
     }
 
     precess_axis(state.baseAxis, state.coneAngle,
-        M_PI2 * (now - state.precessionStart) / state.precessionTime, axis);
+        M_PI2 * (frameNow(context) - state.precessionStart) / state.precessionTime, axis);
 
     state.theta += 2;
-    scale = wire_sound_scale(frame.screenScale);
+    scale = wire_sound_scale(context, frame.screenScale);
 
     draw_axis_wire_model(buffer, runtime, frame, axis, state.theta, scale, cameraDistance, state.col);
 }
@@ -1765,7 +1952,7 @@ void wave_wire1dot55(CthughaBuffer& buffer, WaveRuntime& runtime) {
  * slice.  The stretch happens before rotation and perspective projection.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1dot6(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_wire1dot6(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         int theta;
         int col;
@@ -1804,7 +1991,8 @@ void wave_wire1dot6(CthughaBuffer& buffer, WaveRuntime& runtime) {
          * enough to show movement, but not so close that near-side vertices
          * explode as az approaches -cameraDistance.
          */
-        stretch = vertex_sound_stretch(frame.obj[i][0][0], frame.obj[i][0][1], frame.obj[i][0][2]);
+        stretch = vertex_sound_stretch(context,
+            frame.obj[i][0][0], frame.obj[i][0][1], frame.obj[i][0][2]);
         wire_point(frame, i, 0, x, y, z);
         x *= stretch;
         y *= stretch;
@@ -1814,7 +2002,8 @@ void wave_wire1dot6(CthughaBuffer& buffer, WaveRuntime& runtime) {
 
         project_wire_point(buffer, ax, ay, az, frame.screenScale, cameraDistance, x1, y1);
 
-        stretch = vertex_sound_stretch(frame.obj[i][1][0], frame.obj[i][1][1], frame.obj[i][1][2]);
+        stretch = vertex_sound_stretch(context,
+            frame.obj[i][1][0], frame.obj[i][1][1], frame.obj[i][1][2]);
         wire_point(frame, i, 1, x, y, z);
         x *= stretch;
         y *= stretch;
@@ -1847,206 +2036,14 @@ static void init_wire2_copy(int loc[3], int& psi, int& rate, int& col) {
     col = random_wire_color();
 }
 
-/*
- * Wire2 draws a little swarm of copies of the selected object.  The object
- * itself is not reloaded or copied here; every frame reads the currently
- * selected WObject and draws it at each saved swarm location.
- */
-/* Writes per-copy startup-random table-mapped wire indices, tableColor(runtime, random 0..255). */
-void wave_wire2(CthughaBuffer& buffer, WaveRuntime& runtime) {
-    /*
-     * Persistent swarm state.  Each copy has a position in the blob, its own
-     * local spin angle/rate, and a color.  This state belongs to the wave, not
-     * to any particular object, so changing the object swaps the geometry into
-     * the existing animated pattern.
-     */
-    struct State {
-        int theta;
-        int psi[nobj];
-        int rate[nobj];
-        int col[nobj];
-        int loc[nobj][3];
-        double blobAxis[3];
-        State()
-            : theta(0) {
-            memset(psi, 0, sizeof(psi));
-            memset(rate, 0, sizeof(rate));
-            memset(col, 0, sizeof(col));
-            memset(loc, 0, sizeof(loc));
-            blobAxis[0] = 0.0;
-            blobAxis[1] = 1.0;
-            blobAxis[2] = 0.0;
-        }
+class WireSwarmWaveRenderer : public WaveRenderer {
+public:
+    enum ModelRotation {
+        SharedYAxis,
+        PerCopyAxis
     };
-    State& state = runtime.state<State>();
 
-    /* Scratch vertex in object-local or blob-local coordinates. */
-    double x, y, z;
-
-    /* Accumulated 3D point after blob rotation plus local object spin. */
-    double ax, ay, az;
-
-    /* Projection scale and screen origin. */
-    double scl;
-
-    /* Sine/cosine for each object's local spin. */
-    double sto, cto;
-
-    register int i, j, x1, y1, x2, y2;
-    register int mx, my, mz, m;
-
-    /*
-     * Object midpoint and normalization divisor in source coordinate space.
-     * The classic formula deliberately uses the y extent, so flat/wide models
-     * keep the same tall, spindly Wire2 character as the built-in glyphs.
-     */
-    double omx, omy, omz, om;
-    register int ox, oy;
-
-    WObject* theObj = runtime.object;
-    if (theObj == NULL)
-        return;
-
-    /*
-     * Startup state is refreshed when Wire2 first starts, or when callers
-     * explicitly mark the object set as changed. Between those moments the
-     * frame loop only advances theta/psi, so the blob axis and swarm layout do
-     * not jump every frame.
-     */
-    if (object_wave_needs_configuration(runtime)) {
-        /* Rotate the whole blob around a random axis for this swarm lifetime. */
-        random_axis(state.blobAxis);
-
-        /*
-         * Pick a shell position and local spin for each copy. Avoid zero
-         * radius and zero spin so no model sits fixed in the center.
-         */
-        for (i = 0; i < nobj; i++) {
-            init_wire2_copy(state.loc[i], state.psi[i], state.rate[i], state.col[i]);
-            CTH_DEBUG("model %d: rate %d, psi %d, col %d\n",
-                i, state.rate[i], state.psi[i], state.col[i]);
-
-        }
-    }
-
-    state.theta += 1;
-
-    mx = my = mz = 0;
-    omx = omy = omz = 0;
-
-    for (i = 0; theObj[i][0][0] != -1; i++)
-        for (j = 0; j < 2; j++) {
-
-            if (theObj[i][j][0] > omx)
-                omx = theObj[i][j][0];
-
-            if (theObj[i][j][1] > omy)
-                omy = theObj[i][j][1];
-
-            if (theObj[i][j][2] > omz)
-                omz = theObj[i][j][2];
-        }
-
-    omx /= 2.0;
-    omy /= 2.0;
-    omz /= 2.0;
-    om = omy;
-    om /= 3.0;
-
-    for (i = 0; i < nobj; i++) {
-        if (state.loc[i][0] > mx)
-            mx = state.loc[i][0];
-
-        if (state.loc[i][1] > my)
-            my = state.loc[i][1];
-
-        if (state.loc[i][2] > mz)
-            mz = state.loc[i][2];
-    }
-
-    m = (mx > my) ? mx : my;
-    m = (m > mz) ? m : mz;
-
-    /*
-     * The perspective distance is fixed to the blob radius rather than the
-     * measured max above. This keeps the swarm compact and centered even when
-     * the random shell is uneven.
-     */
-    m = whirlyRadius * 3 / 2;
-
-    /* Screen-space projection scale.  Wire2 is intentionally height-led. */
-    scl = (double)buffer.height() * 0.80;
-    if (!scl)
-        scl = 1;
-
-    ox = buffer.width() / 2 - mx / 2;
-    oy = buffer.height() / 2 - my / 2;
-
-    for (j = 0; j < nobj; j++) {
-
-        /* Each copy still spins around its own local y axis. */
-        sto = isin(state.psi[j]);
-        cto = icos(state.psi[j]);
-
-        state.psi[j] += state.rate[j];
-
-        for (i = 0; theObj[i][0][0] != -1; i++) {
-
-            /* Rotate this copy's blob position around the swarm axis. */
-            x = state.loc[j][0];
-            y = state.loc[j][1];
-            z = state.loc[j][2];
-
-            rotate_axis(x, y, z, state.blobAxis, state.theta, ax, ay, az);
-
-            /* Normalize the first endpoint and spin it around local y. */
-            x = (theObj[i][0][0] - omx) / om;
-            y = (theObj[i][0][1] - omy) / om;
-            z = (theObj[i][0][2] - omz) / om;
-
-            ax += x * cto + z * sto;
-            ay += y;
-            az += z * cto - x * sto;
-
-            /* Project the first endpoint to the 2D Cthugha buffer. */
-            x1 = int((double)ax * scl / (az + m) + ox);
-            y1 = int((double)ay * scl / (az + m) + oy);
-
-            /* Repeat for the second endpoint of the same wire segment. */
-            x = state.loc[j][0];
-            y = state.loc[j][1];
-            z = state.loc[j][2];
-
-            rotate_axis(x, y, z, state.blobAxis, state.theta, ax, ay, az);
-
-            x = (theObj[i][1][0] - omx) / om;
-            y = (theObj[i][1][1] - omy) / om;
-            z = (theObj[i][1][2] - omz) / om;
-
-            ax += x * cto + z * sto;
-            ay += y;
-            az += z * cto - x * sto;
-
-            x2 = int((double)ax * scl / (az + m) + ox);
-            y2 = int((double)ay * scl / (az + m) + oy);
-
-            draw_line(buffer, x1, y1, x2, y2, tableColor(runtime, state.col[j]));
-        }
-    }
-}
-
-/*
- * Wire2dot1 is Wire2 with one extra degree of freedom: each copy has its own
- * local rotation axis.  The blob still rotates around one shared axis, but the
- * individual models no longer all tumble around their local y axes.
- */
-/* Writes per-copy startup-random table-mapped wire indices, tableColor(runtime, random 0..255). */
-void wave_wire2dot1(CthughaBuffer& buffer, WaveRuntime& runtime) {
-    /*
-     * This mirrors Wire2's persistent swarm state, with modelAxis storing one
-     * normalized local spin axis per copy.  The axes are chosen during startup
-     * and then reused frame after frame, so the motion is varied but stable.
-     */
+private:
     struct State {
         int theta;
         int psi[nobj];
@@ -2055,6 +2052,7 @@ void wave_wire2dot1(CthughaBuffer& buffer, WaveRuntime& runtime) {
         int loc[nobj][3];
         double blobAxis[3];
         double modelAxis[nobj][3];
+
         State()
             : theta(0) {
             memset(psi, 0, sizeof(psi));
@@ -2067,137 +2065,191 @@ void wave_wire2dot1(CthughaBuffer& buffer, WaveRuntime& runtime) {
             blobAxis[2] = 0.0;
         }
     };
-    State& state = runtime.state<State>();
 
-    double x, y, z;
-    double ax, ay, az;
-    double lx, ly, lz;
-    double scl;
+    struct Geometry {
+        WObject* obj;
+        double objectMidX;
+        double objectMidY;
+        double objectMidZ;
+        double objectScale;
+        double screenScale;
+        int cameraDistance;
+        int originX;
+        int originY;
+    };
 
-    register int i, j, x1, y1, x2, y2;
-    register int mx, my, mz, m;
-    double omx, omy, omz, om;
-    register int ox, oy;
+    ModelRotation modelRotation;
 
-    WObject* theObj = runtime.object;
-    if (theObj == NULL)
-        return;
+public:
+    WireSwarmWaveRenderer(ModelRotation modelRotation_)
+        : modelRotation(modelRotation_) { }
 
-    if (object_wave_needs_configuration(runtime)) {
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) const {
+        State& state = runtime.state<State>();
+        Geometry geometry;
+
+        if (runtime.object == NULL)
+            return;
+
+        if (object_wave_needs_configuration(runtime))
+            configure(state);
+
+        if (!prepareGeometry(buffer, runtime, state, geometry))
+            return;
+
+        state.theta += 1;
+
+        for (int copy = 0; copy < nobj; copy++) {
+            double sto = 0.0;
+            double cto = 1.0;
+
+            if (modelRotation == SharedYAxis) {
+                sto = isin(state.psi[copy]);
+                cto = icos(state.psi[copy]);
+                state.psi[copy] += state.rate[copy];
+            } else {
+                state.psi[copy] += state.rate[copy];
+            }
+
+            for (int segment = 0; geometry.obj[segment][0][0] != -1; segment++) {
+                int x1, y1, x2, y2;
+
+                projectEndpoint(state, geometry, copy, segment, 0,
+                    sto, cto, x1, y1);
+                projectEndpoint(state, geometry, copy, segment, 1,
+                    sto, cto, x2, y2);
+
+                draw_line(buffer, x1, y1, x2, y2,
+                    tableColor(runtime, state.col[copy]));
+            }
+        }
+    }
+
+private:
+    void configure(State& state) const {
         random_axis(state.blobAxis);
 
-        for (i = 0; i < nobj; i++) {
+        for (int i = 0; i < nobj; i++) {
             init_wire2_copy(state.loc[i], state.psi[i], state.rate[i], state.col[i]);
             CTH_DEBUG("model %d: rate %d, psi %d, col %d\n",
                 i, state.rate[i], state.psi[i], state.col[i]);
 
-            random_axis(state.modelAxis[i]);
+            if (modelRotation == PerCopyAxis)
+                random_axis(state.modelAxis[i]);
         }
     }
 
-    state.theta += 1;
+    int prepareGeometry(CthughaBuffer& buffer, WaveRuntime& runtime,
+        const State& state, Geometry& geometry) const {
+        int maxX = 0;
+        int maxY = 0;
+        int maxZ = 0;
+        double objectMaxX = 0.0;
+        double objectMaxY = 0.0;
+        double objectMaxZ = 0.0;
 
-    mx = my = mz = 0;
-    omx = omy = omz = 0;
+        geometry.obj = runtime.object;
+        if (geometry.obj == NULL)
+            return 0;
 
-    for (i = 0; theObj[i][0][0] != -1; i++)
-        for (j = 0; j < 2; j++) {
-
-            if (theObj[i][j][0] > omx)
-                omx = theObj[i][j][0];
-
-            if (theObj[i][j][1] > omy)
-                omy = theObj[i][j][1];
-
-            if (theObj[i][j][2] > omz)
-                omz = theObj[i][j][2];
+        for (int segment = 0; geometry.obj[segment][0][0] != -1; segment++) {
+            for (int endpoint = 0; endpoint < 2; endpoint++) {
+                if (geometry.obj[segment][endpoint][0] > objectMaxX)
+                    objectMaxX = geometry.obj[segment][endpoint][0];
+                if (geometry.obj[segment][endpoint][1] > objectMaxY)
+                    objectMaxY = geometry.obj[segment][endpoint][1];
+                if (geometry.obj[segment][endpoint][2] > objectMaxZ)
+                    objectMaxZ = geometry.obj[segment][endpoint][2];
+            }
         }
 
-    omx /= 2.0;
-    omy /= 2.0;
-    omz /= 2.0;
-    om = omy;
-    om /= 3.0;
+        geometry.objectMidX = objectMaxX / 2.0;
+        geometry.objectMidY = objectMaxY / 2.0;
+        geometry.objectMidZ = objectMaxZ / 2.0;
+        geometry.objectScale = geometry.objectMidY / 3.0;
 
-    for (i = 0; i < nobj; i++) {
-        if (state.loc[i][0] > mx)
-            mx = state.loc[i][0];
+        for (int i = 0; i < nobj; i++) {
+            if (state.loc[i][0] > maxX)
+                maxX = state.loc[i][0];
+            if (state.loc[i][1] > maxY)
+                maxY = state.loc[i][1];
+            if (state.loc[i][2] > maxZ)
+                maxZ = state.loc[i][2];
+        }
 
-        if (state.loc[i][1] > my)
-            my = state.loc[i][1];
+        geometry.cameraDistance = whirlyRadius * 3 / 2;
+        geometry.screenScale = (double)buffer.height() * 0.80;
+        if (!geometry.screenScale)
+            geometry.screenScale = 1;
+        geometry.originX = buffer.width() / 2 - maxX / 2;
+        geometry.originY = buffer.height() / 2 - maxY / 2;
 
-        if (state.loc[i][2] > mz)
-            mz = state.loc[i][2];
+        return 1;
     }
 
-    m = (mx > my) ? mx : my;
-    m = (m > mz) ? m : mz;
-    m = whirlyRadius * 3 / 2;
+    void projectEndpoint(const State& state, const Geometry& geometry, int copy,
+        int segment, int endpoint, double sto, double cto, int& screenX,
+        int& screenY) const {
+        double x = state.loc[copy][0];
+        double y = state.loc[copy][1];
+        double z = state.loc[copy][2];
+        double ax, ay, az;
 
-    scl = (double)buffer.height() * 0.80;
-    if (!scl)
-        scl = 1;
+        rotate_axis(x, y, z, state.blobAxis, state.theta, ax, ay, az);
 
-    ox = buffer.width() / 2 - mx / 2;
-    oy = buffer.height() / 2 - my / 2;
+        x = (geometry.obj[segment][endpoint][0] - geometry.objectMidX)
+            / geometry.objectScale;
+        y = (geometry.obj[segment][endpoint][1] - geometry.objectMidY)
+            / geometry.objectScale;
+        z = (geometry.obj[segment][endpoint][2] - geometry.objectMidZ)
+            / geometry.objectScale;
 
-    for (j = 0; j < nobj; j++) {
-
-        state.psi[j] += state.rate[j];
-
-        for (i = 0; theObj[i][0][0] != -1; i++) {
-
-            x = state.loc[j][0];
-            y = state.loc[j][1];
-            z = state.loc[j][2];
-
-            rotate_axis(x, y, z, state.blobAxis, state.theta, ax, ay, az);
-
-            /*
-             * Unlike Wire2, rotate the endpoint around this copy's own random
-             * axis.  Every copy has a different axis, but both endpoints of a
-             * line segment use the same axis for that copy.
-             */
-            x = (theObj[i][0][0] - omx) / om;
-            y = (theObj[i][0][1] - omy) / om;
-            z = (theObj[i][0][2] - omz) / om;
-
-            rotate_axis(x, y, z, state.modelAxis[j], state.psi[j], lx, ly, lz);
-
+        if (modelRotation == SharedYAxis) {
+            ax += x * cto + z * sto;
+            ay += y;
+            az += z * cto - x * sto;
+        } else {
+            double lx, ly, lz;
+            rotate_axis(x, y, z, state.modelAxis[copy], state.psi[copy],
+                lx, ly, lz);
             ax += lx;
             ay += ly;
             az += lz;
-
-            x1 = int((double)ax * scl / (az + m) + ox);
-            y1 = int((double)ay * scl / (az + m) + oy);
-
-            x = state.loc[j][0];
-            y = state.loc[j][1];
-            z = state.loc[j][2];
-
-            rotate_axis(x, y, z, state.blobAxis, state.theta, ax, ay, az);
-
-            x = (theObj[i][1][0] - omx) / om;
-            y = (theObj[i][1][1] - omy) / om;
-            z = (theObj[i][1][2] - omz) / om;
-
-            rotate_axis(x, y, z, state.modelAxis[j], state.psi[j], lx, ly, lz);
-
-            ax += lx;
-            ay += ly;
-            az += lz;
-
-            x2 = int((double)ax * scl / (az + m) + ox);
-            y2 = int((double)ay * scl / (az + m) + oy);
-
-            draw_line(buffer, x1, y1, x2, y2, tableColor(runtime, state.col[j]));
         }
+
+        screenX = int((double)ax * geometry.screenScale
+            / (az + geometry.cameraDistance) + geometry.originX);
+        screenY = int((double)ay * geometry.screenScale
+            / (az + geometry.cameraDistance) + geometry.originY);
     }
+};
+
+static const WireSwarmWaveRenderer wireSwarmYAxisWave(WireSwarmWaveRenderer::SharedYAxis);
+static const WireSwarmWaveRenderer wireSwarmPerCopyAxisWave(WireSwarmWaveRenderer::PerCopyAxis);
+
+/*
+ * Wire2 draws a little swarm of copies of the selected object.  The object
+ * itself is not reloaded or copied here; every frame reads the currently
+ * selected WObject and draws it at each saved swarm location.
+ */
+/* Writes per-copy startup-random table-mapped wire indices, tableColor(runtime, random 0..255). */
+void wave_wire2(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
+    wireSwarmYAxisWave.execute(buffer, context, runtime);
+}
+
+/*
+ * Wire2dot1 is Wire2 with one extra degree of freedom: each copy has its own
+ * local rotation axis.  The blob still rotates around one shared axis, but the
+ * individual models no longer all tumble around their local y axes.
+ */
+/* Writes per-copy startup-random table-mapped wire indices, tableColor(runtime, random 0..255). */
+void wave_wire2dot1(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
+    wireSwarmPerCopyAxisWave.execute(buffer, context, runtime);
 }
 
 /* by Russ */
 /* Writes one cycling table-mapped index per frame, tableColor(runtime, col 0..255). */
-void wave_spiral(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_spiral(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     int i, amp, mx, cx, cy;
     double x, y, ox, oy, a, la, ra;
     struct State {
@@ -2228,9 +2280,10 @@ void wave_spiral(CthughaBuffer& buffer, WaveRuntime& runtime) {
     cx = buffer.width() / 2;
     cy = buffer.height() / 2;
 
-    amp = audioMetrics.amplitude;
-    int al = audioMetrics.amplitudeLeft;
-    int ar = audioMetrics.amplitudeRight;
+    const AudioMetrics& audio = metrics(context);
+    amp = audio.amplitude;
+    int al = audio.amplitudeLeft;
+    int ar = audio.amplitudeRight;
 
     /* convert to float now instead of every time it gets used */
     a = (double)amp * mx / 256.0 / 128.0;
@@ -2270,7 +2323,7 @@ typedef struct {
 
 /* by Russ */
 /* Writes per-firework random table-mapped indices, tableColor(runtime, random 0..255). */
-void wave_pyro(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_pyro(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     int i, x1, y1;
     struct State {
         int first;
@@ -2367,7 +2420,7 @@ typedef struct {
 } WarpRing;
 
 /* Writes per-ring random table-mapped indices, tableColor(runtime, random 0..255). */
-void wave_warp(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_warp(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     int i, x1, y1;
     struct State {
         int first;
@@ -2453,7 +2506,7 @@ static int laser_intensity_index(int sample) {
 }
 
 /* Writes table-mapped channel intensity. */
-void wave_laser(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_laser(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         int xl, xr;
         int y;
@@ -2466,25 +2519,25 @@ void wave_laser(CthughaBuffer& buffer, WaveRuntime& runtime) {
     int x, samples;
 
     samples = buffer.width() / 10;
-    prepareSoundData(samples + 1, 0);
+    PreparedWaveSamples sound(context, samples + 1, 0);
 
     state.y = (state.y + 2) % buffer.height();
     //y = buffer.height() / 10;
 
     for (x = 0; x < samples; x++) {
         draw_line(buffer, buffer.width() / 2, buffer.height() / 2, state.xl, state.y,
-            tableColor(runtime, laser_intensity_index(data[x][0])));
-        state.xl = (state.xl + abs(data[x][0] - data[x + 1][0])) % buffer.width();
+            tableColor(runtime, laser_intensity_index(sound.sample(x, 0))));
+        state.xl = (state.xl + abs(sound.sample(x, 0) - sound.sample(x + 1, 0))) % buffer.width();
 
         draw_line(buffer, buffer.width() / 2, buffer.height() / 2, state.xr, buffer.height() - state.y,
-            tableColor(runtime, laser_intensity_index(data[x][1])));
-        state.xr = (state.xr + abs(data[x][1] - data[x + 1][1])) % buffer.width();
+            tableColor(runtime, laser_intensity_index(sound.sample(x, 1))));
+        state.xr = (state.xr + abs(sound.sample(x, 1) - sound.sample(x + 1, 1))) % buffer.width();
     }
 }
 
 /* by Deischi (inspired by RTL2) */
 /* Writes raw fading indices 255, 127, 63, 31, 15, 7, 3, and 1. */
-void wave_corner(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_corner(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         int x, y;
         State()
@@ -2534,7 +2587,7 @@ void wave_corner(CthughaBuffer& buffer, WaveRuntime& runtime) {
 
 // by Deischi
 /* Writes fixed raw palette index 255. */
-void wave_jump(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_jump(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
     struct State {
         int speed[MAX_BUFF_WIDTH];
         int pos[MAX_BUFF_WIDTH];
@@ -2547,11 +2600,11 @@ void wave_jump(CthughaBuffer& buffer, WaveRuntime& runtime) {
     };
     State& state = runtime.state<State>();
 
-    prepareSoundData(buffer.width());
+    PreparedWaveSamples sound(context, buffer.width());
 
     const int scale = 2 + runtime.waveScale;
     for (int i = 0; i < buffer.width(); i++) {
-        int e = data[i][0] + data[i][1];
+        int e = sound.sample(i, 0) + sound.sample(i, 1);
         if (state.pos[i] < abs(e)) {
             state.speed[i] = abs(e);
             state.dir[i] = e > 0 ? 1 : 0;
@@ -2562,7 +2615,7 @@ void wave_jump(CthughaBuffer& buffer, WaveRuntime& runtime) {
             state.pos[i] = 0;
             state.speed[i] = 0;
         } else
-            state.speed[i] -= int(cthughaDisplay->fps);
+            state.speed[i] -= frameRate(context);
 
         if (state.dir[i] > 0)
             putat_cut(buffer, i, (state.pos[i] >> scale) + buffer.height() / 2, 255);
@@ -2573,7 +2626,7 @@ void wave_jump(CthughaBuffer& buffer, WaveRuntime& runtime) {
 
 // by Deischi
 /* Writes raw random palette indices, Random(256). */
-void wave_sticks(CthughaBuffer& buffer, WaveRuntime& runtime) {
+void wave_sticks(CthughaBuffer& buffer, const VisualFrameContext& context, WaveRuntime& runtime) {
 
     int n = runtime.fire() >> runtime.waveScale;
     for (int i = 0; i < n; i++) {

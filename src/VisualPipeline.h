@@ -13,6 +13,8 @@ class CthughaBuffer;
 class VisualFrameContext {
 public:
     const AudioFrame* audioFrame;
+    const char2* rawAudioData;
+    const char2* processedWaveData;
     const AudioMetrics* audioMetrics;
     const AcousticContext* acousticContext;
     double now;

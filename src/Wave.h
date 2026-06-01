@@ -1,6 +1,8 @@
 #ifndef __WAVE_H
 #define __WAVE_H
 
+#include <vector>
+
 class CthughaBuffer;
 class VisualFrameContext;
 
@@ -57,9 +59,20 @@ public:
     }
 };
 
+class WaveLookupTables {
+    int sineWidth;
+    std::vector<int> sineValues;
+
+public:
+    WaveLookupTables();
+
+    const int* sineForWidth(int width);
+};
+
 class WaveRuntime {
     int needsConfigurationValue;
     WaveState& stateValue;
+    WaveLookupTables& lookupTables;
     int fireBudgetValue;
 
 public:
@@ -68,12 +81,13 @@ public:
     WObject* object;
 
     WaveRuntime(const WaveConfig& config, int needsConfiguration_, WaveState& state_,
-        int fireBudget);
+        WaveLookupTables& lookupTables_, int fireBudget);
 
     int needsConfiguration() const;
     int fire() const;
     void consumeFire();
     void scaleFire(int numerator, int denominator);
+    const int* sineForWidth(int width);
 
     template <class T>
     T& state() {
@@ -83,7 +97,8 @@ public:
 
 class Wave {
 public:
-    typedef void (*Function)(CthughaBuffer& buffer, WaveRuntime& runtime);
+    typedef void (*Function)(CthughaBuffer& buffer,
+        const VisualFrameContext& context, WaveRuntime& runtime);
     typedef int (*CanRunFunction)(const WaveConfig& config);
 
 private:
@@ -91,10 +106,6 @@ private:
     CanRunFunction canRunFunctionValue;
     const char* nameValue;
     const char* descriptionValue;
-    WaveConfig configValue;
-    WaveState stateValue;
-    int configuredValue;
-    int needsConfigurationValue;
 
 public:
     Wave(Function function, const char* name, const char* description,
@@ -103,8 +114,9 @@ public:
     const char* name() const;
     const char* description() const;
     int canRun(const WaveConfig& config) const;
-    void configure(const WaveConfig& config);
-    void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
+    void execute(CthughaBuffer& buffer, const VisualFrameContext& context,
+        const WaveConfig& config, int needsConfiguration, WaveState& state,
+        WaveLookupTables& lookupTables) const;
 };
 
 extern Wave waveCatalog[];

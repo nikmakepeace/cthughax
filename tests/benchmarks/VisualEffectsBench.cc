@@ -490,13 +490,14 @@ static void BM_Flame(benchmark::State& state, const Flame* flame,
     initializeVisualBenchmarks();
 
     VisualFrameContext context;
+    static FlameLookupTables lookupTables;
 
     for (auto _ : state) {
         state.PauseTiming();
         resetForFlame(*fixture);
         state.ResumeTiming();
 
-        flame->execute(*CthughaBuffer::current, context);
+        flame->execute(*CthughaBuffer::current, context, 0, lookupTables);
         benchmark::DoNotOptimize(CthughaBuffer::current->activePixels()[0]);
         benchmark::ClobberMemory();
     }

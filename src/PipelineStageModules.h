@@ -1,16 +1,16 @@
 #ifndef __PIPELINE_STAGE_MODULES_H
 #define __PIPELINE_STAGE_MODULES_H
 
+#include "Flame.h"
 #include "FramePalette.h"
 #include "Image.h"
 #include "PaletteTransition.h"
 #include "Translate.h"
 #include "VisualPipeline.h"
 #include "VisualPipelineSequence.h"
+#include "Wave.h"
 
-class Flame;
 class PaletteEntry;
-class Wave;
 
 class ImageStageModule : public VisualModule {
     const IndexedImage* image;
@@ -29,6 +29,7 @@ public:
 class FlameStageModule : public VisualModule {
     const Flame* flame;
     int generalFlame;
+    FlameLookupTables lookupTables;
 
 public:
     FlameStageModule();
@@ -50,11 +51,16 @@ public:
 
 class WaveStageModule : public VisualModule {
     Wave* wave;
+    WaveConfig config;
+    WaveState state;
+    WaveLookupTables lookupTables;
+    int configured;
+    int needsConfiguration;
 
 public:
     WaveStageModule();
 
-    void setWave(Wave* wave_);
+    void setWave(Wave* wave_, const WaveConfig& config_);
     void execute(CthughaBuffer& buffer, const VisualFrameContext& context);
 };
 

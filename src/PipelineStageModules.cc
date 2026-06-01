@@ -74,7 +74,7 @@ void FlameStageModule::execute(CthughaBuffer& buffer, const VisualFrameContext& 
     CTH_TRACE("executing flame stage\n", "visual pipeline");
 
     if (flame != 0)
-        flame->execute(buffer, context, generalFlame);
+        flame->execute(buffer, context, generalFlame, lookupTables);
 }
 
 TranslateStageModule::TranslateStageModule()
@@ -90,16 +90,32 @@ void TranslateStageModule::execute(CthughaBuffer& buffer, const VisualFrameConte
 }
 
 WaveStageModule::WaveStageModule()
-    : wave(0) { }
+    : wave(0)
+    , config()
+    , state()
+    , lookupTables()
+    , configured(0)
+    , needsConfiguration(1) { }
 
-void WaveStageModule::setWave(Wave* wave_) {
+void WaveStageModule::setWave(Wave* wave_, const WaveConfig& config_) {
+    if (wave != wave_) {
+        state.clear();
+        needsConfiguration = 1;
+    } else if (!configured || !config.sameAs(config_)) {
+        needsConfiguration = 1;
+    }
+
     wave = wave_;
+    config = config_;
+    configured = 1;
 }
 
 void WaveStageModule::execute(CthughaBuffer& buffer, const VisualFrameContext& context) {
     CTH_TRACE("executing wave stage\n", "visual pipeline");
-    if (wave != NULL)
-        wave->execute(buffer, context);
+    if (wave != NULL) {
+        wave->execute(buffer, context, config, needsConfiguration, state, lookupTables);
+        needsConfiguration = 0;
+    }
 }
 
 FrameCommitModule::FrameCommitModule()

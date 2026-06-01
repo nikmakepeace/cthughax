@@ -104,6 +104,8 @@ static void runVisualPipeline() {
 
     VisualFrameContext context;
     context.audioFrame = audioFrameCurrent();
+    context.rawAudioData = audioFrameRawData();
+    context.processedWaveData = audioFrameProcessedWaveData();
     context.audioMetrics = &audioMetrics;
     context.acousticContext = &acousticContext;
     context.now = now;

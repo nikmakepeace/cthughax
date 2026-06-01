@@ -1,24 +1,28 @@
 #include "Flame.h"
 
-void flame_clear(CthughaBuffer& buffer, int generalFlame);
-void flame_upslow(CthughaBuffer& buffer, int generalFlame);
-void flame_upsubtle(CthughaBuffer& buffer, int generalFlame);
-void flame_upfast(CthughaBuffer& buffer, int generalFlame);
-void flame_leftslow(CthughaBuffer& buffer, int generalFlame);
-void flame_leftsubtle(CthughaBuffer& buffer, int generalFlame);
-void flame_leftfast(CthughaBuffer& buffer, int generalFlame);
-void flame_rightslow(CthughaBuffer& buffer, int generalFlame);
-void flame_rightsubtle(CthughaBuffer& buffer, int generalFlame);
-void flame_rightfast(CthughaBuffer& buffer, int generalFlame);
-void flame_water(CthughaBuffer& buffer, int generalFlame);
-void flame_watersubtle(CthughaBuffer& buffer, int generalFlame);
-void flame_skyline(CthughaBuffer& buffer, int generalFlame);
-void flame_weird(CthughaBuffer& buffer, int generalFlame);
-void flame_zzz(CthughaBuffer& buffer, int generalFlame);
-void flame_fade(CthughaBuffer& buffer, int generalFlame);
-void flame_general_subtle(CthughaBuffer& buffer, int generalFlame);
-void flame_general_slow(CthughaBuffer& buffer, int generalFlame);
-void flame_down(CthughaBuffer& buffer, int generalFlame);
+void flame_clear(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_upslow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_upsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_upfast(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_leftslow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_leftsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_leftfast(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_rightslow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_rightsubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_rightfast(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_water(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_watersubtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_skyline(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_weird(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_zzz(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_fade(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_general_subtle(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_general_slow(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+void flame_down(CthughaBuffer& buffer, const VisualFrameContext& context, FlameRuntime& runtime);
+
+FlameRuntime::FlameRuntime(int generalFlame_, const FlameLookupTables& lookupTables_)
+    : generalFlame(generalFlame_)
+    , lookupTables(lookupTables_) { }
 
 Flame::Flame(Function function, const char* name, const char* description)
     : functionValue(function)
@@ -34,11 +38,11 @@ const char* Flame::description() const {
 }
 
 void Flame::execute(CthughaBuffer& buffer, const VisualFrameContext& context,
-    int generalFlame) const {
-    (void)context;
-
-    if (functionValue != 0)
-        (*functionValue)(buffer, generalFlame);
+    int generalFlame, const FlameLookupTables& lookupTables) const {
+    if (functionValue != 0) {
+        FlameRuntime runtime(generalFlame, lookupTables);
+        (*functionValue)(buffer, context, runtime);
+    }
 }
 
 const Flame flameCatalog[] = {

@@ -3,6 +3,8 @@
 
 VisualFrameContext::VisualFrameContext()
     : audioFrame(0)
+    , rawAudioData(0)
+    , processedWaveData(0)
     , audioMetrics(0)
     , acousticContext(0)
     , now(0.0)
