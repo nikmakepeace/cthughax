@@ -403,6 +403,10 @@ const ImageFixture& zeroImage() {
     return image;
 }
 
+CthughaBuffer& benchmarkBuffer() {
+    return CthughaBuffer::buffer;
+}
+
 void copyImageWithHiddenRows(unsigned char* visibleBuffer, const ImageFixture& image) {
     unsigned char* fullBuffer = visibleBuffer - kHiddenRows * config().width;
     memset(fullBuffer, 0, fullPixels());
@@ -417,18 +421,18 @@ void copyImageWithHiddenRows(unsigned char* visibleBuffer, const ImageFixture& i
 }
 
 void resetForFlame(const BufferFixture& fixture) {
-    CthughaBuffer::current = &CthughaBuffer::buffer;
-    copyImageWithHiddenRows(CthughaBuffer::current->activePixels(),
+    CthughaBuffer& buffer = benchmarkBuffer();
+    copyImageWithHiddenRows(buffer.activePixels(),
         fixture.active.pixels.empty() ? zeroImage() : fixture.active);
-    copyImageWithHiddenRows(CthughaBuffer::current->passivePixels(),
+    copyImageWithHiddenRows(buffer.passivePixels(),
         fixture.passive.pixels.empty() ? fixture.base : fixture.passive);
 }
 
 void resetForTranslate(const BufferFixture& fixture) {
-    CthughaBuffer::current = &CthughaBuffer::buffer;
-    copyImageWithHiddenRows(CthughaBuffer::current->activePixels(),
+    CthughaBuffer& buffer = benchmarkBuffer();
+    copyImageWithHiddenRows(buffer.activePixels(),
         fixture.active.pixels.empty() ? fixture.base : fixture.active);
-    copyImageWithHiddenRows(CthughaBuffer::current->passivePixels(),
+    copyImageWithHiddenRows(buffer.passivePixels(),
         fixture.passive.pixels.empty() ? zeroImage() : fixture.passive);
 }
 
@@ -469,15 +473,15 @@ void initializeVisualBenchmarks() {
         return;
 
     initialized = 1;
-    CthughaBuffer::buffer.setDimensions(config().width, config().height);
+    CthughaBuffer& buffer = benchmarkBuffer();
+    buffer.setDimensions(config().width, config().height);
 
     srand(0);
     init_imath();
     init_flames();
     createTranslationEntries();
 
-    CthughaBuffer::current = &CthughaBuffer::buffer;
-    CthughaBuffer::buffer.init();
+    buffer.init();
 }
 
 void setCommonCounters(benchmark::State& state) {
@@ -491,14 +495,15 @@ static void BM_Flame(benchmark::State& state, const Flame* flame,
 
     VisualFrameContext context;
     static FlameLookupTables lookupTables;
+    CthughaBuffer& buffer = benchmarkBuffer();
 
     for (auto _ : state) {
         state.PauseTiming();
         resetForFlame(*fixture);
         state.ResumeTiming();
 
-        flame->execute(*CthughaBuffer::current, context, 0, lookupTables);
-        benchmark::DoNotOptimize(CthughaBuffer::current->activePixels()[0]);
+        flame->execute(buffer, context, 0, lookupTables);
+        benchmark::DoNotOptimize(buffer.activePixels()[0]);
         benchmark::ClobberMemory();
     }
 
@@ -511,14 +516,15 @@ static void BM_TranslateEntry(benchmark::State& state, TranslateEntry* entry,
 
     VisualFrameContext context;
     Translate translate(entry->table());
+    CthughaBuffer& buffer = benchmarkBuffer();
 
     for (auto _ : state) {
         state.PauseTiming();
         resetForTranslate(*fixture);
         state.ResumeTiming();
 
-        translate.execute(*CthughaBuffer::current, context);
-        benchmark::DoNotOptimize(CthughaBuffer::current->activePixels()[0]);
+        translate.execute(buffer, context);
+        benchmark::DoNotOptimize(buffer.activePixels()[0]);
         benchmark::ClobberMemory();
     }
 
