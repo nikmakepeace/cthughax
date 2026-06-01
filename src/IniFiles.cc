@@ -12,6 +12,7 @@
 
 #include <unistd.h>
 #include <ctype.h>
+#include <string>
 
 char extra_lib_path[PATH_MAX] = ""; /* extra path to search for
                                        image, tab, map and ini */
@@ -25,7 +26,7 @@ static char ini_file_path[PATH_MAX] = "";
  * create the name of an ini file
  */
 const char* ini_file_name(int ini_nr) {
-    static char fname[PATH_MAX];
+    static std::string fname;
     const char* var;
 
     switch (ini_nr) {
@@ -35,24 +36,21 @@ const char* ini_file_name(int ini_nr) {
     case 1:
         if ((var = getenv("HOME")) == NULL)
             return NULL;
-        strncpy(fname, var, PATH_MAX);
-        strncat(fname, "/.cthugha.auto", PATH_MAX);
-        return (fname);
+        fname = std::string(var) + "/.cthugha.auto";
+        return fname.c_str();
     case 2:
         if ((var = getenv("HOME")) == NULL)
             return NULL;
-        strncpy(fname, var, PATH_MAX);
-        strncat(fname, "/.cthugha.ini", PATH_MAX);
-        return (fname);
+        fname = std::string(var) + "/.cthugha.ini";
+        return fname.c_str();
     case 3:
         return ("./cthugha.ini");
         break;
     case 4:
         if (extra_lib_path[0] == '\0')
             return NULL;
-        strncpy(fname, extra_lib_path, PATH_MAX);
-        strncat(fname, "cthugha.ini", PATH_MAX);
-        return (fname);
+        fname = std::string(extra_lib_path) + "cthugha.ini";
+        return fname.c_str();
     default:
         return NULL;
     }
@@ -225,15 +223,14 @@ static void warn_unknown_ini_entries() {
 // get a ini entry from the current in file
 //
 int getini(const char* entry, char* value) {
-    char name[512];
+    std::string name;
     int line_nr;
 
     /* build up name and class */
-    strcpy(name, "cthugha.");
-    strncat(name, entry, 512);
+    name = std::string("cthugha.") + entry;
 
     if (ini_file == NULL) {
-        return get_ini_str_sys(name, value);
+        return get_ini_str_sys(name.c_str(), value);
     }
 
     rewind(ini_file);
@@ -243,7 +240,7 @@ int getini(const char* entry, char* value) {
     while (!feof(ini_file)) {
         char line[256];
         char* linep = line;
-        char* namep = name;
+        const char* namep = name.c_str();
 
         line_nr++;
         line[0] = '\0';
@@ -467,11 +464,10 @@ static int is_in_ini(char* line) {
  */
 int write_ini() {
     const char* fname = ini_file_name(-1);
-    char fname_dst[PATH_MAX];
+    std::string fnameDst;
     FILE* f;
 
-    strncpy(fname_dst, fname, PATH_MAX);
-    strncat(fname_dst, ".old", PATH_MAX);
+    fnameDst = std::string(fname) + ".old";
 
     /* make sure file exists */
     if ((f = fopen(fname, "a")) == NULL) {
@@ -480,7 +476,7 @@ int write_ini() {
     }
     fclose(f);
 
-    if (move(fname, fname_dst))
+    if (move(fname, fnameDst.c_str()))
         return 1;
 
     if ((ini_file = fopen(fname, "w+")) == NULL)
@@ -529,7 +525,7 @@ int write_ini() {
     /*
      * copy old settings
      */
-    if ((f = fopen(fname_dst, "r")) == NULL) {
+    if ((f = fopen(fnameDst.c_str(), "r")) == NULL) {
         CTH_ERROR("Can not open backup file");
         return 1;
     }

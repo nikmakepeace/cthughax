@@ -7,6 +7,7 @@
 #include "CthughaBuffer.h"
 
 #include <unistd.h>
+#include <string>
 
 static const int visualBufferCount = 1;
 
@@ -271,22 +272,21 @@ void CoreOption::changeAll() {
 }
 
 const char* CoreOption::text() const {
-    static char str[512];
+    static std::string text;
 
+    text.clear();
     if (lock)
-        strcpy(str, "locked:");
-    else
-        str[0] = '\0';
+        text = "locked:";
 
-    strncat(str, currentName(), 512);
+    text += currentName();
 
     if (currentDesc()[0] != '\0') {
-        strncat(str, " (", 512);
-        strncat(str, currentDesc(), 512);
-        strncat(str, ")", 512);
+        text += " (";
+        text += currentDesc();
+        text += ")";
     }
 
-    return str;
+    return text.c_str();
 }
 
 //
@@ -351,10 +351,9 @@ void CoreOption::restore(int from) {
 void CoreOption::getHotIni() {
     for (int i = 0; i < MAX_HOT; i++) {
         for (CoreOption* o = first; o != NULL; o = o->next) {
-            char str[512], val[512];
-            sprintf(str, "hot.%d.", i);
-            strncat(str, o->name(), 512);
-            if (!getini(str, val)) {
+            std::string key = std::string("hot.") + std::to_string(i) + "." + o->name();
+            char val[512];
+            if (!getini(key.c_str(), val)) {
                 o->hot[i] = o->optNr(val);
             }
         }
@@ -363,10 +362,8 @@ void CoreOption::getHotIni() {
 void CoreOption::putHotIni() {
     for (int i = 0; i < MAX_HOT; i++) {
         for (CoreOption* o = first; o != NULL; o = o->next) {
-            char str[512];
-            sprintf(str, "hot.%d.", i);
-            strncat(str, o->name(), 512);
-            putini(str, o->text(o->hot[i]));
+            std::string key = std::string("hot.") + std::to_string(i) + "." + o->name();
+            putini(key.c_str(), o->text(o->hot[i]));
         }
     }
 }
@@ -402,13 +399,9 @@ void CoreOption::getIniUsages() {
 }
 
 void CoreOption::getIniUsage() {
-    char str[512];
-
     for (int i = 0; i < getNEntries(); i++) {
-        strncpy(str, name(), 512);
-        strncat(str, ".", 512);
-        strncat(str, entries[i]->name, 512);
-        getini_yesno(str, &(entries[i]->use.value));
+        std::string key = std::string(name()) + "." + entries[i]->name;
+        getini_yesno(key.c_str(), &(entries[i]->use.value));
     }
 }
 
@@ -422,13 +415,9 @@ void CoreOption::putIniUsages() {
     }
 }
 void CoreOption::putIniUsage() {
-    char str[512];
-
     for (int i = 0; i < getNEntries(); i++) {
-        strncpy(str, name(), 512);
-        strncat(str, ".", 512);
-        strncat(str, entries[i]->name, 512);
-        putini(str, entries[i]->use.text());
+        std::string key = std::string(name()) + "." + entries[i]->name;
+        putini(key.c_str(), entries[i]->use.text());
     }
 }
 
@@ -444,7 +433,6 @@ void CoreOption::getIniInitials() {
 }
 
 int CoreOption::isIniEntry(const char* entry) {
-    char str[512];
     int len;
 
     if (strchr(entry, '?') != NULL)
@@ -462,17 +450,14 @@ int CoreOption::isIniEntry(const char* entry) {
             return 1;
 
         for (int i = 0; i < MAX_HOT; i++) {
-            sprintf(str, "hot.%d.", i);
-            strncat(str, o->name(), 512);
-            if (strcasecmp(entry, str) == 0)
+            std::string key = std::string("hot.") + std::to_string(i) + "." + o->name();
+            if (strcasecmp(entry, key.c_str()) == 0)
                 return 1;
         }
 
         for (int i = 0; i < o->getNEntries(); i++) {
-            strncpy(str, o->name(), 512);
-            strncat(str, ".", 512);
-            strncat(str, o->entries[i]->name, 512);
-            if (strcasecmp(entry, str) == 0)
+            std::string key = std::string(o->name()) + "." + o->entries[i]->name;
+            if (strcasecmp(entry, key.c_str()) == 0)
                 return 1;
         }
     }
@@ -764,7 +749,6 @@ void CoreOption::loadDir(const char* dir, const char* extension,
 int CoreOption::load(const char* searchPath[], const char* extraPath, const char* extension,
     CoreOptionLoader loader) {
     int path;
-    char extra_path_dir[PATH_MAX];
 
     /* load normal search path */
     path = 0;
@@ -774,9 +758,8 @@ int CoreOption::load(const char* searchPath[], const char* extraPath, const char
     }
     /* load from extra path */
     if (extra_lib_path[0] != '\0') {
-        strncpy(extra_path_dir, extra_lib_path, PATH_MAX);
-        strncat(extra_path_dir, extraPath, PATH_MAX);
-        loadDir(extra_path_dir, extension, loader);
+        std::string extraPathDir = std::string(extra_lib_path) + extraPath;
+        loadDir(extraPathDir.c_str(), extension, loader);
     }
 
     return 0;
@@ -785,7 +768,6 @@ int CoreOption::load(const char* searchPath[], const char* extraPath, const char
 int CoreOption::load(const char* searchPath[], const char* extraPath, const char* extension,
     CoreOptionContextLoader loader, void* context) {
     int path;
-    char extra_path_dir[PATH_MAX];
 
     /* load normal search path */
     path = 0;
@@ -795,9 +777,8 @@ int CoreOption::load(const char* searchPath[], const char* extraPath, const char
     }
     /* load from extra path */
     if (extra_lib_path[0] != '\0') {
-        strncpy(extra_path_dir, extra_lib_path, PATH_MAX);
-        strncat(extra_path_dir, extraPath, PATH_MAX);
-        loadDir(extra_path_dir, extension, loader, context);
+        std::string extraPathDir = std::string(extra_lib_path) + extraPath;
+        loadDir(extraPathDir.c_str(), extension, loader, context);
     }
 
     return 0;

@@ -28,6 +28,7 @@
 
 #include <unistd.h>
 #include <ctype.h>
+#include <string>
 
 enum option_nr {
     opt_verbose = 16000,
@@ -404,9 +405,11 @@ int do_param(int c, int value, char* str) {
         break;
 
     case 'E': /* extra lib path */
-        strncpy(extra_lib_path, str, PATH_MAX);
-        strncat(extra_lib_path, "/", PATH_MAX);
+    {
+        std::string path = std::string(str) + "/";
+        snprintf(extra_lib_path, PATH_MAX, "%s", path.c_str());
         break;
+    }
 
     case opt_ini_file:
         strncpy(ini_file_override, str, PATH_MAX);
