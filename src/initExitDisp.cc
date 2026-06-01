@@ -141,8 +141,12 @@ void deleter() {
     // AutoChanger owns final option persistence, so destroy the bridge first.
     shutdownAudioVisualBridge();
     delete cthughaDisplay;
+    cthughaDisplay = NULL;
+    delete displayDevice;
+    displayDevice = NULL;
     audioRuntimeShutdown();
     delete cdPlayer;
+    cdPlayer = NULL;
     shutdownVideoFilterchain();
     shutdownSceneRuntime();
 }
@@ -214,56 +218,28 @@ int main(int argc, char* argv[]) {
     return 0;
 }
 
-// Ad hoc profiling of the main loop.
-// This is not very exact, but it gives a good impression of where the time is spent.
-// To enable it, define PROF in the Makefile and recompile.
-//
-// The timing is accumulated and output is printed every 25 frames
-// It shows the time spent in each module (sound reading, sound analyzing, display, ...)
-// and the total time for 25 frames.
-
-
-#undef PROF
-//#define PROF // uncomment to enable ad hoc profiling of the main loop
-
-
-#ifdef PROF
-#define PROFILING() T[profilingIndex++] = getTime()
-#else
-#define PROFILING()
-#endif
-
 void run(int doDisplay) {
-#ifdef PROF
-    double T[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    int profilingIndex = 0;
-#endif
     double frameTiming[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int traceFrameTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
     if (traceFrameTiming)
         frameTiming[0] = getTime();
 
-    PROFILING();
     cthughaDisplay->nextFrame();
     if (traceFrameTiming)
         frameTiming[1] = getTime();
 
-    PROFILING();
     audioFrameTick();
     if (traceFrameTiming)
         frameTiming[2] = getTime();
 
-    PROFILING();
     runAudioVisualBridge();
     if (traceFrameTiming)
         frameTiming[3] = getTime();
 
-    PROFILING();
     runVideoFilterchain();
     if (traceFrameTiming)
         frameTiming[4] = getTime();
 
-    PROFILING();
     double visualStart = getTime();
     if (doDisplay)
         (*cthughaDisplay)();
@@ -273,7 +249,6 @@ void run(int doDisplay) {
     if (cthughaDisplay)
         cthughaDisplay->observeVisualLatency(visualEnd - visualStart);
 
-    PROFILING();
     (*cdPlayer)();
     if (traceFrameTiming) {
         frameTiming[6] = getTime();
@@ -289,7 +264,6 @@ void run(int doDisplay) {
             doDisplay);
     }
 
-    PROFILING();
     // Suspend only between frame stages, after graphics operations are done.
     if (cthugha_pause) {
         cthugha_pause = 0;
@@ -298,29 +272,4 @@ void run(int doDisplay) {
 
         raise(SIGTSTP);
     }
-
-    PROFILING();
-
-#ifdef PROF
-    static double Ts[10] = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    for (int i = 0; i < 8; i++)
-        Ts[i] = Ts[i] + T[i + 1] - T[i];
-
-    static int n = 24;
-    n++;
-    if (n == 25) {
-        static double To = 0;
-        double to = getTime();
-
-        printf("%6.4f: ", to - To);
-        To = to;
-
-        for (int i = 0; i < 8; i++) {
-            printf("%6.4f ", Ts[i]);
-            Ts[i] = 0;
-        }
-        printf("\n");
-        n = 0;
-    }
-#endif
 }
