@@ -93,6 +93,8 @@ void CoreOption::change(int by, int doSave) {
 void CoreOption::changeRandom(int doSave) {
     if (lock)
         return;
+    if (getNEntries() == 0)
+        return;
     value = mod(rand(), getNEntries()); // select a desired value
     change(0, doSave); // change to next usable value, do saving
 }
