@@ -9,6 +9,7 @@ include(GNUInstallDirs)
 include(TestBigEndian)
 
 option(CTH_BUILD_X11 "Build the modern X11 frontend" ON)
+option(CTH_BUILD_TESTS "Build and register focused unit tests" ON)
 option(CTH_BUILD_BENCHMARKS "Build Google Benchmark performance suites" OFF)
 option(CTH_ENABLE_PULSE "Enable PulseAudio-compatible output when libpulse-simple is available" ON)
 option(CTH_ENABLE_DSP "Enable OSS /dev/dsp support when soundcard headers are available" ON)
@@ -123,6 +124,11 @@ configure_file(
 )
 
 add_subdirectory(src)
+
+if(CTH_BUILD_TESTS)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 if(CTH_BUILD_BENCHMARKS)
     find_package(benchmark CONFIG REQUIRED)

@@ -4,6 +4,7 @@
 
 #include "cthugha.h"
 #include "EffectControl.h"
+#include "IndexedDisplayFrame.h"
 
 // The CthughaDisplay layer sits between the effect buffers and the selected
 // DisplayDevice backend.  It owns the per-frame timing, temporary image
@@ -24,11 +25,11 @@ class IndexedFrame;
 class CthughaDisplay {
 protected:
     const IndexedFrame* sourceFrame;
+    IndexedDisplayFrame indexedDisplayFrameValue;
 
-    // Scratch storage for indexed 8-bit Cthugha output before it is palette
-    // expanded, mirrored, zoomed, or copied to the device buffer.
+    // Non-owning alias for indexedDisplayFrameValue.pixels(), retained while
+    // classic screen functions still write through cthughaDisplay->buffer.
     unsigned char* buffer0;
-    int buffer0ByteCount;
 
     // FPS accounting starts at displayStart and counts completed frames.
     double displayStart;
@@ -51,20 +52,20 @@ protected:
     virtual void expandPalette(int) { }
 
     /**
-     * Gives a backend a chance to drop aliases before buffer0 is reallocated.
+     * Gives a backend a chance to drop aliases before indexed pixels move.
      *
-     * @param oldBuffer Previous indexed scratch buffer. Backends must not free
+     * @param oldPixels Previous indexed display pixels. Backends must not free
      *        this pointer; CthughaDisplay still owns it.
      */
     virtual void indexedBufferWillChange(unsigned char*) { }
 
     /**
-     * Ensures buffer0 can hold the full 2x2 indexed presentation image.
+     * Ensures indexedDisplayFrameValue can hold the selected screen output.
      *
-     * The source IndexedFrame is width x height, but display screen functions
-     * can fill up to a 2w x 2h indexed staging image before palette expansion.
+     * @param width Output pixels produced by the screen/presentation effect.
+     * @param height Output rows produced by the screen/presentation effect.
      */
-    void prepareIndexedBuffer();
+    void prepareIndexedDisplayFrame(int width, int height);
 
     void checkFPS();
     void checkZoom();
@@ -108,6 +109,9 @@ public:
     int sourceHeight() const;
     int sourcePitch() const;
     int sourceSize() const;
+    const IndexedDisplayFrame& indexedDisplayFrame() const;
+    int displayFrameWidth() const;
+    int displayFrameHeight() const;
 
     void resetFPS();
 
@@ -164,6 +168,21 @@ public:
         , size(s) { }
 
     int operator()() { return (*screen)(); }
+
+    /**
+     * @return Indexed output geometry this screen effect wants to produce.
+     *
+     * Today every classic screen effect uses the historical 2x output surface.
+     * Keeping this decision here lets future effects request 1x, 4x, cropped,
+     * or otherwise pragmatic display-frame sizes without changing backends.
+     */
+    static xy compatibilityOutputSize(int sourceWidth, int sourceHeight) {
+        return xy(2 * sourceWidth, 2 * sourceHeight);
+    }
+
+    virtual xy outputSize(int sourceWidth, int sourceHeight) const {
+        return compatibilityOutputSize(sourceWidth, sourceHeight);
+    }
 };
 
 extern CthughaDisplay* cthughaDisplay;

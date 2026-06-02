@@ -44,6 +44,7 @@ set(CTHUGHA_COMMON_SOURCES
     ColorPalette.cc
     DosVga9x14Font.cc
     Image.cc
+    IndexedDisplayFrame.cc
     VideoFilterchain.cc
     VideoFilterchainSequence.cc
     VideoFilters.cc

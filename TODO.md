@@ -124,6 +124,13 @@
    - Done: presentation scratch buffers are allocated/reallocated lazily from
      incoming frame geometry instead of being sized from the global/current
      Cthugha buffer in the display constructor.
+   - Done: introduced `IndexedDisplayFrame` as the display-agnostic indexed
+     output of the selected screen/presentation effect; X11 now sizes its
+     presentation path from that object rather than from hardcoded source-frame
+     multiples.
+   - Done: registered focused CTest coverage for `IndexedDisplayFrame` geometry,
+     row pitch, capacity reuse, and the current `ScreenEntry` 2x compatibility
+     output-size helper.
    - Keep X11 `DM_direct` as a legacy/backend optimization, not as part of the new
      shared display contract. The clean path should render screen transforms into an
      indexed presentation buffer, then palette-expand or upload into the backend's
@@ -170,8 +177,13 @@
    - The display path receives an explicit `IndexedFrame` from the final filterchain
      stage; presentation source pixels, geometry, pitch, and palette now flow through
      that frame.
+   - The screen/presentation layer now has an explicit `IndexedDisplayFrame`
+     destination. Current `ScreenEntry` choices still request the historical
+     `2 * sourceWidth` by `2 * sourceHeight` output size through a compatibility
+     helper, but that policy is no longer buried in backend allocation.
    - Remaining display handoff work:
-     - Add focused tests for padded `IndexedFrame::pitch` and frame geometry changes.
+     - Add focused tests around screen transforms reading padded `IndexedFrame::pitch`
+       and writing changed `IndexedDisplayFrame` geometries.
      - Make the presentation path consistently honor `IndexedFrame::pitch` when
        copying or transforming source rows.
      - Move any artistic screen transforms that mutate indexed pixels into video filters.
@@ -182,8 +194,8 @@
      - If it copies/converts into `cthughaDisplay->buffer` or knows display memory layout,
        it belongs in the display/presentation layer, not the internal visual engine.
    - Next practical slice:
-     - Add focused pitch/geometry coverage for the `IndexedFrame` -> `CthughaDisplay`
-       presentation handoff.
+     - Classify the classic `screen` functions into artistic transforms,
+       presentation transforms, and backend/display-memory transforms.
      - Add focused tests around director-owned stage sequencing, stage modes, and
        frame commit behavior.
 

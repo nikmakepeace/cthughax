@@ -42,20 +42,20 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/XShm.h>
 
-static int presentationSourceWidth() {
-    // Normal presentation has already set CthughaDisplay's IndexedFrame source.
+static int indexedDisplayWidth() {
+    // Normal presentation has already prepared CthughaDisplay's output frame.
     // Startup and legacy display calls can still fall back to the engine buffer.
     if (cthughaDisplay != NULL)
-        return cthughaDisplay->sourceWidth();
+        return cthughaDisplay->displayFrameWidth();
 
-    return CthughaBuffer::current->width();
+    return 2 * CthughaBuffer::current->width();
 }
 
-static int presentationSourceHeight() {
+static int indexedDisplayHeight() {
     if (cthughaDisplay != NULL)
-        return cthughaDisplay->sourceHeight();
+        return cthughaDisplay->displayFrameHeight();
 
-    return CthughaBuffer::current->height();
+    return 2 * CthughaBuffer::current->height();
 }
 
 xy screenSizes[]
@@ -733,8 +733,8 @@ void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
     if ((new_width == disp_size.x) && (new_height == disp_size.y))
         return;
 
-    disp_size.x = max(new_width, 2 * presentationSourceWidth());
-    disp_size.y = max(new_height, 2 * presentationSourceHeight());
+    disp_size.x = max(new_width, indexedDisplayWidth());
+    disp_size.y = max(new_height, indexedDisplayHeight());
 
     if (!text_on_term && !panelTextWidget) {
         text_size.x = disp_size.x / fontSize.x;
@@ -750,9 +750,9 @@ void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
 }
 
 unsigned char* DisplayDeviceX11::preDraw() {
-    if ((disp_size.x < 2 * presentationSourceWidth())
-        || (disp_size.y < 2 * presentationSourceHeight())) {
-        resizeDisplay(2 * presentationSourceWidth(), 2 * presentationSourceHeight());
+    if ((disp_size.x < indexedDisplayWidth())
+        || (disp_size.y < indexedDisplayHeight())) {
+        resizeDisplay(indexedDisplayWidth(), indexedDisplayHeight());
     }
 
     return (unsigned char*)image->data;

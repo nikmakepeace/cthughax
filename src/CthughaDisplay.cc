@@ -16,9 +16,7 @@
 // newCthughaDisplay(), so this points at the X11 display subclass.
 CthughaDisplay* cthughaDisplay = NULL;
 
-CthughaDisplay::~CthughaDisplay() {
-    delete[] buffer0;
-}
+CthughaDisplay::~CthughaDisplay() { }
 
 OptionInt maxFramesPerSecond("maxFPS", DEFAULT_MAX_FRAMES_PER_SECOND);
 
@@ -45,6 +43,14 @@ public:
     int size() const {
         return width() * height();
     }
+
+    int displayWidth() const {
+        return cthughaDisplay->displayFrameWidth();
+    }
+
+    int displayHeight() const {
+        return cthughaDisplay->displayFrameHeight();
+    }
 };
 
 static VisualFrameView visualBuffer() {
@@ -53,8 +59,8 @@ static VisualFrameView visualBuffer() {
 
 CthughaDisplay::CthughaDisplay()
     : sourceFrame(0)
+    , indexedDisplayFrameValue()
     , buffer0(0)
-    , buffer0ByteCount(0)
     , displayStart(0)
     , frames(0)
     , visualLatencyEstimate(0)
@@ -114,21 +120,44 @@ int CthughaDisplay::sourceSize() const {
     return sourceWidth() * sourceHeight();
 }
 
-void CthughaDisplay::prepareIndexedBuffer() {
-    // The indexed presentation scratch image is 2w x 2h, so it needs four
-    // source-image areas. Screen functions may fill only part of it, then
-    // mirrorHorizontally()/mirrorVertically() complete the final image.
-    int byteCount = 4 * sourceSize();
-    if (byteCount <= 0)
+const IndexedDisplayFrame& CthughaDisplay::indexedDisplayFrame() const {
+    return indexedDisplayFrameValue;
+}
+
+int CthughaDisplay::displayFrameWidth() const {
+    if (indexedDisplayFrameValue.valid())
+        return indexedDisplayFrameValue.width();
+
+    return 2 * sourceWidth();
+}
+
+int CthughaDisplay::displayFrameHeight() const {
+    if (indexedDisplayFrameValue.valid())
+        return indexedDisplayFrameValue.height();
+
+    return 2 * sourceHeight();
+}
+
+void CthughaDisplay::prepareIndexedDisplayFrame(int width, int height) {
+    if (width <= 0 || height <= 0)
         return;
 
-    if (buffer0ByteCount != byteCount) {
-        indexedBufferWillChange(buffer0);
-        delete[] buffer0;
-        buffer0 = new unsigned char[byteCount];
-        buffer0ByteCount = byteCount;
+    unsigned char* oldPixels = indexedDisplayFrameValue.pixels();
+    int oldWidth = indexedDisplayFrameValue.width();
+    int oldHeight = indexedDisplayFrameValue.height();
+    int oldPitch = indexedDisplayFrameValue.pitch();
+    int requiredByteCount = width * height;
+    int willMove = requiredByteCount > indexedDisplayFrameValue.capacityByteCount();
+
+    if (willMove)
+        indexedBufferWillChange(oldPixels);
+    indexedDisplayFrameValue.resize(width, height);
+    indexedDisplayFrameValue.setFramePalette(sourceFrame != NULL ? sourceFrame->framePalette : NULL);
+    buffer0 = indexedDisplayFrameValue.pixels();
+
+    if (indexedDisplayFrameValue.pixels() != oldPixels || indexedDisplayFrameValue.width() != oldWidth
+        || indexedDisplayFrameValue.height() != oldHeight || indexedDisplayFrameValue.pitch() != oldPitch)
         needsClear = 1;
-    }
 }
 
 /*
@@ -137,7 +166,7 @@ void CthughaDisplay::prepareIndexedBuffer() {
  */
 void CthughaDisplay::mirrorHorizontally(int height) {
     unsigned char* src = buffer;
-    unsigned char* dst = buffer + (2 * visualBuffer().width() - 1);
+    unsigned char* dst = buffer + (visualBuffer().displayWidth() - 1);
 
     for (int i = height; i != 0; i--) {
         for (int j = visualBuffer().width(); j != 0; j--) {
@@ -156,10 +185,10 @@ void CthughaDisplay::mirrorHorizontally(int height) {
  */
 void CthughaDisplay::mirrorVertically() {
     unsigned char* src = expandedBuffer;
-    unsigned char* dst = expandedBuffer + (2 * visualBuffer().height() - 1) * expandedBufferWidth;
+    unsigned char* dst = expandedBuffer + (visualBuffer().displayHeight() - 1) * expandedBufferWidth;
 
     for (int i = visualBuffer().height(); i != 0; i--) {
-        memcpy(dst, src, 2 * visualBuffer().width() * bypp);
+        memcpy(dst, src, visualBuffer().displayWidth() * bypp);
         src += expandedBufferWidth;
         dst -= expandedBufferWidth;
     }
@@ -209,7 +238,7 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
     int bpl2 = bytesPerLine / 2;
     int bpl4 = bytesPerLine / 4;
 
-    if ((zoom != 1) && (disp_size.x == 2 * visualBuffer().width()) && (disp_size.y == 2 * visualBuffer().height())) {
+    if ((zoom != 1) && (disp_size.x == visualBuffer().displayWidth()) && (disp_size.y == visualBuffer().displayHeight())) {
         CTH_INFO("Display size matches buffer size. setting zoom to 1\n");
         zoom.setValue(1);
     }
@@ -224,8 +253,8 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
         //
         // zoom 0: zoom, so that the image fits the screen
         //
-        int dx = int(65536.0 * double(2 * visualBuffer().width()) / double(disp_size.x));
-        double dy = double(2 * visualBuffer().height()) / double(disp_size.y);
+        int dx = int(65536.0 * double(visualBuffer().displayWidth()) / double(disp_size.x));
+        double dy = double(visualBuffer().displayHeight()) / double(disp_size.y);
 
         switch (bypp) {
         case 1:
@@ -275,8 +304,8 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
         // no zooming, just copy
         // this works for all bypp
         //
-        for (int i = 2 * visualBuffer().height(); i != 0; i--) {
-            memcpy(scrn, b1, 2 * visualBuffer().width() * bypp);
+        for (int i = visualBuffer().displayHeight(); i != 0; i--) {
+            memcpy(scrn, b1, visualBuffer().displayWidth() * bypp);
             scrn += bytesPerLine;
             b1 += expandedBufferWidth;
         }
@@ -287,34 +316,34 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
         //
         switch (bypp) {
         case 1:
-            for (int i = 2 * visualBuffer().height(); i != 0; i--) {
-                for (int j = 2 * visualBuffer().width(); j != 0; j--) {
+            for (int i = visualBuffer().displayHeight(); i != 0; i--) {
+                for (int j = visualBuffer().displayWidth(); j != 0; j--) {
                     unsigned short s = (*b1) | ((unsigned short)(*b1) << 8);
                     *s2 = s;
                     *(s2 + bpl2) = s;
                     s2++;
                     b1++;
                 }
-                s2 += bpl2 + bpl2 - 2 * visualBuffer().width();
-                b1 += expandedBufferWidth - 2 * visualBuffer().width();
+                s2 += bpl2 + bpl2 - visualBuffer().displayWidth();
+                b1 += expandedBufferWidth - visualBuffer().displayWidth();
             }
             break;
         case 2:
-            for (int i = 2 * visualBuffer().height(); i != 0; i--) {
-                for (int j = 2 * visualBuffer().width(); j != 0; j--) {
+            for (int i = visualBuffer().displayHeight(); i != 0; i--) {
+                for (int j = visualBuffer().displayWidth(); j != 0; j--) {
                     uint32_t s = (*b2) | ((uint32_t)(*b2) << 16);
                     *s4 = s;
                     *(s4 + bpl4) = s;
                     s4++;
                     b2++;
                 }
-                s4 += bpl4 + bpl4 - 2 * visualBuffer().width();
-                b2 += expandedBufferWidth / 2 - 2 * visualBuffer().width();
+                s4 += bpl4 + bpl4 - visualBuffer().displayWidth();
+                b2 += expandedBufferWidth / 2 - visualBuffer().displayWidth();
             }
             break;
         case 4:
-            for (int i = 2 * visualBuffer().height(); i != 0; i--) {
-                for (int j = 2 * visualBuffer().width(); j != 0; j--) {
+            for (int i = visualBuffer().displayHeight(); i != 0; i--) {
+                for (int j = visualBuffer().displayWidth(); j != 0; j--) {
                     uint32_t s = *b4;
                     *s4 = s;
                     *(s4 + 1) = s;
@@ -323,8 +352,8 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
                     s4 += 2;
                     b4++;
                 }
-                s4 += bpl4 + bpl4 - 4 * visualBuffer().width();
-                b4 += expandedBufferWidth / 4 - 2 * visualBuffer().width();
+                s4 += bpl4 + bpl4 - 2 * visualBuffer().displayWidth();
+                b4 += expandedBufferWidth / 4 - visualBuffer().displayWidth();
             }
             break;
         }
@@ -347,13 +376,13 @@ void CthughaDisplay::checkZoom() {
             needsClear = 1;
         }
 
-        draw_size.x = zoom * 2 * visualBuffer().width();
-        draw_size.y = zoom * 2 * visualBuffer().height();
+        draw_size.x = zoom * visualBuffer().displayWidth();
+        draw_size.y = zoom * visualBuffer().displayHeight();
         while ((draw_size.x > disp_size.x) || (draw_size.y > disp_size.y)) {
             CTH_ERROR("Zoom factor is set too high for current display size. reducing.\n");
             zoom.setValue(zoom / 2);
-            draw_size.x = zoom * 2 * visualBuffer().width();
-            draw_size.y = zoom * 2 * visualBuffer().height();
+            draw_size.x = zoom * visualBuffer().displayWidth();
+            draw_size.y = zoom * visualBuffer().displayHeight();
         }
     }
 }
