@@ -1,100 +1,68 @@
 # Installation
 
-## Precompiled Binaries
+## Building From Source
 
-To install the precompiled binaries into `/usr/local`, run:
+CthughaNix is built with CMake.
 
 ```sh
-make install-pre
+cmake -S . -B build
+cmake --build build
 ```
 
-To change where CthughaNix is installed, edit `Makefile`.
+The main executable is:
 
-The precompiled binaries are optimized for i486.
+```text
+build/src/xcthugha
+```
 
-## Building from Source
+To install it and the runtime resources:
 
-To compile your own version of CthughaNix:
+```sh
+cmake --install build
+```
 
-1. Run:
+Use a custom install prefix in the configure step:
 
-   ```sh
-   ./autogen.sh && ./configure
-   ```
+```sh
+cmake -S . -B build -DCMAKE_INSTALL_PREFIX=/opt/cthughanix
+cmake --build build
+cmake --install build
+```
 
-   For a list of possible options, run:
+## Useful Build Options
 
-   ```sh
-   ./configure --help
-   ```
+- `CTH_BUILD_X11`: build the X11 frontend. Default: `ON`.
+- `CTH_ENABLE_PULSE`: enable PulseAudio/PipeWire-Pulse output when available.
+  Default: `ON`.
+- `CTH_ENABLE_DSP`: enable OSS `/dev/dsp` support when soundcard headers are
+  available. Default: `ON`.
+- `CTH_ENABLE_MIXER`: enable OSS mixer controls when soundcard headers are
+  available. Default: `ON`.
+- `CTH_ENABLE_MINIMP3`: enable embedded MP3 decoding. Default: `ON`.
+- `CTH_ENABLE_XPM`: enable XPM screenshots when Xpm is available. Default:
+  `ON`.
+- `CTH_DATA_DIR`: installed runtime data directory.
 
-   See [Configure Architecture Option](#configure-architecture-option) for more
-   information.
+Example:
 
-2. Run:
+```sh
+cmake -S . -B build -DCTH_ENABLE_DSP=OFF -DCTH_ENABLE_MIXER=OFF
+```
 
-   ```sh
-   make
-   ```
+## Runtime Resources
 
-   This produces all the necessary files. Depending on which compiler you use,
-   you might get some warnings. These can be ignored.
+Installed resources live under `CTH_DATA_DIR`, which defaults to the platform
+data directory chosen by CMake, usually `/usr/local/share/cthughanix` for a
+default local install.
 
-3. Run:
-
-   ```sh
-   make install
-   ```
-
-   This installs CthughaNix on your system.
-
-## Configure Architecture Option
-
-The only `configure` option that is not self-explanatory is
-`--with-arch=ARCH`. This option is mainly used to distinguish between
-`pentiumpro` and `amdk6`.
-
-Possible values for `ARCH` are:
-
-- `386`
-- `486`
-- `pentium`
-- `pentiumpro`
-- `amdk6`
-
-Use `--without-cpu` to disable any processor-specific optimization.
+From a build tree, `xcthugha` can also find assets in the repository's
+`resources/` directories.
 
 ## Problems
 
-- A possible problem with shared libraries is that you may not have the library
-  without the version number. For example, if you have `libXaw.so.6` but no
-  `libXaw.so`, add a link with:
-
-  ```sh
-  ln -s libXaw.so.6 libXaw.so
-  ```
-
-  Add such links for all affected shared libraries.
-
-- If you have problems with sound reading, try the `--snd-method` option. Using
-  a value of `1` or `2` might solve the problem.
-
-  Please tell me if you continue to have problems, or if you know how to fix
-  them.
-
-- Take a look at the `TODO` file for known bugs and problems.
-
-## Non-Linux Machines
-
-- This release of CthughaNix should also work on some machines not running
-  Linux. You may not have any sound, but you can try something like:
-
-  ```sh
-  --play /dev/audio --silent
-  ```
-
-- Please tell me if you run this version on a different operating system. Also
-  tell me what you had to change to make it run.
-
-- The network code might not compile on non-Linux machines. Use the configure
-  option `--without-network` to disable all network functionality.
+- The X11 frontend requires X11, Xt, Xaw, Xmu, Xext, and Zlib development
+  libraries. Xpm support is optional.
+- PulseAudio-compatible output requires `libpulse-simple`.
+- OSS DSP and mixer support depend on soundcard headers and usable device
+  nodes.
+- Some compressed indexed-image assets are loaded through `gzip` at runtime.

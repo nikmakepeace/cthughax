@@ -1,38 +1,24 @@
 # Build and Porting Notes
 
-## Current Build Systems
+## Build System
 
-The project currently has two build paths:
+CMake is the only supported build system.
 
-- modern CMake, which is the verified reference path in this workspace;
-- old autoconf/automake files, still maintained enough to describe/build the
-  X11 frontend.
-
-The CMake files are:
+The active build files are:
 
 ```text
 CMakeLists.txt
 cmake/config.h.in
 cmake/generate_keymap.cmake
 src/CMakeLists.txt
+tests/benchmarks/CMakeLists.txt
 ```
 
-The autotools files are:
+The old autotools entry points have been removed from the tracked source tree.
+Generated configure-era files may still appear in dirty working directories,
+but they are ignored and are not part of the build contract.
 
-```text
-configure.in
-configure
-Makefile.am
-Makefile
-src/Makefile.am
-src/Makefile
-doc/Makefile.am
-doc/Makefile
-config.h
-config.h.in
-```
-
-## Modern CMake Build
+## CMake Build
 
 The normal build command is:
 
@@ -41,13 +27,15 @@ cmake -S . -B build
 cmake --build build
 ```
 
-The populated `build/` directory currently contains:
+The main executable target is:
 
-- `build/src/xcthugha`
+- `xcthugha`: the X11 visualizer.
 
 Major CMake options:
 
 - `CTH_BUILD_X11`: build the X11 frontend. Default: `ON`.
+- `CTH_BUILD_BENCHMARKS`: build Google Benchmark performance suites. Default:
+  `OFF`.
 - `CTH_ENABLE_PULSE`: enable PulseAudio/PipeWire-Pulse output when
   `libpulse-simple` is available. Default: `ON`.
 - `CTH_ENABLE_DSP`: enable OSS `/dev/dsp` support when soundcard headers are
@@ -57,79 +45,24 @@ Major CMake options:
 - `CTH_ENABLE_MINIMP3`: enable embedded minimp3 decoding. Default: `ON`.
 - `CTH_ENABLE_XPM`: enable XPM screenshots when Xpm is available. Default:
   `ON`.
-- `CTH_DATA_DIR`: installed runtime data directory. Current cache value:
-  `/usr/local/share/cthughanix`.
+- `CTH_DATA_DIR`: installed runtime data directory. Default:
+  `${CMAKE_INSTALL_FULL_DATADIR}/cthughanix`.
 
-Current CMake cache/config state in `build/`:
-
-- X11 frontend: enabled.
-- Pulse output: enabled and found.
-- OSS DSP input/output: enabled.
-- OSS mixer: enabled.
-- minimp3 decoder: enabled.
-- XPM screenshots: enabled.
-- C compiler: `/usr/bin/cc`.
-- C++ compiler: `/usr/bin/c++`.
-- CMake version recorded in the build directory: 3.31.6.
-
-## Autotools Build
-
-The old build still uses:
-
-- `configure.in`
-- generated `configure`
-- generated `Makefile`, `src/Makefile`, and `doc/Makefile`
-- `Makefile.am` files in root, `src/`, and `doc/`
-
-Root `Makefile.am` recurses into:
+CMake writes the generated configuration header to:
 
 ```text
-src
+build/config.h
 ```
 
-and adds `doc` only when the generated `BUILD_DOCS` conditional is true.
-
-Current generated autotools target state:
-
-- selected programs: `xcthugha`;
-- selected setuid programs: none;
-- the old server-mode program is not a current target.
-
-Major `configure.in` options:
-
-- `--disable-xwin`: skip the X11 target.
-- `--with-dsp=DEV` / `--without-dsp`: OSS DSP.
-- `--without-pulse`: disable PulseAudio-compatible output.
-- `--with-mixer=DEV` / `--without-mixer`: OSS mixer.
-- `--with-arch=ARCH`: old CPU optimization selection.
-
-Removed/stale options from earlier project notes:
-
-- `--disable-svga` is not present.
-- `--disable-gl` is not present.
-- `--disable-serv` is not present.
-- `--without-network` is not present.
-- the old server-mode program is not built from current source files.
-
-Current generated autotools config state from `config.h` and generated
-Makefiles:
-
-- `WITH_DSP`, `WITH_MIXER`, `WITH_PULSE`, and `WITH_MINIMP3` are enabled.
-- `USE_XPM` is enabled.
-- `PACKAGE` is `cthughanix`, and `pkglibdir` is `$(libdir)/cthughanix`.
-- `TARGETS` is `xcthugha`.
-- `TARGETS_SUID` is empty.
-
-`config.log` is from this workspace on Linux/x86_64 with GCC 14.2.0 and was
-created by `./configure --no-create --no-recursion`.
+Source files should include it as `config.h` through the target include path,
+not by reaching for a source-tree generated header.
 
 ## Native Dependencies
 
 Core/common:
 
 - C and C++ compiler;
-- CMake for the modern path;
-- make/autoconf/automake if regenerating autotools files;
+- CMake;
 - POSIX process/file APIs;
 - curses or ncurses for text UI support;
 - gzip at runtime for `.gz` assets.
@@ -149,37 +82,23 @@ Audio and media:
 - embedded minimp3 for native MP3 decoding;
 - optional PulseAudio-compatible output via `libpulse-simple`;
 - optional OSS `/dev/dsp`;
-- optional OSS mixer ioctls;
+- optional OSS mixer ioctls.
 
 ## Verified Commands
 
-These commands were run successfully while updating the docs:
+Useful verification commands:
 
 ```sh
+cmake -S . -B build
 cmake --build build
+ctest --test-dir build --output-on-failure
 tests/headers/check-headers.sh
-```
-
-`cmake --build build` reconfigured and built all current CMake targets.
-
-`tests/headers/check-headers.sh` reported:
-
-```text
-Checked 41 headers.
-Skipped: 1.
-Failures: 0.
-```
-
-In the current headless shell, this command reaches usage output without opening
-X11:
-
-```sh
 env -u DISPLAY build/src/xcthugha --help
 ```
 
-Help is handled before ini loading, X resource lookup, or display startup.
-For normal runs, X11 initialization is deferred until the display section after
-option parsing, sound setup, and visual-buffer setup.
+The help path should print usage before any X11 initialization. Normal runs now
+defer display startup until the display initialization section, after option
+parsing and core runtime setup.
 
 ## Debugging Hooks
 
@@ -205,10 +124,10 @@ local logging path rather than adding a new one.
   wrapper scheme deliberately.
 - `xwin_options.cc` and `xwin_keys.cc` are the remaining wrapper compile units
   for X11-specific options and key handling.
-- CMake generates `default.keymap.str` under `build/src/`; in-tree builds
-  may generate `src/default.keymap.str`.
-- Local object files in `src/` are not authoritative.
-  Check source lists in `CMakeLists.txt` and `Makefile.am`.
+- CMake generates `default.keymap.str` under `build/src/`; in-tree builds may
+  generate `src/default.keymap.str`.
+- Local object files in `src/` are not authoritative. Check source lists in
+  `CMakeLists.txt`.
 
 ## Porting Strategy
 
@@ -218,10 +137,10 @@ The current stable slice is CMake plus `xcthugha`.
 
 Recommended practice:
 
-- Use CMake for active development.
-- Keep the autotools files coherent while they remain in the tree, but avoid
-  relying on stale build artifacts.
+- Use CMake for active development and CI.
 - Treat `xcthugha` as the behavioral reference when modernizing.
+- Keep generated build output under `build/` or another out-of-tree CMake build
+  directory.
 
 ### Phase 2: Extend The Modern Audio Runtime
 
@@ -278,7 +197,3 @@ Highest-value tests:
 - `AudioProcessor` modes over fixed 1024-sample frames;
 - `AudioAnalyzer` and `AcousticContext` fire/intensity behavior;
 - palette loading, metadata, and set filtering;
-- indexed image metadata/loading/clipping for PCX and PNG;
-- built-in translation generator catalog entries;
-- keymap parsing with examples from `src/default.keymap`;
-- deterministic flame/wave transforms after they are exposed as testable stages.

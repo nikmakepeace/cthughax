@@ -38,18 +38,14 @@ These commands were run successfully after the source cleanup:
 git diff --check
 cmake -S /workspaces/cthughanix -B /workspaces/cthughanix/build -DCMAKE_BUILD_TYPE=Debug
 cmake --build /workspaces/cthughanix/build --parallel
-make -j2
 ```
 
-The CMake build produced the X11 visualizer and helper tools. The autotools
-build also completed, with only pre-existing compiler warnings observed.
+The CMake build produced the X11 visualizer and helper tools.
 
 ## Documentation Sweep
 
-The root project notes now describe the modern audio path, raw PCM support, and
-single `AudioFrame` facade. Older generated files under `project-docs/` have
-been collapsed into pointers to the root notes so they do not preserve stale
-source names or removed extension instructions.
+The root project notes now describe the modern audio path, raw PCM support,
+single `AudioFrame` facade, and CMake-only build.
 
 ## Remaining Risk Areas
 

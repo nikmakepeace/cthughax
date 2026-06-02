@@ -267,8 +267,7 @@ just an overlay; in 8-bit modes it changes palette strategy.
 ### Build System
 
 CMake is now the verified path and should remain the reference for active work.
-Autotools can be kept coherent for longtime users, but new targets should be
-added to CMake first.
+The old autotools path has been removed; add new targets to CMake.
 
 ### Sound
 

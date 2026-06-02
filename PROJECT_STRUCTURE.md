@@ -18,11 +18,6 @@
 |-- precompiled/         old 32-bit Linux binaries
 |-- CMakeLists.txt       modern build entry point
 |-- cmake/config.h.in    CMake config header template
-|-- Makefile.am          automake root
-|-- configure.in         old autoconf input
-|-- configure            generated configure script
-|-- Makefile             generated autotools Makefile
-|-- config.h             generated autotools config header
 `-- cthugha.ini.eg       example config file
 ```
 
@@ -161,23 +156,6 @@ Current CMake targets:
 | Target | Purpose | Notes |
 | --- | --- | --- |
 | `xcthugha` | X11 visualizer | Built from `CTHUGHA_COMMON_SOURCES`, X11 key/options wrappers, `display.cc`, and X11 display device/display classes. |
-
-### Autotools
-
-`src/Makefile.am` still describes these source sets:
-
-- `GENSRC`: shared options, audio/runtime files, UI, misc, base
-  display classes, autochanger, analyzer, and filterchain scaffolding.
-- `DISPSRC`: `GENSRC` plus visual effects, palettes, indexed images, translation,
-  `AudioProcessor`, `CthughaBuffer`, `Application`, flashlight, and help UI.
-
-Autotools target source sets:
-
-| Target | Purpose | Distinct source pieces |
-| --- | --- | --- |
-| `xcthugha` | X11 frontend | `DisplayDeviceX11.cc`, `DisplayDeviceX11-Panel.cc`, `CthughaDisplayX11.cc`, `xwin_keys.cc`, `xwin_options.cc` |
-The current generated autotools Makefiles select `xcthugha` and no setuid
-programs.
 
 The wrapper files are important: several compile modes include implementation
 files directly after defining a macro, for example `xwin_options.cc` defines

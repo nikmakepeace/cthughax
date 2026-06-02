@@ -5,7 +5,7 @@
 #ifndef __CTHUGHA_H__
 #define __CTHUGHA_H__
 
-#include "../config.h"
+#include "config.h"
 
 // #define bzero(b,len) (memset((b), '\0', (len)), (void) 0)
 
@@ -21,7 +21,7 @@
 #include <stdlib.h>
 #include <errno.h>
 
-/* this is suggested by autoconf */
+/* Keep old portability fallbacks while CMake supplies the feature defines. */
 #if STDC_HEADERS
 #include <string.h>
 #else

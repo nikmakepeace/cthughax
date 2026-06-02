@@ -5,6 +5,7 @@ set -u
 script_dir=`dirname "$0"`
 repo_root=`cd "$script_dir/../.." && pwd`
 build_dir="$repo_root/tests/headers/build"
+cmake_build_dir=${CTH_CMAKE_BUILD_DIR:-"$repo_root/build"}
 report="$repo_root/tests/headers/header-errors"
 
 cxx=${CXX:-g++}
@@ -14,10 +15,12 @@ rm -rf "$build_dir"
 mkdir -p "$build_dir"
 : > "$report"
 
-if test ! -f "$repo_root/config.h"; then
+include_flags="-I$cmake_build_dir/src -I$cmake_build_dir -I$repo_root/src -I$repo_root"
+
+if test ! -f "$cmake_build_dir/config.h"; then
     {
-        echo "warning: $repo_root/config.h was not found."
-        echo "Run this from a configured build tree for the most accurate results."
+        echo "warning: $cmake_build_dir/config.h was not found."
+        echo "Run cmake -S $repo_root -B $cmake_build_dir before checking headers."
         echo
     } >> "$report"
 fi
@@ -28,7 +31,7 @@ cat > "$x11_probe" <<EOF
 #include <X11/extensions/XShm.h>
 int main() { return 0; }
 EOF
-if "$cxx" -DHAVE_CONFIG_H -I"$repo_root" -I"$repo_root/src" $cxxflags -c "$x11_probe" -o "$build_dir/x11-probe.o" > "$build_dir/x11-probe.log" 2>&1; then
+if "$cxx" -DHAVE_CONFIG_H $include_flags $cxxflags -c "$x11_probe" -o "$build_dir/x11-probe.o" > "$build_dir/x11-probe.log" 2>&1; then
     have_x11=1
 else
     have_x11=0
@@ -66,7 +69,7 @@ for header in "$repo_root"/src/*.h; do
         echo "}"
     } > "$stub"
 
-    if "$cxx" -DHAVE_CONFIG_H -I"$repo_root" -I"$repo_root/src" $cxxflags -c "$stub" -o "$obj" > "$log" 2>&1; then
+    if "$cxx" -DHAVE_CONFIG_H $include_flags $cxxflags -c "$stub" -o "$obj" > "$log" 2>&1; then
         :
     else
         failures=`expr "$failures" + 1`

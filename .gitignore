@@ -33,7 +33,7 @@
 core
 core.*
 
-# Autotools bootstrap/configure output
+# Retired configure-era output
 /aclocal.m4
 /autom4te.cache/
 /autoscan.log
@@ -55,7 +55,7 @@ core.*
 /stamp-h
 /stamp-h1
 
-# Generated Makefiles
+# Retired generated Makefiles
 /Makefile
 /Makefile.in
 /doc/Makefile
@@ -70,11 +70,11 @@ core.*
 /build*/
 /install_manifest.txt
 
-# Automake dependency/libtool directories
+# Retired dependency/libtool directories
 .deps/
 .libs/
 
-# Project binaries built by make
+# Legacy in-tree binaries
 /src/cthugha
 /src/xcthugha
 /src/glcthugha
