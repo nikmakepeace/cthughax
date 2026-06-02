@@ -4,6 +4,7 @@
 #include "TranslationOptions.h"
 #include "information.h"
 #include "display.h"
+#include "CoreOptionIni.h"
 #include "keys.h"
 #include "AutoChanger.h"
 #include "AudioProcessor.h"
@@ -213,7 +214,7 @@ static void warn_unknown_ini_entries() {
             continue;
         }
 
-        if (!CoreOption::isIniEntry(entry)) {
+        if (!coreOptionIsIniEntry(entry)) {
             CTH_WARN("Unknown ini directive `cthugha.%s' in `%s' line %d.\n",
                 entry, ini_file_path, line_nr);
         }
@@ -391,7 +392,7 @@ int read_ini() {
             }
         }
 
-        CoreOption::getIniInitials();
+        coreOptionGetIniInitials();
         warn_unknown_ini_entries();
 
         if (ini_file)
@@ -408,8 +409,8 @@ int read_ini_usage() {
     open_ini_start();
     while (open_ini_file() == 0) {
 
-        CoreOption::getIniUsages();
-        CoreOption::getHotIni();
+        coreOptionGetIniUsages();
+        coreOptionGetHotIni();
 
         /* close the ini-file */
         if (ini_file)
@@ -495,7 +496,7 @@ int write_ini() {
         "#\n"
         "# Core Options\n"
         "#\n");
-    CoreOption::putIniInitials();
+    coreOptionPutIniInitials();
     putini(audioProcessing);
 
     fprintf(ini_file,
@@ -515,13 +516,13 @@ int write_ini() {
         "#\n"
         "# Core Option usage options\n"
         "#\n");
-    screen.putIniUsages();
+    coreOptionPutIniUsages();
 
     fprintf(ini_file,
         "#\n"
         "# Core Option 'Hot' options\n"
         "#\n");
-    CoreOption::putHotIni();
+    coreOptionPutHotIni();
 
     /*
      * copy old settings

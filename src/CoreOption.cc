@@ -364,28 +364,24 @@ void CoreOption::restore(int from) {
         o->change(0, 0);
     }
 }
-//
-// read and write hotkeys settings to ini files
-//
-void CoreOption::getHotIni() {
-    for (int i = 0; i < MAX_HOT; i++) {
-        for (CoreOption* o = first; o != NULL; o = o->next) {
-            std::string key = std::string("hot.") + std::to_string(i) + "." + o->name();
-            char val[512];
-            if (!getini(key.c_str(), val)) {
-                o->hot[i] = o->optNr(val);
-            }
-        }
-    }
+
+void CoreOption::setHotValue(int slot, int value_) {
+    if ((slot < 0) || (slot >= MAX_HOT))
+        return;
+
+    hot[slot] = value_;
 }
-void CoreOption::putHotIni() {
-    for (int i = 0; i < MAX_HOT; i++) {
-        for (CoreOption* o = first; o != NULL; o = o->next) {
-            std::string key = std::string("hot.") + std::to_string(i) + "." + o->name();
-            putini(key.c_str(), o->text(o->hot[i]));
-        }
-    }
+
+int CoreOption::hotValue(int slot) const {
+    if ((slot < 0) || (slot >= MAX_HOT))
+        return 0;
+
+    return hot[slot];
 }
+
+int CoreOption::hotSlotCount() { return MAX_HOT; }
+
+CoreOption* CoreOption::firstRegistered() { return first; }
 
 //
 // add a new entry to the list
@@ -404,83 +400,6 @@ int CoreOption::defined(const char* name) {
     for (int i = 0; i < getNEntries(); i++)
         if (strcmp(entries[i]->name, name) == 0)
             return 1;
-    return 0;
-}
-
-//
-// get all the usages from the current ini file
-//
-void CoreOption::getIniUsages() {
-    for (CoreOption* o = first; o != NULL; o = o->next) {
-        if (o->buffer <= 0)
-            o->getIniUsage();
-    }
-}
-
-void CoreOption::getIniUsage() {
-    for (int i = 0; i < getNEntries(); i++) {
-        std::string key = std::string(name()) + "." + entries[i]->name;
-        getini_yesno(key.c_str(), &(entries[i]->use.value));
-    }
-}
-
-//
-// write all the usages to the auto-ini files
-//
-void CoreOption::putIniUsages() {
-    for (CoreOption* o = first; o != NULL; o = o->next) {
-        if (o->buffer <= 0)
-            o->putIniUsage();
-    }
-}
-void CoreOption::putIniUsage() {
-    for (int i = 0; i < getNEntries(); i++) {
-        std::string key = std::string(name()) + "." + entries[i]->name;
-        putini(key.c_str(), entries[i]->use.text());
-    }
-}
-
-void CoreOption::putIniInitials() {
-    for (CoreOption* o = first; o != NULL; o = o->next) {
-        putini(*o);
-    }
-}
-void CoreOption::getIniInitials() {
-    for (CoreOption* o = first; o != NULL; o = o->next) {
-        getini(*o);
-    }
-}
-
-int CoreOption::isIniEntry(const char* entry) {
-    int len;
-
-    if (strchr(entry, '?') != NULL)
-        return 1;
-
-    if (strncasecmp(entry, "hot.", 4) == 0)
-        return 1;
-
-    for (CoreOption* o = first; o != NULL; o = o->next) {
-        if (strcasecmp(entry, o->name()) == 0)
-            return 1;
-
-        len = strlen(o->name());
-        if ((strncasecmp(entry, o->name(), len) == 0) && (entry[len] == '.'))
-            return 1;
-
-        for (int i = 0; i < MAX_HOT; i++) {
-            std::string key = std::string("hot.") + std::to_string(i) + "." + o->name();
-            if (strcasecmp(entry, key.c_str()) == 0)
-                return 1;
-        }
-
-        for (int i = 0; i < o->getNEntries(); i++) {
-            std::string key = std::string(o->name()) + "." + o->entries[i]->name;
-            if (strcasecmp(entry, key.c_str()) == 0)
-                return 1;
-        }
-    }
-
     return 0;
 }
 

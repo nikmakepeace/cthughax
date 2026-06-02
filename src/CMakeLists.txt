@@ -2,6 +2,7 @@ set(CTHUGHA_COMMON_SOURCES
     Option.cc
     OptionInt.cc
     CoreOption.cc
+    CoreOptionIni.cc
     CoreOptionEntry.cc
     AudioInternal.cc
     AudioOutput.cc

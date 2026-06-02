@@ -31,6 +31,7 @@ public:
     const char* Desc() const { return desc; }
     void setUse(int inUse) { use.setValue(inUse); }
     int inUse() const { return int(use); }
+    const char* useText() const { return use.text(); }
 
     virtual int sameName(const char* other);
 
@@ -146,9 +147,6 @@ protected:
     void doSave();
     void doRestore();
 
-    void getIniUsage();
-    void putIniUsage();
-
     //
     // general loading
     //
@@ -243,6 +241,8 @@ public:
     }
     int getNEntries() const { return entries.n(); }
     int autoChangeEnabled() const { return (flags & CORE_OPTION_AUTO_CHANGE) != 0; }
+    int bufferIndex() const { return buffer; }
+    CoreOption* nextRegistered() const { return next; }
 
     //
     // control History and Hot Values
@@ -253,19 +253,10 @@ public:
 
     static void save(int to);
     static void restore(int from);
-
-    //
-    // access ini file
-    //
-    static void putIniInitials(); // put current values
-    static void getIniInitials(); // get initial values
-
-    static void getHotIni();
-    static void putHotIni();
-
-    static void getIniUsages();
-    static void putIniUsages();
-    static int isIniEntry(const char* entry);
+    void setHotValue(int slot, int value_);
+    int hotValue(int slot) const;
+    static int hotSlotCount();
+    static CoreOption* firstRegistered();
 
     friend class InterfaceList;
     friend class activateAction;
