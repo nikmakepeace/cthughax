@@ -138,8 +138,7 @@ int init_sound(int visualMaxDimension) {
     if (audioRuntimeIsInitialized())
         return 0;
 
-    audioRuntimeInit(1, visualMaxDimension);
-    return 0;
+    return audioRuntimeInit(1, visualMaxDimension);
 }
 
 int exit_sound() {

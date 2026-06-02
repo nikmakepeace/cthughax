@@ -374,13 +374,13 @@ static void audioRuntimeAnnounceComplete() {
     cthugha_close++;
 }
 
-void audioRuntimeInit(int initializeInputControls, int visualMaxDimension) {
+int audioRuntimeInit(int initializeInputControls, int visualMaxDimension) {
     CTH_DEBUG("audio runtime: init requested initialize-input-controls=%d visual-max-dimension=%d\n",
         initializeInputControls, visualMaxDimension);
 
     if (audioRuntimeIsInitialized()) {
         CTH_DEBUG("audio runtime: init skipped because audio is already installed\n");
-        return;
+        return 0;
     }
 
     Settings settings = Settings::fromCurrentOptions();
@@ -402,7 +402,7 @@ void audioRuntimeInit(int initializeInputControls, int visualMaxDimension) {
                 sourceStrategy);
             delete audioInput;
             audioInput = NULL;
-            exit(0);
+            return 1;
         }
 
         audioOutput = runtimeFactory.createAudioOutput();
@@ -413,7 +413,7 @@ void audioRuntimeInit(int initializeInputControls, int visualMaxDimension) {
             audioInput = NULL;
             delete audioOutput;
             audioOutput = NULL;
-            exit(0);
+            return 1;
         }
 
         int bytesPerSample = audioRuntimeBytesPerSample();
@@ -445,17 +445,19 @@ void audioRuntimeInit(int initializeInputControls, int visualMaxDimension) {
         audioProcessor = runtimeFactory.createAudioProcessor();
         if (audioProcessor == NULL) {
             CTH_DEBUG("audio runtime: native AudioInputProcessor unavailable\n");
-            exit(0);
+            return 1;
         }
 
         CTH_DEBUG("audio runtime: installed native AudioInputProcessor path\n");
         if (initializeInputControls && audioProcessor->audioInput()->initInputControls()) {
             CTH_DEBUG("audio runtime: native input control initialization failed\n");
-            exit(0);
+            audioRuntimeShutdown();
+            return 1;
         }
     }
 
     CTH_DEBUG("audio runtime: init completed\n");
+    return 0;
 }
 
 void audioRuntimeTick() {

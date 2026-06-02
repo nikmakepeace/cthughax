@@ -88,6 +88,6 @@ public:
 
 extern DisplayDevice* displayDevice;
 
-extern void newDisplayDevice(Scene& scene, SceneCommands& sceneCommands);
+extern int newDisplayDevice(Scene& scene, SceneCommands& sceneCommands);
 
 #endif

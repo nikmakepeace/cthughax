@@ -34,7 +34,7 @@ public:
     static CthughaBuffer* current;
 
     void init();
-    static void initAll();
+    static int initAll();
 
 };
 

@@ -60,7 +60,7 @@ void CthughaBuffer::init() {
     memset(passiveBuffer, 0, size());
 }
 
-void CthughaBuffer::initAll() {
+int CthughaBuffer::initAll() {
 
     current = &buffer;
 
@@ -70,19 +70,20 @@ void CthughaBuffer::initAll() {
     flame.add(_flames, _nFlames);
 
     if (init_flames())
-        exit(0);
+        return 1;
 
     if (init_translate(buffer))
-        exit(0);
+        return 1;
 
     if (init_wave())
-        exit(0);
+        return 1;
 
     if (load_palettes())
-        exit(0);
+        return 1;
 
     // allocate memory for the buffers
     buffer.init();
+    return 0;
 }
 
 void CthughaBuffer::swapBuffers() {

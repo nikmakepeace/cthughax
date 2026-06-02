@@ -21,7 +21,6 @@ main(argc, argv)
   get_params()                         # read ini files, then command line
   title()
   init_imath()
-  atexit(deleter)
   init_ncurses() if requested
   init_sound()
   CthughaBuffer::initAll()

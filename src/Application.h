@@ -20,7 +20,7 @@ class Application {
     char** argvValue;
     std::vector<char*> displayArgv;
     int exitStatusValue;
-    int exitHandlersRegistered;
+    int ncursesInitialized;
     std::unique_ptr<VideoFilterchain> videoFilterchain;
     VideoFilterchainSequence videoFilterchainSequence;
     std::unique_ptr<AudioVisualBridge> audioVisualBridge;
@@ -51,13 +51,9 @@ public:
     void shutdown();
     void runFrame(int doDisplay);
     int exitStatus() const;
-    int hasExitHandlers() const;
 
     Scene& scene();
     SceneCommands& sceneCommands();
 };
-
-Application* createApplication(int argc, char* argv[]);
-void destroyApplication();
 
 #endif

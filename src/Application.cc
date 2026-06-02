@@ -30,17 +30,14 @@
 
 #include <unistd.h>
 
-static Application* application = NULL;
-
 static void configureTerminalTextMode();
-void deleter();
 
 Application::Application(int argc, char* argv[])
     : argcValue(argc)
     , argvValue(argv)
     , displayArgv(argv, argv + argc)
     , exitStatusValue(1)
-    , exitHandlersRegistered(0)
+    , ncursesInitialized(0)
     , platformLifecycle(PlatformLifecycleCallbacks(
           &Application::platformWillSuspend, &Application::platformDidResume, this))
     , shutdownComplete(0) { }
@@ -62,7 +59,8 @@ void Application::willSuspend() {
 }
 
 void Application::didResume() {
-    init_sound(CthughaBuffer::buffer.maxDimension());
+    if (init_sound(CthughaBuffer::buffer.maxDimension()))
+        cthugha_close++;
 }
 
 void Application::initSceneRuntime() {
@@ -151,6 +149,10 @@ void Application::shutdown() {
 
     // AutoChanger owns final option persistence, so destroy the bridge first.
     shutdownAudioVisualBridge();
+    if (ncursesInitialized) {
+        exit_ncurses();
+        ncursesInitialized = 0;
+    }
     delete cthughaDisplay;
     cthughaDisplay = NULL;
     delete displayDevice;
@@ -192,20 +194,20 @@ int Application::initialize() {
 
     init_imath();
 
-    atexit(deleter);
-    exitHandlersRegistered = 1;
-
     configureTerminalTextMode();
     if (ncurses_use) {
-        init_ncurses();
-        atexit(exit_ncurses);
+        if (init_ncurses())
+            return 0;
+        ncursesInitialized = 1;
     }
 
     CTH_INFO("Initializing the sound device...\n");
-    init_sound(CthughaBuffer::buffer.maxDimension());
+    if (init_sound(CthughaBuffer::buffer.maxDimension()))
+        return 0;
 
     CTH_INFO("Initializing cthugha Buffer...\n");
-    CthughaBuffer::initAll();
+    if (CthughaBuffer::initAll())
+        return 0;
     if (videoDirector().loadImages()) {
         exitStatusValue = 0;
         return 0;
@@ -228,7 +230,8 @@ int Application::initialize() {
     int displayArgc = int(displayArgv.size());
     if (cth_init(&displayArgc, displayArgv.data()))
         return 0;
-    newDisplayDevice(scene(), sceneCommands());
+    if (newDisplayDevice(scene(), sceneCommands()))
+        return 0;
     newCthughaDisplay();
 
     CTH_INFO("Initializing the audio-visual bridge...\n");
@@ -297,10 +300,6 @@ int Application::exitStatus() const {
     return exitStatusValue;
 }
 
-int Application::hasExitHandlers() const {
-    return exitHandlersRegistered;
-}
-
 void Application::runFrame(int doDisplay) {
     double frameTiming[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int traceFrameTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
@@ -353,17 +352,6 @@ void Application::runFrame(int doDisplay) {
     platformLifecycle.serviceFrameBoundary();
 }
 
-Application* createApplication(int argc, char* argv[]) {
-    if (application == NULL)
-        application = new Application(argc, argv);
-    return application;
-}
-
-void destroyApplication() {
-    delete application;
-    application = NULL;
-}
-
 static void configureTerminalTextMode() {
 #if HAVE_NCURSES == 1
     ncurses_use = DisplayDevice::text_on_term;
@@ -371,8 +359,4 @@ static void configureTerminalTextMode() {
     ncurses_use = 0;
     DisplayDevice::text_on_term = 0;
 #endif
-}
-
-void deleter() {
-    destroyApplication();
 }

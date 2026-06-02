@@ -216,7 +216,7 @@ int DisplayDeviceX11::getAttributes() {
     return (wa.map_state == IsViewable);
 }
 
-void DisplayDeviceX11::CreateWindow(const char* name, int full_screen) {
+int DisplayDeviceX11::CreateWindow(const char* name, int full_screen) {
     XSetWindowAttributes attr;
     unsigned long mask;
     XSizeHints* sh;
@@ -245,8 +245,10 @@ void DisplayDeviceX11::CreateWindow(const char* name, int full_screen) {
         XStoreName(xcth_display, window, name);
 
     getAttributes();
-    allocImage(); // Sets bypp and bits-per-pixel from the server's image format.
-    initPalette(); // Must be done before XMapWindow when installing a colormap.
+    if (allocImage()) // Sets bypp and bits-per-pixel from the server's image format.
+        return 1;
+    if (initPalette()) // Must be done before XMapWindow when installing a colormap.
+        return 1;
 
     if (full_screen) {
         // Older window managers may still decorate "fullscreen" windows.
@@ -284,6 +286,8 @@ void DisplayDeviceX11::CreateWindow(const char* name, int full_screen) {
         XMapWindow(xcth_display, window);
     } else
         XMapWindow(xcth_display, window);
+
+    return 0;
 }
 
 Cursor DisplayDeviceX11::xcth_cursor() {
@@ -315,7 +319,7 @@ void DisplayDeviceX11::checkDisplaySize() {
     }
 }
 
-void DisplayDeviceX11::loadFont() {
+int DisplayDeviceX11::loadFont() {
     if (!text_on_term) {
         font = XLoadQueryFont(xcth_display, xcth_font);
         if (font == NULL) {
@@ -324,7 +328,7 @@ void DisplayDeviceX11::loadFont() {
             font = XLoadQueryFont(xcth_display, "fixed");
             if (font == NULL) {
                 CTH_ERROR("Can not load font fixed.\n");
-                exit(0);
+                return 1;
             }
         }
         XSetFont(xcth_display, gc, font->fid);
@@ -333,6 +337,7 @@ void DisplayDeviceX11::loadFont() {
         text_size.x = 0;
     } else
         font = NULL;
+    return 0;
 }
 
 void DisplayDeviceX11::freeFont() {
@@ -371,10 +376,16 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
     , palettePreviewWidth(0)
     , palettePreviewHeight(0)
     , palettePreviewChangedAt(0.0)
+    , shmAttached(0)
     , pixmap(None)
-    , image(NULL) {
+    , image(NULL)
+    , copyText(0)
+    , paletteInitialized(0)
+    , initialized(0) {
 
     CTH_INFO("Initializing X11 display...\n");
+    memset(&shminfo, 0, sizeof(shminfo));
+    shminfo.shmid = -1;
 
     // The root window and the control panel both require the default colormap.
     if (display_on_root)
@@ -399,15 +410,17 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
         disp_size.x = DisplayWidth(xcth_display, screen);
         disp_size.y = DisplayHeight(xcth_display, screen);
 
-        allocImage();
-        initPalette();
+        if (allocImage() || initPalette())
+            return;
     } else {
-        CreateWindow("Cthugha", full_screen);
+        if (CreateWindow("Cthugha", full_screen))
+            return;
     }
 
     gc = XCreateGC(xcth_display, window, 0, 0);
 
-    loadFont();
+    if (loadFont())
+        return;
 
     if (xcth_panel) {
         xcth_create_panel();
@@ -419,12 +432,13 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
                  text_size.x * fontSize.x, text_size.y * fontSize.y, planes))
             == 0) {
             CTH_ERROR("Can not create the text pixmap.\n");
-            exit(0);
+            return;
         }
         copyText = 2;
     } else {
         copyText = 0;
     }
+    initialized = 1;
 }
 
 DisplayDeviceX11::~DisplayDeviceX11() {
@@ -432,7 +446,9 @@ DisplayDeviceX11::~DisplayDeviceX11() {
         XFreePixmap(xcth_display, palettePreviewPixmap);
         palettePreviewPixmap = None;
     }
-    freePalette();
+    if (paletteInitialized)
+        freePalette();
+    freeFont();
     freeImage();
 }
 
@@ -526,7 +542,7 @@ void DisplayDeviceX11::printString(
     }
 }
 
-void DisplayDeviceX11::allocImage() {
+int DisplayDeviceX11::allocImage() {
 
     // MIT-SHM lets the client and X server share the frame buffer memory.
     // A shared pixmap is fastest because XCopyArea can present it directly;
@@ -558,7 +574,7 @@ void DisplayDeviceX11::allocImage() {
                  xcth_display, visual, planes, ZPixmap, NULL, &shminfo, disp_size.x, disp_size.y))
             == NULL) {
             CTH_ERROR("Can not create the shared XImage.\n");
-            exit(0);
+            return 1;
         }
         bypp = (image->bits_per_pixel + 7) / 8;
         bytes_per_line = image->bytes_per_line;
@@ -566,24 +582,25 @@ void DisplayDeviceX11::allocImage() {
         if ((shminfo.shmid = shmget(IPC_PRIVATE, bytes_per_line * disp_size.y, IPC_CREAT | 0777))
             == -1) {
             CTH_ERRNO(errno, "Can not create shared memory segment");
-            exit(0);
+            return 1;
         }
         if ((shminfo.shmaddr = image->data = (char*)shmat(shminfo.shmid, 0, 0)) == (void*)-1) {
             CTH_ERRNO(errno, "Can not attach shared memory segment");
-            exit(0);
+            image->data = NULL;
+            return 1;
         }
         shminfo.readOnly = False;
         if (XShmAttach(xcth_display, &shminfo) == 0) {
             CTH_ERROR("Can not X-attach shared memory segment.\n");
-            exit(0);
-            ;
+            return 1;
         }
+        shmAttached = 1;
 
         if ((pixmap = XShmCreatePixmap(
                  xcth_display, window, image->data, &shminfo, disp_size.x, disp_size.y, planes))
             == 0) {
             CTH_ERROR("Can not create the shared XPixmap.\n");
-            exit(0);
+            return 1;
         }
         break;
 
@@ -595,7 +612,7 @@ void DisplayDeviceX11::allocImage() {
                  &shminfo, disp_size.x, disp_size.y))
             == NULL) {
             CTH_ERROR("Can not create XImage.\n");
-            exit(0);
+            return 1;
         }
         bypp = (image->bits_per_pixel + 7) / 8;
         bytes_per_line = image->bytes_per_line;
@@ -603,19 +620,20 @@ void DisplayDeviceX11::allocImage() {
         if ((shminfo.shmid = shmget(IPC_PRIVATE, bytes_per_line * disp_size.y, IPC_CREAT | 0777))
             == -1) {
             CTH_ERRNO(errno, "Can not create shared memory segment");
-            exit(0);
+            return 1;
         }
         if ((shminfo.shmaddr = image->data = (char*)shmat(shminfo.shmid, 0, 0)) == (void*)-1) {
             CTH_ERRNO(errno, "Can not attach shared memory segment");
-            exit(0);
+            image->data = NULL;
+            return 1;
         }
         shminfo.readOnly = False;
 
         if (XShmAttach(xcth_display, &shminfo) == 0) {
             CTH_ERROR("Can not X-attach shared memory segment.\n");
-            exit(0);
-            ;
+            return 1;
         }
+        shmAttached = 1;
         break;
 
     case shmNone:
@@ -625,20 +643,20 @@ void DisplayDeviceX11::allocImage() {
                  disp_size.y, XBitmapPad(xcth_display), 0))
             == NULL) {
             CTH_ERROR("Can not create XImage.\n");
-            exit(0);
+            return 1;
         }
         bypp = (image->bits_per_pixel + 7) / 8;
         bytes_per_line = image->bytes_per_line;
 
         if ((image->data = (char*)malloc(disp_size.y * bytes_per_line)) == NULL) {
             CTH_ERROR("Can not allocate memory for bitmap.\n");
-            exit(0);
+            return 1;
         }
 
         if ((pixmap = XCreatePixmap(xcth_display, window, disp_size.x, disp_size.y, planes))
             == 0) {
             CTH_ERROR("Can not create the staging XPixmap.\n");
-            exit(0);
+            return 1;
         }
     }
 
@@ -650,6 +668,7 @@ void DisplayDeviceX11::allocImage() {
 
     CTH_DEBUG("    bytes/pixel        : %d\n", bypp);
     CTH_DEBUG("    bytes/line         : %d\n", bytes_per_line);
+    return 0;
 }
 
 void DisplayDeviceX11::freeImage() {
@@ -664,18 +683,24 @@ void DisplayDeviceX11::freeImage() {
     if (image) {
         switch (shmLevel) {
         case shmPixmap:
-            XShmDetach(xcth_display, &shminfo);
+            if (shmAttached)
+                XShmDetach(xcth_display, &shminfo);
             XDestroyImage(image);
             XFreePixmap(xcth_display, pixmap);
             pixmap = 0;
-            shmdt(shminfo.shmaddr);
-            shmctl(shminfo.shmid, IPC_RMID, 0);
+            if (shminfo.shmaddr != 0 && shminfo.shmaddr != (char*)-1)
+                shmdt(shminfo.shmaddr);
+            if (shminfo.shmid != -1)
+                shmctl(shminfo.shmid, IPC_RMID, 0);
             break;
         case shmImage:
-            XShmDetach(xcth_display, &shminfo);
+            if (shmAttached)
+                XShmDetach(xcth_display, &shminfo);
             XDestroyImage(image);
-            shmdt(shminfo.shmaddr);
-            shmctl(shminfo.shmid, IPC_RMID, 0);
+            if (shminfo.shmaddr != 0 && shminfo.shmaddr != (char*)-1)
+                shmdt(shminfo.shmaddr);
+            if (shminfo.shmid != -1)
+                shmctl(shminfo.shmid, IPC_RMID, 0);
             break;
         case shmNone:
             if (pixmap) {
@@ -686,6 +711,9 @@ void DisplayDeviceX11::freeImage() {
         }
     }
     image = NULL;
+    shmAttached = 0;
+    shminfo.shmid = -1;
+    shminfo.shmaddr = 0;
 }
 
 void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
@@ -888,7 +916,7 @@ void DisplayDeviceX11::postDraw() {
     needsFullCopy = 0;
 }
 
-void DisplayDeviceX11::initPalette() {
+int DisplayDeviceX11::initPalette() {
 
     switch (visual->c_class) {
 
@@ -922,7 +950,7 @@ void DisplayDeviceX11::initPalette() {
             break;
         default:
             CTH_ERROR("Unsupported bytes per pixel %d.", bypp);
-            exit(0);
+            return 1;
         }
 
         for (int i = 0; i < textColors; i++) {
@@ -1009,7 +1037,7 @@ void DisplayDeviceX11::initPalette() {
                     == 0) {
                     CTH_ERROR("Could not allocate 128 color cells.\n"
                             "please make more colors available or start with '--install' option.");
-                    exit(0);
+                    return 1;
                 }
 
                 for (int i = 0; i < 128; i++)
@@ -1050,6 +1078,8 @@ void DisplayDeviceX11::initPalette() {
         }
     }
     }
+    paletteInitialized = 1;
+    return 0;
 }
 
 void DisplayDeviceX11::freePalette() {
@@ -1190,8 +1220,15 @@ void DisplayDeviceX11::setPalette(const Palette pal) {
     }
 }
 
-void newDisplayDevice(Scene& scene, SceneCommands& sceneCommands) {
-    displayDevice = new DisplayDeviceX11(scene, sceneCommands);
+int newDisplayDevice(Scene& scene, SceneCommands& sceneCommands) {
+    DisplayDeviceX11* device = new DisplayDeviceX11(scene, sceneCommands);
+    if (!device->isInitialized()) {
+        delete device;
+        return 1;
+    }
+
+    displayDevice = device;
+    return 0;
 }
 
 #if HAVE_XPM_H

@@ -48,7 +48,7 @@ protected:
 
     Palette textPalette;
 
-    void initPalette();
+    int initPalette();
     int setGlobalPalette();
     void freePalette();
 
@@ -56,12 +56,12 @@ public:
     void setPalette(const Palette pal);
 
     // image alloc/free
-    virtual void allocImage();
+    virtual int allocImage();
     virtual void freeImage();
 
     // font stuff
     XFontStruct* font;
-    void loadFont();
+    int loadFont();
     void freeFont();
 
     void resizeDisplay(int new_width, int new_height);
@@ -96,9 +96,12 @@ public:
 
     enum { shmNone, shmImage, shmPixmap } shmLevel;
     XShmSegmentInfo shminfo;
+    int shmAttached;
     Pixmap pixmap;
     XImage* image;
     int copyText;
+    int paletteInitialized;
+    int initialized;
 
 protected:
     static Widget xcth_toplevel;
@@ -106,13 +109,12 @@ protected:
 
     // window creation stuff
     int getAttributes();
-    void CreateWindow(const char* name, int full_screen);
+    int CreateWindow(const char* name, int full_screen);
     Cursor xcth_cursor();
     void checkDisplaySize();
 
     static void quit(int /*dummy*/) {
         cthugha_close++;
-        exit(0);
     }
 
     // control panel stuff
@@ -142,6 +144,7 @@ public:
     DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_);
     virtual ~DisplayDeviceX11();
 
+    int isInitialized() const { return initialized; }
     virtual DisplayEventStats processEvents();
 
     friend int cth_init(int* argc, char* argv[]);

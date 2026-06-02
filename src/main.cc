@@ -3,13 +3,10 @@
 #include "Application.h"
 
 int main(int argc, char* argv[]) {
-    Application* application = createApplication(argc, argv);
+    Application application(argc, argv);
 
-    if (application->initialize())
-        application->run();
+    if (application.initialize())
+        application.run();
 
-    int exitStatus = application->exitStatus();
-    if (!application->hasExitHandlers())
-        destroyApplication();
-    return exitStatus;
+    return application.exitStatus();
 }
