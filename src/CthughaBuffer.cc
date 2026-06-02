@@ -1,21 +1,25 @@
 #include "cthugha.h"
 #include "CthughaBuffer.h"
-#include "TranslationOptions.h"
-#include "waves.h"
-#include "display.h"
-#include "CthughaDisplay.h"
-#include "flames.h"
 #include "imath.h"
+
+static const int hiddenBorderRowsPerSide = 3; // Unit: rows; used above and below visible pixels by BorderFilter and flame feedback.
 
 CthughaBuffer CthughaBuffer::buffer;
 
 CthughaBuffer* CthughaBuffer::current = &CthughaBuffer::buffer;
 
 CthughaBuffer::CthughaBuffer()
-    : activeBuffer(0)
+    : activeAllocation(0)
+    , passiveAllocation(0)
+    , activeBuffer(0)
     , passiveBuffer(0)
     , widthValue(160)
     , heightValue(100) { }
+
+CthughaBuffer::~CthughaBuffer() {
+    delete[] activeAllocation;
+    delete[] passiveAllocation;
+}
 
 int CthughaBuffer::width() const {
     return widthValue;
@@ -23,10 +27,6 @@ int CthughaBuffer::width() const {
 
 int CthughaBuffer::height() const {
     return heightValue;
-}
-
-int CthughaBuffer::pitch() const {
-    return widthValue;
 }
 
 int CthughaBuffer::size() const {
@@ -41,52 +41,46 @@ int CthughaBuffer::maxDimension() const {
     return max(widthValue, heightValue);
 }
 
+int CthughaBuffer::hiddenBorderRows() const {
+    return hiddenBorderRowsPerSide;
+}
+
+int CthughaBuffer::hiddenBorderByteCount() const {
+    return hiddenBorderRows() * width();
+}
+
 void CthughaBuffer::setDimensions(int width_, int height_) {
     widthValue = width_;
     heightValue = height_;
 }
 
-void CthughaBuffer::init() {
-
-    /* The buffer has a border of 3 lines on top on bottom. These
-       lines are set to some boundary value before the 'flame' function is called.
-       The border is not displayed to the screen
-       */
-    activeBuffer = new unsigned char[size() + 6 * pitch()] + 3 * pitch();
-    passiveBuffer = new unsigned char[size() + 6 * pitch()] + 3 * pitch();
-
-    /* clear buffers */
-    memset(activeBuffer, 0, size());
-    memset(passiveBuffer, 0, size());
+int CthughaBuffer::allocationByteCount() const {
+    return size() + 2 * hiddenBorderByteCount();
 }
 
-int CthughaBuffer::initAll() {
+unsigned char* CthughaBuffer::visiblePixels(unsigned char* allocation) const {
+    return allocation == 0 ? 0 : allocation + hiddenBorderByteCount();
+}
 
-    current = &buffer;
+void CthughaBuffer::allocatePixels() {
 
-    //
-    // add the default entries
-    //
-    flame.add(_flames, _nFlames);
+    delete[] activeAllocation;
+    delete[] passiveAllocation;
 
-    if (init_flames())
-        return 1;
+    activeAllocation = new unsigned char[allocationByteCount()];
+    passiveAllocation = new unsigned char[allocationByteCount()];
+    activeBuffer = visiblePixels(activeAllocation);
+    passiveBuffer = visiblePixels(passiveAllocation);
 
-    if (init_translate(buffer))
-        return 1;
-
-    if (init_wave())
-        return 1;
-
-    if (load_palettes())
-        return 1;
-
-    // allocate memory for the buffers
-    buffer.init();
-    return 0;
+    memset(activeAllocation, 0, allocationByteCount());
+    memset(passiveAllocation, 0, allocationByteCount());
 }
 
 void CthughaBuffer::swapBuffers() {
+    unsigned char* allocation = activeAllocation;
+    activeAllocation = passiveAllocation;
+    passiveAllocation = allocation;
+
     unsigned char* t = activeBuffer;
     activeBuffer = passiveBuffer;
     passiveBuffer = t;
@@ -106,4 +100,12 @@ const unsigned char* CthughaBuffer::activePixels() const {
 
 const unsigned char* CthughaBuffer::passivePixels() const {
     return passiveBuffer;
+}
+
+unsigned char* CthughaBuffer::activeTopHiddenRows() {
+    return activeBuffer == 0 ? 0 : activeBuffer - hiddenBorderByteCount();
+}
+
+unsigned char* CthughaBuffer::activeBottomHiddenRows() {
+    return activeBuffer == 0 ? 0 : activeBuffer + size();
 }

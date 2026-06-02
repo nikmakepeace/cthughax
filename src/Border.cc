@@ -22,31 +22,31 @@ void apply_border(CthughaBuffer& buffer, const VideoFrameContext& context, int b
         return;
 
     int width = buffer.width();
-    int height = buffer.height();
-    int pitch = buffer.pitch();
-    unsigned char* top = active - 3 * pitch;
-    unsigned char* bottom = active + height * pitch;
+    int hiddenRows = buffer.hiddenBorderRows();
+    int hiddenBytes = buffer.hiddenBorderByteCount();
+    unsigned char* top = buffer.activeTopHiddenRows();
+    unsigned char* bottom = buffer.activeBottomHiddenRows();
 
     switch (borderMode) {
     case 0:
-        memset(bottom, 0, 3 * pitch);
-        memset(top, 0, 3 * pitch);
+        memset(bottom, 0, hiddenBytes);
+        memset(top, 0, hiddenBytes);
         break;
     case 1:
-        for (int i = 0; i < 3; i++) {
-            memcpy(top + i * pitch, audioFrameRawData(), width);
-            memcpy(bottom + i * pitch, audioFrameRawData(), width);
+        for (int i = 0; i < hiddenRows; i++) {
+            memcpy(top + i * width, audioFrameRawData(), width);
+            memcpy(bottom + i * width, audioFrameRawData(), width);
         }
         break;
     case 2: {
         int amplitude = (context.audioMetrics != 0) ? context.audioMetrics->amplitude : 0;
-        memset(bottom, amplitude, 3 * pitch);
-        memset(top, amplitude, 3 * pitch);
+        memset(bottom, amplitude, hiddenBytes);
+        memset(top, amplitude, hiddenBytes);
         break;
     }
     case 3:
-        memset(bottom, 255, 3 * pitch);
-        memset(top, 255, 3 * pitch);
+        memset(bottom, 255, hiddenBytes);
+        memset(top, 255, hiddenBytes);
         break;
     }
 }

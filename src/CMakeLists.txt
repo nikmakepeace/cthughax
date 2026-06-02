@@ -15,7 +15,7 @@ set(CTHUGHA_COMMON_SOURCES
     DspPcmSource.cc
     AudioFrame.cc
     AudioRuntime.cc
-    Settings.cc
+    AudioSettings.cc
     RuntimeFactory.cc
     Scene.cc
     DefaultMessagesProvider.cc

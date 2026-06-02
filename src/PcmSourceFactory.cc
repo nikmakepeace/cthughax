@@ -38,7 +38,7 @@ const char* PcmSourceFactory::strategyName(AudioSourceStrategy strategy) {
     }
 }
 
-AudioSourceStrategy PcmSourceFactory::selectAudioSourceStrategy(const Settings& settings) const {
+AudioSourceStrategy PcmSourceFactory::selectAudioSourceStrategy(const AudioSettings& settings) const {
     AudioSourceStrategy strategy;
 
     switch (settings.audioInputMode) {
@@ -71,7 +71,7 @@ AudioSourceStrategy PcmSourceFactory::selectAudioSourceStrategy(const Settings& 
     return strategy;
 }
 
-PcmSource* PcmSourceFactory::create(const Settings& settings, int visualMaxDimension) const {
+PcmSource* PcmSourceFactory::create(const AudioSettings& settings, int visualMaxDimension) const {
     AudioSourceStrategy strategy = selectAudioSourceStrategy(settings);
 
     switch (strategy) {

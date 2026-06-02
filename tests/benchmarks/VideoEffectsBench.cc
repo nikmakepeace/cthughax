@@ -481,7 +481,7 @@ void initializeVideoBenchmarks() {
     init_flames();
     createTranslationEntries();
 
-    buffer.init();
+    buffer.allocatePixels();
 }
 
 void setCommonCounters(benchmark::State& state) {

@@ -109,7 +109,7 @@ static void audioRuntimeDebugDecodedPcm(const char* data, int samples, int bytes
         int(soundSampleRate));
 }
 
-static int audioRuntimeUsesNativeFilePipeline(const Settings& settings,
+static int audioRuntimeUsesNativeFilePipeline(const AudioSettings& settings,
     AudioSourceStrategy sourceStrategy) {
     if (settings.audioInputMode != AIM_File)
         return 0;
@@ -384,7 +384,7 @@ int audioRuntimeInit(int initializeInputControls, int visualMaxDimension) {
         return 0;
     }
 
-    Settings settings = Settings::fromCurrentOptions();
+    AudioSettings settings = AudioSettings::fromCurrentOptions();
     Environment environment = Environment::detect();
     RuntimeFactory runtimeFactory(settings, environment, visualMaxDimension);
     AudioSourceStrategy sourceStrategy = runtimeFactory.selectAudioSourceStrategy();

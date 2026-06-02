@@ -101,7 +101,7 @@ int CthughaDisplay::sourcePitch() const {
     if (sourceFrame != NULL && sourceFrame->valid())
         return sourceFrame->pitch;
 
-    return CthughaBuffer::current->pitch();
+    return CthughaBuffer::current->width();
 }
 
 int CthughaDisplay::sourceSize() const {

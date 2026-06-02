@@ -9,7 +9,7 @@
 
 #include "Audio.h"
 
-class Settings;
+class AudioSettings;
 
 enum AudioSourceStrategy {
     ASS_LineIn,
@@ -29,12 +29,12 @@ public:
     static const char* strategyName(AudioSourceStrategy strategy);
 
     /**
-     * Selects the concrete PCM source family for the current settings.
+     * Selects the concrete PCM source family for the current audio settings.
      *
      * @param settings Snapshot of audio input mode and filename options.
      * @return Source strategy to instantiate, or ASS_Unknown if no source matches.
      */
-    AudioSourceStrategy selectAudioSourceStrategy(const Settings& settings) const;
+    AudioSourceStrategy selectAudioSourceStrategy(const AudioSettings& settings) const;
 
     /**
      * Creates the selected PCM source.
@@ -45,7 +45,7 @@ public:
      *        tracks the visual buffer scale.
      * @return Newly allocated source, or NULL if settings do not select a valid source.
      */
-    PcmSource* create(const Settings& settings, int visualMaxDimension) const;
+    PcmSource* create(const AudioSettings& settings, int visualMaxDimension) const;
 };
 
 #endif

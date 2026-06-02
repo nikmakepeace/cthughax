@@ -28,7 +28,7 @@ Environment Environment::detect() {
     return environment;
 }
 
-RuntimeFactory::RuntimeFactory(const Settings& settings_, const Environment& environment_,
+RuntimeFactory::RuntimeFactory(const AudioSettings& settings_, const Environment& environment_,
     int visualMaxDimension_)
     : settings(settings_)
     , environment(environment_)

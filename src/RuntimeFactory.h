@@ -4,7 +4,7 @@
 #define __RUNTIME_FACTORY_H
 
 #include "PcmSourceFactory.h"
-#include "Settings.h"
+#include "AudioSettings.h"
 
 class Environment {
 public:
@@ -18,7 +18,7 @@ public:
 };
 
 class RuntimeFactory {
-    Settings settings;
+    AudioSettings settings;
     Environment environment;
     int visualMaxDimension;
     PcmSourceFactory pcmSourceFactory;
@@ -27,12 +27,12 @@ public:
     /**
      * Creates a factory for one startup/runtime-selection pass.
      *
-     * @param settings Snapshot of user options used to select input/output.
+     * @param settings Snapshot of audio options used to select input/output.
      * @param environment Detected backend availability for this process.
      * @param visualMaxDimension Maximum logical visual-buffer dimension, in pixels,
      *        before display zoom. Passed to DSP/audio-window constructors.
      */
-    RuntimeFactory(const Settings& settings, const Environment& environment,
+    RuntimeFactory(const AudioSettings& settings, const Environment& environment,
         int visualMaxDimension);
 
     /**

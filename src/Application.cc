@@ -24,13 +24,17 @@
 #include "VideoFilterchain.h"
 #include "VideoFilterchainFactory.h"
 #include "VideoFilters.h"
+#include "TranslationOptions.h"
+#include "flames.h"
 #include "imath.h"
 #include "keymap.h"
 #include "options.h"
+#include "waves.h"
 
 #include <unistd.h>
 
 static void configureTerminalTextMode();
+static int initializeVisualCatalogs(const CthughaBuffer& buffer);
 
 Application::Application(int argc, char* argv[])
     : argcValue(argc)
@@ -219,11 +223,12 @@ int Application::initialize() {
     if (init_sound(CthughaBuffer::buffer.maxDimension()))
         return 0;
 
-    // Buffer dimensions must exist before image loading, border setup, and
-    // display construction can size their internal state.
+    // Visual catalogs depend on final buffer dimensions and must be available
+    // before CoreOption::changeToInitial() resolves staged option names.
     CTH_INFO("Initializing cthugha Buffer...\n");
-    if (CthughaBuffer::initAll())
+    if (initializeVisualCatalogs(CthughaBuffer::buffer))
         return 0;
+    CthughaBuffer::buffer.allocatePixels();
     if (videoDirector().loadImages()) {
         exitStatusValue = 0;
         return 0;
@@ -391,4 +396,25 @@ static void configureTerminalTextMode() {
     ncurses_use = 0;
     DisplayDevice::text_on_term = 0;
 #endif
+}
+
+static int initializeVisualCatalogs(const CthughaBuffer& buffer) {
+    // Built-in visual choices and file-backed catalogs are application startup
+    // state, not pixel-buffer state. They live here because option parsing can
+    // change buffer dimensions and stage initial option names before startup.
+    flame.add(_flames, _nFlames);
+
+    if (init_flames())
+        return 1;
+
+    if (init_translate(buffer))
+        return 1;
+
+    if (init_wave())
+        return 1;
+
+    if (load_palettes())
+        return 1;
+
+    return 0;
 }

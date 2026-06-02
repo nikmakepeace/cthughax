@@ -47,14 +47,14 @@ void ImageFilter::execute(VideoFrame& frame) {
             + (placement.sourceY + row) * image->width()
             + placement.sourceX;
         unsigned char* activeDestination = active
-            + (placement.destinationY + row) * buffer.pitch()
+            + (placement.destinationY + row) * buffer.width()
             + placement.destinationX;
 
         memcpy(activeDestination, source, placement.width);
 
         if (overlayPassiveBuffer && passive != 0) {
             unsigned char* passiveDestination = passive
-                + (placement.destinationY + row) * buffer.pitch()
+                + (placement.destinationY + row) * buffer.width()
                 + placement.destinationX;
             memcpy(passiveDestination, source, placement.width);
         }
@@ -298,7 +298,7 @@ static void textInjectionDrawLine(CthughaBuffer& buffer, const BitmapFont& font,
 
         for (int row = 0; row < font.glyphHeight; row++) {
             uint16_t mask = font.row(character, row);
-            unsigned char* destination = pixels + (y + row) * buffer.pitch() + glyphX;
+            unsigned char* destination = pixels + (y + row) * buffer.width() + glyphX;
 
             for (int column = 0; column < font.glyphWidth; column++) {
                 if (mask & (uint16_t(1) << (font.glyphWidth - 1 - column)))
@@ -443,7 +443,7 @@ void IndexedFrameFilter::execute(VideoFrame& frame) {
     CTH_TRACE("publishing indexed frame\n", "video filterchain");
     CthughaBuffer& buffer = frame.buffer();
     frame.publishIndexedFrame(IndexedFrame(buffer.passivePixels(),
-        buffer.width(), buffer.height(), buffer.pitch(), frame.framePalette()));
+        buffer.width(), buffer.height(), buffer.width(), frame.framePalette()));
 }
 
 FramePalette* framePaletteFromFilterchain(VideoFilterchain& filterchain) {

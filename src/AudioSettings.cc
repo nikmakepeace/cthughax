@@ -1,19 +1,19 @@
 #include "cthugha.h"
-#include "Settings.h"
+#include "AudioSettings.h"
 #include "AudioOptions.h"
 #include "AudioTypes.h"
 #include "defaults.h"
 
 #include <string.h>
 
-Settings::Settings()
+AudioSettings::AudioSettings()
     : audioInputMode(DEFAULT_AUDIO_INPUT_MODE)
     , soundDSPMethod(DEFAULT_SOUND_DSP_METHOD)
     , silent(DEFAULT_SOUND_SILENT_ENABLED) {
     fileName[0] = '\0';
 }
 
-void Settings::refreshFromCurrentOptions() {
+void AudioSettings::refreshFromCurrentOptions() {
     audioInputMode = int(::audioInputMode);
     soundDSPMethod = int(::soundDSPMethod);
     silent = int(soundSilent);
@@ -21,8 +21,8 @@ void Settings::refreshFromCurrentOptions() {
     fileName[PATH_MAX - 1] = '\0';
 }
 
-Settings Settings::fromCurrentOptions() {
-    Settings settings;
+AudioSettings AudioSettings::fromCurrentOptions() {
+    AudioSettings settings;
     settings.refreshFromCurrentOptions();
 
     CTH_DEBUG("runtime settings: audio-input-mode=%d sound-dsp-method=%d silent=%d file=`%s'\n",

@@ -33,7 +33,7 @@ static const int DEFAULT_PALETTE_SMOOTH_SECONDS = 2; // Unit: seconds; used by V
 static const int DEFAULT_IMAGE_LOADING_ENABLED = 1; // Unit: boolean; used by VideoDirector so --images starts enabled.
 
 static const int DEFAULT_AUDIO_INPUT_LOOP_ENABLED = 1; // Unit: boolean; used by loop/no-loop for file playback input.
-static const AudioInputMode DEFAULT_AUDIO_INPUT_MODE = AIM_DSPIn; // Unit: AudioInputMode enum; used by audioInputMode and Settings defaults.
+static const AudioInputMode DEFAULT_AUDIO_INPUT_MODE = AIM_DSPIn; // Unit: AudioInputMode enum; used by audioInputMode and AudioSettings defaults.
 static const int DEFAULT_SOUND_SAMPLE_RATE_HZ = 44000; // Unit: Hertz; used by sound-sample-rate.
 static const int DEFAULT_SOUND_CHANNELS = 2; // Unit: channel count; used by sound-channels to start in stereo.
 static const int SOUND_CHANNELS_MIN = 1; // Unit: channel count; used by OptionChannels as the minimum accepted channel count.

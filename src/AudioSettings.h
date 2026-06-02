@@ -1,24 +1,24 @@
 // Current audio settings snapshot.
 
-#ifndef __SETTINGS_H
-#define __SETTINGS_H
+#ifndef __AUDIO_SETTINGS_H
+#define __AUDIO_SETTINGS_H
 
 #include <limits.h>
 #ifndef PATH_MAX
 #define PATH_MAX 4096
 #endif
 
-class Settings {
+class AudioSettings {
 public:
     int audioInputMode;
     int soundDSPMethod;
     int silent;
     char fileName[PATH_MAX];
 
-    Settings();
+    AudioSettings();
 
     void refreshFromCurrentOptions();
-    static Settings fromCurrentOptions();
+    static AudioSettings fromCurrentOptions();
 };
 
 #endif
