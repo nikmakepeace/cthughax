@@ -43,6 +43,15 @@ typedef CoreOptionEntry* (*CoreOptionLoader)(FILE*, const char*, const char*, co
 typedef CoreOptionEntry* (*CoreOptionContextLoader)(
     FILE*, const char*, const char*, const char*, void*);
 
+enum CoreOptionFlags {
+    CORE_OPTION_NO_FLAGS = 0,
+
+    // This option participates in AutoChanger's random/all changes.  New
+    // CoreOptions should opt in deliberately so construction alone does not
+    // make them runtime mutation targets.
+    CORE_OPTION_AUTO_CHANGE = 1 << 0
+};
+
 class OffEntry : public CoreOptionEntry {
 public:
     OffEntry(const char* name = "off")
@@ -117,7 +126,6 @@ protected:
     // List of all core options
     //
     static CoreOption* first;
-    static int nCoreOptions;
     CoreOption* next;
 
     //
@@ -131,6 +139,7 @@ protected:
     // Entries
     //
     CoreOptionEntryList& entries;
+    int flags;
 
     char initialEntry[256];
 
@@ -146,6 +155,7 @@ protected:
 protected:
     int isCompressed(const char* name);
     int hasExtension(const char* name, const char* extension);
+    int isAutoChangeCandidate() const;
 
     CoreOptionEntry* load(const char* name, char* total_name, const char* dir,
         CoreOptionLoader loader);
@@ -163,7 +173,8 @@ public:
         CoreOptionContextLoader loader, void* context);
 
 public:
-    CoreOption(int buffer, const char* name, CoreOptionEntryList& e);
+    CoreOption(int buffer, const char* name, CoreOptionEntryList& e,
+        int flags = CORE_OPTION_NO_FLAGS);
 
     CoreOption& operator=(const CoreOption& other);
 
@@ -231,6 +242,7 @@ public:
         return entries[value]->desc;
     }
     int getNEntries() const { return entries.n(); }
+    int autoChangeEnabled() const { return (flags & CORE_OPTION_AUTO_CHANGE) != 0; }
 
     //
     // control History and Hot Values

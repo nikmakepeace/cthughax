@@ -10,7 +10,7 @@
 static CoreOptionEntry* flashlight_entries[] = { new OffEntry(), new OnEntry() };
 static CoreOptionEntryList flashlightEntries;
 
-CoreOption flashlight(0, "flashlight", flashlightEntries);
+CoreOption flashlight(0, "flashlight", flashlightEntries, CORE_OPTION_AUTO_CHANGE);
 
 void init_flashlight() {
     flashlight.add(flashlight_entries, 2);

@@ -32,7 +32,6 @@ static const int visualBufferCount = 1;
 OptionOnOff double_load("double-load", DEFAULT_DOUBLE_LOAD_ENABLED); // allow double loading of features
 
 CoreOption* CoreOption::first = NULL;
-int CoreOption::nCoreOptions = 0;
 
 const int MAX_HISTORY = 128;
 const int MAX_HOT = 10;
@@ -45,16 +44,16 @@ static int compareFeatureFileNames(const void* a, const void* b) {
     return folded ? folded : strcmp(left, right);
 }
 
-CoreOption::CoreOption(int b, const char* n, CoreOptionEntryList& e)
+CoreOption::CoreOption(int b, const char* n, CoreOptionEntryList& e, int flags_)
     : Option(n)
     , buffer(b)
     , entries(e)
+    , flags(flags_)
     , lock("", 0) {
 
     // keep in linked list
     next = first;
     first = this;
-    nCoreOptions++;
 
     initialEntry[0] = '\0';
 
@@ -239,19 +238,32 @@ int CoreOption::optNr(const char* n) {
 //
 CoreOption* CoreOption::changeOne() {
 
-    CoreOption* o;
-    do {
-        int n = rand() % nCoreOptions;
-        o = CoreOption::first;
-        while ((n > 0) && (o != NULL)) {
-            o = o->next;
+    int nCandidates = 0;
+    for (CoreOption* o = first; o != NULL; o = o->next) {
+        if (o->isAutoChangeCandidate())
+            nCandidates++;
+    }
+
+    if (nCandidates == 0)
+        return 0;
+
+    int n = rand() % nCandidates;
+    CoreOption* o = CoreOption::first;
+    while (o != NULL) {
+        if (o->isAutoChangeCandidate()) {
+            if (n == 0)
+                break;
             n--;
         }
-        if (o == NULL) {
-            CTH_ERROR("internal error: Something very strange happend. %d/%d\n", n, nCoreOptions);
-            return 0;
-        }
-    } while (o->buffer >= visualBufferCount);
+        o = o->next;
+    }
+
+    if (o == NULL) {
+        CTH_ERROR("internal error: no CoreOption found among %d autochange candidates\n",
+            nCandidates);
+        return 0;
+    }
+
     if (o->lock)
         return 0;
     o->changeRandom(1);
@@ -266,9 +278,16 @@ void CoreOption::changeAll() {
     save();
 
     for (CoreOption* o = first; o != NULL; o = o->next) {
-        if ((o->buffer < 0) || (o->buffer < visualBufferCount))
+        if (o->isAutoChangeCandidate())
             o->changeRandom(0);
     }
+}
+
+int CoreOption::isAutoChangeCandidate() const {
+    if (!autoChangeEnabled())
+        return 0;
+
+    return (buffer < 0) || (buffer < visualBufferCount);
 }
 
 const char* CoreOption::text() const {

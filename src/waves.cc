@@ -22,9 +22,9 @@ extern CoreOptionEntry* _objects[];
 extern int _nObjects;
 
 WaveOption wave;
-CoreOption waveScale(-1, "wave-scale", waveScaleEntries);
-CoreOption table(-1, "table", tableEntries);
-CoreOption object(-1, "object", objectEntries);
+CoreOption waveScale(-1, "wave-scale", waveScaleEntries, CORE_OPTION_AUTO_CHANGE);
+CoreOption table(-1, "table", tableEntries, CORE_OPTION_AUTO_CHANGE);
+CoreOption object(-1, "object", objectEntries, CORE_OPTION_AUTO_CHANGE);
 
 static CoreOptionEntry* wave_scales[] = { new CoreOptionEntry("scale0", "large"),
     new CoreOptionEntry("scale1", "medium"), new CoreOptionEntry("scale2", "small") };
@@ -90,7 +90,7 @@ static CoreOptionEntry* _waves[] = {
 static const int _nWaves = nWaveCatalogEntries;
 
 WaveOption::WaveOption()
-    : CoreOption(-1, "wave", waveEntries) { }
+    : CoreOption(-1, "wave", waveEntries, CORE_OPTION_AUTO_CHANGE) { }
 
 Wave* WaveOption::currentWave() {
     WaveEntry* entry = dynamic_cast<WaveEntry*>(current());

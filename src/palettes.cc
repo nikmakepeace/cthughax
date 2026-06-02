@@ -267,7 +267,7 @@ static int palette_matches_set_filter(PaletteEntry* palette) {
 }
 
 PaletteOption::PaletteOption()
-    : CoreOption(-1, "palette", paletteEntries) { }
+    : CoreOption(-1, "palette", paletteEntries, CORE_OPTION_AUTO_CHANGE) { }
 
 PaletteEntry* PaletteOption::currentPaletteEntry() {
     return dynamic_cast<PaletteEntry*>(current());

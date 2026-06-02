@@ -156,7 +156,7 @@ const ColorPalette* ImageEntry::palette() const {
 }
 
 ImageOption::ImageOption(int buffer, const char* name)
-    : CoreOption(buffer, name, imageEntries()) { }
+    : CoreOption(buffer, name, imageEntries(), CORE_OPTION_AUTO_CHANGE) { }
 
 ImageEntry* ImageOption::currentImageEntry() {
     return static_cast<ImageEntry*>(current());

@@ -38,7 +38,7 @@ int init_translate(const CthughaBuffer& buffer) {
 }
 
 TranslateOption::TranslateOption(int buffer, const char* name)
-    : CoreOption(buffer, name, translateEntries) { }
+    : CoreOption(buffer, name, translateEntries, CORE_OPTION_AUTO_CHANGE) { }
 
 TranslateEntry* TranslateOption::translateEntry(int index) {
     if ((index < 0) || (index >= getNEntries()))

@@ -82,7 +82,7 @@ const Flame& FlameEntry::flame() const {
 }
 
 FlameOption::FlameOption()
-    : CoreOption(-1, "flame", flameEntries) { }
+    : CoreOption(-1, "flame", flameEntries, CORE_OPTION_AUTO_CHANGE) { }
 
 const Flame* FlameOption::currentFlame() {
     FlameEntry* entry = dynamic_cast<FlameEntry*>(current());
@@ -90,7 +90,7 @@ const Flame* FlameOption::currentFlame() {
 }
 
 GeneralFlameOption::GeneralFlameOption()
-    : CoreOption(-1, "flame-general", generalFlameEntries) { }
+    : CoreOption(-1, "flame-general", generalFlameEntries, CORE_OPTION_AUTO_CHANGE) { }
 
 void GeneralFlameOption::change(const char* to, int doSave) {
     char* pos;

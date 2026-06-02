@@ -52,7 +52,7 @@ static CoreOptionEntry* _screens[] = {
 };
 static CoreOptionEntryList screenEntries(_screens, sizeof(_screens) / sizeof(CoreOption*));
 
-CoreOption screen(-1, "display", screenEntries);
+CoreOption screen(-1, "display", screenEntries, CORE_OPTION_AUTO_CHANGE);
 
 char screen_first[256] = ""; /* Start with this scrn-fkt */
 

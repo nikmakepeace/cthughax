@@ -10,7 +10,7 @@ static CoreOptionEntry* border_entries[]
           new CoreOptionEntry("border2", ""), new CoreOptionEntry("border3", "") };
 static CoreOptionEntryList borderEntries;
 
-CoreOption border(0, "border", borderEntries);
+CoreOption border(0, "border", borderEntries, CORE_OPTION_AUTO_CHANGE);
 
 void init_border() {
     border.add(border_entries, 4);
