@@ -52,6 +52,8 @@ add_executable(screen_renderer_characterization_test
     ${CMAKE_SOURCE_DIR}/src/display.cc
     ${CMAKE_SOURCE_DIR}/src/Screen.cc
     ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
+    ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameCompletion.cc
     ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
@@ -104,6 +106,33 @@ target_include_directories(frame_completion_test PRIVATE
 target_link_libraries(frame_completion_test PRIVATE m)
 
 add_test(NAME frame_completion_test COMMAND frame_completion_test)
+
+add_executable(presentation_composer_test
+    unit/PresentationComposerTest.cc
+    ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameCompletion.cc
+    ${CMAKE_SOURCE_DIR}/src/Screen.cc
+    ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
+    ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/FramePalette.cc
+    ${CMAKE_SOURCE_DIR}/src/ColorPalette.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(presentation_composer_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit
+)
+
+target_link_libraries(presentation_composer_test PRIVATE m)
+
+add_test(NAME presentation_composer_test COMMAND presentation_composer_test)
 
 add_executable(warning_clean_smoke_test
     unit/WarningCleanSmokeTest.cc

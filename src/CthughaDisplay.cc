@@ -60,6 +60,7 @@ static VisualFrameView visualBuffer() {
 CthughaDisplay::CthughaDisplay()
     : sourceFrame(0)
     , indexedDisplayFrameValue()
+    , presentationComposer()
     , buffer0(0)
     , displayStart(0)
     , frames(0)
@@ -138,26 +139,12 @@ int CthughaDisplay::displayFrameHeight() const {
     return 2 * sourceHeight();
 }
 
-void CthughaDisplay::prepareIndexedDisplayFrame(int width, int height) {
-    if (width <= 0 || height <= 0)
-        return;
+void CthughaDisplay::indexedPixelsWillMove(unsigned char* oldPixels) {
+    indexedBufferWillChange(oldPixels);
+}
 
-    unsigned char* oldPixels = indexedDisplayFrameValue.pixels();
-    int oldWidth = indexedDisplayFrameValue.width();
-    int oldHeight = indexedDisplayFrameValue.height();
-    int oldPitch = indexedDisplayFrameValue.pitch();
-    int requiredByteCount = width * height;
-    int willMove = requiredByteCount > indexedDisplayFrameValue.capacityByteCount();
-
-    if (willMove)
-        indexedBufferWillChange(oldPixels);
-    indexedDisplayFrameValue.resize(width, height);
-    indexedDisplayFrameValue.setFramePalette(sourceFrame != NULL ? sourceFrame->framePalette : NULL);
-    buffer0 = indexedDisplayFrameValue.pixels();
-
-    if (indexedDisplayFrameValue.pixels() != oldPixels || indexedDisplayFrameValue.width() != oldWidth
-        || indexedDisplayFrameValue.height() != oldHeight || indexedDisplayFrameValue.pitch() != oldPitch)
-        needsClear = 1;
+void CthughaDisplay::indexedFrameGeometryChanged() {
+    needsClear = 1;
 }
 
 /*

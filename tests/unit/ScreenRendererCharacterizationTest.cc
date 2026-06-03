@@ -101,6 +101,12 @@ CthughaDisplay::CthughaDisplay()
 CthughaDisplay::~CthughaDisplay() {
 }
 
+void CthughaDisplay::indexedPixelsWillMove(unsigned char*) {
+}
+
+void CthughaDisplay::indexedFrameGeometryChanged() {
+}
+
 const unsigned char* CthughaDisplay::sourcePixels() const {
     assert(sourceFrame != 0);
     assert(sourceFrame->valid());

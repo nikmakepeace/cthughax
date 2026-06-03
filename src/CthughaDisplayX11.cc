@@ -4,12 +4,10 @@
 #include "DisplayDevice.h"
 #include "cth_buffer.h"
 #include "disp-sys.h"
-#include "FrameCompletion.h"
 #include "imath.h"
 #include "Interface.h"
 #include "IndexedFrame.h"
 #include "Screen.h"
-#include "ScreenRenderContext.h"
 
 #include <stdint.h>
 
@@ -40,8 +38,12 @@ static VisualFrameView visualBuffer() {
     return VisualFrameView();
 }
 
-class GlobalScreenSelectionController : public ScreenSelectionController {
+class GlobalPresentationScreenSelection : public PresentationScreenSelection {
 public:
+    virtual ScreenEntry* current() {
+        return (ScreenEntry*)screen.current();
+    }
+
     virtual void change(int by, int doSave) {
         screen.change(by, doSave);
     }
@@ -375,9 +377,14 @@ void CthughaDisplayX11::operator()() {
     if (traceDisplayTiming)
         displayTiming[1] = getTime();
 
-    ScreenEntry* screenEntry = (ScreenEntry*)screen.current();
-    xy indexedOutputSize = screenEntry->outputSize(sourceWidth(), sourceHeight());
-    prepareIndexedDisplayFrame(indexedOutputSize.x, indexedOutputSize.y);
+    IndexedFrame screenSource(sourcePixels(), sourceWidth(), sourceHeight(), sourcePitch(),
+        sourceFrame != NULL ? sourceFrame->framePalette : NULL);
+    GlobalPresentationScreenSelection screenSelection;
+    presentationComposer.compose(screenSource, indexedDisplayFrameValue,
+        screenSelection, now, deltaT, fps, this);
+    buffer0 = indexedDisplayFrameValue.pixels();
+    if (traceDisplayTiming)
+        displayTiming[2] = getTime();
 
     /*
      * prepare the display device
@@ -385,20 +392,14 @@ void CthughaDisplayX11::operator()() {
     unsigned char* display_base = displayDevice->preDraw();
     prepareExpandedBuffer();
     if (traceDisplayTiming)
-        displayTiming[2] = getTime();
+        displayTiming[3] = getTime();
 
     /*
-     * Choose the buffer that screen() should draw into.  Direct mode draws
-     * straight to device memory; mapped modes render indexed pixels into a
-     * scratch buffer and expand them afterwards.
+     * The composer has already produced completed indexed pixels.  From this
+     * point on X11 only converts, scales, decorates, and presents them.
      */
-    if (draw_mode == DM_direct) {
-        buffer = display_base;
-        bufferWidth = bytes_per_line;
-    } else {
-        buffer = buffer0;
-        bufferWidth = indexedDisplayFrameValue.pitch();
-    }
+    buffer = buffer0;
+    bufferWidth = indexedDisplayFrameValue.pitch();
 
     /*
      * Pick the buffer that post-processing reads from.  On 8-bit displays the
@@ -416,48 +417,12 @@ void CthughaDisplayX11::operator()() {
     checkZoom();
 
     /*
-     * Run the selected Cthugha screen function until it accepts the current
-     * geometry.  Some display functions ask to retry when the aspect ratio is
-     * too awkward for their mapping.
-     */
-    IndexedFrame screenSource(sourcePixels(), sourceWidth(), sourceHeight(), sourcePitch(),
-        sourceFrame != NULL ? sourceFrame->framePalette : NULL);
-    GlobalScreenSelectionController selectionController;
-    ScreenRenderContext renderContext(screenSource, indexedDisplayFrameValue, buffer,
-        indexedOutputSize.x, indexedOutputSize.y, bufferWidth, now, deltaT, fps,
-        &selectionController);
-
-    while (screenEntry->render(renderContext))
-        screenEntry = (ScreenEntry*)screen.current();
-    if (traceDisplayTiming)
-        displayTiming[3] = getTime();
-
-    xy filledOutputSize = screenEntry->filledOutputSize(sourceWidth(), sourceHeight());
-
-    /*
-     * If the selected screen function drew only half or a quadrant, mirror the
-     * missing pieces before the image is copied to the display device.
-     */
-    if (filledOutputSize.x < indexedOutputSize.x)
-        FrameCompletion::mirrorHorizontally(buffer, filledOutputSize.x,
-            indexedOutputSize.x, filledOutputSize.y, bufferWidth);
-
-    /*
      * expand the palette (right now only the palette of buffer 0,
      *  but maybe later a different palette for each quadrant)
      */
-    expandPalette(filledOutputSize.y);
+    expandPalette(indexedDisplayFrameValue.height());
     if (traceDisplayTiming)
         displayTiming[4] = getTime();
-
-    /*
-     * do veritical mirroring, if necessary
-     */
-    if (filledOutputSize.y < indexedOutputSize.y)
-        FrameCompletion::mirrorVertically(expandedBuffer, indexedOutputSize.x * bypp,
-            indexedOutputSize.y, filledOutputSize.y, expandedBufferWidth);
-    if (traceDisplayTiming)
-        displayTiming[5] = getTime();
 
 #if 0
     expandPaletteMirrorHV();
@@ -473,7 +438,7 @@ void CthughaDisplayX11::operator()() {
      */
     zoom2Screen(display_base + SCREEN_OFFSET, bytes_per_line);
     if (traceDisplayTiming)
-        displayTiming[6] = getTime();
+        displayTiming[5] = getTime();
 
     /*
      * bring text to screen
@@ -483,17 +448,17 @@ void CthughaDisplayX11::operator()() {
     errors.display(); // and the error messages
     displayDevice->postPrint();
     if (traceDisplayTiming)
-        displayTiming[7] = getTime();
+        displayTiming[6] = getTime();
 
     /*
      * make sure everything is really copied to the screen
      */
     displayDevice->postDraw();
     if (traceDisplayTiming) {
-        displayTiming[8] = getTime();
-        CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f prepare-ms=%.3f screen-ms=%.3f expand-ms=%.3f mirror-v-ms=%.3f zoom-clear-ms=%.3f text-ms=%.3f post-ms=%.3f draw-mode=%d bypp=%d size=%dx%d draw=%dx%d\n",
+        displayTiming[7] = getTime();
+        CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f compose-ms=%.3f prepare-ms=%.3f expand-ms=%.3f zoom-clear-ms=%.3f text-ms=%.3f post-ms=%.3f draw-mode=%d bypp=%d size=%dx%d draw=%dx%d\n",
             "display timing",
-            (displayTiming[8] - displayTiming[0]) * 1000.0,
+            (displayTiming[7] - displayTiming[0]) * 1000.0,
             (displayTiming[1] - displayTiming[0]) * 1000.0,
             (displayTiming[2] - displayTiming[1]) * 1000.0,
             (displayTiming[3] - displayTiming[2]) * 1000.0,
@@ -501,7 +466,6 @@ void CthughaDisplayX11::operator()() {
             (displayTiming[5] - displayTiming[4]) * 1000.0,
             (displayTiming[6] - displayTiming[5]) * 1000.0,
             (displayTiming[7] - displayTiming[6]) * 1000.0,
-            (displayTiming[8] - displayTiming[7]) * 1000.0,
             draw_mode, bypp, disp_size.x, disp_size.y, draw_size.x, draw_size.y);
     }
 }

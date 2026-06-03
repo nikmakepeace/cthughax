@@ -49,6 +49,7 @@ set(CTHUGHA_COMMON_SOURCES
     FrameCompletion.cc
     Image.cc
     IndexedDisplayFrame.cc
+    PresentationComposer.cc
     VideoFilterchain.cc
     VideoFilterchainSequence.cc
     VideoFilters.cc

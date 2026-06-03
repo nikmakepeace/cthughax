@@ -5,6 +5,7 @@
 #include "cthugha.h"
 #include "EffectControl.h"
 #include "IndexedDisplayFrame.h"
+#include "PresentationComposer.h"
 
 // The CthughaDisplay layer sits between the effect buffers and the selected
 // DisplayDevice backend.  It owns the per-frame timing, temporary image
@@ -22,10 +23,11 @@ extern double deltaT; // elapsed time between the last two frames, in seconds
 
 class IndexedFrame;
 
-class CthughaDisplay {
+class CthughaDisplay : public PresentationFrameObserver {
 protected:
     const IndexedFrame* sourceFrame;
     IndexedDisplayFrame indexedDisplayFrameValue;
+    PresentationComposer presentationComposer;
 
     // Non-owning alias for indexedDisplayFrameValue.pixels(), retained while
     // classic screen functions still write through cthughaDisplay->buffer.
@@ -54,13 +56,8 @@ protected:
      */
     virtual void indexedBufferWillChange(unsigned char*) { }
 
-    /**
-     * Ensures indexedDisplayFrameValue can hold the selected screen output.
-     *
-     * @param width Output pixels produced by the screen/presentation effect.
-     * @param height Output rows produced by the screen/presentation effect.
-     */
-    void prepareIndexedDisplayFrame(int width, int height);
+    virtual void indexedPixelsWillMove(unsigned char*);
+    virtual void indexedFrameGeometryChanged();
 
     void checkFPS();
     void checkZoom();
