@@ -1,21 +1,22 @@
 #include "Screen.h"
+#include "ScreenRenderContext.h"
 
-int screen_up();
-int screen_down();
-int screen_2hor();
-int screen_r2hor();
-int screen_4hor();
-int screen_2verd();
-int screen_r2verd();
-int screen_4kal();
-int screen_hfield();
-int screen_roll();
-int screen_zick();
-int screen_bent();
-int screen_plate();
-int screen_vscale_hmirror();
-int screen_hscale_vmirror();
-int screen_source();
+int screen_up(ScreenRenderContext&);
+int screen_down(ScreenRenderContext&);
+int screen_2hor(ScreenRenderContext&);
+int screen_r2hor(ScreenRenderContext&);
+int screen_4hor(ScreenRenderContext&);
+int screen_2verd(ScreenRenderContext&);
+int screen_r2verd(ScreenRenderContext&);
+int screen_4kal(ScreenRenderContext&);
+int screen_hfield(ScreenRenderContext&);
+int screen_roll(ScreenRenderContext&);
+int screen_zick(ScreenRenderContext&);
+int screen_bent(ScreenRenderContext&);
+int screen_plate(ScreenRenderContext&);
+int screen_vscale_hmirror(ScreenRenderContext&);
+int screen_hscale_vmirror(ScreenRenderContext&);
+int screen_source(ScreenRenderContext&);
 
 ScreenEntry::ScreenEntry(Function function, const char* name, const char* description,
     xy filledScale, int inUse)
@@ -29,7 +30,16 @@ ScreenEntry::ScreenEntry(Function function, const char* name, const char* descri
     , outputScaleValue(outputScale) { }
 
 int ScreenEntry::operator()() {
-    return functionValue != 0 ? (*functionValue)() : 0;
+    ScreenRenderContext* context = currentScreenRenderContext();
+    return context != 0 ? render(*context) : 0;
+}
+
+int ScreenEntry::render(ScreenRenderContext& context) {
+    if (functionValue == 0)
+        return 0;
+
+    ScopedScreenRenderContext contextScope(context);
+    return (*functionValue)(context);
 }
 
 xy ScreenEntry::filledScale() const {

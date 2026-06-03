@@ -13,6 +13,10 @@ public:
 class ScreenRenderContext {
     const IndexedFrame* sourceValue;
     IndexedDisplayFrame* destinationValue;
+    unsigned char* destinationPixelsValue;
+    int destinationWidthValue;
+    int destinationHeightValue;
+    int destinationPitchValue;
     double frameTimeSecondsValue;
     double deltaTimeSecondsValue;
     double framesPerSecondValue;
@@ -22,6 +26,11 @@ public:
     ScreenRenderContext(const IndexedFrame& source, IndexedDisplayFrame& destination,
         double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
         ScreenSelectionController* selectionController = 0);
+
+    ScreenRenderContext(const IndexedFrame& source, IndexedDisplayFrame& destination,
+        unsigned char* destinationPixels, int destinationWidth, int destinationHeight,
+        int destinationPitch, double frameTimeSeconds, double deltaTimeSeconds,
+        double framesPerSecond, ScreenSelectionController* selectionController = 0);
 
     const IndexedFrame& source() const;
     IndexedDisplayFrame& destination() const;

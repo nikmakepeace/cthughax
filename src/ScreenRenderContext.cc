@@ -7,6 +7,27 @@ ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     double framesPerSecond, ScreenSelectionController* selectionController)
     : sourceValue(&source)
     , destinationValue(&destination)
+    , destinationPixelsValue(destination.pixels())
+    , destinationWidthValue(destination.width())
+    , destinationHeightValue(destination.height())
+    , destinationPitchValue(destination.pitch())
+    , frameTimeSecondsValue(frameTimeSeconds)
+    , deltaTimeSecondsValue(deltaTimeSeconds)
+    , framesPerSecondValue(framesPerSecond)
+    , selectionControllerValue(selectionController) {
+}
+
+ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
+    IndexedDisplayFrame& destination, unsigned char* destinationPixels,
+    int destinationWidth, int destinationHeight, int destinationPitch,
+    double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
+    ScreenSelectionController* selectionController)
+    : sourceValue(&source)
+    , destinationValue(&destination)
+    , destinationPixelsValue(destinationPixels)
+    , destinationWidthValue(destinationWidth)
+    , destinationHeightValue(destinationHeight)
+    , destinationPitchValue(destinationPitch)
     , frameTimeSecondsValue(frameTimeSeconds)
     , deltaTimeSecondsValue(deltaTimeSeconds)
     , framesPerSecondValue(framesPerSecond)
@@ -42,23 +63,23 @@ int ScreenRenderContext::sourcePitch() const {
 }
 
 unsigned char* ScreenRenderContext::destinationPixels() {
-    return destinationValue->pixels();
+    return destinationPixelsValue;
 }
 
 unsigned char* ScreenRenderContext::destinationLine(int y) {
-    return destinationValue->line(y);
+    return destinationPixelsValue + y * destinationPitchValue;
 }
 
 int ScreenRenderContext::destinationWidth() const {
-    return destinationValue->width();
+    return destinationWidthValue;
 }
 
 int ScreenRenderContext::destinationHeight() const {
-    return destinationValue->height();
+    return destinationHeightValue;
 }
 
 int ScreenRenderContext::destinationPitch() const {
-    return destinationValue->pitch();
+    return destinationPitchValue;
 }
 
 double ScreenRenderContext::frameTimeSeconds() const {

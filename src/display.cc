@@ -114,7 +114,7 @@ static const unsigned char* perm_addr(int i) {
     return sourceLine(i);
 }
 
-int screen_up() {
+int screen_up(ScreenRenderContext& /*context*/) {
     int i;
     for (i = 0; i < visualBuffer().height(); i++)
         perm_lines[i] = perm_addr(i);
@@ -124,11 +124,11 @@ int screen_up() {
     return 0;
 }
 
-int screen_source() {
-    return screen_up();
+int screen_source(ScreenRenderContext& context) {
+    return screen_up(context);
 }
 
-int screen_down() {
+int screen_down(ScreenRenderContext& /*context*/) {
     int i;
     for (i = 0; i < visualBuffer().height(); i++)
         perm_lines[i] = perm_addr(visualBuffer().height() - i - 1);
@@ -137,7 +137,7 @@ int screen_down() {
     return 0;
 }
 
-int screen_2hor() {
+int screen_2hor(ScreenRenderContext& /*context*/) {
     int i;
     for (i = 0; i < visualBuffer().height() / 2; i++) {
         /* lower half of buffer maps to upper half of screen */
@@ -150,7 +150,7 @@ int screen_2hor() {
     return 0;
 }
 
-int screen_r2hor() {
+int screen_r2hor(ScreenRenderContext& /*context*/) {
     int i;
     for (i = 0; i < visualBuffer().height() / 2; i++) {
         /* lower half of buffer get turned around to upper half of screen*/
@@ -163,7 +163,7 @@ int screen_r2hor() {
     return 0;
 }
 
-int screen_4hor() {
+int screen_4hor(ScreenRenderContext& /*context*/) {
     const unsigned char* tmp;
     unsigned char* scrn;
     int x, y;
@@ -211,7 +211,7 @@ int screen_4hor() {
     return 0;
 }
 
-int screen_2verd() {
+int screen_2verd(ScreenRenderContext& context) {
     if (visualBuffer().width() / 2 <= visualBuffer().height()) {
         int x, y;
         const unsigned char* tmp = sourcePixels();
@@ -232,13 +232,13 @@ int screen_2verd() {
         }
 
     } else {
-        screen.change(+1, 0);
+        context.requestScreenChange(+1, 0);
         return 1;
     }
     return 0;
 }
 
-int screen_r2verd() {
+int screen_r2verd(ScreenRenderContext& context) {
     if (visualBuffer().width() / 2 <= visualBuffer().height()) {
         int x, y;
         const unsigned char* tmp = sourcePixels();
@@ -259,13 +259,13 @@ int screen_r2verd() {
             scrn -= destinationPitch() - visualBuffer().width();
         }
     } else {
-        screen.change(+1, 0);
+        context.requestScreenChange(+1, 0);
         return 1;
     }
     return 0;
 }
 
-int screen_4kal() {
+int screen_4kal(ScreenRenderContext& context) {
     if (visualBuffer().width() / 2 <= visualBuffer().height()) {
         const unsigned char* tmp;
         unsigned char* scrn;
@@ -308,18 +308,18 @@ int screen_4kal() {
             scrn -= destinationPitch() - visualBuffer().width();
         }
     } else {
-        screen.change(+1, 0);
+        context.requestScreenChange(+1, 0);
         return 1;
     }
     return 0;
 }
 
-int screen_vscale_hmirror() {
-    return screen_up();
+int screen_vscale_hmirror(ScreenRenderContext& context) {
+    return screen_up(context);
 }
 
-int screen_hscale_vmirror() {
-    return screen_up();
+int screen_hscale_vmirror(ScreenRenderContext& context) {
+    return screen_up(context);
 }
 
 /*
@@ -463,7 +463,7 @@ int prepare_3d(int maxZ) {
 /*
  * hfield: buffer_value determines height
  */
-int screen_hfield() {
+int screen_hfield(ScreenRenderContext& /*context*/) {
     const unsigned char* src = sourcePixels();
     unsigned char* dst
         = destinationPixels() + visualBuffer().width() + destinationPitch() * visualBuffer().height();
@@ -491,7 +491,7 @@ int screen_hfield() {
 /*
  * bent: height is a sine-wave along x axis
  */
-int screen_bent() {
+int screen_bent(ScreenRenderContext& /*context*/) {
     const unsigned char* src = sourcePixels();
     unsigned char* dst
         = destinationPixels() + visualBuffer().width() + destinationPitch() * visualBuffer().height();
@@ -531,7 +531,7 @@ int screen_bent() {
 /*
  * plate: height contant to 0
  */
-int screen_plate() {
+int screen_plate(ScreenRenderContext& /*context*/) {
     const unsigned char* src = sourcePixels();
     unsigned char* dst
         = destinationPixels() + visualBuffer().width() + destinationPitch() * visualBuffer().height();
@@ -561,7 +561,7 @@ int screen_plate() {
  *
  * other possible things with this idea: waves, ...
  */
-int screen_roll() {
+int screen_roll(ScreenRenderContext& /*context*/) {
     int i;
     static double theta = 0; /* rotation angle */
 
@@ -591,7 +591,7 @@ int screen_roll() {
  */
 #define ZICK_SMOOTH 10
 static int zicks[MAX_BUFF_HEIGHT];
-int screen_zick() {
+int screen_zick(ScreenRenderContext& /*context*/) {
     int i;
     unsigned char* scrn = destinationPixels();
     const unsigned char* src = sourcePixels();

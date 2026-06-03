@@ -38,6 +38,25 @@ double AcousticContext::intensity() const {
     return intensityValue;
 }
 
+class CountingSelectionController : public ScreenSelectionController {
+public:
+    int calls;
+    int by;
+    int doSave;
+
+    CountingSelectionController()
+        : calls(0)
+        , by(0)
+        , doSave(0) {
+    }
+
+    virtual void change(int by_, int doSave_) {
+        calls++;
+        by = by_;
+        doSave = doSave_;
+    }
+};
+
 static char2 emptyProcessedWaveData[1024];
 
 char2* audioFrameProcessedWaveData() {
@@ -135,9 +154,9 @@ static int renderScreenEntry(ScreenEntry& entry, const IndexedFrame& source,
         kDestinationSentinel);
 
     ScreenRenderContext context(source, destination, now, deltaT, 60.0);
-    ScopedScreenRenderContext contextScope(context);
     assert(cthughaDisplay == 0);
-    return entry();
+    assert(currentScreenRenderContext() == 0);
+    return entry.render(context);
 }
 
 static void assertRowEquals(const IndexedDisplayFrame& destination, int y,
@@ -270,16 +289,19 @@ static void testGeometryRetryMovesToNextScreenEntry() {
     preparePaddedDestination(destination, output.x, output.y, output.x + 3,
         kDestinationSentinel);
 
-    ScreenRenderContext context(source.frame(), destination, now, deltaT, 60.0);
-    ScopedScreenRenderContext contextScope(context);
+    CountingSelectionController controller;
+    ScreenRenderContext context(source.frame(), destination, now, deltaT, 60.0,
+        &controller);
     assert(cthughaDisplay == 0);
+    assert(currentScreenRenderContext() == 0);
     screen.change("2verd", 0);
 
-    int result = entry();
+    int result = entry.render(context);
 
     assert(result == 1);
-    assert(screen.currentN() == 6);
-    assert(strcmp(screen.currentName(), "r2verd") == 0);
+    assert(controller.calls == 1);
+    assert(controller.by == +1);
+    assert(controller.doSave == 0);
     assertDestinationRemainderUnchanged(destination, 0, 0);
 }
 

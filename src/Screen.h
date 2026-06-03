@@ -4,16 +4,18 @@
 #include "cthugha.h"
 #include "EffectControl.h"
 
+class ScreenRenderContext;
+
 /**
  * Catalog entry and executor for one classic screen/presentation effect.
  *
- * Screen effects consume the current source IndexedFrame through CthughaDisplay
- * accessors and write indexed pixels into the selected IndexedDisplayFrame.
+ * Screen effects consume the current source IndexedFrame and destination
+ * IndexedDisplayFrame through an explicit ScreenRenderContext.
  */
 class ScreenEntry : public EffectChoice {
 public:
     /** Screen renderer function. Returns nonzero when it wants another choice. */
-    typedef int (*Function)();
+    typedef int (*Function)(ScreenRenderContext&);
 
 private:
     Function functionValue;
@@ -45,6 +47,9 @@ public:
 
     /** Executes the renderer for one display frame. */
     virtual int operator()();
+
+    /** Executes the renderer with explicit source, destination, and timing. */
+    int render(ScreenRenderContext& context);
 
     /** @return Integer multiplier from source frame size to filled region. */
     xy filledScale() const;

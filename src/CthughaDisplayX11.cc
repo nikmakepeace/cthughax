@@ -6,7 +6,9 @@
 #include "disp-sys.h"
 #include "imath.h"
 #include "Interface.h"
+#include "IndexedFrame.h"
 #include "Screen.h"
+#include "ScreenRenderContext.h"
 
 #include <stdint.h>
 
@@ -36,6 +38,13 @@ public:
 static VisualFrameView visualBuffer() {
     return VisualFrameView();
 }
+
+class GlobalScreenSelectionController : public ScreenSelectionController {
+public:
+    virtual void change(int by, int doSave) {
+        screen.change(by, doSave);
+    }
+};
 
 void newCthughaDisplay() { cthughaDisplay = new CthughaDisplayX11(); }
 
@@ -410,8 +419,15 @@ void CthughaDisplayX11::operator()() {
      * geometry.  Some display functions ask to retry when the aspect ratio is
      * too awkward for their mapping.
      */
-    while (screen())
-        ; /* draw the buffer */
+    IndexedFrame screenSource(sourcePixels(), sourceWidth(), sourceHeight(), sourcePitch(),
+        sourceFrame != NULL ? sourceFrame->framePalette : NULL);
+    GlobalScreenSelectionController selectionController;
+    ScreenRenderContext renderContext(screenSource, indexedDisplayFrameValue, buffer,
+        indexedOutputSize.x, indexedOutputSize.y, bufferWidth, now, deltaT, fps,
+        &selectionController);
+
+    while (screenEntry->render(renderContext))
+        screenEntry = (ScreenEntry*)screen.current();
     if (traceDisplayTiming)
         displayTiming[3] = getTime();
 
