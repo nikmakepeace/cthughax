@@ -284,7 +284,7 @@ Move mirror completion out of X11 presentation.
 - `CthughaDisplayX11::operator()` no longer owns indexed mirror behavior.
 - Characterized screen modes still match.
 
-## Phase 5: Extract `PresentationComposer`
+## Phase 5: Extract `PresentationComposer` - DONE
 
 ### Goal
 
