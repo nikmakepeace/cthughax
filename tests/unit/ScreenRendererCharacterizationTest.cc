@@ -159,6 +159,18 @@ static int renderScreenEntry(ScreenEntry& entry, const IndexedFrame& source,
     return entry.render(context);
 }
 
+static int renderScreenEntry(ScreenEntry& entry, const IndexedFrame& source,
+    IndexedDisplayFrame& destination, double contextDeltaTime) {
+    xy output = entry.outputSize(source.width, source.height);
+    preparePaddedDestination(destination, output.x, output.y, output.x + 3,
+        kDestinationSentinel);
+
+    ScreenRenderContext context(source, destination, now, contextDeltaTime, 60.0);
+    assert(cthughaDisplay == 0);
+    assert(currentScreenRenderContext() == 0);
+    return entry.render(context);
+}
+
 static void assertRowEquals(const IndexedDisplayFrame& destination, int y,
     const unsigned char* expected, int width) {
     int mismatch = firstIndexedRowMismatch(destination.line(y), expected, width);
@@ -186,6 +198,27 @@ static void assertUpLikeOutput(const IndexedDisplayFrame& destination,
         assertRowEquals(destination, y, source.line(y), source.width());
 
     assertDestinationRemainderUnchanged(destination, source.width(), source.height());
+}
+
+static unsigned char sourceFixtureAt(const IndexedFrameFixture& source, int x, int y) {
+    return source.line(y)[x];
+}
+
+static void assertRenderedVisibleAreasDiffer(const IndexedDisplayFrame& left,
+    const IndexedDisplayFrame& right) {
+    assert(left.width() == right.width());
+    assert(left.height() == right.height());
+
+    for (int y = 0; y < left.height(); ++y) {
+        const unsigned char* leftRow = left.line(y);
+        const unsigned char* rightRow = right.line(y);
+        for (int x = 0; x < left.width(); ++x) {
+            if (leftRow[x] != rightRow[x])
+                return;
+        }
+    }
+
+    assert(!"expected rendered visible pixels to differ");
 }
 
 static void testSourceUsesSourceSizedOutputAndPaddedPitches() {
@@ -226,6 +259,63 @@ static void testDownReversesVisibleRowsAndLeavesUnfilledLegacyOutput() {
     for (int y = 0; y < source.height(); ++y)
         assertRowEquals(destination, y, source.line(source.height() - y - 1),
             source.width());
+    assertDestinationRemainderUnchanged(destination, source.width(), source.height());
+}
+
+static void testHorizontalSplitRenderersMatchCurrentLinePermutations() {
+    IndexedFrameFixture source(4, 4, 7);
+    IndexedDisplayFrame destination;
+
+    ScreenEntry& twoHorizontal = requiredScreenEntry(2, "2hor");
+    int result = renderScreenEntry(twoHorizontal, source.frame(), destination);
+    assert(result == 0);
+
+    const int twoHorizontalRows[] = { 2, 3, 3, 2 };
+    for (int y = 0; y < source.height(); ++y)
+        assertRowEquals(destination, y, source.line(twoHorizontalRows[y]), source.width());
+    assertDestinationRemainderUnchanged(destination, source.width(), source.height());
+
+    ScreenEntry& reverseTwoHorizontal = requiredScreenEntry(3, "r2hor");
+    result = renderScreenEntry(reverseTwoHorizontal, source.frame(), destination);
+    assert(result == 0);
+
+    const int reverseTwoHorizontalRows[] = { 3, 2, 2, 3 };
+    for (int y = 0; y < source.height(); ++y)
+        assertRowEquals(destination, y, source.line(reverseTwoHorizontalRows[y]),
+            source.width());
+    assertDestinationRemainderUnchanged(destination, source.width(), source.height());
+}
+
+static void testVerticalMirrorRenderersMatchCurrentColumnMapping() {
+    IndexedFrameFixture source(4, 4, 7);
+    IndexedDisplayFrame destination;
+    unsigned char expected[4];
+
+    ScreenEntry& twoVertical = requiredScreenEntry(5, "2verd");
+    int result = renderScreenEntry(twoVertical, source.frame(), destination);
+    assert(result == 0);
+
+    for (int y = 0; y < source.height(); ++y) {
+        expected[0] = sourceFixtureAt(source, y, 0);
+        expected[1] = sourceFixtureAt(source, y, 1);
+        expected[2] = sourceFixtureAt(source, y, 2);
+        expected[3] = sourceFixtureAt(source, y, 1);
+        assertRowEquals(destination, y, expected, 4);
+    }
+    assertDestinationRemainderUnchanged(destination, source.width(), source.height());
+
+    ScreenEntry& reverseTwoVertical = requiredScreenEntry(6, "r2verd");
+    result = renderScreenEntry(reverseTwoVertical, source.frame(), destination);
+    assert(result == 0);
+
+    for (int y = 0; y < source.height(); ++y) {
+        int sourceColumn = source.width() - y - 1;
+        expected[0] = sourceFixtureAt(source, sourceColumn, 1);
+        expected[1] = sourceFixtureAt(source, sourceColumn, 2);
+        expected[2] = sourceFixtureAt(source, sourceColumn, 1);
+        expected[3] = sourceFixtureAt(source, sourceColumn, 0);
+        assertRowEquals(destination, y, expected, 4);
+    }
     assertDestinationRemainderUnchanged(destination, source.width(), source.height());
 }
 
@@ -280,11 +370,40 @@ static void testFourHorizontalKaleidoscopeUsesCurrentLowerHalfMapping() {
     assertDestinationRemainderUnchanged(destination, source.width(), source.height());
 }
 
-static void testGeometryRetryMovesToNextScreenEntry() {
+static void testFourKaleidoscopeUsesCurrentQuadrantMapping() {
+    IndexedFrameFixture source(4, 4, 7);
+    IndexedDisplayFrame destination;
+    ScreenEntry& entry = requiredScreenEntry(7, "4kal");
+
+    int result = renderScreenEntry(entry, source.frame(), destination);
+
+    assert(result == 0);
+    assert(destination.width() == 2 * source.width());
+    assert(destination.height() == 2 * source.height());
+
+    unsigned char expected[4];
+    for (int y = 0; y < source.height() / 2; ++y) {
+        expected[0] = sourceFixtureAt(source, y, 0);
+        expected[1] = sourceFixtureAt(source, y, 1);
+        expected[2] = sourceFixtureAt(source, y, 2);
+        expected[3] = sourceFixtureAt(source, y, 1);
+        assertRowEquals(destination, y, expected, 4);
+    }
+    for (int y = source.height() / 2; y < source.height(); ++y) {
+        int sourceColumn = source.height() - y - 1;
+        expected[0] = sourceFixtureAt(source, sourceColumn, 1);
+        expected[1] = sourceFixtureAt(source, sourceColumn, 2);
+        expected[2] = sourceFixtureAt(source, sourceColumn, 1);
+        expected[3] = sourceFixtureAt(source, sourceColumn, 0);
+        assertRowEquals(destination, y, expected, 4);
+    }
+
+    assertDestinationRemainderUnchanged(destination, source.width(), source.height());
+}
+
+static void assertRetryRequest(ScreenEntry& entry) {
     IndexedFrameFixture source(8, 3, 11);
     IndexedDisplayFrame destination;
-    ScreenEntry& entry = requiredScreenEntry(5, "2verd");
-
     xy output = entry.outputSize(source.width(), source.height());
     preparePaddedDestination(destination, output.x, output.y, output.x + 3,
         kDestinationSentinel);
@@ -305,13 +424,60 @@ static void testGeometryRetryMovesToNextScreenEntry() {
     assertDestinationRemainderUnchanged(destination, 0, 0);
 }
 
+static void testGeometryRetryRequestsUseSelectionController() {
+    assertRetryRequest(requiredScreenEntry(5, "2verd"));
+    assertRetryRequest(requiredScreenEntry(6, "r2verd"));
+    assertRetryRequest(requiredScreenEntry(7, "4kal"));
+}
+
+static void testScreenEntryOperatorUsesScopedCurrentContext() {
+    IndexedFrameFixture source(4, 4, 7);
+    IndexedDisplayFrame destination;
+    ScreenEntry& entry = requiredScreenEntry(0, "Up");
+    xy output = entry.outputSize(source.width(), source.height());
+    preparePaddedDestination(destination, output.x, output.y, output.x + 3,
+        kDestinationSentinel);
+
+    ScreenRenderContext context(source.frame(), destination, now, deltaT, 60.0);
+    {
+        ScopedScreenRenderContext scope(context);
+        assert(entry() == 0);
+    }
+
+    assert(currentScreenRenderContext() == 0);
+    assertUpLikeOutput(destination, source);
+}
+
+static void testHeightfieldUsesContextDeltaTime() {
+    deltaT = 0.0;
+    IndexedFrameFixture source(16, 16, 19);
+    IndexedDisplayFrame baseline;
+    IndexedDisplayFrame advanced;
+    ScreenEntry& entry = requiredScreenEntry(8, "hfield");
+
+    int result = renderScreenEntry(entry, source.frame(), baseline, 0.0);
+    assert(result == 0);
+
+    for (int i = 0; i < 8; ++i) {
+        result = renderScreenEntry(entry, source.frame(), advanced, 0.25);
+        assert(result == 0);
+    }
+
+    assertRenderedVisibleAreasDiffer(baseline, advanced);
+}
+
 int main() {
     testSourceUsesSourceSizedOutputAndPaddedPitches();
     testUpCopiesVisibleRowsAndLeavesUnfilledLegacyOutput();
     testDownReversesVisibleRowsAndLeavesUnfilledLegacyOutput();
+    testHorizontalSplitRenderersMatchCurrentLinePermutations();
+    testVerticalMirrorRenderersMatchCurrentColumnMapping();
     testScaleYRendererMatchesUpBeforeCompletion();
     testScaleXRendererMatchesUpBeforeCompletion();
     testFourHorizontalKaleidoscopeUsesCurrentLowerHalfMapping();
-    testGeometryRetryMovesToNextScreenEntry();
+    testFourKaleidoscopeUsesCurrentQuadrantMapping();
+    testGeometryRetryRequestsUseSelectionController();
+    testScreenEntryOperatorUsesScopedCurrentContext();
+    testHeightfieldUsesContextDeltaTime();
     return 0;
 }

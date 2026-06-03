@@ -87,6 +87,13 @@ static double visualFramesPerSecond() {
     return cthughaDisplay->fps;
 }
 
+static double visualDeltaTime() {
+    if (screenRenderContext() != 0)
+        return screenRenderContext()->deltaTimeSeconds();
+
+    return deltaT;
+}
+
 /*****************************************************************************
  * Screen-functions
  ****************************************************************************/
@@ -377,7 +384,7 @@ inline void put_3d_splat(unsigned char* dst, int x, int y, unsigned char color) 
 }
 
 void update_3d_scale_factor() {
-    double dt = deltaT;
+    double dt = visualDeltaTime();
     double mid = (minScaleFactor + maxScaleFactor) / 2.0;
     double amp = (maxScaleFactor - minScaleFactor) / 2.0;
 
@@ -423,7 +430,7 @@ int prepare_3d(int maxZ) {
 
     /* rotate a little bit */
     /* TODO: use some value from the sound to set speed. */
-    double dt = deltaT;
+    double dt = visualDeltaTime();
     if (dt < 0.0)
         dt = 0.0;
     if (dt > 0.25)
