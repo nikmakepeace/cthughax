@@ -20,6 +20,7 @@
 #include "CthughaDisplay.h"
 #include "DisplayBackend.h"
 #include "DisplayRuntime.h"
+#include "OverlaySource.h"
 #include "PixelTransfer.h"
 #include "ViewportPresentation.h"
 #include "xcthugha.h"
@@ -89,6 +90,17 @@ static const unsigned long* nativePixelsForCurrentDrawMode() {
     return bitmap_colors0;
 }
 
+static void renderOverlayCommands(DisplayDevice& device,
+    const OverlayCommands& overlays) {
+    device.prePrint();
+    for (size_t i = 0; i < overlays.count(); ++i) {
+        const OverlayTextCommand& command = overlays.at(i);
+        device.print(command.text.c_str(), command.y, command.justification,
+            command.color, command.noDarken);
+    }
+    device.postPrint();
+}
+
 class DisplayBackendX11 : public DisplayBackend {
     DisplayDeviceX11& device;
 
@@ -110,7 +122,7 @@ public:
             device.setFramePalette(presentation.framePalette);
         DisplayDevice& displayDeviceBase = device;
         displayDeviceBase.setGlobalPalette();
-        if (presentation.needsFullCopy)
+        if (presentation.needsFullCopy || presentation.needsBorderClear)
             device.needsFullCopy = 1;
 
         unsigned char* displayBase = device.preDraw();
@@ -127,6 +139,8 @@ public:
             PixelSize(presentation.frame.width(), presentation.frame.height()),
             presentation.frame.pitch(), destination, drawRect.size(),
             bytes_per_line, bypp, nativePixelsForCurrentDrawMode());
+
+        renderOverlayCommands(device, presentation.overlays);
     }
 };
 

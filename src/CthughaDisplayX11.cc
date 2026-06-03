@@ -8,6 +8,7 @@
 #include "Interface.h"
 #include "IndexedFrame.h"
 #include "DisplayRuntime.h"
+#include "OverlaySource.h"
 
 #include <stdint.h>
 
@@ -36,6 +37,70 @@ public:
 
 static VisualFrameView visualBuffer() {
     return VisualFrameView();
+}
+
+class RecordingOverlayDisplayDevice : public DisplayDevice {
+    OverlaySink& sink;
+
+public:
+    explicit RecordingOverlayDisplayDevice(OverlaySink& sink_)
+        : DisplayDevice()
+        , sink(sink_) {
+    }
+
+    virtual double print(const char* text, double y, int justification,
+        int color, int noDarken = 0) {
+        return sink.printText(text, y, justification, color, noDarken);
+    }
+};
+
+class ScopedOverlayDisplayDevice {
+    DisplayDevice* previous;
+    RecordingOverlayDisplayDevice recorder;
+
+public:
+    explicit ScopedOverlayDisplayDevice(OverlaySink& sink)
+        : previous(displayDevice)
+        , recorder(sink) {
+        displayDevice = &recorder;
+    }
+
+    ~ScopedOverlayDisplayDevice() {
+        displayDevice = previous;
+    }
+};
+
+class CurrentInterfaceOverlayProducer : public OverlayProducer {
+public:
+    virtual void produceOverlay(OverlaySink& sink) {
+        Interface* currentInterface = Interface::current;
+        if (currentInterface == 0)
+            return;
+
+        ScopedOverlayDisplayDevice scope(sink);
+        currentInterface->display();
+    }
+};
+
+class ErrorMessagesOverlayProducer : public OverlayProducer {
+    ErrorMessages& errorMessages;
+
+public:
+    explicit ErrorMessagesOverlayProducer(ErrorMessages& errorMessages_)
+        : errorMessages(errorMessages_) {
+    }
+
+    virtual void produceOverlay(OverlaySink& sink) {
+        ScopedOverlayDisplayDevice scope(sink);
+        errorMessages.display();
+    }
+};
+
+static OverlayCommands collectDisplayOverlays() {
+    CurrentInterfaceOverlayProducer interfaceProducer;
+    ErrorMessagesOverlayProducer errorProducer(errors);
+    OverlaySource source(&interfaceProducer, &errorProducer);
+    return source.collect();
 }
 
 void newCthughaDisplay() { cthughaDisplay = new CthughaDisplayX11(); }
@@ -90,22 +155,16 @@ void CthughaDisplayX11::operator()() {
     int borderClearRequested = displayDevice->textOnScreen || needsClear;
     clearBorder();
 
+    OverlayCommands overlays = collectDisplayOverlays();
+    if (traceDisplayTiming)
+        displayTiming[5] = getTime();
+
     /*
      * Transfer indexed pixels to backend-native display memory.
      */
     if (displayRuntime != NULL)
         displayRuntime->present(indexedDisplayFrameValue, displayViewport(),
-            displayDevice->needsFullCopy, borderClearRequested);
-    if (traceDisplayTiming)
-        displayTiming[5] = getTime();
-
-    /*
-     * bring text to screen
-     */
-    displayDevice->prePrint();
-    Interface::current->display(); // print the text of the current interface
-    errors.display(); // and the error messages
-    displayDevice->postPrint();
+            displayDevice->needsFullCopy, borderClearRequested, overlays);
     if (traceDisplayTiming)
         displayTiming[6] = getTime();
 
@@ -115,7 +174,7 @@ void CthughaDisplayX11::operator()() {
     displayDevice->postDraw();
     if (traceDisplayTiming) {
         displayTiming[7] = getTime();
-        CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f compose-ms=%.3f prepare-ms=%.3f viewport-ms=%.3f transfer-clear-ms=%.3f text-ms=%.3f post-ms=%.3f draw-mode=%d bypp=%d size=%dx%d draw=%dx%d\n",
+        CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f compose-ms=%.3f prepare-ms=%.3f viewport-ms=%.3f overlay-ms=%.3f transfer-clear-ms=%.3f post-ms=%.3f draw-mode=%d bypp=%d size=%dx%d draw=%dx%d\n",
             "display timing",
             (displayTiming[7] - displayTiming[0]) * 1000.0,
             (displayTiming[1] - displayTiming[0]) * 1000.0,

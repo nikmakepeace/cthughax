@@ -240,6 +240,7 @@ add_test(NAME cthugha_display_viewport_test
 add_executable(display_runtime_test
     unit/DisplayRuntimeTest.cc
     ${CMAKE_SOURCE_DIR}/src/DisplayRuntime.cc
+    ${CMAKE_SOURCE_DIR}/src/OverlaySource.cc
     ${CMAKE_SOURCE_DIR}/src/PixelTransfer.cc
     ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
     ${CMAKE_SOURCE_DIR}/src/FramePalette.cc
@@ -255,6 +256,21 @@ target_include_directories(display_runtime_test PRIVATE
 target_link_libraries(display_runtime_test PRIVATE m)
 
 add_test(NAME display_runtime_test COMMAND display_runtime_test)
+
+add_executable(overlay_source_test
+    unit/OverlaySourceTest.cc
+    ${CMAKE_SOURCE_DIR}/src/OverlaySource.cc
+)
+
+target_include_directories(overlay_source_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(overlay_source_test PRIVATE m)
+
+add_test(NAME overlay_source_test COMMAND overlay_source_test)
 
 add_executable(pixel_transfer_test
     unit/PixelTransferTest.cc

@@ -50,6 +50,7 @@ set(CTHUGHA_COMMON_SOURCES
     FrameCompletion.cc
     Image.cc
     IndexedDisplayFrame.cc
+    OverlaySource.cc
     PixelTransfer.cc
     PresentationComposer.cc
     ViewportPolicy.cc

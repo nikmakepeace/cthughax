@@ -22,3 +22,11 @@ void DisplayRuntime::present(const IndexedDisplayFrame& frame,
         needsBorderClear);
     backend.present(presentation);
 }
+
+void DisplayRuntime::present(const IndexedDisplayFrame& frame,
+    const DisplayViewport& viewport, int needsFullCopy,
+    int needsBorderClear, const OverlayCommands& overlays) {
+    DisplayPresentation presentation(frame, viewport, needsFullCopy,
+        needsBorderClear, overlays);
+    backend.present(presentation);
+}

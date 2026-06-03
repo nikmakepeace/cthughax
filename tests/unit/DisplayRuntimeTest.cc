@@ -17,6 +17,8 @@ public:
     DisplayViewport presentedViewport;
     int presentedNeedsFullCopy;
     int presentedNeedsBorderClear;
+    int presentedOverlayCount;
+    OverlayTextCommand presentedFirstOverlay;
 
     FakeBackend()
         : processEventCalls(0)
@@ -28,7 +30,9 @@ public:
         , presentedPalette(0)
         , presentedViewport()
         , presentedNeedsFullCopy(0)
-        , presentedNeedsBorderClear(0) {
+        , presentedNeedsBorderClear(0)
+        , presentedOverlayCount(0)
+        , presentedFirstOverlay() {
     }
 
     virtual DisplayEventStats processEvents() {
@@ -48,6 +52,9 @@ public:
         presentedViewport = presentation.viewport;
         presentedNeedsFullCopy = presentation.needsFullCopy;
         presentedNeedsBorderClear = presentation.needsBorderClear;
+        presentedOverlayCount = presentation.overlays.count();
+        if (presentedOverlayCount > 0)
+            presentedFirstOverlay = presentation.overlays.at(0);
     }
 };
 
@@ -141,6 +148,28 @@ static void testPresentationRequestCarriesFrameViewportAndFlags() {
     assert(backend.presentedNeedsBorderClear == 0);
 }
 
+static void testPresentationRequestCarriesOverlayCommandsAndInvalidationFlags() {
+    FakeBackend backend;
+    DisplayRuntime runtime(backend);
+    IndexedDisplayFrame frame;
+    DisplayViewport viewport = fixedViewport();
+    OverlayCommands overlays;
+    frame.resize(4, 3, 6);
+    overlays.addText("help", 2.0, 'c', 2, 1);
+
+    runtime.present(frame, viewport, 0, 1, overlays);
+
+    assert(backend.presentCalls == 1);
+    assert(backend.presentedNeedsFullCopy == 0);
+    assert(backend.presentedNeedsBorderClear == 1);
+    assert(backend.presentedOverlayCount == 1);
+    assert(strcmp(backend.presentedFirstOverlay.text.c_str(), "help") == 0);
+    assert(backend.presentedFirstOverlay.y == 2.0);
+    assert(backend.presentedFirstOverlay.justification == 'c');
+    assert(backend.presentedFirstOverlay.color == 2);
+    assert(backend.presentedFirstOverlay.noDarken == 1);
+}
+
 static void testBackendCanTransferPresentationFrameFromRuntime() {
     TransferringBackend backend;
     DisplayRuntime runtime(backend);
@@ -181,6 +210,7 @@ int main() {
     testProcessEventsDelegatesToBackend();
     testOutputSizeDelegatesToBackend();
     testPresentationRequestCarriesFrameViewportAndFlags();
+    testPresentationRequestCarriesOverlayCommandsAndInvalidationFlags();
     testBackendCanTransferPresentationFrameFromRuntime();
     return 0;
 }

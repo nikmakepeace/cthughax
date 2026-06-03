@@ -14,6 +14,9 @@ public:
     void present(const IndexedDisplayFrame& frame,
         const DisplayViewport& viewport, int needsFullCopy,
         int needsBorderClear);
+    void present(const IndexedDisplayFrame& frame,
+        const DisplayViewport& viewport, int needsFullCopy,
+        int needsBorderClear, const OverlayCommands& overlays);
 };
 
 extern DisplayRuntime* displayRuntime;
