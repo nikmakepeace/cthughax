@@ -252,7 +252,7 @@ Remove no-argument renderer execution.
 - The old no-argument `ScreenEntry` execution path is gone or reduced to a
   compatibility wrapper used only by legacy code.
 
-## Phase 4: Extract `FrameCompletion`
+## Phase 4: Extract `FrameCompletion` - DONE
 
 ### Goal
 
