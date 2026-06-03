@@ -45,6 +45,7 @@ protected:
 
     // Copy expandedBuffer to the device memory, applying the configured zoom.
     void zoom2Screen(unsigned char*, int);
+    void zoom2Screen(unsigned char*, int, const DisplayViewport&);
 
     // Backends override this when indexed rows must be converted to the
     // device's native pixel format before completion/zooming run.

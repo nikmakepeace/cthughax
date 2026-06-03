@@ -18,6 +18,7 @@
 #include "cth_buffer.h"
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
+#include "ViewportPresentation.h"
 #include "xcthugha.h"
 
 #include <unistd.h>
@@ -56,6 +57,26 @@ static int indexedDisplayHeight() {
         return cthughaDisplay->displayFrameHeight();
 
     return 2 * CthughaBuffer::current->height();
+}
+
+static int centeredOffset(int windowPixels, int drawPixels) {
+    int offset = (windowPixels - drawPixels) / 2;
+    return offset > 0 ? offset : 0;
+}
+
+static DisplayViewport currentDisplayViewport() {
+    if ((cthughaDisplay != NULL) && cthughaDisplay->displayViewport().valid())
+        return cthughaDisplay->displayViewport();
+
+    DisplayViewport viewport;
+    viewport.frameSize = PixelSize(indexedDisplayWidth(), indexedDisplayHeight());
+    viewport.windowSize = PixelSize::fromXy(disp_size);
+    viewport.drawSize = PixelSize::fromXy(draw_size);
+    viewport.destination = PixelRect(
+        centeredOffset(disp_size.x, draw_size.x),
+        centeredOffset(disp_size.y, draw_size.y),
+        draw_size.x, draw_size.y);
+    return viewport;
 }
 
 xy screenSizes[]
@@ -849,6 +870,9 @@ void DisplayDeviceX11::postDraw() {
     int fullCopy = needsFullCopy;
     int copyTextFrame = copyText ? 1 : 0;
     double stepStart = 0.0;
+    DisplayViewport viewport = currentDisplayViewport();
+    PixelRect fullRect = ViewportPresentation::fullCopyRect(viewport);
+    PixelRect drawRect = ViewportPresentation::drawCopyRect(viewport);
 
     if (traceDisplayTiming)
         stepStart = getTime();
@@ -884,9 +908,9 @@ void DisplayDeviceX11::postDraw() {
             case shmPixmap:
                 if (traceDisplayTiming)
                     stepStart = getTime();
-                XCopyArea(xcth_display, pixmap, window, gc, 0, 0,
-                    disp_size.x, disp_size.y,
-                    0, 0);
+                XCopyArea(xcth_display, pixmap, window, gc, fullRect.x, fullRect.y,
+                    fullRect.width, fullRect.height,
+                    fullRect.x, fullRect.y);
                 if (traceDisplayTiming)
                     copyMs += (getTime() - stepStart) * 1000.0;
 
@@ -895,9 +919,9 @@ void DisplayDeviceX11::postDraw() {
             case shmNone:
                 if (traceDisplayTiming)
                     stepStart = getTime();
-                XCopyArea(xcth_display, textPixmap, window, gc, 0, 0,
-                    disp_size.x, disp_size.y,
-                    0, 0);
+                XCopyArea(xcth_display, textPixmap, window, gc, fullRect.x, fullRect.y,
+                    fullRect.width, fullRect.height,
+                    fullRect.x, fullRect.y);
                 if (traceDisplayTiming)
                     copyMs += (getTime() - stepStart) * 1000.0;
             }
@@ -919,9 +943,9 @@ void DisplayDeviceX11::postDraw() {
         case shmPixmap:
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XCopyArea(xcth_display, pixmap, window, gc, 0, 0,
-                disp_size.x, disp_size.y,
-                0, 0);
+            XCopyArea(xcth_display, pixmap, window, gc, fullRect.x, fullRect.y,
+                fullRect.width, fullRect.height,
+                fullRect.x, fullRect.y);
             if (traceDisplayTiming)
                 copyMs += (getTime() - stepStart) * 1000.0;
 
@@ -929,21 +953,23 @@ void DisplayDeviceX11::postDraw() {
         case shmImage:
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XShmPutImage(xcth_display, window, gc, image, 0, 0, 0, 0, disp_size.x, disp_size.y, 0);
+            XShmPutImage(xcth_display, window, gc, image, fullRect.x, fullRect.y,
+                fullRect.x, fullRect.y, fullRect.width, fullRect.height, 0);
             if (traceDisplayTiming)
                 putMs += (getTime() - stepStart) * 1000.0;
             break;
         case shmNone:
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XPutImage(xcth_display, pixmap, gc, image, 0, 0, 0, 0, disp_size.x, disp_size.y);
+            XPutImage(xcth_display, pixmap, gc, image, fullRect.x, fullRect.y,
+                fullRect.x, fullRect.y, fullRect.width, fullRect.height);
             if (traceDisplayTiming)
                 putMs += (getTime() - stepStart) * 1000.0;
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XCopyArea(xcth_display, pixmap, window, gc, 0, 0,
-                disp_size.x, disp_size.y,
-                0, 0);
+            XCopyArea(xcth_display, pixmap, window, gc, fullRect.x, fullRect.y,
+                fullRect.width, fullRect.height,
+                fullRect.x, fullRect.y);
             if (traceDisplayTiming)
                 copyMs += (getTime() - stepStart) * 1000.0;
             break;
@@ -953,34 +979,34 @@ void DisplayDeviceX11::postDraw() {
         case shmPixmap:
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XCopyArea(xcth_display, pixmap, window, gc, SCREEN_OFFSET_X,
-                SCREEN_OFFSET_Y,
-                draw_size.x, draw_size.y,
-                SCREEN_OFFSET_X,
-                SCREEN_OFFSET_Y);
+            XCopyArea(xcth_display, pixmap, window, gc, drawRect.x,
+                drawRect.y,
+                drawRect.width, drawRect.height,
+                drawRect.x,
+                drawRect.y);
             if (traceDisplayTiming)
                 copyMs += (getTime() - stepStart) * 1000.0;
             break;
         case shmImage:
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XShmPutImage(xcth_display, window, gc, image, SCREEN_OFFSET_X, SCREEN_OFFSET_Y,
-                SCREEN_OFFSET_X, SCREEN_OFFSET_Y, draw_size.x, draw_size.y, 0);
+            XShmPutImage(xcth_display, window, gc, image, drawRect.x, drawRect.y,
+                drawRect.x, drawRect.y, drawRect.width, drawRect.height, 0);
             if (traceDisplayTiming)
                 putMs += (getTime() - stepStart) * 1000.0;
             break;
         case shmNone:
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XPutImage(xcth_display, pixmap, gc, image, SCREEN_OFFSET_X, SCREEN_OFFSET_Y,
-                SCREEN_OFFSET_X, SCREEN_OFFSET_Y, draw_size.x, draw_size.y);
+            XPutImage(xcth_display, pixmap, gc, image, drawRect.x, drawRect.y,
+                drawRect.x, drawRect.y, drawRect.width, drawRect.height);
             if (traceDisplayTiming)
                 putMs += (getTime() - stepStart) * 1000.0;
             if (traceDisplayTiming)
                 stepStart = getTime();
-            XCopyArea(xcth_display, pixmap, window, gc, SCREEN_OFFSET_X, SCREEN_OFFSET_Y,
-                draw_size.x, draw_size.y,
-                SCREEN_OFFSET_X, SCREEN_OFFSET_Y);
+            XCopyArea(xcth_display, pixmap, window, gc, drawRect.x, drawRect.y,
+                drawRect.width, drawRect.height,
+                drawRect.x, drawRect.y);
             if (traceDisplayTiming)
                 copyMs += (getTime() - stepStart) * 1000.0;
             break;

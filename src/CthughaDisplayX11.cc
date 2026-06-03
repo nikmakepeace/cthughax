@@ -8,6 +8,7 @@
 #include "Interface.h"
 #include "IndexedFrame.h"
 #include "Screen.h"
+#include "ViewportPresentation.h"
 
 #include <stdint.h>
 
@@ -432,7 +433,9 @@ void CthughaDisplayX11::operator()() {
     /*
      * copy (with zoom) the image to the display
      */
-    zoom2Screen(display_base + SCREEN_OFFSET, bytes_per_line);
+    zoom2Screen(display_base
+            + ViewportPresentation::drawOffsetBytes(displayViewport(), bytes_per_line, bypp),
+        bytes_per_line, displayViewport());
     if (traceDisplayTiming)
         displayTiming[5] = getTime();
 

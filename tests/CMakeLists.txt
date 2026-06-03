@@ -194,6 +194,20 @@ target_link_libraries(viewport_policy_test PRIVATE m)
 
 add_test(NAME viewport_policy_test COMMAND viewport_policy_test)
 
+add_executable(viewport_presentation_test
+    unit/ViewportPresentationTest.cc
+)
+
+target_include_directories(viewport_presentation_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(viewport_presentation_test PRIVATE m)
+
+add_test(NAME viewport_presentation_test COMMAND viewport_presentation_test)
+
 add_executable(cthugha_display_viewport_test
     unit/CthughaDisplayViewportTest.cc
     ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc

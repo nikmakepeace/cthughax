@@ -9,6 +9,7 @@
 #include "Interface.h"
 #include "IndexedFrame.h"
 #include "ViewportPolicy.h"
+#include "ViewportPresentation.h"
 
 #include <stdint.h>
 #include <unistd.h>
@@ -169,17 +170,25 @@ const IndexedDisplayFrame& CthughaDisplay::composePresentationFrame(
 int CthughaDisplay::clearBorder() {
 
     if (displayDevice->textOnScreen || needsClear) {
-        int bwidth = SCREEN_OFFSET_X; /* width of left/right border */
-        int bheight = SCREEN_OFFSET_Y; /* height of upper/lower border */
+        PixelRect window = ViewportPresentation::fullCopyRect(displayViewportValue);
+        PixelRect draw = ViewportPresentation::drawCopyRect(displayViewportValue);
+        int bwidth = draw.x; /* width of left border */
+        int bheight = draw.y; /* height of upper border */
+        int rightWidth = window.width - draw.right();
+        int lowerHeight = window.height - draw.bottom();
+        if (rightWidth < 0)
+            rightWidth = 0;
+        if (lowerHeight < 0)
+            lowerHeight = 0;
 
         /* upper border */
-        displayDevice->clearBox(0, 0, disp_size.x, bheight);
+        displayDevice->clearBox(0, 0, window.width, bheight);
         /* left border */
-        displayDevice->clearBox(0, bheight, bwidth, draw_size.y);
+        displayDevice->clearBox(0, bheight, bwidth, draw.height);
         /* right border */
-        displayDevice->clearBox(disp_size.x - bwidth, bheight, bwidth, draw_size.y);
+        displayDevice->clearBox(draw.right(), bheight, rightWidth, draw.height);
         /* lower border */
-        displayDevice->clearBox(0, disp_size.y - bheight, disp_size.x, bheight);
+        displayDevice->clearBox(0, draw.bottom(), window.width, lowerHeight);
 
         /* if text is on screen, we have to clean in the next iteration,
            because the text may be removed then */
@@ -196,6 +205,11 @@ int CthughaDisplay::clearBorder() {
  * copy the expandedBuffer to the screen
  */
 void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
+    zoom2Screen(scrn, bytesPerLine, displayViewportValue);
+}
+
+void CthughaDisplay::zoom2Screen(
+    unsigned char* scrn, int bytesPerLine, const DisplayViewport& viewport) {
     unsigned char* b1 = expandedBuffer;
     unsigned short* b2 = (unsigned short*)(expandedBuffer);
     uint32_t* b4 = (uint32_t*)(expandedBuffer);
@@ -206,6 +220,7 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
 
     int bpl2 = bytesPerLine / 2;
     int bpl4 = bytesPerLine / 4;
+    PixelSize targetSize = viewport.drawSize;
 
     if ((zoom != 1) && (bypp != 1) && (bypp != 2) && (bypp != 4)) {
         CTH_ERROR("Sorry zooming is only implements for 1,2 and 4 bytes/pixel displays.");
@@ -217,47 +232,50 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
         //
         // zoom 0: zoom, so that the image fits the screen
         //
-        int dx = int(65536.0 * double(visualBuffer().displayWidth()) / double(disp_size.x));
-        double dy = double(visualBuffer().displayHeight()) / double(disp_size.y);
+        if (!targetSize.valid())
+            return;
+
+        int dx = int(65536.0 * double(visualBuffer().displayWidth()) / double(targetSize.width));
+        double dy = double(visualBuffer().displayHeight()) / double(targetSize.height);
 
         switch (bypp) {
         case 1:
-            for (int i = 0; i < disp_size.y; i++) {
+            for (int i = 0; i < targetSize.height; i++) {
                 b1 = (unsigned char*)(expandedBuffer + int(dy * double(i)) * expandedBufferWidth);
                 int x = 0;
 
-                for (int j = disp_size.x; j != 0; j--) {
+                for (int j = targetSize.width; j != 0; j--) {
                     *s1 = *(b1 + (x >> 16));
                     s1++;
                     x += dx;
                 }
-                s1 = s1 + bytesPerLine - disp_size.x;
+                s1 = s1 + bytesPerLine - targetSize.width;
             }
             break;
         case 2:
-            for (int i = 0; i < disp_size.y; i++) {
+            for (int i = 0; i < targetSize.height; i++) {
                 b2 = (unsigned short*)(expandedBuffer + int(dy * double(i)) * expandedBufferWidth);
                 int x = 0;
 
-                for (int j = disp_size.x; j != 0; j--) {
+                for (int j = targetSize.width; j != 0; j--) {
                     *s2 = *(b2 + (x >> 16));
                     s2++;
                     x += dx;
                 }
-                s2 = s2 + bpl2 - disp_size.x;
+                s2 = s2 + bpl2 - targetSize.width;
             }
             break;
         case 4:
-            for (int i = 0; i < disp_size.y; i++) {
+            for (int i = 0; i < targetSize.height; i++) {
                 b4 = (uint32_t*)(expandedBuffer + int(dy * double(i)) * expandedBufferWidth);
                 int x = 0;
 
-                for (int j = disp_size.x; j != 0; j--) {
+                for (int j = targetSize.width; j != 0; j--) {
                     *s4 = *(b4 + (x >> 16));
                     s4++;
                     x += dx;
                 }
-                s4 = s4 + bpl4 - disp_size.x;
+                s4 = s4 + bpl4 - targetSize.width;
             }
             break;
         }
