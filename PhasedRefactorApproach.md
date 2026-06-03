@@ -189,7 +189,7 @@ Lock down renderer behavior before changing renderer signatures.
 - Tests fail if rows are treated as tightly packed when pitch says otherwise.
 - No renderer signature changes yet.
 
-## Phase 2: Introduce `ScreenRenderContext` As A Shim
+## Phase 2: Introduce `ScreenRenderContext` As A Shim - DONE
 
 ### Goal
 
@@ -221,7 +221,7 @@ one commit.
 - Tests can exercise at least some screen helpers without `cthughaDisplay`.
 - The temporary adapter has an explicit removal target in Phase 13.
 
-## Phase 3: Convert `ScreenEntry` And Renderers To Context
+## Phase 3: Convert `ScreenEntry` And Renderers To Context - DONE
 
 ### Goal
 
