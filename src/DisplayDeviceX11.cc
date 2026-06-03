@@ -390,6 +390,7 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
     , palettePreviewHeight(0)
     , palettePreviewChangedAt(0.0)
     , shmAttached(0)
+    , shmMarkedForRemoval(0)
     , pixmap(None)
     , image(NULL)
     , copyText(0)
@@ -586,34 +587,46 @@ int DisplayDeviceX11::allocImage() {
         if ((image = XShmCreateImage(
                  xcth_display, visual, planes, ZPixmap, NULL, &shminfo, disp_size.x, disp_size.y))
             == NULL) {
-            CTH_ERROR("Can not create the shared XImage.\n");
-            return 1;
+            if (fallbackToNonSharedImage("Can not create the shared XImage", 0, 0))
+                return 1;
+            break;
         }
         bypp = (image->bits_per_pixel + 7) / 8;
         bytes_per_line = image->bytes_per_line;
 
         if ((shminfo.shmid = shmget(IPC_PRIVATE, bytes_per_line * disp_size.y, IPC_CREAT | 0777))
             == -1) {
-            CTH_ERRNO(errno, "Can not create shared memory segment");
-            return 1;
+            if (fallbackToNonSharedImage(
+                    "Can not create shared memory segment", errno, bytes_per_line * disp_size.y))
+                return 1;
+            break;
         }
         if ((shminfo.shmaddr = image->data = (char*)shmat(shminfo.shmid, 0, 0)) == (void*)-1) {
-            CTH_ERRNO(errno, "Can not attach shared memory segment");
+            int savedErrno = errno;
             image->data = NULL;
-            return 1;
+            if (fallbackToNonSharedImage(
+                    "Can not attach shared memory segment", savedErrno, bytes_per_line * disp_size.y))
+                return 1;
+            break;
         }
         shminfo.readOnly = False;
         if (XShmAttach(xcth_display, &shminfo) == 0) {
-            CTH_ERROR("Can not X-attach shared memory segment.\n");
-            return 1;
+            if (fallbackToNonSharedImage(
+                    "Can not X-attach shared memory segment", 0, bytes_per_line * disp_size.y))
+                return 1;
+            break;
         }
         shmAttached = 1;
+        XSync(xcth_display, False);
+        markSharedMemoryForRemoval();
 
         if ((pixmap = XShmCreatePixmap(
                  xcth_display, window, image->data, &shminfo, disp_size.x, disp_size.y, planes))
             == 0) {
-            CTH_ERROR("Can not create the shared XPixmap.\n");
-            return 1;
+            if (fallbackToNonSharedImage(
+                    "Can not create the shared XPixmap", 0, bytes_per_line * disp_size.y))
+                return 1;
+            break;
         }
         break;
 
@@ -624,53 +637,45 @@ int DisplayDeviceX11::allocImage() {
                  NULL,
                  &shminfo, disp_size.x, disp_size.y))
             == NULL) {
-            CTH_ERROR("Can not create XImage.\n");
-            return 1;
+            if (fallbackToNonSharedImage("Can not create shared XImage", 0, 0))
+                return 1;
+            break;
         }
         bypp = (image->bits_per_pixel + 7) / 8;
         bytes_per_line = image->bytes_per_line;
 
         if ((shminfo.shmid = shmget(IPC_PRIVATE, bytes_per_line * disp_size.y, IPC_CREAT | 0777))
             == -1) {
-            CTH_ERRNO(errno, "Can not create shared memory segment");
-            return 1;
+            if (fallbackToNonSharedImage(
+                    "Can not create shared memory segment", errno, bytes_per_line * disp_size.y))
+                return 1;
+            break;
         }
         if ((shminfo.shmaddr = image->data = (char*)shmat(shminfo.shmid, 0, 0)) == (void*)-1) {
-            CTH_ERRNO(errno, "Can not attach shared memory segment");
+            int savedErrno = errno;
             image->data = NULL;
-            return 1;
+            if (fallbackToNonSharedImage(
+                    "Can not attach shared memory segment", savedErrno, bytes_per_line * disp_size.y))
+                return 1;
+            break;
         }
         shminfo.readOnly = False;
 
         if (XShmAttach(xcth_display, &shminfo) == 0) {
-            CTH_ERROR("Can not X-attach shared memory segment.\n");
-            return 1;
+            if (fallbackToNonSharedImage(
+                    "Can not X-attach shared memory segment", 0, bytes_per_line * disp_size.y))
+                return 1;
+            break;
         }
         shmAttached = 1;
+        XSync(xcth_display, False);
+        markSharedMemoryForRemoval();
         break;
 
     case shmNone:
-        CTH_DEBUG("    using no shared image; staging through server pixmap.\n");
-
-        if ((image = XCreateImage(xcth_display, visual, planes, ZPixmap, 0, NULL, disp_size.x,
-                 disp_size.y, XBitmapPad(xcth_display), 0))
-            == NULL) {
-            CTH_ERROR("Can not create XImage.\n");
+        if (allocNonSharedImage())
             return 1;
-        }
-        bypp = (image->bits_per_pixel + 7) / 8;
-        bytes_per_line = image->bytes_per_line;
-
-        if ((image->data = (char*)malloc(disp_size.y * bytes_per_line)) == NULL) {
-            CTH_ERROR("Can not allocate memory for bitmap.\n");
-            return 1;
-        }
-
-        if ((pixmap = XCreatePixmap(xcth_display, window, disp_size.x, disp_size.y, planes))
-            == 0) {
-            CTH_ERROR("Can not create the staging XPixmap.\n");
-            return 1;
-        }
+        break;
     }
 
     if ((shmLevel != shmPixmap) && !text_on_term && !xcth_panel) {
@@ -682,6 +687,65 @@ int DisplayDeviceX11::allocImage() {
     CTH_DEBUG("    bytes/pixel        : %d\n", bypp);
     CTH_DEBUG("    bytes/line         : %d\n", bytes_per_line);
     return 0;
+}
+
+int DisplayDeviceX11::allocNonSharedImage() {
+    shmLevel = shmNone;
+    CTH_DEBUG("    using no shared image; staging through server pixmap.\n");
+
+    if ((image = XCreateImage(xcth_display, visual, planes, ZPixmap, 0, NULL, disp_size.x,
+             disp_size.y, XBitmapPad(xcth_display), 0))
+        == NULL) {
+        CTH_ERROR("Can not create XImage.\n");
+        return 1;
+    }
+    bypp = (image->bits_per_pixel + 7) / 8;
+    bytes_per_line = image->bytes_per_line;
+
+    if ((image->data = (char*)malloc(disp_size.y * bytes_per_line)) == NULL) {
+        CTH_ERROR("Can not allocate memory for bitmap.\n");
+        XDestroyImage(image);
+        image = NULL;
+        return 1;
+    }
+
+    if ((pixmap = XCreatePixmap(xcth_display, window, disp_size.x, disp_size.y, planes)) == 0) {
+        CTH_ERROR("Can not create the staging XPixmap.\n");
+        freeImage();
+        return 1;
+    }
+
+    return 0;
+}
+
+int DisplayDeviceX11::fallbackToNonSharedImage(
+    const char* reason, int errnum, size_t requestedBytes) {
+    if (errnum != 0 && requestedBytes > 0) {
+        CTH_WARN("%s (%d - %s); requested %lu bytes, falling back to non-SHM XImage.\n",
+            reason, errnum, strerror(errnum), (unsigned long)requestedBytes);
+    } else if (errnum != 0) {
+        CTH_WARN("%s (%d - %s); falling back to non-SHM XImage.\n",
+            reason, errnum, strerror(errnum));
+    } else if (requestedBytes > 0) {
+        CTH_WARN("%s; requested %lu bytes, falling back to non-SHM XImage.\n",
+            reason, (unsigned long)requestedBytes);
+    } else {
+        CTH_WARN("%s; falling back to non-SHM XImage.\n", reason);
+    }
+
+    freeImage();
+    return allocNonSharedImage();
+}
+
+void DisplayDeviceX11::markSharedMemoryForRemoval() {
+    if (shminfo.shmid == -1 || shmMarkedForRemoval)
+        return;
+
+    if (shmctl(shminfo.shmid, IPC_RMID, 0) == -1) {
+        CTH_ERRNO(errno, "Can not mark shared memory segment for removal");
+    } else {
+        shmMarkedForRemoval = 1;
+    }
 }
 
 void DisplayDeviceX11::freeImage() {
@@ -699,11 +763,13 @@ void DisplayDeviceX11::freeImage() {
             if (shmAttached)
                 XShmDetach(xcth_display, &shminfo);
             XDestroyImage(image);
-            XFreePixmap(xcth_display, pixmap);
-            pixmap = 0;
+            if (pixmap) {
+                XFreePixmap(xcth_display, pixmap);
+                pixmap = 0;
+            }
             if (shminfo.shmaddr != 0 && shminfo.shmaddr != (char*)-1)
                 shmdt(shminfo.shmaddr);
-            if (shminfo.shmid != -1)
+            if (shminfo.shmid != -1 && !shmMarkedForRemoval)
                 shmctl(shminfo.shmid, IPC_RMID, 0);
             break;
         case shmImage:
@@ -712,7 +778,7 @@ void DisplayDeviceX11::freeImage() {
             XDestroyImage(image);
             if (shminfo.shmaddr != 0 && shminfo.shmaddr != (char*)-1)
                 shmdt(shminfo.shmaddr);
-            if (shminfo.shmid != -1)
+            if (shminfo.shmid != -1 && !shmMarkedForRemoval)
                 shmctl(shminfo.shmid, IPC_RMID, 0);
             break;
         case shmNone:
@@ -725,6 +791,7 @@ void DisplayDeviceX11::freeImage() {
     }
     image = NULL;
     shmAttached = 0;
+    shmMarkedForRemoval = 0;
     shminfo.shmid = -1;
     shminfo.shmaddr = 0;
 }

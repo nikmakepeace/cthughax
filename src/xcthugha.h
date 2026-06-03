@@ -97,6 +97,7 @@ public:
     enum { shmNone, shmImage, shmPixmap } shmLevel;
     XShmSegmentInfo shminfo;
     int shmAttached;
+    int shmMarkedForRemoval;
     Pixmap pixmap;
     XImage* image;
     int copyText;
@@ -112,6 +113,9 @@ protected:
     int CreateWindow(const char* name, int full_screen);
     Cursor xcth_cursor();
     void checkDisplaySize();
+    void markSharedMemoryForRemoval();
+    int allocNonSharedImage();
+    int fallbackToNonSharedImage(const char* reason, int errnum, size_t requestedBytes);
 
     static void quit(int /*dummy*/) {
         cthugha_close++;
