@@ -242,6 +242,20 @@ target_link_libraries(display_geometry_test PRIVATE m)
 
 add_test(NAME display_geometry_test COMMAND display_geometry_test)
 
+add_executable(display_draw_mode_test
+    unit/DisplayDrawModeTest.cc
+)
+
+target_include_directories(display_draw_mode_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(display_draw_mode_test PRIVATE m)
+
+add_test(NAME display_draw_mode_test COMMAND display_draw_mode_test)
+
 add_executable(viewport_policy_test
     unit/ViewportPolicyTest.cc
     ${CMAKE_SOURCE_DIR}/src/ViewportPolicy.cc

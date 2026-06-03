@@ -84,13 +84,6 @@ static DisplayViewport currentDisplayViewport() {
     return viewport;
 }
 
-static const unsigned long* nativePixelsForCurrentDrawMode() {
-    if (draw_mode == DM_direct)
-        return 0;
-
-    return bitmap_colors0;
-}
-
 static void renderOverlayCommands(DisplayDevice& device,
     const OverlayCommands& overlays) {
     device.prePrint();
@@ -139,7 +132,7 @@ public:
         PixelTransfer::indexedToNative(presentation.frame.pixels(),
             PixelSize(presentation.frame.width(), presentation.frame.height()),
             presentation.frame.pitch(), destination, drawRect.size(),
-            bytes_per_line, bypp, nativePixelsForCurrentDrawMode());
+            bytes_per_line, bypp, bitmap_colors0);
 
         renderOverlayCommands(device, presentation.overlays);
     }
@@ -208,6 +201,23 @@ static unsigned char scale_mask_value(unsigned long pixel, unsigned long mask) {
     maxValue = (1UL << bits) - 1;
 
     return (unsigned char)((value * 255UL) / maxValue);
+}
+
+static void setIndexedNativePixel(int index, unsigned long pixel) {
+    bitmap_colors0[index] = pixel;
+    bitmap_colors1[index] = bitmap_colors0[index] << 8;
+    bitmap_colors2[index] = bitmap_colors1[index] << 8;
+    bitmap_colors3[index] = bitmap_colors2[index] << 8;
+}
+
+static void mapIndexedPixelsToColorCells(const XColor* colors) {
+    for (int i = 0; i < 256; i++)
+        setIndexedNativePixel(i, colors[i].pixel);
+}
+
+static void mapIndexedPixelsToPairedColorCells(const XColor* colors) {
+    for (int i = 0; i < 256; i++)
+        setIndexedNativePixel(i, colors[i / 2].pixel);
 }
 
 static void dump_x11_frame(XImage* image) {
@@ -1107,20 +1117,7 @@ int DisplayDeviceX11::initPalette() {
         CTH_DEBUG("    green mask/shift   : 0x%4x/%d\n", green_mask, green_shift);
         CTH_DEBUG("    blue  mask/shift   : 0x%4x/%d\n", blue_mask, blue_shift);
 
-        switch (bypp) {
-        case 1:
-            draw_mode = DM_mapped1;
-            break;
-        case 2:
-            draw_mode = DM_mapped2;
-            break;
-        case 3:
-            draw_mode = DM_mapped3;
-            break;
-        case 4:
-            draw_mode = DM_mapped4;
-            break;
-        default:
+        if (!mappedDrawModeForBytesPerPixel(bypp, draw_mode)) {
             CTH_ERROR("Unsupported bytes per pixel %d.", bypp);
             return 1;
         }
@@ -1158,13 +1155,13 @@ int DisplayDeviceX11::initPalette() {
             unsigned long pixels[256];
 
             // In PseudoColor, pixels are indexes into a server-side colormap.
-            // First try to reserve nearly the whole default colormap so the
-            // frame buffer bytes can be used directly as palette indexes.
+            // First try to reserve nearly the whole default colormap, then map
+            // each Cthugha palette index to its allocated X pixel value.
             if (XAllocColorCells(xcth_display, colormap, 1, NULL, 0, pixels, 255)
                 != 0) {
                 CTH_INFO("Could allocate 255 color cells.\n");
 
-                draw_mode = DM_direct;
+                draw_mode = DM_mapped1;
                 colormapped = 1;
 
                 for (int i = 0; i < 255; i++) {
@@ -1174,9 +1171,10 @@ int DisplayDeviceX11::initPalette() {
                     colors[i].pixel = pixels[i] + a;
                 }
                 colors[255].pixel = colors[254].pixel;
+                mapIndexedPixelsToColorCells(colors);
 
                 for (int i = 0; i < textColors; i++) {
-                    textColor[i] = 128 + i;
+                    textColor[i] = colors[128 + i].pixel;
                     for (int j = 0; j < 3; j++) {
                         textPalette[128 + i][j] = textColorRGB[i][j];
                     }
@@ -1215,18 +1213,13 @@ int DisplayDeviceX11::initPalette() {
                 for (int i = 0; i < 128; i++)
                     colors[i].pixel = pixels[i];
 
-                for (int i = 0; i < 256; i++) {
-                    bitmap_colors0[i] = int(colors[i / 2].pixel);
-                    bitmap_colors1[i] = bitmap_colors0[i] << 8;
-                    bitmap_colors2[i] = bitmap_colors1[i] << 8;
-                    bitmap_colors3[i] = bitmap_colors2[i] << 8;
-                }
+                mapIndexedPixelsToPairedColorCells(colors);
             }
         } else {
             // A private colormap gives this window all 256 palette entries,
             // at the cost of color flashing when focus enters/leaves it on
             // old indexed-color X displays.
-            draw_mode = DM_direct;
+            draw_mode = DM_mapped1;
             colormap = XCreateColormap(xcth_display, window, visual, AllocAll);
             XSetWindowColormap(xcth_display, window, colormap);
             colormapped = 1;
@@ -1235,17 +1228,18 @@ int DisplayDeviceX11::initPalette() {
                 for (int j = 0; j < 3; j++)
                     textPalette[i][j] = 0;
 
+            for (int i = 0; i < 256; i++) {
+                colors[i].pixel = i;
+            }
+            mapIndexedPixelsToColorCells(colors);
+
             for (int i = 0; i < textColors; i++) {
-                textColor[i] = 255 - i;
+                textColor[i] = colors[255 - i].pixel;
 
                 // Historical workaround: keep these assignments explicit.
                 textPalette[255 - i][0] = textColorRGB[i][0];
                 textPalette[255 - i][1] = textColorRGB[i][1];
                 textPalette[255 - i][2] = textColorRGB[i][2];
-            }
-
-            for (int i = 0; i < 256; i++) {
-                colors[i].pixel = i;
             }
         }
     }
@@ -1294,16 +1288,7 @@ int DisplayDeviceX11::setGlobalPalette() {
                             >> 1;
             }
 
-            if (draw_mode == DM_direct) {
-                draw_mode = DM_tmp_mapped;
-
-                for (i = 0; i < 256; i++) {
-                    bitmap_colors0[i] = i / 2;
-                    bitmap_colors1[i] = bitmap_colors0[i] << 8;
-                    bitmap_colors2[i] = bitmap_colors1[i] << 8;
-                    bitmap_colors3[i] = bitmap_colors2[i] << 8;
-                }
-            }
+            mapIndexedPixelsToPairedColorCells(colors);
 
             setPalette(textPalette);
             break;
@@ -1323,16 +1308,8 @@ int DisplayDeviceX11::setGlobalPalette() {
         }
     } else {
 
-        if (draw_mode == DM_tmp_mapped) {
-            draw_mode = DM_direct;
-
-            for (int i = 0; i < 256; i++) {
-                bitmap_colors0[i] = i;
-                bitmap_colors1[i] = bitmap_colors0[i] << 8;
-                bitmap_colors2[i] = bitmap_colors1[i] << 8;
-                bitmap_colors3[i] = bitmap_colors2[i] << 8;
-            }
-        }
+        if (colormapped == 1)
+            mapIndexedPixelsToColorCells(colors);
 
         setPalette(currentPalette);
     }

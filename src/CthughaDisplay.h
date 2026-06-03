@@ -54,8 +54,8 @@ protected:
     void checkZoom();
 
 public:
-    // buffer points at either buffer0 or directly at the display memory in
-    // DM_direct mode. bufferWidth is measured in bytes.
+    // buffer points at the indexed presentation buffer. bufferWidth is measured
+    // in bytes.
     unsigned char* buffer;
     int bufferWidth;
 

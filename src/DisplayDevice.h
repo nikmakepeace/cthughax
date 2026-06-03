@@ -36,8 +36,27 @@ extern int nScreenSizes;
 extern xy bufferSizes[]; // and corresponding buffer sizes
 extern int nBufferSizes;
 
-enum draw_mode_t { DM_direct, DM_tmp_mapped, DM_mapped1, DM_mapped2, DM_mapped3, DM_mapped4 };
+enum draw_mode_t { DM_mapped1, DM_mapped2, DM_mapped3, DM_mapped4 };
 extern enum draw_mode_t draw_mode; /* how drawing is done */
+
+inline int mappedDrawModeForBytesPerPixel(int bytesPerPixel, draw_mode_t& mode) {
+    switch (bytesPerPixel) {
+    case 1:
+        mode = DM_mapped1;
+        return 1;
+    case 2:
+        mode = DM_mapped2;
+        return 1;
+    case 3:
+        mode = DM_mapped3;
+        return 1;
+    case 4:
+        mode = DM_mapped4;
+        return 1;
+    default:
+        return 0;
+    }
+}
 
 struct DisplayEventStats {
     /** Number of platform/window events processed in one loop iteration. */

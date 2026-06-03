@@ -13,7 +13,7 @@ DisplayDevice* displayDevice = 0;
 int bypp = 1;
 int bytes_per_line = 0;
 xy disp_size(0, 0);
-enum draw_mode_t draw_mode = DM_direct;
+enum draw_mode_t draw_mode = DM_mapped1;
 
 void DisplayDevice::setFramePalette(FramePalette* framePalette_) {
     framePalette = framePalette_;

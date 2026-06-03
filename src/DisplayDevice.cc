@@ -30,7 +30,7 @@ int display_mode = DEFAULT_DISPLAY_MODE; /* predefined graphic mode to use */
 int bypp = 1; /* bytes per pixel */
 int bytes_per_line = 0;
 xy disp_size(0, 0); /* size of drawing area */
-enum draw_mode_t draw_mode = DM_direct; /* how drawing is done */
+enum draw_mode_t draw_mode = DM_mapped1; /* how drawing is done */
 
 //
 // prepare to set the global palette

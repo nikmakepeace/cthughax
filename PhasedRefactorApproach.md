@@ -438,8 +438,8 @@ Remove palette expansion from generic display coordination.
 - Move X11 lookup-table expansion into `DisplayBackendX11` or an X11-specific
   transfer helper.
 - Keep direct/native display memory decisions backend-owned.
-- Preserve `DM_direct` as an X11-only optimization until Phase 13 decides its
-  fate.
+- Retire the old X11 direct indexed-color path in Phase 13 so backend
+  conversion always uses explicit pixel transfer.
 
 ### Tests
 
@@ -539,25 +539,25 @@ Replace global construction with owned runtime objects.
 - No double deletes.
 - `Application` is the composition root for the display object graph.
 
-## Phase 13: Decide `DM_direct`
+## Phase 13: Retire Direct Indexed-Color Mode - DONE
 
 ### Goal
 
-Either isolate direct mode as a backend optimization or retire it.
+Retire the old X11 direct indexed-color path and keep all presentation through
+mapped pixel transfer.
 
 ### Work
 
-- Measure whether `DM_direct` still matters relative to MIT-SHM and current
-  true-color paths.
-- If it matters, keep it inside `DisplayBackendX11`.
-- If it does not matter, remove it and always compose indexed presentation
-  before backend conversion.
+- Remove the direct indexed-color draw mode and temporary overlay mode.
+- Keep PseudoColor support on the mapped 8-bit path by filling the native-pixel
+  table from allocated X pixel values.
+- Always pass an explicit native-pixel table to X11 pixel transfer.
 
 ### Exit Gate
 
 - No screen renderer writes directly to native display memory outside backend
   control.
-- Remaining direct-mode behavior is backend-owned and covered by manual smoke
+- X11 presentation no longer has a direct indexed-color draw mode.
   or tests.
 
 ## Phase 14: Remove Transitional Globals And Adapters
