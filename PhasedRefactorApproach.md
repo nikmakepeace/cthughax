@@ -558,9 +558,8 @@ mapped pixel transfer.
 - No screen renderer writes directly to native display memory outside backend
   control.
 - X11 presentation no longer has a direct indexed-color draw mode.
-  or tests.
 
-## Phase 14: Remove Transitional Globals And Adapters
+## Phase 14: Remove Transitional Globals And Adapters - DONE
 
 ### Goal
 

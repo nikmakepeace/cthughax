@@ -99,6 +99,11 @@ static void testPublishesAndClearsCompatibilityAliases() {
 
     DisplayRuntimeOwnership ownership(std::move(device), std::move(backend),
         std::move(runtime));
+
+    assert(&ownership.device() == deviceAlias);
+    assert(&ownership.backend() == backendAlias);
+    assert(&ownership.runtime() == runtimeAlias);
+
     ownership.publishAliases();
 
     assert(displayDevice == deviceAlias);

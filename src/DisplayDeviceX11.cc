@@ -17,7 +17,6 @@
 #include "Interface.h"
 #include "cth_buffer.h"
 #include "CthughaBuffer.h"
-#include "CthughaDisplay.h"
 #include "DisplayBackend.h"
 #include "DisplayRuntime.h"
 #include "OverlaySource.h"
@@ -48,40 +47,12 @@
 #include <X11/Xutil.h>
 #include <X11/extensions/XShm.h>
 
-static int indexedDisplayWidth() {
-    // Normal presentation has already prepared CthughaDisplay's output frame.
-    // Startup and legacy display calls can still fall back to the engine buffer.
-    if (cthughaDisplay != NULL)
-        return cthughaDisplay->displayFrameWidth();
-
+static int fallbackIndexedDisplayWidth() {
     return 2 * CthughaBuffer::current->width();
 }
 
-static int indexedDisplayHeight() {
-    if (cthughaDisplay != NULL)
-        return cthughaDisplay->displayFrameHeight();
-
+static int fallbackIndexedDisplayHeight() {
     return 2 * CthughaBuffer::current->height();
-}
-
-static int centeredOffset(int windowPixels, int drawPixels) {
-    int offset = (windowPixels - drawPixels) / 2;
-    return offset > 0 ? offset : 0;
-}
-
-static DisplayViewport currentDisplayViewport() {
-    if ((cthughaDisplay != NULL) && cthughaDisplay->displayViewport().valid())
-        return cthughaDisplay->displayViewport();
-
-    DisplayViewport viewport;
-    viewport.frameSize = PixelSize(indexedDisplayWidth(), indexedDisplayHeight());
-    viewport.windowSize = PixelSize::fromXy(disp_size);
-    viewport.drawSize = PixelSize::fromXy(draw_size);
-    viewport.destination = PixelRect(
-        centeredOffset(disp_size.x, draw_size.x),
-        centeredOffset(disp_size.y, draw_size.y),
-        draw_size.x, draw_size.y);
-    return viewport;
 }
 
 static void renderOverlayCommands(DisplayDevice& device,
@@ -114,8 +85,9 @@ public:
     virtual void present(const DisplayPresentation& presentation) {
         if (presentation.framePalette != NULL)
             device.setFramePalette(presentation.framePalette);
-        DisplayDevice& displayDeviceBase = device;
-        displayDeviceBase.setGlobalPalette();
+        device.setPresentationViewport(presentation.viewport);
+        DisplayDevice& baseDevice = device;
+        baseDevice.setGlobalPalette();
         if (presentation.needsFullCopy || presentation.needsBorderClear)
             device.needsFullCopy = 1;
 
@@ -593,8 +565,7 @@ DisplayEventStats DisplayDeviceX11::processEvents() {
             resizeDisplay(event.xconfigure.width, event.xconfigure.height);
         } else if ((event.type == Expose) && (event.xexpose.window == window)) {
             stats.exposeEvents++;
-            if (cthughaDisplay != NULL)
-                cthughaDisplay->needsClear = 1;
+            needsFullCopy = 1;
         } else {
             XtDispatchEvent(&event);
         }
@@ -892,6 +863,28 @@ void DisplayDeviceX11::freeImage() {
     shminfo.shmaddr = 0;
 }
 
+int DisplayDeviceX11::indexedDisplayWidth() const {
+    if (presentationViewport.valid())
+        return presentationViewport.frameSize.width;
+
+    return fallbackIndexedDisplayWidth();
+}
+
+int DisplayDeviceX11::indexedDisplayHeight() const {
+    if (presentationViewport.valid())
+        return presentationViewport.frameSize.height;
+
+    return fallbackIndexedDisplayHeight();
+}
+
+void DisplayDeviceX11::setPresentationViewport(const DisplayViewport& viewport) {
+    presentationViewport = viewport;
+}
+
+const DisplayViewport& DisplayDeviceX11::currentPresentationViewport() const {
+    return presentationViewport;
+}
+
 void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
     if ((new_width == disp_size.x) && (new_height == disp_size.y))
         return;
@@ -907,9 +900,6 @@ void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
     freeImage();
     allocImage();
 
-    // After resizing, the border around the image must be redrawn.
-    if (cthughaDisplay != NULL)
-        cthughaDisplay->needsClear = 1;
 }
 
 unsigned char* DisplayDeviceX11::preDraw() {
@@ -946,7 +936,7 @@ void DisplayDeviceX11::postDraw() {
     int fullCopy = needsFullCopy;
     int copyTextFrame = copyText ? 1 : 0;
     double stepStart = 0.0;
-    DisplayViewport viewport = currentDisplayViewport();
+    DisplayViewport viewport = currentPresentationViewport();
     PixelRect fullRect = ViewportPresentation::fullCopyRect(viewport);
     PixelRect drawRect = ViewportPresentation::drawCopyRect(viewport);
 
@@ -1008,7 +998,8 @@ void DisplayDeviceX11::postDraw() {
                 CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=1 full-copy=%d shm-level=%d draw=%dx%d\n",
                     "display timing", (getTime() - postStart) * 1000.0,
                     paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs,
-                    fullCopy, shmLevel, draw_size.x, draw_size.y);
+                    fullCopy, shmLevel, viewport.drawSize.width,
+                    viewport.drawSize.height);
             }
             return;
         }
@@ -1094,7 +1085,7 @@ void DisplayDeviceX11::postDraw() {
     CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=%d full-copy=%d shm-level=%d draw=%dx%d\n",
         "display timing", (getTime() - postStart) * 1000.0,
         paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs, copyTextFrame,
-        fullCopy, shmLevel, draw_size.x, draw_size.y);
+        fullCopy, shmLevel, viewport.drawSize.width, viewport.drawSize.height);
     needsFullCopy = 0;
 }
 

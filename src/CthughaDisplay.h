@@ -14,10 +14,9 @@
 // DisplayDevice backend.  It owns the per-frame timing, temporary image
 // buffers, mirroring/zooming, and the final handoff to the device.
 //
-// It must be initialized after displayDevice because it sizes and formats its
-// buffers around the active device's pixel layout.
+// It is initialized with the owned display stage so viewport and palette work
+// do not need to read transitional globals.
 
-extern xy draw_size;
 extern OptionInt zoom;
 extern OptionInt maxFramesPerSecond;
 extern OptionOnOff showFPS;
@@ -26,16 +25,20 @@ extern double now; // timestamp used by all modules while drawing this frame
 extern double deltaT; // elapsed time between the last two frames, in seconds
 
 class IndexedFrame;
+class DisplayDevice;
+class DisplayRuntime;
 
 class CthughaDisplay : public PresentationFrameObserver {
 protected:
+    DisplayDevice& deviceValue;
+    DisplayRuntime& runtimeValue;
     const IndexedFrame* sourceFrame;
     IndexedDisplayFrame indexedDisplayFrameValue;
     PresentationComposer presentationComposer;
     DisplayViewport displayViewportValue;
 
-    // Non-owning alias for indexedDisplayFrameValue.pixels(), retained while
-    // classic screen functions still write through cthughaDisplay->buffer.
+    // Non-owning alias for indexedDisplayFrameValue.pixels(), retained for
+    // subclasses that publish the composed frame to backend presentation.
     unsigned char* buffer0;
 
     double visualLatencyEstimate;
@@ -52,6 +55,8 @@ protected:
 
     void updateFPS();
     void checkZoom();
+    DisplayDevice& device();
+    DisplayRuntime& runtime();
 
 public:
     // buffer points at the indexed presentation buffer. bufferWidth is measured
@@ -61,7 +66,7 @@ public:
 
     int needsClear; // border must be cleared before the next frame is shown
 
-    CthughaDisplay();
+    CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime);
 
     /**
      * Starts a new visual frame and publishes now/deltaT.
@@ -118,7 +123,7 @@ public:
 //
 class CthughaDisplayX11 : public CthughaDisplay {
 public:
-    CthughaDisplayX11();
+    CthughaDisplayX11(DisplayDevice& device, DisplayRuntime& runtime);
     virtual ~CthughaDisplayX11();
     virtual void operator()();
 };
@@ -126,6 +131,7 @@ public:
 extern CthughaDisplay* cthughaDisplay;
 
 /** Allocates the frontend-specific display coordinator. */
-std::unique_ptr<CthughaDisplay> newCthughaDisplay();
+std::unique_ptr<CthughaDisplay> newCthughaDisplay(
+    DisplayDevice& device, DisplayRuntime& runtime);
 
 #endif

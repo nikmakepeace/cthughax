@@ -101,8 +101,9 @@ void Application::initVideoFilterchain() {
     videoFilterchainSequence = videoDirector().defaultFilterchainSequence();
     videoFilterchain.reset(factory.create(videoFilterchainSequence));
 
-    if (displayDevice != NULL)
-        displayDevice->setFramePalette(framePaletteFromFilterchain(*videoFilterchain));
+    if (displayRuntimeOwnership.get() != NULL)
+        displayRuntimeOwnership->device().setFramePalette(
+            framePaletteFromFilterchain(*videoFilterchain));
 }
 
 void Application::shutdownVideoFilterchain() {
@@ -171,7 +172,7 @@ void Application::shutdown() {
         exit_ncurses();
         ncursesInitialized = 0;
     }
-    cthughaDisplayValue.reset();
+    displayValue.reset();
     cthughaDisplay = NULL;
     if (displayRuntimeOwnership.get() != NULL)
         displayRuntimeOwnership->shutdown();
@@ -264,8 +265,9 @@ int Application::initialize() {
     if (displayRuntimeOwnership.get() == NULL)
         return 0;
     displayRuntimeOwnership->publishAliases();
-    cthughaDisplayValue = newCthughaDisplay();
-    cthughaDisplay = cthughaDisplayValue.get();
+    displayValue = newCthughaDisplay(displayRuntimeOwnership->device(),
+        displayRuntimeOwnership->runtime());
+    cthughaDisplay = displayValue.get();
 
     CTH_INFO("Loading effect-control usage and preset slots...\n");
     read_effect_control_usage_and_presets();
@@ -302,9 +304,8 @@ void Application::run() {
         int frameWasRun = 0;
         double visualFrameStart = 0.0;
 
-        DisplayEventStats eventStats = displayRuntime != NULL
-            ? displayRuntime->processEvents()
-            : displayDevice->processEvents();
+        DisplayEventStats eventStats
+            = displayRuntimeOwnership->runtime().processEvents();
         if (traceDisplayTiming)
             eventsEnd = getTime();
 
@@ -376,7 +377,7 @@ void Application::runFrame(int doDisplay) {
 
     // Advance display timing first so now/deltaT describe this visual frame for
     // audio analysis, AutoChanger policy, and all visual filters.
-    cthughaDisplay->nextFrame();
+    displayValue->nextFrame();
     if (traceFrameTiming)
         frameTiming[1] = getTime();
 
@@ -401,15 +402,15 @@ void Application::runFrame(int doDisplay) {
     double visualStart = getTime();
     if (doDisplay) {
         if (indexedFrame != NULL && indexedFrame->valid())
-            cthughaDisplay->present(*indexedFrame);
+            displayValue->present(*indexedFrame);
         else
-            (*cthughaDisplay)();
+            (*displayValue)();
     }
     double visualEnd = getTime();
     if (traceFrameTiming)
         frameTiming[5] = visualEnd;
-    if (cthughaDisplay)
-        cthughaDisplay->observeVisualLatency(visualEnd - visualStart);
+    if (displayValue.get() != NULL)
+        displayValue->observeVisualLatency(visualEnd - visualStart);
 
     if (traceFrameTiming) {
         frameTiming[6] = getTime();

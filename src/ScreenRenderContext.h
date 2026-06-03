@@ -54,15 +54,4 @@ public:
     int requestScreenChange(int by, int doSave);
 };
 
-ScreenRenderContext* currentScreenRenderContext();
-void setCurrentScreenRenderContext(ScreenRenderContext* context);
-
-class ScopedScreenRenderContext {
-    ScreenRenderContext* previousContext;
-
-public:
-    explicit ScopedScreenRenderContext(ScreenRenderContext& context);
-    ~ScopedScreenRenderContext();
-};
-
 #endif

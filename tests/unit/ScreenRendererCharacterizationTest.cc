@@ -1,6 +1,5 @@
 #include "AudioAnalyzer.h"
 #include "AudioFrame.h"
-#include "CthughaDisplay.h"
 #include "IndexedFrameTestFixtures.h"
 #include "Screen.h"
 #include "ScreenRenderContext.h"
@@ -11,8 +10,6 @@
 
 static const unsigned char kDestinationSentinel = 0xa5;
 
-CthughaDisplay* cthughaDisplay = 0;
-xy draw_size(0, 0);
 double now = 0.0;
 double deltaT = 0.0;
 
@@ -83,66 +80,6 @@ int cth_log_errno(int /*errnum*/, const char* /*fmt*/, ...) {
     return 0;
 }
 
-CthughaDisplay::CthughaDisplay()
-    : sourceFrame(0)
-    , indexedDisplayFrameValue()
-    , buffer0(0)
-    , visualLatencyEstimate(0.0)
-    , buffer(0)
-    , bufferWidth(0)
-    , needsClear(0)
-    , fps(60.0)
-    , rollingFps(60.0) {
-}
-
-CthughaDisplay::~CthughaDisplay() {
-}
-
-void CthughaDisplay::indexedPixelsWillMove(unsigned char*) {
-}
-
-void CthughaDisplay::indexedFrameGeometryChanged() {
-}
-
-const unsigned char* CthughaDisplay::sourcePixels() const {
-    assert(sourceFrame != 0);
-    assert(sourceFrame->valid());
-    return sourceFrame->pixels;
-}
-
-int CthughaDisplay::sourceWidth() const {
-    assert(sourceFrame != 0);
-    return sourceFrame->width;
-}
-
-int CthughaDisplay::sourceHeight() const {
-    assert(sourceFrame != 0);
-    return sourceFrame->height;
-}
-
-int CthughaDisplay::sourcePitch() const {
-    assert(sourceFrame != 0);
-    return sourceFrame->pitch;
-}
-
-int CthughaDisplay::sourceSize() const {
-    return sourceWidth() * sourceHeight();
-}
-
-const IndexedDisplayFrame& CthughaDisplay::indexedDisplayFrame() const {
-    return indexedDisplayFrameValue;
-}
-
-int CthughaDisplay::displayFrameWidth() const {
-    return indexedDisplayFrameValue.valid() ? indexedDisplayFrameValue.width()
-                                           : 2 * sourceWidth();
-}
-
-int CthughaDisplay::displayFrameHeight() const {
-    return indexedDisplayFrameValue.valid() ? indexedDisplayFrameValue.height()
-                                            : 2 * sourceHeight();
-}
-
 static ScreenEntry& requiredScreenEntry(int index, const char* name) {
     ScreenEntry* entry = screenByIndex(index);
     assert(entry != 0);
@@ -157,8 +94,6 @@ static int renderScreenEntry(ScreenEntry& entry, const IndexedFrame& source,
         kDestinationSentinel);
 
     ScreenRenderContext context(source, destination, now, deltaT, 60.0);
-    assert(cthughaDisplay == 0);
-    assert(currentScreenRenderContext() == 0);
     return entry.render(context);
 }
 
@@ -169,8 +104,6 @@ static int renderScreenEntry(ScreenEntry& entry, const IndexedFrame& source,
         kDestinationSentinel);
 
     ScreenRenderContext context(source, destination, now, contextDeltaTime, 60.0);
-    assert(cthughaDisplay == 0);
-    assert(currentScreenRenderContext() == 0);
     return entry.render(context);
 }
 
@@ -414,8 +347,6 @@ static void assertRetryRequest(ScreenEntry& entry) {
     CountingSelectionController controller;
     ScreenRenderContext context(source.frame(), destination, now, deltaT, 60.0,
         &controller);
-    assert(cthughaDisplay == 0);
-    assert(currentScreenRenderContext() == 0);
     screen.change("2verd", 0);
 
     int result = entry.render(context);
@@ -433,7 +364,7 @@ static void testGeometryRetryRequestsUseSelectionController() {
     assertRetryRequest(requiredScreenEntry(7, "4kal"));
 }
 
-static void testScreenEntryOperatorUsesScopedCurrentContext() {
+static void testScreenEntryRenderUsesExplicitContext() {
     IndexedFrameFixture source(4, 4, 7);
     IndexedDisplayFrame destination;
     ScreenEntry& entry = requiredScreenEntry(0, "Up");
@@ -442,12 +373,8 @@ static void testScreenEntryOperatorUsesScopedCurrentContext() {
         kDestinationSentinel);
 
     ScreenRenderContext context(source.frame(), destination, now, deltaT, 60.0);
-    {
-        ScopedScreenRenderContext scope(context);
-        assert(entry() == 0);
-    }
+    assert(entry.render(context) == 0);
 
-    assert(currentScreenRenderContext() == 0);
     assertUpLikeOutput(destination, source);
 }
 
@@ -480,7 +407,7 @@ int main() {
     testFourHorizontalKaleidoscopeUsesCurrentLowerHalfMapping();
     testFourKaleidoscopeUsesCurrentQuadrantMapping();
     testGeometryRetryRequestsUseSelectionController();
-    testScreenEntryOperatorUsesScopedCurrentContext();
+    testScreenEntryRenderUsesExplicitContext();
     testHeightfieldUsesContextDeltaTime();
     return 0;
 }

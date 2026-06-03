@@ -32,6 +32,10 @@ public:
         std::unique_ptr<DisplayRuntime> runtime_);
     ~DisplayRuntimeOwnership();
 
+    DisplayDevice& device();
+    DisplayBackend& backend();
+    DisplayRuntime& runtime();
+
     void publishAliases();
     void shutdown();
 };

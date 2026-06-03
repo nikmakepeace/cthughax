@@ -20,6 +20,7 @@ extern int full_screen;
 extern char xcth_font[];
 
 #include "DisplayDevice.h"
+#include "DisplayGeometry.h"
 
 class Scene;
 class SceneCommands;
@@ -65,6 +66,10 @@ public:
     void freeFont();
 
     void resizeDisplay(int new_width, int new_height);
+    int indexedDisplayWidth() const;
+    int indexedDisplayHeight() const;
+    void setPresentationViewport(const DisplayViewport& viewport);
+    const DisplayViewport& currentPresentationViewport() const;
 
     // display operations
     virtual unsigned char* preDraw();
@@ -101,6 +106,7 @@ public:
     int copyText;
     int paletteInitialized;
     int initialized;
+    DisplayViewport presentationViewport;
 
 protected:
     static Widget xcth_toplevel;

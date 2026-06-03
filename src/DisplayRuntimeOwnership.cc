@@ -15,6 +15,18 @@ DisplayRuntimeOwnership::~DisplayRuntimeOwnership() {
     shutdown();
 }
 
+DisplayDevice& DisplayRuntimeOwnership::device() {
+    return *deviceValue;
+}
+
+DisplayBackend& DisplayRuntimeOwnership::backend() {
+    return *backendValue;
+}
+
+DisplayRuntime& DisplayRuntimeOwnership::runtime() {
+    return *runtimeValue;
+}
+
 void DisplayRuntimeOwnership::publishAliases() {
     displayDevice = deviceValue.get();
     displayBackend = backendValue.get();

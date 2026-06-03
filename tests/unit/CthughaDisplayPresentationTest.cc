@@ -1,5 +1,6 @@
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
+#include "DisplayRuntime.h"
 #include "FramePalette.h"
 #include "IndexedFrameTestFixtures.h"
 #include "Screen.h"
@@ -9,15 +10,46 @@
 #include <stdio.h>
 #include <string.h>
 
-DisplayDevice* displayDevice = 0;
-int bypp = 1;
-int bytes_per_line = 0;
-xy disp_size(0, 0);
-enum draw_mode_t draw_mode = DM_mapped1;
+DisplayDevice::DisplayDevice()
+    : textOnScreen(0)
+    , darkenPalette(0)
+    , needsFullCopy(0)
+    , framePalette(0) { }
+
+DisplayDevice::~DisplayDevice() { }
 
 void DisplayDevice::setFramePalette(FramePalette* framePalette_) {
     framePalette = framePalette_;
 }
+
+int DisplayDevice::setGlobalPalette() {
+    return 0;
+}
+
+void DisplayDevice::prePrint() { }
+
+void DisplayDevice::postPrint() { }
+
+void DisplayDevice::printString(
+    int, int, const char*, int, int, int) { }
+
+double DisplayDevice::print(const char*, double y, int, int, int) {
+    return y;
+}
+
+class StaticOutputBackend : public DisplayBackend {
+public:
+    virtual DisplayEventStats processEvents() {
+        return DisplayEventStats();
+    }
+
+    virtual PixelSize outputSize() const {
+        return PixelSize(20, 15);
+    }
+
+    virtual void present(const DisplayPresentation&) {
+    }
+};
 
 int screen_up(ScreenRenderContext&) { return 0; }
 int screen_down(ScreenRenderContext&) { return 0; }
@@ -127,8 +159,9 @@ class DisplayConsumerHarness : public CthughaDisplay {
 public:
     int presented;
 
-    explicit DisplayConsumerHarness(PresentationScreenSelection& selection_)
-        : CthughaDisplay()
+    DisplayConsumerHarness(PresentationScreenSelection& selection_,
+        DisplayDevice& device, DisplayRuntime& runtime)
+        : CthughaDisplay(device, runtime)
         , selection(selection_)
         , presented(0) {
         fps = 60.0;
@@ -187,12 +220,16 @@ static void testPresentComposesCompletedIndexedFrameForConsumer() {
     FramePalette framePalette;
     IndexedFrame source(fixture.frame().pixels, fixture.width(), fixture.height(),
         fixture.pitch(), &framePalette);
-    DisplayConsumerHarness display(selection);
+    DisplayDevice device;
+    StaticOutputBackend backend;
+    DisplayRuntime runtime(backend);
+    DisplayConsumerHarness display(selection, device, runtime);
 
     display.present(source);
 
     const IndexedDisplayFrame& frame = display.indexedDisplayFrame();
     assert(display.presented == 1);
+    assert(device.framePalette == &framePalette);
     assert(frame.framePalette() == &framePalette);
     assert(display.buffer == frame.pixels());
     assert(display.bufferWidth == frame.pitch());
@@ -205,7 +242,10 @@ static void testPresentHonorsComposerRetryPath() {
         xy(1, 1));
     RetryingSelection selection(retryEntry, fallbackEntry);
     IndexedFrameFixture source(4, 3, 6);
-    DisplayConsumerHarness display(selection);
+    DisplayDevice device;
+    StaticOutputBackend backend;
+    DisplayRuntime runtime(backend);
+    DisplayConsumerHarness display(selection, device, runtime);
 
     display.present(source.frame());
 

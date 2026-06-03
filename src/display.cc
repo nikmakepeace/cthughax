@@ -4,11 +4,8 @@
 #include "AudioFrame.h"
 #include "AudioAnalyzer.h"
 #include "TranslationOptions.h"
-#include "disp-sys.h"
 #include "imath.h"
 #include "cth_buffer.h"
-#include "CthughaDisplay.h"
-#include "DisplayDevice.h"
 #include "Screen.h"
 #include "ScreenRenderContext.h"
 
@@ -16,31 +13,24 @@
 
 char screen_first[256] = ""; /* Start with this scrn-fkt */
 
-static ScreenRenderContext* screenRenderContext() {
-    return currentScreenRenderContext();
-}
-
 class VisualFrameView {
-public:
-    int width() const {
-        if (screenRenderContext() != 0)
-            return screenRenderContext()->sourceWidth();
+    ScreenRenderContext& context;
 
-        return cthughaDisplay->sourceWidth();
+public:
+    explicit VisualFrameView(ScreenRenderContext& context_)
+        : context(context_) {
+    }
+
+    int width() const {
+        return context.sourceWidth();
     }
 
     int height() const {
-        if (screenRenderContext() != 0)
-            return screenRenderContext()->sourceHeight();
-
-        return cthughaDisplay->sourceHeight();
+        return context.sourceHeight();
     }
 
     int pitch() const {
-        if (screenRenderContext() != 0)
-            return screenRenderContext()->sourcePitch();
-
-        return cthughaDisplay->sourcePitch();
+        return context.sourcePitch();
     }
 
     int size() const {
@@ -48,50 +38,32 @@ public:
     }
 };
 
-static VisualFrameView visualBuffer() {
-    return VisualFrameView();
+static VisualFrameView visualBuffer(ScreenRenderContext& context) {
+    return VisualFrameView(context);
 }
 
-static const unsigned char* sourcePixels() {
-    if (screenRenderContext() != 0)
-        return screenRenderContext()->sourcePixels();
-
-    return cthughaDisplay->sourcePixels();
+static const unsigned char* sourcePixels(ScreenRenderContext& context) {
+    return context.sourcePixels();
 }
 
-static const unsigned char* sourceLine(int line) {
-    if (screenRenderContext() != 0)
-        return screenRenderContext()->sourceLine(line);
-
-    return sourcePixels() + line * visualBuffer().pitch();
+static const unsigned char* sourceLine(ScreenRenderContext& context, int line) {
+    return context.sourceLine(line);
 }
 
-static unsigned char* destinationPixels() {
-    if (screenRenderContext() != 0)
-        return screenRenderContext()->destinationPixels();
-
-    return cthughaDisplay->buffer;
+static unsigned char* destinationPixels(ScreenRenderContext& context) {
+    return context.destinationPixels();
 }
 
-static int destinationPitch() {
-    if (screenRenderContext() != 0)
-        return screenRenderContext()->destinationPitch();
-
-    return cthughaDisplay->bufferWidth;
+static int destinationPitch(ScreenRenderContext& context) {
+    return context.destinationPitch();
 }
 
-static double visualFramesPerSecond() {
-    if (screenRenderContext() != 0)
-        return screenRenderContext()->framesPerSecond();
-
-    return cthughaDisplay->fps;
+static double visualFramesPerSecond(ScreenRenderContext& context) {
+    return context.framesPerSecond();
 }
 
-static double visualDeltaTime() {
-    if (screenRenderContext() != 0)
-        return screenRenderContext()->deltaTimeSeconds();
-
-    return deltaT;
+static double visualDeltaTime(ScreenRenderContext& context) {
+    return context.deltaTimeSeconds();
 }
 
 /*****************************************************************************
@@ -105,28 +77,28 @@ static double visualDeltaTime() {
  */
 static const unsigned char* perm_lines[MAX_BUFF_HEIGHT];
 
-void screen_perm(void) {
-    unsigned char* scrn = destinationPixels();
+static void screen_perm(ScreenRenderContext& context) {
+    unsigned char* scrn = destinationPixels(context);
     const unsigned char** perm = perm_lines;
     int i;
 
-    for (i = visualBuffer().height(); i != 0; i--) {
-        memcpy(scrn, *perm, visualBuffer().width());
-        scrn += destinationPitch();
+    for (i = visualBuffer(context).height(); i != 0; i--) {
+        memcpy(scrn, *perm, visualBuffer(context).width());
+        scrn += destinationPitch(context);
         perm++;
     }
 }
 
-static const unsigned char* perm_addr(int i) {
-    return sourceLine(i);
+static const unsigned char* perm_addr(ScreenRenderContext& context, int i) {
+    return sourceLine(context, i);
 }
 
-int screen_up(ScreenRenderContext& /*context*/) {
+int screen_up(ScreenRenderContext& context) {
     int i;
-    for (i = 0; i < visualBuffer().height(); i++)
-        perm_lines[i] = perm_addr(i);
+    for (i = 0; i < visualBuffer(context).height(); i++)
+        perm_lines[i] = perm_addr(context, i);
 
-    screen_perm();
+    screen_perm(context);
 
     return 0;
 }
@@ -135,107 +107,107 @@ int screen_source(ScreenRenderContext& context) {
     return screen_up(context);
 }
 
-int screen_down(ScreenRenderContext& /*context*/) {
+int screen_down(ScreenRenderContext& context) {
     int i;
-    for (i = 0; i < visualBuffer().height(); i++)
-        perm_lines[i] = perm_addr(visualBuffer().height() - i - 1);
+    for (i = 0; i < visualBuffer(context).height(); i++)
+        perm_lines[i] = perm_addr(context, visualBuffer(context).height() - i - 1);
 
-    screen_perm();
+    screen_perm(context);
     return 0;
 }
 
-int screen_2hor(ScreenRenderContext& /*context*/) {
+int screen_2hor(ScreenRenderContext& context) {
     int i;
-    for (i = 0; i < visualBuffer().height() / 2; i++) {
+    for (i = 0; i < visualBuffer(context).height() / 2; i++) {
         /* lower half of buffer maps to upper half of screen */
-        perm_lines[i] = perm_addr(visualBuffer().height() / 2 + i);
+        perm_lines[i] = perm_addr(context, visualBuffer(context).height() / 2 + i);
         /* lower half of buffer get turned around to lower half of screen*/
-        perm_lines[i + visualBuffer().height() / 2] = perm_addr(visualBuffer().height() - i - 1);
+        perm_lines[i + visualBuffer(context).height() / 2] = perm_addr(context, visualBuffer(context).height() - i - 1);
     }
 
-    screen_perm();
+    screen_perm(context);
     return 0;
 }
 
-int screen_r2hor(ScreenRenderContext& /*context*/) {
+int screen_r2hor(ScreenRenderContext& context) {
     int i;
-    for (i = 0; i < visualBuffer().height() / 2; i++) {
+    for (i = 0; i < visualBuffer(context).height() / 2; i++) {
         /* lower half of buffer get turned around to upper half of screen*/
-        perm_lines[i] = perm_addr(visualBuffer().height() - i - 1);
+        perm_lines[i] = perm_addr(context, visualBuffer(context).height() - i - 1);
         /* lower half of buffer maps to lower half of screen */
-        perm_lines[i + visualBuffer().height() / 2] = perm_addr(visualBuffer().height() / 2 + i);
+        perm_lines[i + visualBuffer(context).height() / 2] = perm_addr(context, visualBuffer(context).height() / 2 + i);
     }
 
-    screen_perm();
+    screen_perm(context);
     return 0;
 }
 
-int screen_4hor(ScreenRenderContext& /*context*/) {
+int screen_4hor(ScreenRenderContext& context) {
     const unsigned char* tmp;
     unsigned char* scrn;
     int x, y;
 
     /* upper half of screen */
-    tmp = sourceLine(visualBuffer().height() / 2);
-    scrn = destinationPixels();
-    for (y = visualBuffer().height() / 2; y != 0; y--) {
+    tmp = sourceLine(context, visualBuffer(context).height() / 2);
+    scrn = destinationPixels(context);
+    for (y = visualBuffer(context).height() / 2; y != 0; y--) {
 
         /* left half */
-        memcpy(scrn, tmp, visualBuffer().width() / 2);
-        scrn += visualBuffer().width() / 2;
-        tmp += visualBuffer().width() / 2;
+        memcpy(scrn, tmp, visualBuffer(context).width() / 2);
+        scrn += visualBuffer(context).width() / 2;
+        tmp += visualBuffer(context).width() / 2;
 
         /* right half */
-        for (x = visualBuffer().width() / 2; x != 0; x--) {
+        for (x = visualBuffer(context).width() / 2; x != 0; x--) {
             *scrn = *tmp;
             scrn++;
             tmp--;
         }
-        tmp += visualBuffer().pitch();
-        scrn += destinationPitch() - visualBuffer().width();
+        tmp += visualBuffer(context).pitch();
+        scrn += destinationPitch(context) - visualBuffer(context).width();
     }
 
     /* lower half of screen */
-    tmp = sourceLine(visualBuffer().height() - 1);
-    scrn = destinationPixels() + destinationPitch() * visualBuffer().height() / 2;
-    for (y = visualBuffer().height() / 2; y != 0; y--) {
+    tmp = sourceLine(context, visualBuffer(context).height() - 1);
+    scrn = destinationPixels(context) + destinationPitch(context) * visualBuffer(context).height() / 2;
+    for (y = visualBuffer(context).height() / 2; y != 0; y--) {
 
         /* left half */
-        memcpy(scrn, tmp, visualBuffer().width() / 2);
-        scrn += visualBuffer().width() / 2;
-        tmp += visualBuffer().width() / 2;
+        memcpy(scrn, tmp, visualBuffer(context).width() / 2);
+        scrn += visualBuffer(context).width() / 2;
+        tmp += visualBuffer(context).width() / 2;
 
         /* right half */
-        for (x = visualBuffer().width() / 2; x != 0; x--) {
+        for (x = visualBuffer(context).width() / 2; x != 0; x--) {
             *scrn = *tmp;
             scrn++;
             tmp--;
         }
-        tmp -= visualBuffer().pitch();
-        scrn += destinationPitch() - visualBuffer().width();
+        tmp -= visualBuffer(context).pitch();
+        scrn += destinationPitch(context) - visualBuffer(context).width();
     }
 
     return 0;
 }
 
 int screen_2verd(ScreenRenderContext& context) {
-    if (visualBuffer().width() / 2 <= visualBuffer().height()) {
+    if (visualBuffer(context).width() / 2 <= visualBuffer(context).height()) {
         int x, y;
-        const unsigned char* tmp = sourcePixels();
-        unsigned char* scrn = destinationPixels();
-        for (y = visualBuffer().height(); y != 0; y--) {
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+        const unsigned char* tmp = sourcePixels(context);
+        unsigned char* scrn = destinationPixels(context);
+        for (y = visualBuffer(context).height(); y != 0; y--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn++;
-                tmp += visualBuffer().pitch();
+                tmp += visualBuffer(context).pitch();
             }
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn++;
-                tmp -= visualBuffer().pitch();
+                tmp -= visualBuffer(context).pitch();
             }
             tmp++;
-            scrn += destinationPitch() - visualBuffer().width();
+            scrn += destinationPitch(context) - visualBuffer(context).width();
         }
 
     } else {
@@ -246,24 +218,24 @@ int screen_2verd(ScreenRenderContext& context) {
 }
 
 int screen_r2verd(ScreenRenderContext& context) {
-    if (visualBuffer().width() / 2 <= visualBuffer().height()) {
+    if (visualBuffer(context).width() / 2 <= visualBuffer(context).height()) {
         int x, y;
-        const unsigned char* tmp = sourcePixels();
-        unsigned char* scrn = destinationPixels()
-            + destinationPitch() * (visualBuffer().height() - 1) + (visualBuffer().width() - 1);
-        for (y = visualBuffer().height(); y != 0; y--) {
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+        const unsigned char* tmp = sourcePixels(context);
+        unsigned char* scrn = destinationPixels(context)
+            + destinationPitch(context) * (visualBuffer(context).height() - 1) + (visualBuffer(context).width() - 1);
+        for (y = visualBuffer(context).height(); y != 0; y--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn--;
-                tmp += visualBuffer().pitch();
+                tmp += visualBuffer(context).pitch();
             }
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn--;
-                tmp -= visualBuffer().pitch();
+                tmp -= visualBuffer(context).pitch();
             }
             tmp++;
-            scrn -= destinationPitch() - visualBuffer().width();
+            scrn -= destinationPitch(context) - visualBuffer(context).width();
         }
     } else {
         context.requestScreenChange(+1, 0);
@@ -273,46 +245,46 @@ int screen_r2verd(ScreenRenderContext& context) {
 }
 
 int screen_4kal(ScreenRenderContext& context) {
-    if (visualBuffer().width() / 2 <= visualBuffer().height()) {
+    if (visualBuffer(context).width() / 2 <= visualBuffer(context).height()) {
         const unsigned char* tmp;
         unsigned char* scrn;
         int x, y;
 
-        tmp = sourcePixels();
-        scrn = destinationPixels();
+        tmp = sourcePixels(context);
+        scrn = destinationPixels(context);
         /* upper half */
-        for (y = visualBuffer().height() / 2; y != 0; y--) {
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+        for (y = visualBuffer(context).height() / 2; y != 0; y--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn++;
-                tmp += visualBuffer().pitch();
+                tmp += visualBuffer(context).pitch();
             }
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn++;
-                tmp -= visualBuffer().pitch();
+                tmp -= visualBuffer(context).pitch();
             }
             tmp++;
-            scrn += destinationPitch() - visualBuffer().width();
+            scrn += destinationPitch(context) - visualBuffer(context).width();
         }
 
-        tmp = sourcePixels();
-        scrn = destinationPixels() + destinationPitch() * (visualBuffer().height() - 1) + visualBuffer().width()
+        tmp = sourcePixels(context);
+        scrn = destinationPixels(context) + destinationPitch(context) * (visualBuffer(context).height() - 1) + visualBuffer(context).width()
             - 1;
         /* lower half */
-        for (y = visualBuffer().height() / 2; y != 0; y--) {
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+        for (y = visualBuffer(context).height() / 2; y != 0; y--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn--;
-                tmp += visualBuffer().pitch();
+                tmp += visualBuffer(context).pitch();
             }
-            for (x = visualBuffer().width() / 2; x != 0; x--) {
+            for (x = visualBuffer(context).width() / 2; x != 0; x--) {
                 *scrn = *tmp;
                 scrn--;
-                tmp -= visualBuffer().pitch();
+                tmp -= visualBuffer(context).pitch();
             }
             tmp++;
-            scrn -= destinationPitch() - visualBuffer().width();
+            scrn -= destinationPitch(context) - visualBuffer(context).width();
         }
     } else {
         context.requestScreenChange(+1, 0);
@@ -370,21 +342,23 @@ void rotate(float p[3], float rot[3], float r[3]) {
 }
 inline float sqr(float a) { return a * a; }
 
-inline void put_3d_pixel(unsigned char* dst, int x, int y, unsigned char color) {
-    if ((x >= -visualBuffer().width()) && (x < visualBuffer().width()) && (y >= -visualBuffer().height()) && (y < visualBuffer().height()))
-        dst[y * destinationPitch() + x] = color;
+inline void put_3d_pixel(ScreenRenderContext& context, unsigned char* dst, int x,
+    int y, unsigned char color) {
+    if ((x >= -visualBuffer(context).width()) && (x < visualBuffer(context).width()) && (y >= -visualBuffer(context).height()) && (y < visualBuffer(context).height()))
+        dst[y * destinationPitch(context) + x] = color;
 }
 
-inline void put_3d_splat(unsigned char* dst, int x, int y, unsigned char color) {
+inline void put_3d_splat(ScreenRenderContext& context, unsigned char* dst, int x,
+    int y, unsigned char color) {
     int offset = (splatSize - 1) / 2;
 
     for (int yy = 0; yy < splatSize; yy++)
         for (int xx = 0; xx < splatSize; xx++)
-            put_3d_pixel(dst, x + xx - offset, y + yy - offset, color);
+            put_3d_pixel(context, dst, x + xx - offset, y + yy - offset, color);
 }
 
-void update_3d_scale_factor() {
-    double dt = visualDeltaTime();
+void update_3d_scale_factor(ScreenRenderContext& context) {
+    double dt = visualDeltaTime(context);
     double mid = (minScaleFactor + maxScaleFactor) / 2.0;
     double amp = (maxScaleFactor - minScaleFactor) / 2.0;
 
@@ -413,24 +387,24 @@ void update_3d_scale_factor() {
 /*
  * preparations for a 3D display
  */
-int prepare_3d(int maxZ) {
+int prepare_3d(ScreenRenderContext& context, int maxZ) {
     int i;
     float x, y, z, l;
     float ro[4][3];
     double scale;
 
     /* calculate the maximal size of the "sheet" */
-    x = sqr(visualBuffer().width() / 2);
-    y = sqr(visualBuffer().height() / 2);
-    z = sqr((float)(visualBuffer().width()) / 640.0 * (float)maxZ);
+    x = sqr(visualBuffer(context).width() / 2);
+    y = sqr(visualBuffer(context).height() / 2);
+    z = sqr((float)(visualBuffer(context).width()) / 640.0 * (float)maxZ);
     l = sqrt(x + y + z);
 
-    update_3d_scale_factor();
-    scale = scaleFactor * (float)min(visualBuffer().width(), visualBuffer().height()) / l;
+    update_3d_scale_factor(context);
+    scale = scaleFactor * (float)min(visualBuffer(context).width(), visualBuffer(context).height()) / l;
 
     /* rotate a little bit */
     /* TODO: use some value from the sound to set speed. */
-    double dt = visualDeltaTime();
+    double dt = visualDeltaTime(context);
     if (dt < 0.0)
         dt = 0.0;
     if (dt > 0.25)
@@ -442,8 +416,8 @@ int prepare_3d(int maxZ) {
         rotate(P[i], rot, ro[i]);
 
     for (i = 0; i < 256; i++) {
-        height_offset[i].x = int(ro[3][0] * i * double(visualBuffer().width()) / 640.0 * SC);
-        height_offset[i].y = int(ro[3][1] * i * double(visualBuffer().width()) / 640.0 * SC);
+        height_offset[i].x = int(ro[3][0] * i * double(visualBuffer(context).width()) / 640.0 * SC);
+        height_offset[i].y = int(ro[3][1] * i * double(visualBuffer(context).width()) / 640.0 * SC);
     }
 
     /* calculate the step sizes */
@@ -454,14 +428,14 @@ int prepare_3d(int maxZ) {
     s2.y = int((ro[2][1] - ro[1][1]) * scale * SC / 2.0);
 
     /* starting point */
-    p.x = -visualBuffer().width() / 2 * s1.x - visualBuffer().height() / 2 * s2.x;
-    p.y = -visualBuffer().width() / 2 * s1.y - visualBuffer().height() / 2 * s2.y;
+    p.x = -visualBuffer(context).width() / 2 * s1.x - visualBuffer(context).height() / 2 * s2.x;
+    p.y = -visualBuffer(context).width() / 2 * s1.y - visualBuffer(context).height() / 2 * s2.y;
 
     /* clear screen */
-    unsigned char* clr = destinationPixels();
-    for (i = 2 * visualBuffer().height(); i != 0; i--) {
-        memset(clr, '\0', 2 * visualBuffer().width());
-        clr += destinationPitch();
+    unsigned char* clr = destinationPixels(context);
+    for (i = 2 * visualBuffer(context).height(); i != 0; i--) {
+        memset(clr, '\0', 2 * visualBuffer(context).width());
+        clr += destinationPitch(context);
     }
 
     return 0;
@@ -470,24 +444,24 @@ int prepare_3d(int maxZ) {
 /*
  * hfield: buffer_value determines height
  */
-int screen_hfield(ScreenRenderContext& /*context*/) {
-    const unsigned char* src = sourcePixels();
+int screen_hfield(ScreenRenderContext& context) {
+    const unsigned char* src = sourcePixels(context);
     unsigned char* dst
-        = destinationPixels() + visualBuffer().width() + destinationPitch() * visualBuffer().height();
+        = destinationPixels(context) + visualBuffer(context).width() + destinationPitch(context) * visualBuffer(context).height();
     int i, j;
 
-    prepare_3d(256);
+    prepare_3d(context, 256);
 
-    for (i = visualBuffer().height(); i != 0; i--) {
+    for (i = visualBuffer(context).height(); i != 0; i--) {
         xy t = p;
-        for (j = visualBuffer().width(); j != 0; j--) {
-            put_3d_splat(dst, (p.x + height_offset[*src].x) >> 16,
+        for (j = visualBuffer(context).width(); j != 0; j--) {
+            put_3d_splat(context, dst, (p.x + height_offset[*src].x) >> 16,
                 (p.y + height_offset[*src].y) >> 16, *src | 128);
             src++;
             p.x += s1.x;
             p.y += s1.y;
         }
-        src += visualBuffer().pitch() - visualBuffer().width();
+        src += visualBuffer(context).pitch() - visualBuffer(context).width();
         p.x = t.x + s2.x;
         p.y = t.y + s2.y;
     }
@@ -498,36 +472,36 @@ int screen_hfield(ScreenRenderContext& /*context*/) {
 /*
  * bent: height is a sine-wave along x axis
  */
-int screen_bent(ScreenRenderContext& /*context*/) {
-    const unsigned char* src = sourcePixels();
+int screen_bent(ScreenRenderContext& context) {
+    const unsigned char* src = sourcePixels(context);
     unsigned char* dst
-        = destinationPixels() + visualBuffer().width() + destinationPitch() * visualBuffer().height();
+        = destinationPixels(context) + visualBuffer(context).width() + destinationPitch(context) * visualBuffer(context).height();
     int i, j;
     static int height[MAX_BUFF_WIDTH];
     static float t = 0;
     static float h = 0.0;
     static float stp = 0.0;
 
-    prepare_3d(256);
+    prepare_3d(context, 256);
 
     h = h * 0.95 + (min((2 * audioMetrics.amplitude), 120)) * 0.05;
 
-    for (i = visualBuffer().width(); i != 0; i--) {
-        height[i] = (int)(h * sin(t) * sin((double)(i) / (double)visualBuffer().width() * 3.0 * M_PI)) + 128;
+    for (i = visualBuffer(context).width(); i != 0; i--) {
+        height[i] = (int)(h * sin(t) * sin((double)(i) / (double)visualBuffer(context).width() * 3.0 * M_PI)) + 128;
     }
-    stp = stp * 0.95 + max(int(visualFramesPerSecond() * 2), 1) * 0.05;
+    stp = stp * 0.95 + max(int(visualFramesPerSecond(context) * 2), 1) * 0.05;
     t += 4.0 / stp;
 
-    for (i = visualBuffer().height(); i != 0; i--) {
+    for (i = visualBuffer(context).height(); i != 0; i--) {
         xy t = p;
-        for (j = visualBuffer().width(); j != 0; j--) {
-            put_3d_splat(dst, (p.x + height_offset[height[j]].x) >> 16,
+        for (j = visualBuffer(context).width(); j != 0; j--) {
+            put_3d_splat(context, dst, (p.x + height_offset[height[j]].x) >> 16,
                 (p.y + height_offset[height[j]].y) >> 16, *src | 128);
             src++;
             p.x += s1.x;
             p.y += s1.y;
         }
-        src += visualBuffer().pitch() - visualBuffer().width();
+        src += visualBuffer(context).pitch() - visualBuffer(context).width();
         p.x = t.x + s2.x;
         p.y = t.y + s2.y;
     }
@@ -538,23 +512,23 @@ int screen_bent(ScreenRenderContext& /*context*/) {
 /*
  * plate: height contant to 0
  */
-int screen_plate(ScreenRenderContext& /*context*/) {
-    const unsigned char* src = sourcePixels();
+int screen_plate(ScreenRenderContext& context) {
+    const unsigned char* src = sourcePixels(context);
     unsigned char* dst
-        = destinationPixels() + visualBuffer().width() + destinationPitch() * visualBuffer().height();
+        = destinationPixels(context) + visualBuffer(context).width() + destinationPitch(context) * visualBuffer(context).height();
     int i, j;
 
-    prepare_3d(1);
+    prepare_3d(context, 1);
 
-    for (i = visualBuffer().height(); i != 0; i--) {
+    for (i = visualBuffer(context).height(); i != 0; i--) {
         xy t = p;
-        for (j = visualBuffer().width(); j != 0; j--) {
-            put_3d_splat(dst, p.x >> 16, p.y >> 16, *src | 128);
+        for (j = visualBuffer(context).width(); j != 0; j--) {
+            put_3d_splat(context, dst, p.x >> 16, p.y >> 16, *src | 128);
             src++;
             p.x += s1.x;
             p.y += s1.y;
         }
-        src += visualBuffer().pitch() - visualBuffer().width();
+        src += visualBuffer(context).pitch() - visualBuffer(context).width();
         p.x = t.x + s2.x;
         p.y = t.y + s2.y;
     }
@@ -568,27 +542,27 @@ int screen_plate(ScreenRenderContext& /*context*/) {
  *
  * other possible things with this idea: waves, ...
  */
-int screen_roll(ScreenRenderContext& /*context*/) {
+int screen_roll(ScreenRenderContext& context) {
     int i;
     static double theta = 0; /* rotation angle */
 
-    for (i = 0; i < visualBuffer().height(); i++) {
-        int p = i - visualBuffer().height() / 2;
-        double phi = acos((double)p / (double)(visualBuffer().height() / 2));
-        int b = (int)((theta + phi) / M_PI * (double)visualBuffer().height());
-        b %= 2 * visualBuffer().height();
+    for (i = 0; i < visualBuffer(context).height(); i++) {
+        int p = i - visualBuffer(context).height() / 2;
+        double phi = acos((double)p / (double)(visualBuffer(context).height() / 2));
+        int b = (int)((theta + phi) / M_PI * (double)visualBuffer(context).height());
+        b %= 2 * visualBuffer(context).height();
         if (b < 0)
-            b += 2 * visualBuffer().height();
-        if (b >= visualBuffer().height())
-            b = 2 * visualBuffer().height() - b - 1;
+            b += 2 * visualBuffer(context).height();
+        if (b >= visualBuffer(context).height())
+            b = 2 * visualBuffer(context).height() - b - 1;
 
-        perm_lines[i] = perm_addr(b);
+        perm_lines[i] = perm_addr(context, b);
     }
     theta += M_PI / 40.0; /* roate a little bit */
     if (theta > 2.0 * M_PI)
         theta -= 2.0 * M_PI;
 
-    screen_perm();
+    screen_perm(context);
 
     return 0;
 }
@@ -598,33 +572,33 @@ int screen_roll(ScreenRenderContext& /*context*/) {
  */
 #define ZICK_SMOOTH 10
 static int zicks[MAX_BUFF_HEIGHT];
-int screen_zick(ScreenRenderContext& /*context*/) {
+int screen_zick(ScreenRenderContext& context) {
     int i;
-    unsigned char* scrn = destinationPixels();
-    const unsigned char* src = sourcePixels();
+    unsigned char* scrn = destinationPixels(context);
+    const unsigned char* src = sourcePixels(context);
     static int first = 1;
 
     static int d = 0;
 
     if (first) {
-        for (i = 0; i < visualBuffer().height() + 1; i++)
+        for (i = 0; i < visualBuffer(context).height() + 1; i++)
             zicks[i] = 0;
     }
 
-    for (i = visualBuffer().height(); i != 0; i--) {
+    for (i = visualBuffer(context).height(); i != 0; i--) {
         zicks[i] = ((audioFrameProcessedWaveData()[i][0]) + ZICK_SMOOTH * zicks[i]) / (ZICK_SMOOTH + 1);
         d = (d + zicks[i]) / 2;
         if (d == 0) {
-            memcpy(scrn, src, visualBuffer().width());
+            memcpy(scrn, src, visualBuffer(context).width());
         } else if (d > 0) {
             memset(scrn, 0, d);
-            memcpy(scrn + d, src, visualBuffer().width() - d);
+            memcpy(scrn + d, src, visualBuffer(context).width() - d);
         } else {
-            memcpy(scrn, src - d, visualBuffer().width() + d);
-            memset(scrn + draw_size.x + d, 0, -d);
+            memcpy(scrn, src - d, visualBuffer(context).width() + d);
+            memset(scrn + visualBuffer(context).width() + d, 0, -d);
         }
-        src += visualBuffer().pitch();
-        scrn += destinationPitch();
+        src += visualBuffer(context).pitch();
+        scrn += destinationPitch(context);
     }
 
     return 0;

@@ -1,7 +1,5 @@
 #include "ScreenRenderContext.h"
 
-static ScreenRenderContext* currentContext = 0;
-
 ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     IndexedDisplayFrame& destination, double frameTimeSeconds, double deltaTimeSeconds,
     double framesPerSecond, ScreenSelectionController* selectionController)
@@ -100,21 +98,4 @@ int ScreenRenderContext::requestScreenChange(int by, int doSave) {
 
     selectionControllerValue->change(by, doSave);
     return 1;
-}
-
-ScreenRenderContext* currentScreenRenderContext() {
-    return currentContext;
-}
-
-void setCurrentScreenRenderContext(ScreenRenderContext* context) {
-    currentContext = context;
-}
-
-ScopedScreenRenderContext::ScopedScreenRenderContext(ScreenRenderContext& context)
-    : previousContext(currentScreenRenderContext()) {
-    setCurrentScreenRenderContext(&context);
-}
-
-ScopedScreenRenderContext::~ScopedScreenRenderContext() {
-    setCurrentScreenRenderContext(previousContext);
 }

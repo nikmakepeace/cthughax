@@ -45,9 +45,6 @@ public:
     ScreenEntry(Function function, const char* name, const char* description,
         xy filledScale, xy outputScale, int inUse = 1);
 
-    /** Executes the renderer for one display frame. */
-    virtual int operator()();
-
     /** Executes the renderer with explicit source, destination, and timing. */
     int render(ScreenRenderContext& context);
 

@@ -3,9 +3,9 @@
 #include "CthughaBuffer.h"
 #include "display.h"
 #include "DisplayDevice.h"
+#include "DisplayRuntime.h"
 #include "FrameClock.h"
 #include "cth_buffer.h"
-#include "disp-sys.h"
 #include "imath.h"
 #include "Interface.h"
 #include "IndexedFrame.h"
@@ -25,7 +25,6 @@ OptionInt maxFramesPerSecond("maxFPS", DEFAULT_MAX_FRAMES_PER_SECOND);
 OptionOnOff showFPS("show-fps", DEFAULT_SHOW_FPS_ENABLED);
 
 OptionInt zoom("zoom", DEFAULT_ZOOM_MODE, ZOOM_MODE_MAX_EXCLUSIVE);
-xy draw_size(0, 0); /* size of the drawn image (including zoom) */
 
 // Frame clock shared by animation, sound processing, and display effects.
 // nextFrame() updates these before the rest of the frame runs.
@@ -34,33 +33,6 @@ double deltaT = 0;
 
 static SystemFrameTimeSource systemFrameTimeSource;
 static FrameClock frameClock(systemFrameTimeSource);
-
-class VisualFrameView {
-public:
-    int width() const {
-        return cthughaDisplay->sourceWidth();
-    }
-
-    int height() const {
-        return cthughaDisplay->sourceHeight();
-    }
-
-    int size() const {
-        return width() * height();
-    }
-
-    int displayWidth() const {
-        return cthughaDisplay->displayFrameWidth();
-    }
-
-    int displayHeight() const {
-        return cthughaDisplay->displayFrameHeight();
-    }
-};
-
-static VisualFrameView visualBuffer() {
-    return VisualFrameView();
-}
 
 class GlobalPresentationScreenSelection : public PresentationScreenSelection {
 public:
@@ -73,8 +45,10 @@ public:
     }
 };
 
-CthughaDisplay::CthughaDisplay()
-    : sourceFrame(0)
+CthughaDisplay::CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime)
+    : deviceValue(device)
+    , runtimeValue(runtime)
+    , sourceFrame(0)
     , indexedDisplayFrameValue()
     , presentationComposer()
     , displayViewportValue()
@@ -94,8 +68,8 @@ void CthughaDisplay::present(const IndexedFrame& frame) {
     }
 
     sourceFrame = &frame;
-    if (displayDevice != NULL && frame.framePalette != NULL)
-        displayDevice->setFramePalette(frame.framePalette);
+    if (frame.framePalette != NULL)
+        device().setFramePalette(frame.framePalette);
     (*this)();
 }
 
@@ -182,7 +156,8 @@ const IndexedDisplayFrame& CthughaDisplay::composePresentationFrame() {
  */
 int CthughaDisplay::clearBorder() {
 
-    if (displayDevice->textOnScreen || needsClear) {
+    DisplayDevice& target = device();
+    if (target.textOnScreen || needsClear) {
         PixelRect window = ViewportPresentation::fullCopyRect(displayViewportValue);
         PixelRect draw = ViewportPresentation::drawCopyRect(displayViewportValue);
         int bwidth = draw.x; /* width of left border */
@@ -195,21 +170,21 @@ int CthughaDisplay::clearBorder() {
             lowerHeight = 0;
 
         /* upper border */
-        displayDevice->clearBox(0, 0, window.width, bheight);
+        target.clearBox(0, 0, window.width, bheight);
         /* left border */
-        displayDevice->clearBox(0, bheight, bwidth, draw.height);
+        target.clearBox(0, bheight, bwidth, draw.height);
         /* right border */
-        displayDevice->clearBox(draw.right(), bheight, rightWidth, draw.height);
+        target.clearBox(draw.right(), bheight, rightWidth, draw.height);
         /* lower border */
-        displayDevice->clearBox(0, draw.bottom(), window.width, lowerHeight);
+        target.clearBox(0, draw.bottom(), window.width, lowerHeight);
 
         /* if text is on screen, we have to clean in the next iteration,
            because the text may be removed then */
-        needsClear = (displayDevice->textOnScreen) ? 1 : 0;
+        needsClear = (target.textOnScreen) ? 1 : 0;
 
         // Border clearing touches pixels outside the normal image rectangle,
         // so partial-copy display devices must refresh the full frame.
-        displayDevice->needsFullCopy = 1;
+        target.needsFullCopy = 1;
     }
     return 0;
 }
@@ -218,8 +193,8 @@ void CthughaDisplay::checkZoom() {
     ViewportPolicy policy;
     DisplayViewport previous = displayViewportValue;
     displayViewportValue = policy.viewportFor(
-        PixelSize(visualBuffer().displayWidth(), visualBuffer().displayHeight()),
-        PixelSize::fromXy(disp_size), int(zoom));
+        PixelSize(displayFrameWidth(), displayFrameHeight()),
+        runtime().outputSize(), int(zoom));
 
     for (int i = 0; i < displayViewportValue.reductionCount; ++i)
         CTH_ERROR("Zoom factor is set too high for current display size. reducing.\n");
@@ -227,9 +202,16 @@ void CthughaDisplay::checkZoom() {
     if (displayViewportValue.effectiveZoom != int(zoom))
         zoom.setValue(displayViewportValue.effectiveZoom);
 
-    draw_size = displayViewportValue.drawSize.toXy();
     if (displayViewportValue.requiresBorderClearFrom(previous))
         needsClear = 1;
+}
+
+DisplayDevice& CthughaDisplay::device() {
+    return deviceValue;
+}
+
+DisplayRuntime& CthughaDisplay::runtime() {
+    return runtimeValue;
 }
 
 void CthughaDisplay::updateFPS() {

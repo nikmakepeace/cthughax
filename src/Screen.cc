@@ -29,16 +29,10 @@ ScreenEntry::ScreenEntry(Function function, const char* name, const char* descri
     , filledScaleValue(filledScale)
     , outputScaleValue(outputScale) { }
 
-int ScreenEntry::operator()() {
-    ScreenRenderContext* context = currentScreenRenderContext();
-    return context != 0 ? render(*context) : 0;
-}
-
 int ScreenEntry::render(ScreenRenderContext& context) {
     if (functionValue == 0)
         return 0;
 
-    ScopedScreenRenderContext contextScope(context);
     return (*functionValue)(context);
 }
 

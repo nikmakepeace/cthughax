@@ -3,7 +3,6 @@
 #include "display.h"
 #include "DisplayDevice.h"
 #include "cth_buffer.h"
-#include "disp-sys.h"
 #include "imath.h"
 #include "Interface.h"
 #include "IndexedFrame.h"
@@ -12,33 +11,6 @@
 #include "OverlaySource.h"
 
 #include <stdint.h>
-
-class VisualFrameView {
-public:
-    int width() const {
-        return cthughaDisplay->sourceWidth();
-    }
-
-    int height() const {
-        return cthughaDisplay->sourceHeight();
-    }
-
-    int size() const {
-        return width() * height();
-    }
-
-    int displayWidth() const {
-        return cthughaDisplay->displayFrameWidth();
-    }
-
-    int displayHeight() const {
-        return cthughaDisplay->displayFrameHeight();
-    }
-};
-
-static VisualFrameView visualBuffer() {
-    return VisualFrameView();
-}
 
 class RecordingOverlayDisplayDevice : public DisplayDevice {
     OverlaySink& sink;
@@ -97,28 +69,30 @@ public:
     }
 };
 
-static OverlayCommands collectDisplayOverlays() {
+static OverlayCommands collectDisplayOverlays(double framesPerSecond) {
     CurrentInterfaceOverlayProducer interfaceProducer;
     ErrorMessagesOverlayProducer errorProducer(errors);
     OverlaySource source(&interfaceProducer, &errorProducer);
     OverlayCommands overlays = source.collect();
-    FpsOverlay::append(overlays,
-        cthughaDisplay != NULL ? cthughaDisplay->fps : 0.0, int(showFPS));
+    FpsOverlay::append(overlays, framesPerSecond, int(showFPS));
     return overlays;
 }
 
-std::unique_ptr<CthughaDisplay> newCthughaDisplay() {
-    return std::unique_ptr<CthughaDisplay>(new CthughaDisplayX11());
+std::unique_ptr<CthughaDisplay> newCthughaDisplay(
+    DisplayDevice& device, DisplayRuntime& runtime) {
+    return std::unique_ptr<CthughaDisplay>(new CthughaDisplayX11(device, runtime));
 }
 
-CthughaDisplayX11::CthughaDisplayX11()
-    : CthughaDisplay() {
+CthughaDisplayX11::CthughaDisplayX11(DisplayDevice& device, DisplayRuntime& runtime)
+    : CthughaDisplay(device, runtime) {
 }
 
 CthughaDisplayX11::~CthughaDisplayX11() {
 }
 
 void CthughaDisplayX11::operator()() {
+    DisplayDevice& target = device();
+    DisplayRuntime& stage = runtime();
     int traceDisplayTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
     double displayTiming[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     if (traceDisplayTiming)
@@ -129,7 +103,7 @@ void CthughaDisplayX11::operator()() {
      * until postDraw() leaves the first frame after a palette change rendered
      * through stale bitmap colors.
      */
-    displayDevice->setGlobalPalette();
+    target.setGlobalPalette();
     if (traceDisplayTiming)
         displayTiming[1] = getTime();
 
@@ -140,7 +114,7 @@ void CthughaDisplayX11::operator()() {
     /*
      * prepare the display device
      */
-    displayDevice->preDraw();
+    target.preDraw();
     if (traceDisplayTiming)
         displayTiming[3] = getTime();
 
@@ -158,29 +132,29 @@ void CthughaDisplayX11::operator()() {
     /*
      * clear the border around the image
      */
-    int borderClearRequested = displayDevice->textOnScreen || needsClear;
+    int borderClearRequested = target.textOnScreen || needsClear;
     clearBorder();
 
-    OverlayCommands overlays = collectDisplayOverlays();
+    OverlayCommands overlays = collectDisplayOverlays(fps);
     if (traceDisplayTiming)
         displayTiming[5] = getTime();
 
     /*
      * Transfer indexed pixels to backend-native display memory.
      */
-    if (displayRuntime != NULL)
-        displayRuntime->present(indexedDisplayFrameValue, displayViewport(),
-            displayDevice->needsFullCopy, borderClearRequested, overlays);
+    stage.present(indexedDisplayFrameValue, displayViewport(),
+        target.needsFullCopy, borderClearRequested, overlays);
     if (traceDisplayTiming)
         displayTiming[6] = getTime();
 
     /*
      * make sure everything is really copied to the screen
      */
-    displayDevice->postDraw();
+    target.postDraw();
     if (traceDisplayTiming) {
         displayTiming[7] = getTime();
-        CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f compose-ms=%.3f prepare-ms=%.3f viewport-ms=%.3f overlay-ms=%.3f transfer-clear-ms=%.3f post-ms=%.3f draw-mode=%d bypp=%d size=%dx%d draw=%dx%d\n",
+        const DisplayViewport& viewport = displayViewport();
+        CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f compose-ms=%.3f prepare-ms=%.3f viewport-ms=%.3f overlay-ms=%.3f transfer-clear-ms=%.3f post-ms=%.3f size=%dx%d draw=%dx%d\n",
             "display timing",
             (displayTiming[7] - displayTiming[0]) * 1000.0,
             (displayTiming[1] - displayTiming[0]) * 1000.0,
@@ -190,6 +164,7 @@ void CthughaDisplayX11::operator()() {
             (displayTiming[5] - displayTiming[4]) * 1000.0,
             (displayTiming[6] - displayTiming[5]) * 1000.0,
             (displayTiming[7] - displayTiming[6]) * 1000.0,
-            draw_mode, bypp, disp_size.x, disp_size.y, draw_size.x, draw_size.y);
+            viewport.windowSize.width, viewport.windowSize.height,
+            viewport.drawSize.width, viewport.drawSize.height);
     }
 }

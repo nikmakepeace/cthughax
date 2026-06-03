@@ -82,34 +82,10 @@ static void testMissingSelectionControllerRejectsRetryRequest() {
     assert(!context.requestScreenChange(+1, 0));
 }
 
-static void testScopedCurrentContextRestoresPreviousContext() {
-    IndexedFrameFixture source(5, 3, 8);
-    IndexedDisplayFrame firstDestination;
-    IndexedDisplayFrame secondDestination;
-    preparePaddedDestination(firstDestination, 4, 2, 7, 0x5a);
-    preparePaddedDestination(secondDestination, 4, 2, 7, 0x6b);
-
-    ScreenRenderContext first(source.frame(), firstDestination, 1.0, 0.1, 30.0);
-    ScreenRenderContext second(source.frame(), secondDestination, 2.0, 0.2, 60.0);
-
-    assert(currentScreenRenderContext() == 0);
-    {
-        ScopedScreenRenderContext firstScope(first);
-        assert(currentScreenRenderContext() == &first);
-        {
-            ScopedScreenRenderContext secondScope(second);
-            assert(currentScreenRenderContext() == &second);
-        }
-        assert(currentScreenRenderContext() == &first);
-    }
-    assert(currentScreenRenderContext() == 0);
-}
-
 int main() {
     testRowAccessorsHonorSourceAndDestinationPitch();
     testFrameTimingValuesAreCopied();
     testSelectionControllerReceivesRetryRequest();
     testMissingSelectionControllerRejectsRetryRequest();
-    testScopedCurrentContextRestoresPreviousContext();
     return 0;
 }

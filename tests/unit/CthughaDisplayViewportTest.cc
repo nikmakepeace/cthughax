@@ -1,14 +1,13 @@
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
+#include "DisplayRuntime.h"
 
 #include <assert.h>
 #include <stdarg.h>
 #include <vector>
 
-DisplayDevice* displayDevice = 0;
 int bypp = 2;
 int bytes_per_line = 40;
-xy disp_size(0, 0);
 enum draw_mode_t draw_mode = DM_mapped2;
 
 DisplayDevice::DisplayDevice()
@@ -82,6 +81,10 @@ int cth_log_errno(int /*errnum*/, const char* /*fmt*/, ...) {
 
 class ViewportDisplayHarness : public CthughaDisplay {
 public:
+    ViewportDisplayHarness(DisplayDevice& device, DisplayRuntime& runtime)
+        : CthughaDisplay(device, runtime) {
+    }
+
     void setDisplayFrameSize(int width, int height) {
         indexedDisplayFrameValue.resize(width, height);
     }
@@ -109,19 +112,54 @@ public:
     }
 };
 
-static void prepareHarness(ViewportDisplayHarness& display, int frameWidth,
+class ResizableOutputBackend : public DisplayBackend {
+public:
+    PixelSize outputSizeValue;
+
+    ResizableOutputBackend()
+        : outputSizeValue(0, 0) {
+    }
+
+    virtual DisplayEventStats processEvents() {
+        return DisplayEventStats();
+    }
+
+    virtual PixelSize outputSize() const {
+        return outputSizeValue;
+    }
+
+    virtual void present(const DisplayPresentation&) {
+    }
+};
+
+class DisplayStageFixture {
+public:
+    RecordingDisplayDevice device;
+    ResizableOutputBackend backend;
+    DisplayRuntime runtime;
+    ViewportDisplayHarness display;
+
+    DisplayStageFixture()
+        : device()
+        , backend()
+        , runtime(backend)
+        , display(device, runtime) {
+    }
+};
+
+static void prepareHarness(DisplayStageFixture& fixture, int frameWidth,
     int frameHeight, int windowWidth, int windowHeight, int zoomValue) {
-    cthughaDisplay = &display;
+    ViewportDisplayHarness& display = fixture.display;
     display.setDisplayFrameSize(frameWidth, frameHeight);
-    disp_size = xy(windowWidth, windowHeight);
-    draw_size = xy(-1, -1);
+    fixture.backend.outputSizeValue = PixelSize(windowWidth, windowHeight);
     zoom.setValue(zoomValue);
     display.needsClear = 0;
 }
 
-static void testCheckZoomPublishesFitViewportAndLegacyDrawSize() {
-    ViewportDisplayHarness display;
-    prepareHarness(display, 4, 3, 10, 9, 0);
+static void testCheckZoomPublishesFitViewportFromRuntimeOutputSize() {
+    DisplayStageFixture fixture;
+    ViewportDisplayHarness& display = fixture.display;
+    prepareHarness(fixture, 4, 3, 10, 9, 0);
 
     display.updateViewport();
 
@@ -130,14 +168,13 @@ static void testCheckZoomPublishesFitViewportAndLegacyDrawSize() {
     assert(viewport.scaleMode == SCALE_MODE_FIT_WINDOW);
     assert(viewport.drawSize == PixelSize(10, 9));
     assert(viewport.destination == PixelRect(0, 0, 10, 9));
-    assert(draw_size.x == 10);
-    assert(draw_size.y == 9);
     assert(int(zoom) == 0);
 }
 
 static void testCheckZoomPublishesFixedViewportAndOffsets() {
-    ViewportDisplayHarness display;
-    prepareHarness(display, 4, 3, 10, 9, 1);
+    DisplayStageFixture fixture;
+    ViewportDisplayHarness& display = fixture.display;
+    prepareHarness(fixture, 4, 3, 10, 9, 1);
 
     display.updateViewport();
 
@@ -147,14 +184,13 @@ static void testCheckZoomPublishesFixedViewportAndOffsets() {
     assert(viewport.drawSize == PixelSize(4, 3));
     assert(viewport.destination == PixelRect(3, 3, 4, 3));
     assert(viewport.screenOffsetBytes(bytes_per_line, bypp) == 126);
-    assert(draw_size.x == 4);
-    assert(draw_size.y == 3);
     assert(int(zoom) == 1);
 }
 
 static void testCheckZoomReducesOversizedFixedZoom() {
-    ViewportDisplayHarness display;
-    prepareHarness(display, 8, 4, 10, 5, 2);
+    DisplayStageFixture fixture;
+    ViewportDisplayHarness& display = fixture.display;
+    prepareHarness(fixture, 8, 4, 10, 5, 2);
 
     display.updateViewport();
 
@@ -162,18 +198,17 @@ static void testCheckZoomReducesOversizedFixedZoom() {
     assert(viewport.zoomWasReduced());
     assert(viewport.requestedZoom == 2);
     assert(viewport.effectiveZoom == 1);
-    assert(draw_size.x == 8);
-    assert(draw_size.y == 4);
     assert(int(zoom) == 1);
 }
 
 static void testCheckZoomMarksBorderClearWhenResizeMovesViewport() {
-    ViewportDisplayHarness display;
-    prepareHarness(display, 4, 3, 10, 9, 1);
+    DisplayStageFixture fixture;
+    ViewportDisplayHarness& display = fixture.display;
+    prepareHarness(fixture, 4, 3, 10, 9, 1);
     display.updateViewport();
     display.needsClear = 0;
 
-    disp_size = xy(12, 9);
+    fixture.backend.outputSizeValue = PixelSize(12, 9);
     display.updateViewport();
 
     const DisplayViewport& viewport = display.displayViewport();
@@ -182,8 +217,9 @@ static void testCheckZoomMarksBorderClearWhenResizeMovesViewport() {
 }
 
 static void testClearBorderUsesViewportGeometryInsteadOfLegacyGlobals() {
-    ViewportDisplayHarness display;
-    RecordingDisplayDevice device;
+    DisplayStageFixture fixture;
+    ViewportDisplayHarness& display = fixture.display;
+    RecordingDisplayDevice& device = fixture.device;
     DisplayViewport viewport;
     viewport.frameSize = PixelSize(4, 3);
     viewport.windowSize = PixelSize(20, 13);
@@ -193,13 +229,8 @@ static void testClearBorderUsesViewportGeometryInsteadOfLegacyGlobals() {
     viewport.requestedZoom = 2;
     viewport.effectiveZoom = 2;
 
-    displayDevice = &device;
-    cthughaDisplay = &display;
     display.setViewport(viewport);
     display.needsClear = 1;
-
-    disp_size = xy(99, 88);
-    draw_size = xy(1, 1);
 
     display.clearViewportBorder();
 
@@ -211,7 +242,7 @@ static void testClearBorderUsesViewportGeometryInsteadOfLegacyGlobals() {
 }
 
 int main() {
-    testCheckZoomPublishesFitViewportAndLegacyDrawSize();
+    testCheckZoomPublishesFitViewportFromRuntimeOutputSize();
     testCheckZoomPublishesFixedViewportAndOffsets();
     testCheckZoomReducesOversizedFixedZoom();
     testCheckZoomMarksBorderClearWhenResizeMovesViewport();

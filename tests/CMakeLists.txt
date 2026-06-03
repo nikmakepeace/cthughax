@@ -198,6 +198,7 @@ add_test(NAME presentation_composer_test COMMAND presentation_composer_test)
 add_executable(cthugha_display_presentation_test
     unit/CthughaDisplayPresentationTest.cc
     ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc
+    ${CMAKE_SOURCE_DIR}/src/DisplayRuntime.cc
     ${CMAKE_SOURCE_DIR}/src/FrameClock.cc
     ${CMAKE_SOURCE_DIR}/src/FrameRateMeter.cc
     ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc
@@ -256,6 +257,25 @@ target_link_libraries(display_draw_mode_test PRIVATE m)
 
 add_test(NAME display_draw_mode_test COMMAND display_draw_mode_test)
 
+add_executable(display_refactor_boundary_test
+    unit/DisplayRefactorBoundaryTest.cc
+)
+
+target_compile_definitions(display_refactor_boundary_test PRIVATE
+    CTHUGHA_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_include_directories(display_refactor_boundary_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(display_refactor_boundary_test PRIVATE m)
+
+add_test(NAME display_refactor_boundary_test
+    COMMAND display_refactor_boundary_test)
+
 add_executable(viewport_policy_test
     unit/ViewportPolicyTest.cc
     ${CMAKE_SOURCE_DIR}/src/ViewportPolicy.cc
@@ -288,6 +308,7 @@ add_test(NAME viewport_presentation_test COMMAND viewport_presentation_test)
 add_executable(cthugha_display_viewport_test
     unit/CthughaDisplayViewportTest.cc
     ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc
+    ${CMAKE_SOURCE_DIR}/src/DisplayRuntime.cc
     ${CMAKE_SOURCE_DIR}/src/FrameClock.cc
     ${CMAKE_SOURCE_DIR}/src/FrameRateMeter.cc
     ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc
