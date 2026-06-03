@@ -25,6 +25,8 @@ public:
 
 class FramePacer {
     FrameSleeper& sleeper;
+    double nextFrameStartTargetSeconds;
+    int hasFrameStartTarget;
 
 public:
     explicit FramePacer(FrameSleeper& sleeper_);

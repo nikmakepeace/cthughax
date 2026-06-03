@@ -16,7 +16,9 @@ FramePacingResult::FramePacingResult()
 }
 
 FramePacer::FramePacer(FrameSleeper& sleeper_)
-    : sleeper(sleeper_) {
+    : sleeper(sleeper_)
+    , nextFrameStartTargetSeconds(0.0)
+    , hasFrameStartTarget(0) {
 }
 
 FramePacingResult FramePacer::paceFrameEnd(double frameStartSeconds,
@@ -27,12 +29,20 @@ FramePacingResult FramePacer::paceFrameEnd(double frameStartSeconds,
     result.maxFramesPerSecond = maxFramesPerSecond;
 
     if (maxFramesPerSecond <= 0) {
+        hasFrameStartTarget = 0;
         result.targetFrameEndSeconds = frameEndSeconds;
         return result;
     }
 
-    result.targetFrameEndSeconds = frameStartSeconds
-        + (1.0 / double(maxFramesPerSecond));
+    double framePeriodSeconds = 1.0 / double(maxFramesPerSecond);
+    if (!hasFrameStartTarget
+        || frameStartSeconds > nextFrameStartTargetSeconds + framePeriodSeconds) {
+        nextFrameStartTargetSeconds = frameStartSeconds + framePeriodSeconds;
+        hasFrameStartTarget = 1;
+    }
+
+    result.targetFrameEndSeconds = nextFrameStartTargetSeconds;
+    nextFrameStartTargetSeconds += framePeriodSeconds;
     result.requestedSleepSeconds = result.targetFrameEndSeconds - frameEndSeconds;
     if (result.requestedSleepSeconds <= 0) {
         result.requestedSleepSeconds = 0.0;

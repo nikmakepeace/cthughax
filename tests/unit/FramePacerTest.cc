@@ -49,6 +49,20 @@ static void testDoesNotSleepWhenFrameWorkOverrunsBudget() {
     assertNear(result.requestedSleepSeconds, 0.0);
 }
 
+static void testCarriesDeadlineForwardToCompensateForOversleep() {
+    FakeSleeper sleeper;
+    FramePacer pacer(sleeper);
+
+    FramePacingResult first = pacer.paceFrameEnd(10.000, 10.010, 25);
+    FramePacingResult second = pacer.paceFrameEnd(10.045, 10.055, 25);
+
+    assertNear(first.targetFrameEndSeconds, 10.040);
+    assertNear(first.requestedSleepSeconds, 0.030);
+    assertNear(second.targetFrameEndSeconds, 10.080);
+    assertNear(second.requestedSleepSeconds, 0.025);
+    assert(sleeper.calls == 2);
+}
+
 static void testMaxFpsZeroDisablesPacing() {
     FakeSleeper sleeper;
     FramePacer pacer(sleeper);
@@ -76,6 +90,7 @@ static void testNegativeMaxFpsDisablesPacing() {
 int main() {
     testSleepsRemainingBudgetAtFrameEnd();
     testDoesNotSleepWhenFrameWorkOverrunsBudget();
+    testCarriesDeadlineForwardToCompensateForOversleep();
     testMaxFpsZeroDisablesPacing();
     testNegativeMaxFpsDisablesPacing();
     return 0;
