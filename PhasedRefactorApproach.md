@@ -356,7 +356,7 @@ indexed composition is stable.
 - Viewport behavior is described by tests.
 - Production code can still use legacy globals until Phase 7.
 
-## Phase 7: Thread Viewports Through The Legacy X11 Path
+## Phase 7: Thread Viewports Through The Legacy X11 Path - DONE
 
 ### Goal
 
