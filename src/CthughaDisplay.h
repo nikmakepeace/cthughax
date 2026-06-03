@@ -3,6 +3,7 @@
 #define __CTHUGHA_DISPLAY_H
 
 #include "cthugha.h"
+#include "DisplayGeometry.h"
 #include "EffectControl.h"
 #include "IndexedDisplayFrame.h"
 #include "PresentationComposer.h"
@@ -28,6 +29,7 @@ protected:
     const IndexedFrame* sourceFrame;
     IndexedDisplayFrame indexedDisplayFrameValue;
     PresentationComposer presentationComposer;
+    DisplayViewport displayViewportValue;
 
     // Non-owning alias for indexedDisplayFrameValue.pixels(), retained while
     // classic screen functions still write through cthughaDisplay->buffer.
@@ -105,6 +107,7 @@ public:
     int sourcePitch() const;
     int sourceSize() const;
     const IndexedDisplayFrame& indexedDisplayFrame() const;
+    const DisplayViewport& displayViewport() const;
     int displayFrameWidth() const;
     int displayFrameHeight() const;
 

@@ -8,6 +8,7 @@
 #include "imath.h"
 #include "Interface.h"
 #include "IndexedFrame.h"
+#include "ViewportPolicy.h"
 
 #include <stdint.h>
 #include <unistd.h>
@@ -61,6 +62,7 @@ CthughaDisplay::CthughaDisplay()
     : sourceFrame(0)
     , indexedDisplayFrameValue()
     , presentationComposer()
+    , displayViewportValue()
     , buffer0(0)
     , displayStart(0)
     , frames(0)
@@ -123,6 +125,10 @@ int CthughaDisplay::sourceSize() const {
 
 const IndexedDisplayFrame& CthughaDisplay::indexedDisplayFrame() const {
     return indexedDisplayFrameValue;
+}
+
+const DisplayViewport& CthughaDisplay::displayViewport() const {
+    return displayViewportValue;
 }
 
 int CthughaDisplay::displayFrameWidth() const {
@@ -320,29 +326,21 @@ void CthughaDisplay::zoom2Screen(unsigned char* scrn, int bytesPerLine) {
 }
 
 void CthughaDisplay::checkZoom() {
-    /*
-     * compute the size of the drawing area, and check for sane zoom value
-     */
-    if (zoom == 0) { /* use optimal size */
-        draw_size = disp_size;
-    } else { /* use a specified scaling factor */
-        static int oldZoom = -1;
-        if (zoom != oldZoom) {
-            oldZoom = zoom;
-            // A changed fixed zoom can expose areas that were image pixels in
-            // the previous frame, so clear the border once before drawing.
-            needsClear = 1;
-        }
+    ViewportPolicy policy;
+    DisplayViewport previous = displayViewportValue;
+    displayViewportValue = policy.viewportFor(
+        PixelSize(visualBuffer().displayWidth(), visualBuffer().displayHeight()),
+        PixelSize::fromXy(disp_size), int(zoom));
 
-        draw_size.x = zoom * visualBuffer().displayWidth();
-        draw_size.y = zoom * visualBuffer().displayHeight();
-        while ((draw_size.x > disp_size.x) || (draw_size.y > disp_size.y)) {
-            CTH_ERROR("Zoom factor is set too high for current display size. reducing.\n");
-            zoom.setValue(zoom / 2);
-            draw_size.x = zoom * visualBuffer().displayWidth();
-            draw_size.y = zoom * visualBuffer().displayHeight();
-        }
-    }
+    for (int i = 0; i < displayViewportValue.reductionCount; ++i)
+        CTH_ERROR("Zoom factor is set too high for current display size. reducing.\n");
+
+    if (displayViewportValue.effectiveZoom != int(zoom))
+        zoom.setValue(displayViewportValue.effectiveZoom);
+
+    draw_size = displayViewportValue.drawSize.toXy();
+    if (displayViewportValue.requiresBorderClearFrom(previous))
+        needsClear = 1;
 }
 
 void CthughaDisplay::checkFPS() {

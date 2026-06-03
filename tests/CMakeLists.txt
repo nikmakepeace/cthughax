@@ -139,6 +139,7 @@ add_executable(cthugha_display_presentation_test
     ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc
     ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc
     ${CMAKE_SOURCE_DIR}/src/FrameCompletion.cc
+    ${CMAKE_SOURCE_DIR}/src/ViewportPolicy.cc
     ${CMAKE_SOURCE_DIR}/src/Screen.cc
     ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
     ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
@@ -163,6 +164,64 @@ target_link_libraries(cthugha_display_presentation_test PRIVATE m)
 
 add_test(NAME cthugha_display_presentation_test
     COMMAND cthugha_display_presentation_test)
+
+add_executable(display_geometry_test
+    unit/DisplayGeometryTest.cc
+)
+
+target_include_directories(display_geometry_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(display_geometry_test PRIVATE m)
+
+add_test(NAME display_geometry_test COMMAND display_geometry_test)
+
+add_executable(viewport_policy_test
+    unit/ViewportPolicyTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ViewportPolicy.cc
+)
+
+target_include_directories(viewport_policy_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(viewport_policy_test PRIVATE m)
+
+add_test(NAME viewport_policy_test COMMAND viewport_policy_test)
+
+add_executable(cthugha_display_viewport_test
+    unit/CthughaDisplayViewportTest.cc
+    ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc
+    ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameCompletion.cc
+    ${CMAKE_SOURCE_DIR}/src/ViewportPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/Screen.cc
+    ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
+    ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/CthughaBuffer.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(cthugha_display_viewport_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+    ${CMAKE_CURRENT_SOURCE_DIR}/unit
+)
+
+target_link_libraries(cthugha_display_viewport_test PRIVATE m)
+
+add_test(NAME cthugha_display_viewport_test
+    COMMAND cthugha_display_viewport_test)
 
 add_executable(warning_clean_smoke_test
     unit/WarningCleanSmokeTest.cc

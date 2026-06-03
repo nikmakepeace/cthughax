@@ -50,6 +50,7 @@ set(CTHUGHA_COMMON_SOURCES
     Image.cc
     IndexedDisplayFrame.cc
     PresentationComposer.cc
+    ViewportPolicy.cc
     VideoFilterchain.cc
     VideoFilterchainSequence.cc
     VideoFilters.cc
