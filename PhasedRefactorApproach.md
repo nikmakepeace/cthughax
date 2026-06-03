@@ -482,7 +482,7 @@ Stop presentation from calling `Interface::current` and `errors` directly.
   `Interface::current->display()` directly.
 - Help/list/error overlays still draw and clear correctly.
 
-## Phase 11: Extract `FrameClock` And `FramePacer`
+## Phase 11: Extract `FrameClock` And `FramePacer` - DONE
 
 ### Goal
 
