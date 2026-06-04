@@ -3,7 +3,7 @@
 #include "AutoChanger.h"
 #include "AudioAnalyzer.h"
 #include "Configuration.h"
-#include "options.h"
+#include "IniFiles.h"
 #include "CthughaBuffer.h"
 #include "Scene.h"
 #include "VideoDirector.h"

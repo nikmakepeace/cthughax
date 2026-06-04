@@ -19,7 +19,7 @@ class SilenceMessage {
 public:
     SilenceMessage();
 
-    void configure(const MessagesConfig& config);
+    void configure(const MessagesConfig& messagesConfig);
     void initialize();
     void loadFile(const char* fname);
     void setQotdEnabled(int enabled);

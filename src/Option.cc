@@ -1,5 +1,6 @@
 #include "cthugha.h"
-#include "options.h"
+#include "Configuration.h"
+#include "Option.h"
 #include "display.h"
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"

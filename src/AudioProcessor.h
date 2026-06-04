@@ -9,6 +9,8 @@
 
 #include <string>
 
+struct SceneConfig;
+
 class AudioProcessingOption : public Option {
     EffectChoiceList& entries;
     std::string initialEntry;
@@ -66,5 +68,7 @@ public:
 };
 
 extern AudioProcessingOption audioProcessing;
+
+void configureAudioProcessing(const SceneConfig& config);
 
 #endif

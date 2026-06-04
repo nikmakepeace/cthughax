@@ -57,6 +57,8 @@ add_executable(screen_renderer_characterization_test
     ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
     ${CMAKE_SOURCE_DIR}/src/imath.cc
@@ -177,6 +179,8 @@ add_executable(presentation_composer_test
     ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
     ${CMAKE_SOURCE_DIR}/src/FramePalette.cc
@@ -210,6 +214,8 @@ add_executable(cthugha_display_presentation_test
     ${CMAKE_SOURCE_DIR}/src/CthughaBuffer.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
     ${CMAKE_SOURCE_DIR}/src/FramePalette.cc
@@ -320,6 +326,8 @@ add_executable(cthugha_display_viewport_test
     ${CMAKE_SOURCE_DIR}/src/CthughaBuffer.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
     ${CMAKE_SOURCE_DIR}/src/imath.cc
@@ -512,6 +520,8 @@ add_test(NAME wave_object_test COMMAND wave_object_test)
 
 add_executable(effect_preset_catalog_test
     unit/EffectPresetCatalogTest.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
     ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
@@ -536,6 +546,7 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc
         ${CMAKE_SOURCE_DIR}/src/EffectChoiceLoader.cc
         ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+        ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
         ${CMAKE_SOURCE_DIR}/src/Interface.cc
         ${CMAKE_SOURCE_DIR}/src/InterfaceList.cc
         ${CMAKE_SOURCE_DIR}/src/flames.cc

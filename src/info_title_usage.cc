@@ -9,6 +9,7 @@
 #include "VideoDirector.h"
 #include "QotdMessagesProvider.h"
 #include "TranslationOptions.h"
+#include "configuration_defaults.h"
 
 #include <ctype.h>
 
@@ -64,6 +65,10 @@ static void PH(const char* txt, const char* def = "") {
 static void PH(const char* txt, const Option& Opt) { PH(txt, Opt.text()); }
 
 void usage() {
+    char qotdPrefetchTimeoutDefault[32];
+    snprintf(qotdPrefetchTimeoutDefault, sizeof(qotdPrefetchTimeoutDefault),
+        "%d", MESSAGES_CONFIG_DEFAULT_QOTD_PREFETCH_TIMEOUT_MS);
+
     PH("Cthugha command line options:");
     PH("-----------------------------");
     PH("Selecting sound device (DSP device by default):");
@@ -109,10 +114,13 @@ void usage() {
     PH(" -R, --random-time N Extra random time before changing", changeWaitRandom.text());
     PH(" -Q, --quiet-time N  Change after short silence", changeQuiet.text());
     PH(" --msg-time N        Time before quiet message are displayed", changeMsgTime.text());
+    PH(" --quiet-message-duration-ms N  Quiet message display duration");
     PH(" -q, --quiet-file FILE  Load alternate quiet messages from FILE");
     PH(" --qotd              Enable Quote of the Day quiet messages");
     PH(" --no-qotd           Disable Quote of the Day quiet messages");
     PH(" --qotd-server SERVER  Quote of the Day server", QotdMessagesProvider::defaultServer());
+    PH(" --qotd-port PORT    Default Quote of the Day port", MESSAGES_CONFIG_DEFAULT_QOTD_PORT_TEXT);
+    PH(" --qotd-prefetch-timeout-ms N  QOTD fetch timeout", qotdPrefetchTimeoutDefault);
     PH(" --min-noise N       Set level for quiet sound", sound_minnoise.text());
     PH(" --cumulative-fire-level N      Set cumulative fire threshold to N", changeCumulativeFireLevel.text());
     PH("");

@@ -14,7 +14,7 @@ static EffectChoice* _trans[] = { new TranslateEntry("none", "No Translate") };
 static EffectChoiceList translateEntries(_trans, 1);
 TranslateOption translation(-1, "translate");
 
-void configureTranslationOptions(const VisualConfig& config) {
+void configureTranslationOptions(const EffectPolicy& config) {
     use_translates.setValue(config.useTranslatesEnabled);
 }
 

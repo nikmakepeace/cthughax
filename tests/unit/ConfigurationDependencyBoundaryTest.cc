@@ -20,10 +20,25 @@ static std::string readSourceFile(const char* relativePath) {
 
 static void assertSourceDoesNotContain(const char* relativePath,
     const char* token) {
-    std::string contents = readSourceFile(relativePath);
+    std::string path = std::string(CTHUGHA_SOURCE_DIR) + "/" + relativePath;
+    std::ifstream file(path.c_str());
+    if (!file.good())
+        return;
+
+    std::ostringstream contentsStream;
+    contentsStream << file.rdbuf();
+    std::string contents = contentsStream.str();
     if (contents.find(token) != std::string::npos)
         fprintf(stderr, "%s still contains `%s`\n", relativePath, token);
     assert(contents.find(token) == std::string::npos);
+}
+
+static void assertSourceDoesNotExist(const char* relativePath) {
+    std::string path = std::string(CTHUGHA_SOURCE_DIR) + "/" + relativePath;
+    std::ifstream file(path.c_str());
+    if (file.good())
+        fprintf(stderr, "%s still exists\n", relativePath);
+    assert(!file.good());
 }
 
 static void assertSourceContains(const char* relativePath, const char* token) {
@@ -88,6 +103,14 @@ static void testAudioInputFileGlobalWasDeleted() {
 }
 
 static void testLegacyParserDoesNotWritePortedConfigValues() {
+    assertSourceDoesNotExist("src/options.cc");
+    assertSourceDoesNotExist("src/options.h");
+    assertSourceDoesNotExist("src/xwin_options.cc");
+    assertSourceDoesNotContain("src/Application.cc", "get_pre_params");
+    assertSourceDoesNotContain("src/Application.cc", "get_params");
+    assertSourceDoesNotContain("src/Application.cc", "params_request_help");
+    assertSourceDoesNotContain("src/Application.cc", "startupHelpRequested");
+    assertSourceContains("src/Application.cc", "startupConfig.helpRequested");
     assertSourceDoesNotContain("src/options.cc", "audioInputMode.setValue");
     assertSourceDoesNotContain("src/options.cc", "audio_input_file");
     assertSourceDoesNotContain("src/options.cc", "display_mode =");
@@ -95,6 +118,7 @@ static void testLegacyParserDoesNotWritePortedConfigValues() {
         "CthughaBuffer::buffer.setDimensions");
     assertSourceDoesNotContain("src/options.cc", "cthugha_verbose.change");
     assertSourceDoesNotContain("src/options.cc", "&cthugha_verbose.value");
+    assertSourceDoesNotContain("src/options.cc", "&options_save.value");
     assertSourceDoesNotContain("src/options.cc", "snprintf(extra_lib_path");
     assertSourceDoesNotContain("src/options.cc", "strncpy(ini_file_override");
     assertSourceDoesNotContain("src/options.cc", "&audioInputLoop");
@@ -112,6 +136,27 @@ static void testLegacyParserDoesNotWritePortedConfigValues() {
     assertSourceDoesNotContain("src/options.cc", "soundDSPFragments.change");
     assertSourceDoesNotContain("src/options.cc", "soundDSPMethod.change");
     assertSourceDoesNotContain("src/options.cc", "mixer_initial_volume");
+    assertSourceDoesNotContain("src/options.cc", "&lock.value");
+    assertSourceDoesNotContain("src/options.cc", "&change_little.value");
+    assertSourceDoesNotContain("src/options.cc", "lock.setValue");
+    assertSourceDoesNotContain("src/options.cc", "changeWaitMin.change");
+    assertSourceDoesNotContain("src/options.cc", "changeWaitRandom.change");
+    assertSourceDoesNotContain("src/options.cc", "changeQuiet.change");
+    assertSourceDoesNotContain("src/options.cc", "changeMsgTime.change");
+    assertSourceDoesNotContain("src/options.cc",
+        "changeCumulativeFireLevel.change");
+    assertSourceDoesNotContain("src/options.cc", "silenceMessages().loadFile");
+    assertSourceDoesNotContain("src/options.cc", "setQotdEnabled");
+    assertSourceDoesNotContain("src/options.cc", "setQotdServer");
+    assertSourceDoesNotContain("src/options.cc", "&use_objects.value");
+    assertSourceDoesNotContain("src/options.cc", "&use_translates.value");
+    assertSourceDoesNotContain("src/options.cc", "&showFPS.value");
+    assertSourceDoesNotContain("src/options.cc", "paletteSmoothingChance =");
+    assertSourceDoesNotContain("src/options.cc", "palette_set_filter");
+    assertSourceDoesNotContain("src/options.cc",
+        "videoDirector().setImageLoadingEnabled");
+    assertSourceDoesNotContain("src/options.cc", "zoom.change");
+    assertSourceDoesNotContain("src/options.cc", "maxFramesPerSecond.change");
     assertSourceDoesNotContain("src/options.cc", "&key_esc");
     assertSourceDoesNotContain("src/options.cc", "Keymap::keymapFile");
     assertSourceContains("src/AudioSystem.cc", "config.mixerInitialVolumes");
@@ -147,20 +192,49 @@ static void testScreenshotFeatureWasRemoved() {
     assertSourceDoesNotContain("src/CMakeLists.txt", "Screen" "shot.cc");
 }
 
+static void testLegacyTestOptionWasRemoved() {
+    assertSourceDoesNotContain("src/options.cc", "opt_" "test");
+    assertSourceDoesNotContain("src/options.cc", "\"test\"");
+}
+
 static void testApplicationProvidesStartupConfigSlices() {
     assertSourceContains("src/Application.cc", "configureApplicationOptions(startupConfigValue.app)");
     assertSourceContains("src/Application.cc", "configureKeys(startupConfigValue.input)");
     assertSourceContains("src/Application.cc", "Keymap::init(startupConfigValue.input)");
-    assertSourceContains("src/Application.cc", "configureIniFiles(startupConfigValue.paths)");
+    assertSourceContains("src/Application.cc", "remove_continuation_ini(startupConfigValue.paths)");
     assertSourceContains("src/Application.cc", "configureAudioOptions(startupConfigValue.audio)");
     assertSourceContains("src/Application.cc", "configureCthughaDisplay(startupConfigValue.display)");
     assertSourceContains("src/Application.cc", "configureAutoChanger(startupConfigValue.autoChange)");
-    assertSourceContains("src/Application.cc", "configureTranslationOptions(startupConfigValue.visual)");
-    assertSourceContains("src/Application.cc", "configureWaveOptions(startupConfigValue.visual)");
-    assertSourceContains("src/Application.cc", "videoDirector().configure(startupConfigValue.visual");
+    assertSourceContains("src/Application.cc",
+        "configureAudioAnalyzer(startupConfigValue.autoChange)");
+    assertSourceContains("src/Application.cc", "configureEffectPolicy(startupConfigValue.effectPolicy)");
+    assertSourceContains("src/Application.cc", "configureTranslationOptions(startupConfigValue.effectPolicy)");
+    assertSourceContains("src/Application.cc", "configureWaveOptions(startupConfigValue.effectPolicy)");
+    assertSourceContains("src/Application.cc", "configurePaletteOptions(startupConfigValue.effectPolicy)");
+    assertSourceContains("src/Application.cc", "configureAudioProcessing(startupConfigValue.scene)");
+    assertSourceContains("src/Application.cc",
+        "videoDirector().configureTransitions(startupConfigValue.sceneTransition)");
+    assertSourceContains("src/Application.cc",
+        "videoDirector().configureQuietMessages(startupConfigValue.messages)");
     assertSourceContains("src/Application.cc", "sceneCommands().applyStartupConfig(startupConfigValue.scene)");
     assertSourceDoesNotContain("src/Application.cc", "Keymap::configure");
     assertSourceDoesNotContain("src/Application.cc", "EffectControl::changeToInitial");
+    assertSourceDoesNotContain("src/Application.cc", "audioProcessing.changeToInitial");
+    assertSourceDoesNotContain("src/Application.cc", "applyEffectPolicy");
+    assertSourceDoesNotContain("src/Application.cc",
+        "read_effect_control_usage_and_presets");
+    assertSourceDoesNotContain("src/AutoChanger.cc", "configureQuietMessages");
+    assertSourceDoesNotContain("src/AutoChanger.h", "MessagesConfig");
+    assertSourceDoesNotContain("src/Configuration.h", "AutoChangeConfig {\n"
+        "    int quietMs;\n"
+        "    int waitMinMs;\n"
+        "    int waitRandomMs;\n"
+        "    int waitRandomMinimumMs;\n"
+        "    int cumulativeFireLevel;\n"
+        "    int locked;\n"
+        "    int changeLittle;\n"
+        "    int minNoise;\n"
+        "    int quietMessageMs;");
 }
 
 static void testInputStartupUsesInputConfig() {
@@ -191,6 +265,7 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceDoesNotContain("src/options.cc", "table.setInitialEntry");
     assertSourceDoesNotContain("src/options.cc", "imageOption().setInitialEntry");
     assertSourceDoesNotContain("src/options.cc", "screen.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "audioProcessing.setInitialEntry");
     assertSourceDoesNotContain("src/IniFiles.cc", "effectControlGetIniInitials");
 }
 
@@ -224,6 +299,7 @@ int main() {
     testCatalogLoadingUsesPathConfig();
     testCatalogLoadingSkipsDuplicateNamesWithoutCompressedAssetShellOut();
     testScreenshotFeatureWasRemoved();
+    testLegacyTestOptionWasRemoved();
     testApplicationProvidesStartupConfigSlices();
     testInputStartupUsesInputConfig();
     testSceneStartupUsesSceneConfig();

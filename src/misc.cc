@@ -2,7 +2,6 @@
 #include "information.h" /* title, credits, ... */
 #include "display.h"
 #include "TranslationOptions.h"
-#include "options.h"
 #include "keys.h"
 #include "imath.h"
 #include "waves.h"

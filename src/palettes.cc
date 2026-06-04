@@ -253,7 +253,7 @@ int palette_set_filter(const char* value) {
     return 1;
 }
 
-void configurePaletteOptions(const VisualConfig& config) {
+void configurePaletteOptions(const EffectPolicy& config) {
     palette_set_filter(config.paletteSetFilterText.c_str());
 }
 

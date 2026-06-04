@@ -21,8 +21,11 @@ SilenceMessage::SilenceMessage()
     , initialized(0)
     , qotdEnabled(0) { }
 
-void SilenceMessage::configure(const MessagesConfig& config) {
-    qotdMessages.configure(config);
+void SilenceMessage::configure(const MessagesConfig& messagesConfig) {
+    qotdMessages.configure(messagesConfig);
+    loadFile(messagesConfig.quietMessageFile.c_str());
+    setQotdEnabled(messagesConfig.qotdEnabled);
+    setQotdServer(messagesConfig.qotdServer.c_str());
 }
 
 void SilenceMessage::initialize() {

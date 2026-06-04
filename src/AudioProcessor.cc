@@ -2,6 +2,7 @@
 #include "Audio.h"
 #include "AudioFrame.h"
 #include "AudioProcessor.h"
+#include "Configuration.h"
 #include "Interface.h"
 #include "display.h"
 #include "cth_buffer.h"
@@ -227,6 +228,11 @@ static EffectChoice* _audioProcessorOptionEntries[]
 EffectChoiceList audioProcessorEntries(_audioProcessorOptionEntries, 4);
 
 AudioProcessingOption audioProcessing("sound-processing", audioProcessorEntries);
+
+void configureAudioProcessing(const SceneConfig& config) {
+    audioProcessing.setInitialEntry(config.audioProcessing.c_str());
+    audioProcessing.changeToInitial();
+}
 
 AudioProcessingOption::AudioProcessingOption(const char* name, EffectChoiceList& entries_)
     : Option(name)

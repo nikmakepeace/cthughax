@@ -61,7 +61,7 @@ int init_tables();
  * @return Zero on completion.
  */
 struct PathConfig;
-struct VisualConfig;
+struct EffectPolicy;
 
 int init_wave(const PathConfig& pathConfig);
 
@@ -79,6 +79,6 @@ extern int nr_tables;
 
 /** Enables loading/selecting 3D object files for object-capable waves. */
 extern OptionOnOff use_objects;
-void configureWaveOptions(const VisualConfig& config);
+void configureWaveOptions(const EffectPolicy& config);
 
 #endif

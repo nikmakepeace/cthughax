@@ -12,8 +12,7 @@
 #include <string>
 
 class CthughaBuffer;
-struct PathConfig;
-struct VisualConfig;
+struct SceneTransitionPolicy;
 struct MessagesConfig;
 class VideoFilterchain;
 
@@ -39,7 +38,6 @@ class VideoDirector : public SceneObserver {
     unsigned int appliedTextCueId;
     int pendingTextFrames;
     int pendingTextInkColor;
-    int imageLoadingEnabledValue;
 
     /**
      * Applies pending scene settings to currently bound filters.
@@ -65,8 +63,8 @@ public:
     VideoDirector();
     ~VideoDirector();
 
-    void configure(const VisualConfig& visualConfig,
-        const MessagesConfig& messagesConfig);
+    void configureTransitions(const SceneTransitionPolicy& transitionPolicy);
+    void configureQuietMessages(const MessagesConfig& messagesConfig);
 
     /**
      * Starts observing a scene for filterchain-affecting changes and cues.
@@ -80,23 +78,6 @@ public:
 
     /** @return Image option collection used by scene commands and image loading. */
     ImageOption& imageOption();
-
-    /** @return Nonzero when image files should be loaded at startup/refresh. */
-    int imageLoadingEnabled() const;
-
-    /**
-     * Enables or disables image loading.
-     *
-     * @param enabled Nonzero to load images, zero to skip image loading.
-     */
-    void setImageLoadingEnabled(int enabled);
-
-    /**
-     * Loads configured image files for the current CthughaBuffer dimensions.
-     *
-     * @return Loader result from ImageOption::loadImages().
-     */
-    int loadImages(const PathConfig& pathConfig);
 
     /** @return Quiet-message provider used for silence text cues. */
     SilenceMessage& silenceMessages();
@@ -148,8 +129,5 @@ VideoDirector& videoDirector();
 
 /** Maximum quiet interval before a text cue, in milliseconds. */
 extern OptionTime changeMsgTime;
-
-/** Probability [0.0, 1.0] that a palette change uses smoothing. */
-extern double paletteSmoothingChance;
 
 #endif

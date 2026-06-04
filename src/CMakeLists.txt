@@ -2,6 +2,7 @@ set(CTHUGHA_COMMON_SOURCES
     Option.cc
     OptionInt.cc
     EffectControl.cc
+    EffectControlPolicy.cc
     EffectPresetCatalog.cc
     EffectChoiceLoader.cc
     EffectControlIni.cc
@@ -106,7 +107,6 @@ if(CTH_BUILD_X11)
     add_executable(xcthugha
         ${CTHUGHA_COMMON_SOURCES}
         xwin_keys.cc
-        xwin_options.cc
         display.cc
         DisplayDeviceX11.cc
         CthughaDisplayX11.cc

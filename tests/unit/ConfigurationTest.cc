@@ -46,6 +46,7 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.scene.table.empty());
     assert(result.config.scene.image.empty());
     assert(result.config.scene.presentation.empty());
+    assert(result.config.scene.audioProcessing.empty());
     assert(result.config.audio.inputMode == AUDIO_CONFIG_DEFAULT_INPUT_MODE);
     assert(result.config.audio.inputFile == AUDIO_CONFIG_DEFAULT_INPUT_FILE_PATH);
     assert(result.config.audio.inputLoopEnabled == AUDIO_CONFIG_DEFAULT_INPUT_LOOP_ENABLED);
@@ -57,7 +58,6 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.audio.dspFragmentSize == AUDIO_CONFIG_DEFAULT_DSP_FRAGMENT_SIZE);
     assert(result.config.audio.dspSyncEnabled == AUDIO_CONFIG_DEFAULT_DSP_SYNC_ENABLED);
     assert(result.config.audio.silentEnabled == AUDIO_CONFIG_DEFAULT_SILENT_ENABLED);
-    assert(result.config.audio.minNoise == AUDIO_CONFIG_DEFAULT_MIN_NOISE);
     assert(result.config.audio.pulseLatencyMs == AUDIO_CONFIG_DEFAULT_PULSE_LATENCY_MS);
     assert(result.config.audio.pulseServer == AUDIO_CONFIG_DEFAULT_PULSE_SERVER_TEXT);
     assert(result.config.audio.outputDumpPath == AUDIO_CONFIG_DEFAULT_OUTPUT_DUMP_PATH);
@@ -79,13 +79,22 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.autoChange.waitMinMs == AUTO_CHANGE_CONFIG_DEFAULT_WAIT_MIN_MS);
     assert(result.config.autoChange.waitRandomMs == AUTO_CHANGE_CONFIG_DEFAULT_WAIT_RANDOM_MS);
     assert(result.config.autoChange.waitRandomMinimumMs == AUTO_CHANGE_CONFIG_DEFAULT_WAIT_RANDOM_MIN_MS);
-    assert(result.config.visual.changeMessageMs == VISUAL_CONFIG_DEFAULT_CHANGE_MESSAGE_MS);
-    assert(result.config.visual.quietMessageDurationMs == VISUAL_CONFIG_DEFAULT_QUIET_MESSAGE_DURATION_MS);
-    assert(result.config.visual.paletteSmoothingChance == VISUAL_CONFIG_DEFAULT_PALETTE_SMOOTHING_CHANCE);
-    assert(result.config.visual.paletteSmoothSeconds == VISUAL_CONFIG_DEFAULT_PALETTE_SMOOTH_SECONDS);
-    assert(result.config.visual.imageLoadingEnabled == VISUAL_CONFIG_DEFAULT_IMAGE_LOADING_ENABLED);
-    assert(result.config.visual.useTranslatesEnabled == VISUAL_CONFIG_DEFAULT_USE_TRANSLATES_ENABLED);
-    assert(result.config.visual.useObjectsEnabled == VISUAL_CONFIG_DEFAULT_USE_OBJECTS_ENABLED);
+    assert(result.config.autoChange.cumulativeFireLevel == AUTO_CHANGE_CONFIG_DEFAULT_CUMULATIVE_FIRE_LEVEL);
+    assert(result.config.autoChange.locked == AUTO_CHANGE_CONFIG_DEFAULT_LOCKED);
+    assert(result.config.autoChange.changeLittle == AUTO_CHANGE_CONFIG_DEFAULT_CHANGE_LITTLE);
+    assert(result.config.autoChange.minNoise == AUTO_CHANGE_CONFIG_DEFAULT_MIN_NOISE);
+    assert(result.config.effectPolicy.imageFilesEnabled == EFFECT_POLICY_DEFAULT_IMAGE_FILES_ENABLED);
+    assert(result.config.effectPolicy.paletteSetFilterText == EFFECT_POLICY_DEFAULT_PALETTE_SET_FILTER_TEXT);
+    assert(result.config.effectPolicy.useTranslatesEnabled == EFFECT_POLICY_DEFAULT_USE_TRANSLATES_ENABLED);
+    assert(result.config.effectPolicy.useObjectsEnabled == EFFECT_POLICY_DEFAULT_USE_OBJECTS_ENABLED);
+    assert(result.config.effectPolicy.allowedChoices.empty());
+    assert(result.config.effectPolicy.presets.empty());
+    assert(result.config.sceneTransition.paletteSmoothingChance == SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTHING_CHANCE);
+    assert(result.config.sceneTransition.paletteSmoothSeconds == SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTH_SECONDS);
+    assert(result.config.messages.quietMessageMs == MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_MS);
+    assert(result.config.messages.quietMessageDurationMs == MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_DURATION_MS);
+    assert(result.config.messages.quietMessageFile == MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_FILE_PATH);
+    assert(result.config.messages.qotdEnabled == MESSAGES_CONFIG_DEFAULT_QOTD_ENABLED);
     assert(result.config.messages.qotdPrefetchTimeoutMs == MESSAGES_CONFIG_DEFAULT_QOTD_PREFETCH_TIMEOUT_MS);
     assert(result.config.messages.qotdServer == MESSAGES_CONFIG_DEFAULT_QOTD_SERVER_TEXT);
     assert(result.config.messages.qotdPort == MESSAGES_CONFIG_DEFAULT_QOTD_PORT_TEXT);
@@ -95,6 +104,7 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     DeferredLogBuffer diagnostics;
     IniTextConfigSource source("memory",
         "cthugha.verbose: 3\n"
+        "cthugha.save: yes\n"
         "cthugha.path: /tmp/cth\n"
         "cthugha.keymap: custom.keymap\n"
         "cthugha.no-esc: yes\n"
@@ -110,6 +120,28 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
         "cthugha.table: table3\n"
         "cthugha.image: splash\n"
         "cthugha.display: roll\n"
+        "cthugha.sound-processing: FFT\n"
+        "cthugha.no-images: yes\n"
+        "cthugha.palette-smoothing: 0.25\n"
+        "cthugha.palette-set: warm,cool\n"
+        "cthugha.no-trans: yes\n"
+        "cthugha.no-object: yes\n"
+        "cthugha.flame.fire: no\n"
+        "cthugha.image.0.logo: yes\n"
+        "cthugha.preset.1.wave: line\n"
+        "cthugha.lock: yes\n"
+        "cthugha.little: yes\n"
+        "cthugha.min-time: 1200\n"
+        "cthugha.random-time: 3400\n"
+        "cthugha.quiet-change: 5600\n"
+        "cthugha.cumulative-fire-level: 78\n"
+        "cthugha.msg-time: 9100\n"
+        "cthugha.quiet-message-duration-ms: 4300\n"
+        "cthugha.quiet-file: quiet.txt\n"
+        "cthugha.qotd: yes\n"
+        "cthugha.qotd-server: qotd.local\n"
+        "cthugha.qotd-port: 1717\n"
+        "cthugha.qotd-prefetch-timeout-ms: 1200\n"
         "cthugha.play: song.wav\n"
         "cthugha.loop: no\n"
         "cthugha.rate: 22050\n"
@@ -130,11 +162,15 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
         "cthugha.mic: 34\n"
         "cthugha.mixer: pcm:56\n"
         "cthugha.disp-mode: 800x600\n"
+        "cthugha.max-fps: 60\n"
+        "cthugha.show-fps: yes\n"
+        "cthugha.zoom: 2\n"
         "cthugha.buff-size: 2\n");
     ConfigPatch patch = source.acquire(diagnostics);
 
     assert(diagnostics.diagnostics().empty());
     assert(*patchValue(patch, "logging.verbosity") == "3");
+    assert(*patchValue(patch, "app.options_save_enabled") == "1");
     assert(*patchValue(patch, "paths.extra_library") == "/tmp/cth/");
     assert(*patchValue(patch, "input.keymap_file") == "custom.keymap");
     assert(*patchValue(patch, "input.escape_key_enabled") == "0");
@@ -150,6 +186,34 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "scene.table") == "table3");
     assert(*patchValue(patch, "scene.image") == "splash");
     assert(*patchValue(patch, "scene.presentation") == "roll");
+    assert(*patchValue(patch, "scene.audio_processing") == "FFT");
+    assert(*patchValue(patch, "effect.image_files_enabled") == "0");
+    assert(*patchValue(patch, "scene_transition.palette_smoothing_chance") == "0.25");
+    assert(*patchValue(patch, "effect.palette_set_filter") == "warm,cool");
+    assert(*patchValue(patch, "effect.use_translates_enabled") == "0");
+    assert(*patchValue(patch, "effect.use_objects_enabled") == "0");
+    const std::vector<ConfigEntry>* effectChoices
+        = patchEntries(patch, "effect.allowed_choice");
+    assert(effectChoices->size() == 2);
+    assert((*effectChoices)[0].value == "flame.fire\t0");
+    assert((*effectChoices)[1].value == "image.0.logo\t1");
+    const std::vector<ConfigEntry>* effectPresets
+        = patchEntries(patch, "effect.preset");
+    assert(effectPresets->size() == 1);
+    assert((*effectPresets)[0].value == "1\twave\tline");
+    assert(*patchValue(patch, "auto_change.locked") == "1");
+    assert(*patchValue(patch, "auto_change.change_little") == "1");
+    assert(*patchValue(patch, "auto_change.wait_min_ms") == "1200");
+    assert(*patchValue(patch, "auto_change.wait_random_ms") == "3400");
+    assert(*patchValue(patch, "auto_change.quiet_ms") == "5600");
+    assert(*patchValue(patch, "auto_change.cumulative_fire_level") == "78");
+    assert(*patchValue(patch, "messages.quiet_message_ms") == "9100");
+    assert(*patchValue(patch, "messages.quiet_message_duration_ms") == "4300");
+    assert(*patchValue(patch, "messages.quiet_message_file") == "quiet.txt");
+    assert(*patchValue(patch, "messages.qotd_enabled") == "1");
+    assert(*patchValue(patch, "messages.qotd_server") == "qotd.local");
+    assert(*patchValue(patch, "messages.qotd_port") == "1717");
+    assert(*patchValue(patch, "messages.qotd_prefetch_timeout_ms") == "1200");
     assert(*patchValue(patch, "audio.input_mode") == "2");
     assert(*patchValue(patch, "audio.input_file") == "song.wav");
     assert(*patchValue(patch, "audio.input_loop") == "0");
@@ -161,7 +225,7 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "audio.dsp_fragment_size") == "10");
     assert(*patchValue(patch, "audio.dsp_sync") == "1");
     assert(*patchValue(patch, "audio.silent") == "1");
-    assert(*patchValue(patch, "audio.min_noise") == "12");
+    assert(*patchValue(patch, "auto_change.min_noise") == "12");
     assert(*patchValue(patch, "audio.pulse_latency_ms") == "150");
     assert(*patchValue(patch, "audio.pulse_server") == "local");
     assert(*patchValue(patch, "audio.output_dump_path") == "dump.raw");
@@ -176,6 +240,9 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "display.mode") == "-1");
     assert(*patchValue(patch, "display.width") == "800");
     assert(*patchValue(patch, "display.height") == "600");
+    assert(*patchValue(patch, "display.max_frames_per_second") == "60");
+    assert(*patchValue(patch, "display.show_fps") == "1");
+    assert(*patchValue(patch, "display.zoom_mode") == "2");
     assert(*patchValue(patch, "buffer.preset") == "2");
 }
 
@@ -203,6 +270,31 @@ static void sourcePrecedenceIsDefaultsIniEnvironmentCommandLine() {
 
     assert(result.ok());
     assert(result.config.logging.verbosity == 0);
+}
+
+static void commandLineSourceBuildsAppConfig() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--save",
+        })
+        .build();
+
+    assert(result.ok());
+    assert(result.config.app.optionsSaveEnabled == 1);
+
+    ConfigurationBuilder noSaveBuilder;
+    result = noSaveBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--save",
+                     "--no-save",
+                 })
+                 .build();
+
+    assert(result.ok());
+    assert(result.config.app.optionsSaveEnabled == 0);
 }
 
 static void commandLineSourceBuildsInputConfig() {
@@ -233,6 +325,63 @@ static void commandLineSourceBuildsInputConfig() {
     assert(result.ok());
     assert(result.config.input.escapeKeyEnabled == 1);
     assert(result.config.input.keymapFile == "other.keymap");
+}
+
+static void commandLineSourceReportsUnknownOptions() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--does-not-exist",
+            "-Z",
+        })
+        .build();
+
+    assert(!result.ok());
+    assert(!result.helpRequested);
+    assert(result.diagnostics.size() == 2);
+    assert(result.diagnostics[0].severity == ConfigDiagnosticError);
+    assert(result.diagnostics[0].key == "--does-not-exist");
+    assert(result.diagnostics[1].severity == ConfigDiagnosticError);
+    assert(result.diagnostics[1].key == "-Z");
+
+    ConfigurationBuilder helpBuilder;
+    result = helpBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--help",
+                     "-?",
+                 })
+                 .build();
+
+    assert(result.ok());
+    assert(result.helpRequested);
+
+    ConfigurationBuilder helpWithErrorBuilder;
+    result = helpWithErrorBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--does-not-exist",
+                     "--help",
+                 })
+                 .build();
+
+    assert(!result.ok());
+    assert(result.helpRequested);
+    assert(result.diagnostics.size() == 1);
+    assert(result.diagnostics[0].key == "--does-not-exist");
+
+    ConfigurationBuilder terminatorBuilder;
+    result = terminatorBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--",
+                     "--not-config",
+                 })
+                 .build();
+
+    assert(result.ok());
+    assert(!result.helpRequested);
 }
 
 static void commandLineSourceHandlesAudioLastWriterWins() {
@@ -278,7 +427,6 @@ static void commandLineSourceBuildsFullAudioConfig() {
             "10",
             "--snd-sync",
             "--silent",
-            "--min-noise=300",
             "--pulse-latency-ms=40",
             "--pulse-server",
             "local",
@@ -308,7 +456,6 @@ static void commandLineSourceBuildsFullAudioConfig() {
     assert(result.config.audio.dspFragmentSize == 10);
     assert(result.config.audio.dspSyncEnabled == 1);
     assert(result.config.audio.silentEnabled == 1);
-    assert(result.config.audio.minNoise == 255);
     assert(result.config.audio.pulseLatencyMs == 50);
     assert(result.config.audio.pulseServer == "local");
     assert(result.config.audio.outputDumpPath == "dump.raw");
@@ -321,9 +468,66 @@ static void commandLineSourceBuildsFullAudioConfig() {
     assert(result.config.audio.mixerInitialVolumes[1].volume == 8738);
     assert(result.config.audio.mixerInitialVolumes[2].name == "pcm");
     assert(result.config.audio.mixerInitialVolumes[2].volume == 56);
-    assert(result.diagnostics.size() == 2);
+    assert(result.diagnostics.size() == 1);
     assert(result.diagnostics[0].severity == ConfigDiagnosticWarning);
-    assert(result.diagnostics[1].severity == ConfigDiagnosticWarning);
+}
+
+static void commandLineSourceBuildsAutoChangeConfig() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--lock",
+            "--little",
+            "--min-time",
+            "1200",
+            "--random-time=3400",
+            "-Q5600",
+            "--cumulative-fire-level",
+            "78",
+            "--min-noise=300",
+        })
+        .build();
+
+    assert(result.ok());
+    assert(result.config.autoChange.locked == 1);
+    assert(result.config.autoChange.changeLittle == 1);
+    assert(result.config.autoChange.waitMinMs == 1200);
+    assert(result.config.autoChange.waitRandomMs == 3400);
+    assert(result.config.autoChange.quietMs == 5600);
+    assert(result.config.autoChange.cumulativeFireLevel == 78);
+    assert(result.config.autoChange.minNoise == 255);
+    assert(result.diagnostics.size() == 1);
+    assert(result.diagnostics[0].severity == ConfigDiagnosticWarning);
+}
+
+static void commandLineSourceBuildsMessagesConfig() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--msg-time",
+            "9100",
+            "--quiet-message-duration-ms=4300",
+            "--quiet-file",
+            "quiet.txt",
+            "--qotd",
+            "--qotd-server=qotd.local",
+            "--qotd-port",
+            "1717",
+            "--qotd-prefetch-timeout-ms=1200",
+        })
+        .build();
+
+    assert(result.ok());
+    assert(result.config.messages.quietMessageMs == 9100);
+    assert(result.config.messages.quietMessageDurationMs == 4300);
+    assert(result.config.messages.quietMessageFile == "quiet.txt");
+    assert(result.config.messages.qotdEnabled == 1);
+    assert(result.config.messages.qotdServer == "qotd.local");
+    assert(result.config.messages.qotdPort == "1717");
+    assert(result.config.messages.qotdPrefetchTimeoutMs == 1200);
+    assert(result.diagnostics.empty());
 }
 
 static void commandLineSourceBuildsSceneConfig() {
@@ -353,6 +557,8 @@ static void commandLineSourceBuildsSceneConfig() {
             "splash",
             "--display",
             "roll",
+            "--sound-processing",
+            "Filter2",
         })
         .build();
 
@@ -370,6 +576,7 @@ static void commandLineSourceBuildsSceneConfig() {
     assert(result.config.scene.table == "table3");
     assert(result.config.scene.image == "splash");
     assert(result.config.scene.presentation == "roll");
+    assert(result.config.scene.audioProcessing == "Filter2");
 
     ConfigurationBuilder noFlashlightBuilder;
     result = noFlashlightBuilder.addDefaults()
@@ -381,6 +588,75 @@ static void commandLineSourceBuildsSceneConfig() {
     assert(result.ok());
     assert(result.config.scene.flashlight
         == DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
+}
+
+static void commandLineSourceBuildsEffectAndSceneTransitionPolicyConfig() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--no-images",
+            "--palette-smoothing",
+            "0.25",
+            "--palette-set=warm,cool",
+            "--no-trans",
+            "--no-object",
+            "--max-fps",
+            "60",
+            "--show-fps",
+            "--zoom=2",
+        })
+        .build();
+
+    assert(result.ok());
+    assert(result.config.effectPolicy.imageFilesEnabled == 0);
+    assert(result.config.sceneTransition.paletteSmoothingChance == 0.25);
+    assert(result.config.effectPolicy.paletteSetFilterText == "warm,cool");
+    assert(result.config.effectPolicy.useTranslatesEnabled == 0);
+    assert(result.config.effectPolicy.useObjectsEnabled == 0);
+    assert(result.config.display.maxFramesPerSecond == 60);
+    assert(result.config.display.showFpsEnabled == 1);
+    assert(result.config.display.zoomMode == 2);
+    assert(result.diagnostics.empty());
+
+    ConfigurationBuilder clampBuilder;
+    result = clampBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--palette-smoothing=2.5",
+                     "--zoom=7",
+                 })
+                 .build();
+
+    assert(result.ok());
+    assert(result.config.sceneTransition.paletteSmoothingChance == 1.0);
+    assert(result.config.display.zoomMode == ZOOM_MODE_MAX_EXCLUSIVE - 1);
+    assert(result.diagnostics.size() == 2);
+    assert(result.diagnostics[0].severity == ConfigDiagnosticWarning);
+    assert(result.diagnostics[1].severity == ConfigDiagnosticWarning);
+}
+
+static void iniTextSourceBuildsEffectCatalogPolicy() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addIniText("policy",
+            "cthugha.flame.fire: no\n"
+            "cthugha.image.0.logo: yes\n"
+            "cthugha.preset.2.palette: sunset\n")
+        .build();
+
+    assert(result.ok());
+    assert(result.config.effectPolicy.allowedChoices.size() == 2);
+    assert(result.config.effectPolicy.allowedChoices[0].catalogEntryKey
+        == "flame.fire");
+    assert(result.config.effectPolicy.allowedChoices[0].enabled == 0);
+    assert(result.config.effectPolicy.allowedChoices[1].catalogEntryKey
+        == "image.0.logo");
+    assert(result.config.effectPolicy.allowedChoices[1].enabled == 1);
+    assert(result.config.effectPolicy.presets.size() == 1);
+    assert(result.config.effectPolicy.presets[0].slot == 2);
+    assert(result.config.effectPolicy.presets[0].catalogName == "palette");
+    assert(result.config.effectPolicy.presets[0].choiceText == "sunset");
 }
 
 static void commandLineSourceHandlesDisplayAndBufferSettings() {
@@ -441,10 +717,16 @@ int main() {
     defaultsProduceTypedConfig();
     iniTextSourceProducesPatchWithoutGlobals();
     sourcePrecedenceIsDefaultsIniEnvironmentCommandLine();
+    commandLineSourceBuildsAppConfig();
     commandLineSourceBuildsInputConfig();
+    commandLineSourceReportsUnknownOptions();
     commandLineSourceHandlesAudioLastWriterWins();
     commandLineSourceBuildsFullAudioConfig();
+    commandLineSourceBuildsAutoChangeConfig();
+    commandLineSourceBuildsMessagesConfig();
     commandLineSourceBuildsSceneConfig();
+    commandLineSourceBuildsEffectAndSceneTransitionPolicyConfig();
+    iniTextSourceBuildsEffectCatalogPolicy();
     commandLineSourceHandlesDisplayAndBufferSettings();
     customBufferSizeIsClampedWithDeferredWarnings();
     invalidTypedValueProducesDeferredError();

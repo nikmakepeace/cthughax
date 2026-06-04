@@ -113,6 +113,7 @@ struct SceneConfig {
     std::string table;
     std::string image;
     std::string presentation;
+    std::string audioProcessing;
 
     SceneConfig();
 };
@@ -134,7 +135,6 @@ struct AudioConfig {
     int dspFragmentSize;
     int dspSyncEnabled;
     int silentEnabled;
-    int minNoise;
     int mixerVolume;
     int pulseLatencyMs;
     std::string pulseServer;
@@ -191,25 +191,53 @@ struct AutoChangeConfig {
     int cumulativeFireLevel;
     int locked;
     int changeLittle;
+    int minNoise;
 
     AutoChangeConfig();
 };
 
-struct VisualConfig {
-    int changeMessageMs;
-    int quietMessageDurationMs;
-    double paletteSmoothingChance;
-    int paletteSmoothSeconds;
-    int imageLoadingEnabled;
+struct EffectChoicePolicy {
+    std::string catalogEntryKey;
+    int enabled;
+
+    EffectChoicePolicy();
+    EffectChoicePolicy(const std::string& catalogEntryKeyValue,
+        int enabledValue);
+};
+
+struct EffectPresetPolicy {
+    int slot;
+    std::string catalogName;
+    std::string choiceText;
+
+    EffectPresetPolicy();
+    EffectPresetPolicy(int slotValue, const std::string& catalogNameValue,
+        const std::string& choiceTextValue);
+};
+
+struct EffectPolicy {
+    int imageFilesEnabled;
     std::string paletteSetFilterText;
-    int paletteSetFilterCount;
     int useTranslatesEnabled;
     int useObjectsEnabled;
+    std::vector<EffectChoicePolicy> allowedChoices;
+    std::vector<EffectPresetPolicy> presets;
 
-    VisualConfig();
+    EffectPolicy();
+};
+
+struct SceneTransitionPolicy {
+    double paletteSmoothingChance;
+    int paletteSmoothSeconds;
+
+    SceneTransitionPolicy();
 };
 
 struct MessagesConfig {
+    int quietMessageMs;
+    int quietMessageDurationMs;
+    std::string quietMessageFile;
+    int qotdEnabled;
     int qotdPrefetchTimeoutMs;
     std::string qotdServer;
     std::string qotdPort;
@@ -229,13 +257,15 @@ struct Config {
     X11Config x11;
 #endif
     AutoChangeConfig autoChange;
-    VisualConfig visual;
+    EffectPolicy effectPolicy;
+    SceneTransitionPolicy sceneTransition;
     MessagesConfig messages;
 };
 
 struct ConfigBuildResult {
     Config config;
     std::vector<ConfigDiagnostic> diagnostics;
+    int helpRequested;
 
     bool ok() const;
 };
@@ -301,6 +331,7 @@ class ConfigurationBuilder {
     ConfigPatch patchValue;
     DeferredLogBuffer diagnosticsValue;
     ConfigSchema schemaValue;
+    int helpRequestedValue;
 
 public:
     ConfigurationBuilder();

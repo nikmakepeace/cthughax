@@ -355,7 +355,7 @@ static void draw_line(CthughaBuffer& buffer, int x1, int y1, int x2, int y2, int
 
 OptionOnOff use_objects("use-objects", 0); /* use 3-D objects */
 
-void configureWaveOptions(const VisualConfig& config) {
+void configureWaveOptions(const EffectPolicy& config) {
     use_objects.setValue(config.useObjectsEnabled);
 }
 /*

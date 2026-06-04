@@ -9,6 +9,7 @@
 #include <algorithm>
 #include <cerrno>
 #include <cctype>
+#include <cmath>
 #include <cstdlib>
 #include <fstream>
 #include <sstream>
@@ -21,6 +22,7 @@
 namespace {
 
 static const char* KEY_LOGGING_VERBOSITY = "logging.verbosity";
+static const char* KEY_APP_OPTIONS_SAVE_ENABLED = "app.options_save_enabled";
 static const char* KEY_INPUT_ESCAPE_ENABLED = "input.escape_key_enabled";
 static const char* KEY_INPUT_KEYMAP_FILE = "input.keymap_file";
 static const char* KEY_PATH_EXTRA_LIBRARY = "paths.extra_library";
@@ -37,6 +39,7 @@ static const char* KEY_SCENE_FLASHLIGHT = "scene.flashlight";
 static const char* KEY_SCENE_TABLE = "scene.table";
 static const char* KEY_SCENE_IMAGE = "scene.image";
 static const char* KEY_SCENE_PRESENTATION = "scene.presentation";
+static const char* KEY_SCENE_AUDIO_PROCESSING = "scene.audio_processing";
 static const char* KEY_AUDIO_INPUT_MODE = "audio.input_mode";
 static const char* KEY_AUDIO_INPUT_FILE = "audio.input_file";
 static const char* KEY_AUDIO_INPUT_LOOP = "audio.input_loop";
@@ -48,7 +51,6 @@ static const char* KEY_AUDIO_DSP_FRAGMENTS = "audio.dsp_fragments";
 static const char* KEY_AUDIO_DSP_FRAGMENT_SIZE = "audio.dsp_fragment_size";
 static const char* KEY_AUDIO_DSP_SYNC = "audio.dsp_sync";
 static const char* KEY_AUDIO_SILENT = "audio.silent";
-static const char* KEY_AUDIO_MIN_NOISE = "audio.min_noise";
 static const char* KEY_AUDIO_PULSE_LATENCY = "audio.pulse_latency_ms";
 static const char* KEY_AUDIO_PULSE_SERVER = "audio.pulse_server";
 static const char* KEY_AUDIO_OUTPUT_DUMP = "audio.output_dump_path";
@@ -62,10 +64,49 @@ static const char* KEY_AUDIO_DSP_TARGET_LATENCY = "audio.dsp_target_latency_ms";
 static const char* KEY_DISPLAY_MODE = "display.mode";
 static const char* KEY_DISPLAY_WIDTH = "display.width";
 static const char* KEY_DISPLAY_HEIGHT = "display.height";
+static const char* KEY_DISPLAY_MAX_FPS = "display.max_frames_per_second";
+static const char* KEY_DISPLAY_SHOW_FPS = "display.show_fps";
+static const char* KEY_DISPLAY_ZOOM_MODE = "display.zoom_mode";
 static const char* KEY_BUFFER_PRESET = "buffer.preset";
 static const char* KEY_BUFFER_WIDTH = "buffer.width";
 static const char* KEY_BUFFER_HEIGHT = "buffer.height";
 static const char* KEY_BUFFER_CUSTOM_SIZE = "buffer.custom_size";
+static const char* KEY_EFFECT_IMAGE_FILES_ENABLED
+    = "effect.image_files_enabled";
+static const char* KEY_EFFECT_PALETTE_SET_FILTER
+    = "effect.palette_set_filter";
+static const char* KEY_EFFECT_USE_TRANSLATES_ENABLED
+    = "effect.use_translates_enabled";
+static const char* KEY_EFFECT_USE_OBJECTS_ENABLED
+    = "effect.use_objects_enabled";
+static const char* KEY_EFFECT_ALLOWED_CHOICE
+    = "effect.allowed_choice";
+static const char* KEY_EFFECT_PRESET
+    = "effect.preset";
+static const char* KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE
+    = "scene_transition.palette_smoothing_chance";
+static const char* KEY_SCENE_TRANSITION_PALETTE_SMOOTH_SECONDS
+    = "scene_transition.palette_smooth_seconds";
+static const char* KEY_AUTO_CHANGE_QUIET_MS = "auto_change.quiet_ms";
+static const char* KEY_AUTO_CHANGE_WAIT_MIN_MS = "auto_change.wait_min_ms";
+static const char* KEY_AUTO_CHANGE_WAIT_RANDOM_MS
+    = "auto_change.wait_random_ms";
+static const char* KEY_AUTO_CHANGE_CUMULATIVE_FIRE_LEVEL
+    = "auto_change.cumulative_fire_level";
+static const char* KEY_AUTO_CHANGE_LOCKED = "auto_change.locked";
+static const char* KEY_AUTO_CHANGE_CHANGE_LITTLE = "auto_change.change_little";
+static const char* KEY_AUTO_CHANGE_MIN_NOISE = "auto_change.min_noise";
+static const char* KEY_MESSAGES_QUIET_MESSAGE_MS
+    = "messages.quiet_message_ms";
+static const char* KEY_MESSAGES_QUIET_MESSAGE_DURATION_MS
+    = "messages.quiet_message_duration_ms";
+static const char* KEY_MESSAGES_QUIET_MESSAGE_FILE
+    = "messages.quiet_message_file";
+static const char* KEY_MESSAGES_QOTD_ENABLED = "messages.qotd_enabled";
+static const char* KEY_MESSAGES_QOTD_PREFETCH_TIMEOUT_MS
+    = "messages.qotd_prefetch_timeout_ms";
+static const char* KEY_MESSAGES_QOTD_SERVER = "messages.qotd_server";
+static const char* KEY_MESSAGES_QOTD_PORT = "messages.qotd_port";
 #ifdef CTH_XWIN
 static const char* KEY_X11_TEXT_ON_TERM = "x11.text_on_term";
 static const char* KEY_X11_OVERRIDE_REDIRECT = "x11.override_redirect";
@@ -148,8 +189,34 @@ static bool parseInteger(const std::string& text, int* result) {
     return true;
 }
 
+static bool parseDouble(const std::string& text, double* result) {
+    std::string cleaned = trim(text);
+    char* end = NULL;
+    errno = 0;
+    double value = std::strtod(cleaned.c_str(), &end);
+
+    if (cleaned.empty() || end == cleaned.c_str() || errno != 0
+        || !std::isfinite(value))
+        return false;
+
+    while (*end != '\0') {
+        if (!std::isspace(static_cast<unsigned char>(*end)))
+            return false;
+        end++;
+    }
+
+    *result = value;
+    return true;
+}
+
 static std::string integerText(int value) {
     return std::to_string(value);
+}
+
+static std::string doubleText(double value) {
+    std::ostringstream output;
+    output << value;
+    return output.str();
 }
 
 static bool parseBoolean(const std::string& text, int* result) {
@@ -406,6 +473,57 @@ static void appendNamedMixerInitialVolume(ConfigPatch& patch,
     appendMixerInitialVolume(patch, source, name, volume);
 }
 
+static std::string effectChoicePolicyText(
+    const std::string& catalogEntryKey, int enabled) {
+    return catalogEntryKey + "\t" + booleanText(enabled);
+}
+
+static std::string effectPresetPolicyText(int slot,
+    const std::string& catalogName, const std::string& choiceText) {
+    return integerText(slot) + "\t" + catalogName + "\t" + choiceText;
+}
+
+static bool appendEffectPolicyIniOption(ConfigPatch& patch,
+    DeferredLogBuffer& diagnostics, const std::string& source,
+    const std::string& key, const std::string& value) {
+    if (startsWith(key, "preset.")) {
+        std::string rest = key.substr(7);
+        std::string::size_type separator = rest.find('.');
+        int slot = 0;
+
+        if (separator == std::string::npos) {
+            diagnostics.error(source, key,
+                "expected preset entry as preset.SLOT.CATALOG");
+            return true;
+        }
+
+        std::string slotText = rest.substr(0, separator);
+        std::string catalogName = rest.substr(separator + 1);
+        if (!parseInteger(slotText, &slot) || slot < 0
+            || catalogName.empty()) {
+            diagnostics.error(source, key,
+                "expected preset entry as preset.SLOT.CATALOG");
+            return true;
+        }
+
+        if (!value.empty())
+            patch.append(KEY_EFFECT_PRESET,
+                effectPresetPolicyText(slot, catalogName, value), source);
+        return true;
+    }
+
+    if (key.find('.') != std::string::npos) {
+        int enabled = 0;
+        if (parseBoolean(value, &enabled)) {
+            patch.append(KEY_EFFECT_ALLOWED_CHOICE,
+                effectChoicePolicyText(key, enabled), source);
+            return true;
+        }
+    }
+
+    return false;
+}
+
 static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     const std::string& source, const std::string& name,
     const std::string& value) {
@@ -421,6 +539,12 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     } else if (key == "ini-file") {
         diagnostics.warning(source, key,
             "cthugha.ini-file is ignored inside ini files; use --ini-file before startup config is built");
+    } else if (key == "save") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_APP_OPTIONS_SAVE_ENABLED, cleanedValue, 1, 0);
+    } else if (key == "no-save") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_APP_OPTIONS_SAVE_ENABLED, cleanedValue, 1, 1);
     } else if (key == "keymap") {
         patch.set(KEY_INPUT_KEYMAP_FILE, cleanedValue, source);
     } else if (key == "esc") {
@@ -457,6 +581,81 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
         setSceneText(patch, source, KEY_SCENE_IMAGE, cleanedValue);
     } else if (key == "display") {
         setSceneText(patch, source, KEY_SCENE_PRESENTATION, cleanedValue);
+    } else if (key == "sound-processing") {
+        setSceneText(patch, source, KEY_SCENE_AUDIO_PROCESSING, cleanedValue);
+    } else if (key == "images") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_EFFECT_IMAGE_FILES_ENABLED, cleanedValue, 1, 0);
+    } else if (key == "no-images") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_EFFECT_IMAGE_FILES_ENABLED, cleanedValue, 1, 1);
+    } else if (key == "palette-smoothing") {
+        patch.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE,
+            cleanedValue, source);
+    } else if (key == "no-palette-smoothing") {
+        patch.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE, "0",
+            source);
+    } else if (key == "palette-smooth-seconds") {
+        patch.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTH_SECONDS, cleanedValue,
+            source);
+    } else if (key == "palette-set") {
+        patch.set(KEY_EFFECT_PALETTE_SET_FILTER, cleanedValue, source);
+    } else if (key == "trans" || key == "use-translate"
+        || key == "use-translates") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_EFFECT_USE_TRANSLATES_ENABLED, cleanedValue, 1, 0);
+    } else if (key == "no-trans") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_EFFECT_USE_TRANSLATES_ENABLED, cleanedValue, 1, 1);
+    } else if (key == "use-object" || key == "use-objects") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_EFFECT_USE_OBJECTS_ENABLED, cleanedValue, 1, 0);
+    } else if (key == "no-object" || key == "no-objects") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_EFFECT_USE_OBJECTS_ENABLED, cleanedValue, 1, 1);
+    } else if (key == "lock") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_AUTO_CHANGE_LOCKED, cleanedValue, 1, 0);
+    } else if (key == "no-lock") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_AUTO_CHANGE_LOCKED, cleanedValue, 1, 1);
+    } else if (key == "little") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_AUTO_CHANGE_CHANGE_LITTLE, cleanedValue, 1, 0);
+    } else if (key == "no-little") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_AUTO_CHANGE_CHANGE_LITTLE, cleanedValue, 1, 1);
+    } else if (key == "min-time") {
+        patch.set(KEY_AUTO_CHANGE_WAIT_MIN_MS, cleanedValue, source);
+    } else if (key == "random-time") {
+        patch.set(KEY_AUTO_CHANGE_WAIT_RANDOM_MS, cleanedValue, source);
+    } else if (key == "quiet-time" || key == "quiet-change") {
+        patch.set(KEY_AUTO_CHANGE_QUIET_MS, cleanedValue, source);
+    } else if (key == "cumulative-fire-level") {
+        patch.set(KEY_AUTO_CHANGE_CUMULATIVE_FIRE_LEVEL, cleanedValue, source);
+    } else if (key == "min-noise" || key == "minnoise") {
+        patch.set(KEY_AUTO_CHANGE_MIN_NOISE, cleanedValue, source);
+    } else if (key == "msg-time" || key == "change-msg-time") {
+        patch.set(KEY_MESSAGES_QUIET_MESSAGE_MS, cleanedValue, source);
+    } else if (key == "quiet-file") {
+        patch.set(KEY_MESSAGES_QUIET_MESSAGE_FILE, cleanedValue, source);
+    } else if (key == "qotd") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_MESSAGES_QOTD_ENABLED, cleanedValue, 1, 0);
+    } else if (key == "no-qotd") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_MESSAGES_QOTD_ENABLED, cleanedValue, 1, 1);
+    } else if (key == "quiet-message-duration-ms"
+        || key == "msg-duration") {
+        patch.set(KEY_MESSAGES_QUIET_MESSAGE_DURATION_MS, cleanedValue,
+            source);
+    } else if (key == "qotd-prefetch-timeout-ms") {
+        patch.set(KEY_MESSAGES_QOTD_PREFETCH_TIMEOUT_MS, cleanedValue,
+            source);
+    } else if (key == "qotd-server") {
+        patch.set(KEY_MESSAGES_QOTD_SERVER, cleanedValue, source);
+    } else if (key == "qotd-port") {
+        patch.set(KEY_MESSAGES_QOTD_PORT, cleanedValue, source);
     } else if (key == "play") {
         setAudioMode(patch, source, AIM_File, cleanedValue);
     } else if (key == "random-noise") {
@@ -500,8 +699,6 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     } else if (key == "no-silent") {
         setIniBooleanOption(patch, diagnostics, source, key,
             KEY_AUDIO_SILENT, cleanedValue, 1, 1);
-    } else if (key == "min-noise" || key == "minnoise") {
-        patch.set(KEY_AUDIO_MIN_NOISE, cleanedValue, source);
     } else if (key == "pulse-latency-ms") {
         patch.set(KEY_AUDIO_PULSE_LATENCY, cleanedValue, source);
     } else if (key == "pulse-server") {
@@ -523,6 +720,16 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
             cleanedValue);
     } else if (key == "disp-mode") {
         setDisplayMode(patch, source, cleanedValue);
+    } else if (key == "max-fps" || key == "maxfps") {
+        patch.set(KEY_DISPLAY_MAX_FPS, cleanedValue, source);
+    } else if (key == "show-fps") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_DISPLAY_SHOW_FPS, cleanedValue, 1, 0);
+    } else if (key == "no-show-fps") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_DISPLAY_SHOW_FPS, cleanedValue, 1, 1);
+    } else if (key == "zoom") {
+        patch.set(KEY_DISPLAY_ZOOM_MODE, cleanedValue, source);
     } else if (key == "buff-size") {
         setBufferSize(patch, source, cleanedValue);
 #ifdef CTH_XWIN
@@ -573,6 +780,9 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     } else if (key == "font") {
         patch.set(KEY_X11_FONT_NAME, cleanedValue, source);
 #endif
+    } else {
+        appendEffectPolicyIniOption(patch, diagnostics, source, key,
+            cleanedValue);
     }
 }
 
@@ -600,6 +810,86 @@ static bool readShortOptionValue(const std::vector<std::string>& args, int* inde
     return readOptionValue(args, index, arg, value, diagnostics);
 }
 
+static bool isHelpOption(const std::string& arg) {
+    return arg == "--help" || arg == "-?";
+}
+
+static int commandLineHelpRequested(const std::vector<std::string>& args) {
+    for (int i = 1; i < int(args.size()); i++) {
+        const std::string& arg = args[i];
+        if (arg == "--")
+            break;
+        if (isHelpOption(arg))
+            return 1;
+    }
+
+    return 0;
+}
+
+#ifdef CTH_XWIN
+static bool xToolkitOptionWithArg(const std::string& arg) {
+    static const char* options[] = {
+        "-background",
+        "-bg",
+        "-display",
+        "-fn",
+        "-font",
+        "-foreground",
+        "-fg",
+        "-geometry",
+        "-name",
+        "-selectionTimeout",
+        "-title",
+        "-xrm",
+        "-xnllanguage",
+        "-xtsessionID",
+        0
+    };
+
+    for (int i = 0; options[i] != 0; i++) {
+        if (arg == options[i])
+            return true;
+    }
+
+    return false;
+}
+
+static bool xToolkitOptionWithoutArg(const std::string& arg) {
+    static const char* options[] = {
+        "+rv",
+        "+synchronous",
+        "-iconic",
+        "-reverse",
+        "-rv",
+        "-synchronous",
+        0
+    };
+
+    for (int i = 0; options[i] != 0; i++) {
+        if (arg == options[i])
+            return true;
+    }
+
+    return false;
+}
+
+static bool consumeXToolkitOption(const std::vector<std::string>& args,
+    int* index, const std::string& arg) {
+    if (xToolkitOptionWithArg(arg)) {
+        if (*index + 1 < int(args.size()))
+            (*index)++;
+        return true;
+    }
+
+    return xToolkitOptionWithoutArg(arg);
+}
+#else
+static bool consumeXToolkitOption(const std::vector<std::string>&,
+    int*, const std::string&) {
+    return false;
+}
+#endif
+
 static void applyCommandLineOption(ConfigPatch& patch,
     DeferredLogBuffer& diagnostics, const std::vector<std::string>& args,
     int* index) {
@@ -626,6 +916,12 @@ static void applyCommandLineOption(ConfigPatch& patch,
             patch.set(KEY_PATH_INI_OVERRIDE, value, "command line");
     } else if (startsWith(arg, "--ini-file=")) {
         patch.set(KEY_PATH_INI_OVERRIDE, arg.substr(11), "command line");
+    } else if (arg == "--save") {
+        setConfigBoolean(patch, "command line", KEY_APP_OPTIONS_SAVE_ENABLED,
+            1);
+    } else if (arg == "--no-save") {
+        setConfigBoolean(patch, "command line", KEY_APP_OPTIONS_SAVE_ENABLED,
+            0);
     } else if (arg == "--keymap") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -726,6 +1022,141 @@ static void applyCommandLineOption(ConfigPatch& patch,
     } else if (startsWith(arg, "--display=")) {
         setSceneText(patch, "command line", KEY_SCENE_PRESENTATION,
             arg.substr(10));
+    } else if (arg == "--sound-processing") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_AUDIO_PROCESSING,
+                value);
+    } else if (startsWith(arg, "--sound-processing=")) {
+        setSceneText(patch, "command line", KEY_SCENE_AUDIO_PROCESSING,
+            arg.substr(19));
+    } else if (arg == "--images") {
+        setConfigBoolean(patch, "command line",
+            KEY_EFFECT_IMAGE_FILES_ENABLED, 1);
+    } else if (arg == "--no-images") {
+        setConfigBoolean(patch, "command line",
+            KEY_EFFECT_IMAGE_FILES_ENABLED, 0);
+    } else if (arg == "--palette-smoothing") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE,
+                value, "command line");
+    } else if (startsWith(arg, "--palette-smoothing=")) {
+        patch.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE,
+            arg.substr(20), "command line");
+    } else if (arg == "--no-palette-smoothing") {
+        patch.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE, "0",
+            "command line");
+    } else if (arg == "--palette-set") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_EFFECT_PALETTE_SET_FILTER, value, "command line");
+    } else if (startsWith(arg, "--palette-set=")) {
+        patch.set(KEY_EFFECT_PALETTE_SET_FILTER, arg.substr(14),
+            "command line");
+    } else if (arg == "--trans" || arg == "--use-translate"
+        || arg == "--use-translates") {
+        setConfigBoolean(patch, "command line",
+            KEY_EFFECT_USE_TRANSLATES_ENABLED, 1);
+    } else if (arg == "--no-trans") {
+        setConfigBoolean(patch, "command line",
+            KEY_EFFECT_USE_TRANSLATES_ENABLED, 0);
+    } else if (arg == "--use-object" || arg == "--use-objects") {
+        setConfigBoolean(patch, "command line",
+            KEY_EFFECT_USE_OBJECTS_ENABLED, 1);
+    } else if (arg == "--no-object" || arg == "--no-objects") {
+        setConfigBoolean(patch, "command line",
+            KEY_EFFECT_USE_OBJECTS_ENABLED, 0);
+    } else if (arg == "--lock") {
+        setConfigBoolean(patch, "command line", KEY_AUTO_CHANGE_LOCKED, 1);
+    } else if (arg == "--no-lock") {
+        setConfigBoolean(patch, "command line", KEY_AUTO_CHANGE_LOCKED, 0);
+    } else if (arg == "--little") {
+        setConfigBoolean(patch, "command line", KEY_AUTO_CHANGE_CHANGE_LITTLE,
+            1);
+    } else if (arg == "--no-little") {
+        setConfigBoolean(patch, "command line", KEY_AUTO_CHANGE_CHANGE_LITTLE,
+            0);
+    } else if (arg == "--min-time") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_WAIT_MIN_MS, value, "command line");
+    } else if (startsWith(arg, "--min-time=")) {
+        patch.set(KEY_AUTO_CHANGE_WAIT_MIN_MS, arg.substr(11), "command line");
+    } else if (arg == "--random-time") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_WAIT_RANDOM_MS, value, "command line");
+    } else if (startsWith(arg, "--random-time=")) {
+        patch.set(KEY_AUTO_CHANGE_WAIT_RANDOM_MS, arg.substr(14),
+            "command line");
+    } else if (arg == "--quiet-time") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_QUIET_MS, value, "command line");
+    } else if (startsWith(arg, "--quiet-time=")) {
+        patch.set(KEY_AUTO_CHANGE_QUIET_MS, arg.substr(13), "command line");
+    } else if (arg == "--cumulative-fire-level") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_CUMULATIVE_FIRE_LEVEL, value,
+                "command line");
+    } else if (startsWith(arg, "--cumulative-fire-level=")) {
+        patch.set(KEY_AUTO_CHANGE_CUMULATIVE_FIRE_LEVEL, arg.substr(24),
+            "command line");
+    } else if (arg == "--min-noise") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_MIN_NOISE, value, "command line");
+    } else if (startsWith(arg, "--min-noise=")) {
+        patch.set(KEY_AUTO_CHANGE_MIN_NOISE, arg.substr(12), "command line");
+    } else if (arg == "--msg-time") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_MESSAGES_QUIET_MESSAGE_MS, value, "command line");
+    } else if (startsWith(arg, "--msg-time=")) {
+        patch.set(KEY_MESSAGES_QUIET_MESSAGE_MS, arg.substr(11),
+            "command line");
+    } else if (arg == "--quiet-file") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_MESSAGES_QUIET_MESSAGE_FILE, value, "command line");
+    } else if (startsWith(arg, "--quiet-file=")) {
+        patch.set(KEY_MESSAGES_QUIET_MESSAGE_FILE, arg.substr(13),
+            "command line");
+    } else if (arg == "--qotd") {
+        setConfigBoolean(patch, "command line", KEY_MESSAGES_QOTD_ENABLED,
+            1);
+    } else if (arg == "--no-qotd") {
+        setConfigBoolean(patch, "command line", KEY_MESSAGES_QOTD_ENABLED, 0);
+    } else if (arg == "--quiet-message-duration-ms") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_MESSAGES_QUIET_MESSAGE_DURATION_MS, value,
+                "command line");
+    } else if (startsWith(arg, "--quiet-message-duration-ms=")) {
+        patch.set(KEY_MESSAGES_QUIET_MESSAGE_DURATION_MS, arg.substr(28),
+            "command line");
+    } else if (arg == "--qotd-prefetch-timeout-ms") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_MESSAGES_QOTD_PREFETCH_TIMEOUT_MS, value,
+                "command line");
+    } else if (startsWith(arg, "--qotd-prefetch-timeout-ms=")) {
+        patch.set(KEY_MESSAGES_QOTD_PREFETCH_TIMEOUT_MS, arg.substr(27),
+            "command line");
+    } else if (arg == "--qotd-server") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_MESSAGES_QOTD_SERVER, value, "command line");
+    } else if (startsWith(arg, "--qotd-server=")) {
+        patch.set(KEY_MESSAGES_QOTD_SERVER, arg.substr(14), "command line");
+    } else if (arg == "--qotd-port") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_MESSAGES_QOTD_PORT, value, "command line");
+    } else if (startsWith(arg, "--qotd-port=")) {
+        patch.set(KEY_MESSAGES_QOTD_PORT, arg.substr(12), "command line");
     } else if (arg == "--play") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -793,12 +1224,6 @@ static void applyCommandLineOption(ConfigPatch& patch,
         setAudioBoolean(patch, "command line", KEY_AUDIO_SILENT, 1);
     } else if (arg == "--no-silent") {
         setAudioBoolean(patch, "command line", KEY_AUDIO_SILENT, 0);
-    } else if (arg == "--min-noise") {
-        std::string value;
-        if (readOptionValue(args, index, arg, &value, diagnostics))
-            patch.set(KEY_AUDIO_MIN_NOISE, value, "command line");
-    } else if (startsWith(arg, "--min-noise=")) {
-        patch.set(KEY_AUDIO_MIN_NOISE, arg.substr(12), "command line");
     } else if (arg == "--pulse-latency-ms") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -865,6 +1290,22 @@ static void applyCommandLineOption(ConfigPatch& patch,
             setBufferSize(patch, "command line", value);
     } else if (startsWith(arg, "--buff-size=")) {
         setBufferSize(patch, "command line", arg.substr(12));
+    } else if (arg == "--max-fps") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_DISPLAY_MAX_FPS, value, "command line");
+    } else if (startsWith(arg, "--max-fps=")) {
+        patch.set(KEY_DISPLAY_MAX_FPS, arg.substr(10), "command line");
+    } else if (arg == "--show-fps") {
+        setConfigBoolean(patch, "command line", KEY_DISPLAY_SHOW_FPS, 1);
+    } else if (arg == "--no-show-fps") {
+        setConfigBoolean(patch, "command line", KEY_DISPLAY_SHOW_FPS, 0);
+    } else if (arg == "--zoom") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_DISPLAY_ZOOM_MODE, value, "command line");
+    } else if (startsWith(arg, "--zoom=")) {
+        patch.set(KEY_DISPLAY_ZOOM_MODE, arg.substr(7), "command line");
 #ifdef CTH_XWIN
     } else if (arg == "--mit-shm") {
         setX11Boolean(patch, "command line", KEY_X11_MIT_SHM, 1);
@@ -938,9 +1379,33 @@ static void applyCommandLineOption(ConfigPatch& patch,
         if (readOptionValue(args, index, arg, &value, diagnostics))
             setSceneText(patch, "command line", KEY_SCENE_PRESENTATION,
                 value);
+    } else if (startsWith(arg, "-m")) {
+        std::string value;
+        if (readShortOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_AUDIO_PROCESSING,
+                value);
+    } else if (arg == "-l") {
+        setConfigBoolean(patch, "command line", KEY_AUTO_CHANGE_LOCKED, 1);
     } else if (arg == "-s") {
         setSceneFlashlight(patch, "command line", "",
             DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
+    } else if (startsWith(arg, "-T")) {
+        std::string value;
+        if (readShortOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_WAIT_MIN_MS, value, "command line");
+    } else if (startsWith(arg, "-R")) {
+        std::string value;
+        if (readShortOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_WAIT_RANDOM_MS, value, "command line");
+    } else if (startsWith(arg, "-Q")) {
+        std::string value;
+        if (readShortOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUTO_CHANGE_QUIET_MS, value, "command line");
+    } else if (startsWith(arg, "-q")) {
+        std::string value;
+        if (readShortOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_MESSAGES_QUIET_MESSAGE_FILE, value,
+                "command line");
     } else if (startsWith(arg, "-L")) {
         std::string value;
         if (readShortOptionValue(args, index, arg, &value, diagnostics))
@@ -968,6 +1433,14 @@ static void applyCommandLineOption(ConfigPatch& patch,
         std::string value;
         if (readShortOptionValue(args, index, arg, &value, diagnostics))
             setBufferSize(patch, "command line", value);
+    } else if (isHelpOption(arg)) {
+        return;
+    } else if (arg == "--") {
+        *index = int(args.size());
+    } else if (consumeXToolkitOption(args, index, arg)) {
+        return;
+    } else if (startsWith(arg, "-")) {
+        diagnostics.error("command line", arg, "unknown option");
     }
 }
 
@@ -1169,6 +1642,34 @@ static void applyClampedIntEntry(const ConfigPatch& patch,
         diagnostics);
 }
 
+static void applyClampedDoubleEntry(const ConfigPatch& patch,
+    DeferredLogBuffer& diagnostics, const char* key, double minimum,
+    double maximum, double* target) {
+    const ConfigEntry* configEntry = patch.entry(key);
+    double value = 0.0;
+
+    if (configEntry == NULL)
+        return;
+
+    if (!parseDouble(configEntry->value, &value)) {
+        diagnostics.error(configEntry->source, configEntry->key,
+            "expected a decimal value");
+        return;
+    }
+
+    if (value < minimum) {
+        diagnostics.warning(configEntry->source, configEntry->key,
+            "value below supported range; clamped to minimum");
+        value = minimum;
+    } else if (value > maximum) {
+        diagnostics.warning(configEntry->source, configEntry->key,
+            "value above supported range; clamped to maximum");
+        value = maximum;
+    }
+
+    *target = value;
+}
+
 static void applyMinimumIntEntry(const ConfigPatch& patch,
     DeferredLogBuffer& diagnostics, const char* key, int minimum,
     int* target) {
@@ -1269,6 +1770,84 @@ static void applyMixerInitialVolumeEntries(const ConfigPatch& patch,
     }
 }
 
+static bool splitTabFields(const std::string& text, int expectedFieldCount,
+    std::vector<std::string>* fields) {
+    fields->clear();
+
+    std::string::size_type begin = 0;
+    while (begin <= text.size()) {
+        std::string::size_type separator = text.find('\t', begin);
+        if (separator == std::string::npos) {
+            fields->push_back(text.substr(begin));
+            break;
+        }
+
+        fields->push_back(text.substr(begin, separator - begin));
+        begin = separator + 1;
+    }
+
+    return int(fields->size()) == expectedFieldCount;
+}
+
+static void applyEffectChoicePolicyEntries(const ConfigPatch& patch,
+    DeferredLogBuffer& diagnostics, EffectPolicy* config) {
+    const std::vector<ConfigEntry>* entries
+        = patch.entriesFor(KEY_EFFECT_ALLOWED_CHOICE);
+
+    if (entries == NULL)
+        return;
+
+    for (std::vector<ConfigEntry>::const_iterator it = entries->begin();
+         it != entries->end(); ++it) {
+        std::vector<std::string> fields;
+        int enabled = 0;
+
+        if (!splitTabFields(it->value, 2, &fields) || fields[0].empty()) {
+            diagnostics.error(it->source, it->key,
+                "expected effect choice policy as CATALOG.CHOICE=yes/no");
+            continue;
+        }
+        if (!parseBoolean(fields[1], &enabled)) {
+            diagnostics.error(it->source, it->key,
+                "expected a yes/no value");
+            continue;
+        }
+
+        config->allowedChoices.push_back(
+            EffectChoicePolicy(fields[0], enabled));
+    }
+}
+
+static void applyEffectPresetPolicyEntries(const ConfigPatch& patch,
+    DeferredLogBuffer& diagnostics, EffectPolicy* config) {
+    const std::vector<ConfigEntry>* entries
+        = patch.entriesFor(KEY_EFFECT_PRESET);
+
+    if (entries == NULL)
+        return;
+
+    for (std::vector<ConfigEntry>::const_iterator it = entries->begin();
+         it != entries->end(); ++it) {
+        std::vector<std::string> fields;
+        int slot = 0;
+
+        if (!splitTabFields(it->value, 3, &fields)
+            || fields[1].empty() || fields[2].empty()) {
+            diagnostics.error(it->source, it->key,
+                "expected effect preset policy as preset.SLOT.CATALOG=CHOICE");
+            continue;
+        }
+        if (!parseInteger(fields[0], &slot) || slot < 0) {
+            diagnostics.error(it->source, it->key,
+                "expected effect preset slot to be a nonnegative integer");
+            continue;
+        }
+
+        config->presets.push_back(
+            EffectPresetPolicy(slot, fields[1], fields[2]));
+    }
+}
+
 static int clampIntWithWarning(int value, int minimum, int maximum,
     const ConfigEntry& entry, DeferredLogBuffer& diagnostics) {
     if (value < minimum) {
@@ -1354,7 +1933,9 @@ static ConfigPatch acquireBootstrapCommandLineConfig(
     for (int i = 1; i < int(args.size()); i++) {
         const std::string& arg = args[i];
 
-        if (arg == "--path") {
+        if (arg == "--") {
+            break;
+        } else if (arg == "--path") {
             std::string value;
             if (readOptionValue(args, &i, arg, &value, diagnostics))
                 patch.set(KEY_PATH_EXTRA_LIBRARY, withTrailingSlash(value),
@@ -1523,7 +2104,8 @@ SceneConfig::SceneConfig()
     , flashlight()
     , table()
     , image()
-    , presentation() { }
+    , presentation()
+    , audioProcessing() { }
 
 AudioConfig::AudioConfig()
     : inputMode(AUDIO_CONFIG_DEFAULT_INPUT_MODE)
@@ -1537,7 +2119,6 @@ AudioConfig::AudioConfig()
     , dspFragmentSize(AUDIO_CONFIG_DEFAULT_DSP_FRAGMENT_SIZE)
     , dspSyncEnabled(AUDIO_CONFIG_DEFAULT_DSP_SYNC_ENABLED)
     , silentEnabled(AUDIO_CONFIG_DEFAULT_SILENT_ENABLED)
-    , minNoise(AUDIO_CONFIG_DEFAULT_MIN_NOISE)
     , mixerVolume(AUDIO_CONFIG_DEFAULT_MIXER_VOLUME)
     , pulseLatencyMs(AUDIO_CONFIG_DEFAULT_PULSE_LATENCY_MS)
     , pulseServer(AUDIO_CONFIG_DEFAULT_PULSE_SERVER_TEXT)
@@ -1583,21 +2164,50 @@ AutoChangeConfig::AutoChangeConfig()
     , waitRandomMinimumMs(AUTO_CHANGE_CONFIG_DEFAULT_WAIT_RANDOM_MIN_MS)
     , cumulativeFireLevel(AUTO_CHANGE_CONFIG_DEFAULT_CUMULATIVE_FIRE_LEVEL)
     , locked(AUTO_CHANGE_CONFIG_DEFAULT_LOCKED)
-    , changeLittle(AUTO_CHANGE_CONFIG_DEFAULT_CHANGE_LITTLE) { }
+    , changeLittle(AUTO_CHANGE_CONFIG_DEFAULT_CHANGE_LITTLE)
+    , minNoise(AUTO_CHANGE_CONFIG_DEFAULT_MIN_NOISE) { }
 
-VisualConfig::VisualConfig()
-    : changeMessageMs(VISUAL_CONFIG_DEFAULT_CHANGE_MESSAGE_MS)
-    , quietMessageDurationMs(VISUAL_CONFIG_DEFAULT_QUIET_MESSAGE_DURATION_MS)
-    , paletteSmoothingChance(VISUAL_CONFIG_DEFAULT_PALETTE_SMOOTHING_CHANCE)
-    , paletteSmoothSeconds(VISUAL_CONFIG_DEFAULT_PALETTE_SMOOTH_SECONDS)
-    , imageLoadingEnabled(VISUAL_CONFIG_DEFAULT_IMAGE_LOADING_ENABLED)
-    , paletteSetFilterText(VISUAL_CONFIG_DEFAULT_PALETTE_SET_FILTER_TEXT)
-    , paletteSetFilterCount(VISUAL_CONFIG_DEFAULT_PALETTE_SET_FILTER_COUNT)
-    , useTranslatesEnabled(VISUAL_CONFIG_DEFAULT_USE_TRANSLATES_ENABLED)
-    , useObjectsEnabled(VISUAL_CONFIG_DEFAULT_USE_OBJECTS_ENABLED) { }
+EffectChoicePolicy::EffectChoicePolicy()
+    : catalogEntryKey()
+    , enabled(1) { }
+
+EffectChoicePolicy::EffectChoicePolicy(
+    const std::string& catalogEntryKeyValue, int enabledValue)
+    : catalogEntryKey(catalogEntryKeyValue)
+    , enabled(enabledValue) { }
+
+EffectPresetPolicy::EffectPresetPolicy()
+    : slot(0)
+    , catalogName()
+    , choiceText() { }
+
+EffectPresetPolicy::EffectPresetPolicy(int slotValue,
+    const std::string& catalogNameValue,
+    const std::string& choiceTextValue)
+    : slot(slotValue)
+    , catalogName(catalogNameValue)
+    , choiceText(choiceTextValue) { }
+
+EffectPolicy::EffectPolicy()
+    : imageFilesEnabled(EFFECT_POLICY_DEFAULT_IMAGE_FILES_ENABLED)
+    , paletteSetFilterText(EFFECT_POLICY_DEFAULT_PALETTE_SET_FILTER_TEXT)
+    , useTranslatesEnabled(EFFECT_POLICY_DEFAULT_USE_TRANSLATES_ENABLED)
+    , useObjectsEnabled(EFFECT_POLICY_DEFAULT_USE_OBJECTS_ENABLED)
+    , allowedChoices()
+    , presets() { }
+
+SceneTransitionPolicy::SceneTransitionPolicy()
+    : paletteSmoothingChance(
+        SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTHING_CHANCE)
+    , paletteSmoothSeconds(
+        SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTH_SECONDS) { }
 
 MessagesConfig::MessagesConfig()
-    : qotdPrefetchTimeoutMs(MESSAGES_CONFIG_DEFAULT_QOTD_PREFETCH_TIMEOUT_MS)
+    : quietMessageMs(MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_MS)
+    , quietMessageDurationMs(MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_DURATION_MS)
+    , quietMessageFile(MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_FILE_PATH)
+    , qotdEnabled(MESSAGES_CONFIG_DEFAULT_QOTD_ENABLED)
+    , qotdPrefetchTimeoutMs(MESSAGES_CONFIG_DEFAULT_QOTD_PREFETCH_TIMEOUT_MS)
     , qotdServer(MESSAGES_CONFIG_DEFAULT_QOTD_SERVER_TEXT)
     , qotdPort(MESSAGES_CONFIG_DEFAULT_QOTD_PORT_TEXT) { }
 
@@ -1616,6 +2226,9 @@ Config ConfigSchema::build(const ConfigPatch& patch,
 
     applyIntEntry(patch, diagnostics, KEY_LOGGING_VERBOSITY,
         &config.logging.verbosity);
+
+    applyBoolEntry(patch, diagnostics, KEY_APP_OPTIONS_SAVE_ENABLED,
+        &config.app.optionsSaveEnabled);
 
     applyBoolEntry(patch, diagnostics, KEY_INPUT_ESCAPE_ENABLED,
         &config.input.escapeKeyEnabled);
@@ -1651,6 +2264,8 @@ Config ConfigSchema::build(const ConfigPatch& patch,
         config.scene.image = *value;
     if (const std::string* value = patch.value(KEY_SCENE_PRESENTATION))
         config.scene.presentation = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_AUDIO_PROCESSING))
+        config.scene.audioProcessing = *value;
 
     if (const ConfigEntry* entry = patch.entry(KEY_AUDIO_INPUT_MODE)) {
         AudioInputMode mode = AUDIO_CONFIG_DEFAULT_INPUT_MODE;
@@ -1681,8 +2296,6 @@ Config ConfigSchema::build(const ConfigPatch& patch,
         &config.audio.dspSyncEnabled);
     applyBoolEntry(patch, diagnostics, KEY_AUDIO_SILENT,
         &config.audio.silentEnabled);
-    applyClampedIntEntry(patch, diagnostics, KEY_AUDIO_MIN_NOISE, 0,
-        SOUND_MINNOISE_MAX_EXCLUSIVE - 1, &config.audio.minNoise);
     applyMinimumIntEntry(patch, diagnostics, KEY_AUDIO_PULSE_LATENCY, 50,
         &config.audio.pulseLatencyMs);
     if (const ConfigEntry* entry = patch.entry(KEY_AUDIO_PULSE_LATENCY)) {
@@ -1783,6 +2396,64 @@ Config ConfigSchema::build(const ConfigPatch& patch,
                 = patch.has(KEY_BUFFER_CUSTOM_SIZE);
         }
     }
+
+    applyMinimumIntEntry(patch, diagnostics, KEY_DISPLAY_MAX_FPS, 0,
+        &config.display.maxFramesPerSecond);
+    applyBoolEntry(patch, diagnostics, KEY_DISPLAY_SHOW_FPS,
+        &config.display.showFpsEnabled);
+    applyClampedIntEntry(patch, diagnostics, KEY_DISPLAY_ZOOM_MODE, 0,
+        ZOOM_MODE_MAX_EXCLUSIVE - 1, &config.display.zoomMode);
+
+    applyBoolEntry(patch, diagnostics, KEY_EFFECT_IMAGE_FILES_ENABLED,
+        &config.effectPolicy.imageFilesEnabled);
+    if (const std::string* value = patch.value(KEY_EFFECT_PALETTE_SET_FILTER))
+        config.effectPolicy.paletteSetFilterText = *value;
+    applyBoolEntry(patch, diagnostics, KEY_EFFECT_USE_TRANSLATES_ENABLED,
+        &config.effectPolicy.useTranslatesEnabled);
+    applyBoolEntry(patch, diagnostics, KEY_EFFECT_USE_OBJECTS_ENABLED,
+        &config.effectPolicy.useObjectsEnabled);
+    applyEffectChoicePolicyEntries(patch, diagnostics, &config.effectPolicy);
+    applyEffectPresetPolicyEntries(patch, diagnostics, &config.effectPolicy);
+
+    applyClampedDoubleEntry(patch, diagnostics,
+        KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE, 0.0, 1.0,
+        &config.sceneTransition.paletteSmoothingChance);
+    applyMinimumIntEntry(patch, diagnostics,
+        KEY_SCENE_TRANSITION_PALETTE_SMOOTH_SECONDS, 0,
+        &config.sceneTransition.paletteSmoothSeconds);
+
+    applyMinimumIntEntry(patch, diagnostics, KEY_AUTO_CHANGE_QUIET_MS, 0,
+        &config.autoChange.quietMs);
+    applyMinimumIntEntry(patch, diagnostics, KEY_AUTO_CHANGE_WAIT_MIN_MS, 0,
+        &config.autoChange.waitMinMs);
+    applyMinimumIntEntry(patch, diagnostics, KEY_AUTO_CHANGE_WAIT_RANDOM_MS, 0,
+        &config.autoChange.waitRandomMs);
+    applyMinimumIntEntry(patch, diagnostics,
+        KEY_AUTO_CHANGE_CUMULATIVE_FIRE_LEVEL, 0,
+        &config.autoChange.cumulativeFireLevel);
+    applyBoolEntry(patch, diagnostics, KEY_AUTO_CHANGE_LOCKED,
+        &config.autoChange.locked);
+    applyBoolEntry(patch, diagnostics, KEY_AUTO_CHANGE_CHANGE_LITTLE,
+        &config.autoChange.changeLittle);
+    applyClampedIntEntry(patch, diagnostics, KEY_AUTO_CHANGE_MIN_NOISE, 0,
+        SOUND_MINNOISE_MAX_EXCLUSIVE - 1, &config.autoChange.minNoise);
+
+    applyMinimumIntEntry(patch, diagnostics, KEY_MESSAGES_QUIET_MESSAGE_MS,
+        0, &config.messages.quietMessageMs);
+    applyMinimumIntEntry(patch, diagnostics,
+        KEY_MESSAGES_QUIET_MESSAGE_DURATION_MS, 0,
+        &config.messages.quietMessageDurationMs);
+    if (const std::string* value = patch.value(KEY_MESSAGES_QUIET_MESSAGE_FILE))
+        config.messages.quietMessageFile = *value;
+    applyBoolEntry(patch, diagnostics, KEY_MESSAGES_QOTD_ENABLED,
+        &config.messages.qotdEnabled);
+    applyMinimumIntEntry(patch, diagnostics,
+        KEY_MESSAGES_QOTD_PREFETCH_TIMEOUT_MS, 0,
+        &config.messages.qotdPrefetchTimeoutMs);
+    if (const std::string* value = patch.value(KEY_MESSAGES_QOTD_SERVER))
+        config.messages.qotdServer = *value;
+    if (const std::string* value = patch.value(KEY_MESSAGES_QOTD_PORT))
+        config.messages.qotdPort = *value;
 
 #ifdef CTH_XWIN
     applyBoolEntry(patch, diagnostics, KEY_X11_TEXT_ON_TERM,
@@ -1901,10 +2572,12 @@ ConfigPatch CommandLineConfigSource::acquire(DeferredLogBuffer& diagnostics) con
     return patch;
 }
 
-ConfigurationBuilder::ConfigurationBuilder() { }
+ConfigurationBuilder::ConfigurationBuilder()
+    : helpRequestedValue(0) { }
 
 ConfigurationBuilder::ConfigurationBuilder(const DeferredLogBuffer& diagnostics)
-    : diagnosticsValue(diagnostics) { }
+    : diagnosticsValue(diagnostics)
+    , helpRequestedValue(0) { }
 
 ConfigurationBuilder& ConfigurationBuilder::addSource(
     const ConfigAcquisitionStrategy& source) {
@@ -1950,19 +2623,20 @@ ConfigurationBuilder& ConfigurationBuilder::addEnvironmentVariables(
 ConfigurationBuilder& ConfigurationBuilder::addCommandLine(
     const std::vector<std::string>& args) {
     CommandLineConfigSource source(args);
+    helpRequestedValue = helpRequestedValue || commandLineHelpRequested(args);
     return addSource(source);
 }
 
 ConfigurationBuilder& ConfigurationBuilder::addCommandLine(
     std::vector<std::string>&& args) {
+    helpRequestedValue = helpRequestedValue || commandLineHelpRequested(args);
     CommandLineConfigSource source(std::move(args));
     return addSource(source);
 }
 
 ConfigurationBuilder& ConfigurationBuilder::addCommandLine(int argc,
     char* argv[]) {
-    CommandLineConfigSource source(argc, argv);
-    return addSource(source);
+    return addCommandLine(configArgumentsFromArgv(argc, argv));
 }
 
 const ConfigPatch& ConfigurationBuilder::patch() const {
@@ -1975,6 +2649,7 @@ ConfigBuildResult ConfigurationBuilder::build() const {
 
     result.config = schemaValue.build(patchValue, diagnostics);
     result.diagnostics = diagnostics.diagnostics();
+    result.helpRequested = helpRequestedValue;
     return result;
 }
 
@@ -1983,6 +2658,8 @@ ConfigPatch hardcodedDefaultConfigPatch() {
 
     defaults.set(KEY_LOGGING_VERBOSITY, integerText(LOGGING_CONFIG_DEFAULT_VERBOSITY),
         "defaults");
+    defaults.set(KEY_APP_OPTIONS_SAVE_ENABLED,
+        booleanText(APP_CONFIG_DEFAULT_OPTIONS_SAVE_ENABLED), "defaults");
     defaults.set(KEY_INPUT_ESCAPE_ENABLED,
         booleanText(INPUT_CONFIG_DEFAULT_ESCAPE_KEY_ENABLED), "defaults");
     defaults.set(KEY_INPUT_KEYMAP_FILE, INPUT_CONFIG_DEFAULT_KEYMAP_FILE_PATH,
@@ -2003,6 +2680,38 @@ ConfigPatch hardcodedDefaultConfigPatch() {
     defaults.set(KEY_SCENE_TABLE, "", "defaults");
     defaults.set(KEY_SCENE_IMAGE, "", "defaults");
     defaults.set(KEY_SCENE_PRESENTATION, "", "defaults");
+    defaults.set(KEY_SCENE_AUDIO_PROCESSING, "", "defaults");
+    defaults.set(KEY_AUTO_CHANGE_QUIET_MS,
+        integerText(AUTO_CHANGE_CONFIG_DEFAULT_QUIET_MS), "defaults");
+    defaults.set(KEY_AUTO_CHANGE_WAIT_MIN_MS,
+        integerText(AUTO_CHANGE_CONFIG_DEFAULT_WAIT_MIN_MS), "defaults");
+    defaults.set(KEY_AUTO_CHANGE_WAIT_RANDOM_MS,
+        integerText(AUTO_CHANGE_CONFIG_DEFAULT_WAIT_RANDOM_MS), "defaults");
+    defaults.set(KEY_AUTO_CHANGE_CUMULATIVE_FIRE_LEVEL,
+        integerText(AUTO_CHANGE_CONFIG_DEFAULT_CUMULATIVE_FIRE_LEVEL),
+        "defaults");
+    defaults.set(KEY_AUTO_CHANGE_LOCKED,
+        booleanText(AUTO_CHANGE_CONFIG_DEFAULT_LOCKED), "defaults");
+    defaults.set(KEY_AUTO_CHANGE_CHANGE_LITTLE,
+        booleanText(AUTO_CHANGE_CONFIG_DEFAULT_CHANGE_LITTLE), "defaults");
+    defaults.set(KEY_AUTO_CHANGE_MIN_NOISE,
+        integerText(AUTO_CHANGE_CONFIG_DEFAULT_MIN_NOISE), "defaults");
+    defaults.set(KEY_MESSAGES_QUIET_MESSAGE_MS,
+        integerText(MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_MS), "defaults");
+    defaults.set(KEY_MESSAGES_QUIET_MESSAGE_DURATION_MS,
+        integerText(MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_DURATION_MS),
+        "defaults");
+    defaults.set(KEY_MESSAGES_QUIET_MESSAGE_FILE,
+        MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_FILE_PATH, "defaults");
+    defaults.set(KEY_MESSAGES_QOTD_ENABLED,
+        booleanText(MESSAGES_CONFIG_DEFAULT_QOTD_ENABLED), "defaults");
+    defaults.set(KEY_MESSAGES_QOTD_PREFETCH_TIMEOUT_MS,
+        integerText(MESSAGES_CONFIG_DEFAULT_QOTD_PREFETCH_TIMEOUT_MS),
+        "defaults");
+    defaults.set(KEY_MESSAGES_QOTD_SERVER,
+        MESSAGES_CONFIG_DEFAULT_QOTD_SERVER_TEXT, "defaults");
+    defaults.set(KEY_MESSAGES_QOTD_PORT,
+        MESSAGES_CONFIG_DEFAULT_QOTD_PORT_TEXT, "defaults");
     defaults.set(KEY_AUDIO_INPUT_MODE,
         integerText(int(AUDIO_CONFIG_DEFAULT_INPUT_MODE)),
         "defaults");
@@ -2026,8 +2735,6 @@ ConfigPatch hardcodedDefaultConfigPatch() {
         booleanText(AUDIO_CONFIG_DEFAULT_DSP_SYNC_ENABLED), "defaults");
     defaults.set(KEY_AUDIO_SILENT,
         booleanText(AUDIO_CONFIG_DEFAULT_SILENT_ENABLED), "defaults");
-    defaults.set(KEY_AUDIO_MIN_NOISE,
-        integerText(AUDIO_CONFIG_DEFAULT_MIN_NOISE), "defaults");
     defaults.set(KEY_AUDIO_PULSE_LATENCY,
         integerText(AUDIO_CONFIG_DEFAULT_PULSE_LATENCY_MS), "defaults");
     defaults.set(KEY_AUDIO_PULSE_SERVER, AUDIO_CONFIG_DEFAULT_PULSE_SERVER_TEXT,
@@ -2045,6 +2752,30 @@ ConfigPatch hardcodedDefaultConfigPatch() {
     defaults.set(KEY_AUDIO_DSP_TARGET_LATENCY,
         integerText(AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS), "defaults");
     defaults.set(KEY_DISPLAY_MODE, integerText(DISPLAY_CONFIG_DEFAULT_MODE),
+        "defaults");
+    defaults.set(KEY_DISPLAY_MAX_FPS,
+        integerText(DISPLAY_CONFIG_DEFAULT_MAX_FRAMES_PER_SECOND),
+        "defaults");
+    defaults.set(KEY_DISPLAY_SHOW_FPS,
+        booleanText(DISPLAY_CONFIG_DEFAULT_SHOW_FPS_ENABLED), "defaults");
+    defaults.set(KEY_DISPLAY_ZOOM_MODE,
+        integerText(DISPLAY_CONFIG_DEFAULT_ZOOM_MODE), "defaults");
+    defaults.set(KEY_EFFECT_IMAGE_FILES_ENABLED,
+        booleanText(EFFECT_POLICY_DEFAULT_IMAGE_FILES_ENABLED),
+        "defaults");
+    defaults.set(KEY_EFFECT_PALETTE_SET_FILTER,
+        EFFECT_POLICY_DEFAULT_PALETTE_SET_FILTER_TEXT, "defaults");
+    defaults.set(KEY_EFFECT_USE_TRANSLATES_ENABLED,
+        booleanText(EFFECT_POLICY_DEFAULT_USE_TRANSLATES_ENABLED),
+        "defaults");
+    defaults.set(KEY_EFFECT_USE_OBJECTS_ENABLED,
+        booleanText(EFFECT_POLICY_DEFAULT_USE_OBJECTS_ENABLED),
+        "defaults");
+    defaults.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE,
+        doubleText(SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTHING_CHANCE),
+        "defaults");
+    defaults.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTH_SECONDS,
+        integerText(SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTH_SECONDS),
         "defaults");
 #ifdef CTH_XWIN
     defaults.set(KEY_X11_TEXT_ON_TERM,

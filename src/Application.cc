@@ -19,10 +19,12 @@
 #include "DisplayBackend.h"
 #include "DisplayDevice.h"
 #include "DisplayRuntime.h"
+#include "EffectControlPolicy.h"
 #include "Flashlight.h"
 #include "FramePacer.h"
 #include "IndexedFrame.h"
 #include "Interface.h"
+#include "IniFiles.h"
 #include "Option.h"
 #include "Scene.h"
 #include "VideoDirector.h"
@@ -34,7 +36,6 @@
 #include "imath.h"
 #include "keymap.h"
 #include "keys.h"
-#include "options.h"
 #include "waves.h"
 
 #ifdef CTH_XWIN
@@ -46,9 +47,45 @@
 static void configureTerminalTextMode();
 static int initializeVisualCatalogs(const CthughaBuffer& buffer,
     const PathConfig& pathConfig);
+static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
+    const PathConfig& pathConfig);
+static void emitStartupConfigDiagnostics(
+    const std::vector<ConfigDiagnostic>& diagnostics);
 
 static SystemFrameSleeper systemFrameSleeper;
 static FramePacer framePacer(systemFrameSleeper);
+
+static void emitStartupConfigDiagnostics(
+    const std::vector<ConfigDiagnostic>& diagnostics) {
+    for (std::vector<ConfigDiagnostic>::const_iterator it = diagnostics.begin();
+         it != diagnostics.end(); ++it) {
+        if (it->severity == ConfigDiagnosticError) {
+            CTH_ERROR("Configuration error from %s `%s': %s\n",
+                it->source.c_str(), it->key.c_str(), it->message.c_str());
+        } else if (it->severity == ConfigDiagnosticWarning) {
+            CTH_WARN("Configuration warning from %s `%s': %s\n",
+                it->source.c_str(), it->key.c_str(), it->message.c_str());
+        } else {
+            CTH_INFO("Configuration note from %s `%s': %s\n",
+                it->source.c_str(), it->key.c_str(), it->message.c_str());
+        }
+    }
+}
+
+static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
+    const PathConfig& pathConfig) {
+    if (!effectPolicy.imageFilesEnabled)
+        return 0;
+
+    CTH_INFO("  loading image files...\n");
+    CthughaBuffer& targetBuffer = CthughaBuffer::buffer;
+    ImageOption& images = videoDirector().imageOption();
+    int result = images.loadImages(pathConfig, targetBuffer.width(),
+        targetBuffer.height());
+    CTH_INFO("  number of loaded image files: %d\n", images.getNEntries());
+
+    return result;
+}
 
 Application::Application(int argc, char* argv[])
     : argcValue(argc)
@@ -207,9 +244,23 @@ int Application::initialize() {
     startupConfigValue = startupConfig.config;
     startupConfigDiagnostics = startupConfig.diagnostics;
     cthugha_configure_logging(startupConfigValue.logging);
+
+    emitStartupConfigDiagnostics(startupConfigDiagnostics);
+    if (!startupConfig.ok()) {
+        title();
+        usage();
+        return 0;
+    }
+
+    if (startupConfig.helpRequested) {
+        title();
+        usage();
+        exitStatusValue = 0;
+        return 0;
+    }
+
     configureApplicationOptions(startupConfigValue.app);
     configureKeys(startupConfigValue.input);
-    configureIniFiles(startupConfigValue.paths);
     configureAudioOptions(startupConfigValue.audio);
     configureCthughaDisplay(startupConfigValue.display);
     configureNcursesDisplay(startupConfigValue.display);
@@ -217,31 +268,19 @@ int Application::initialize() {
     configureDisplayDeviceX11(startupConfigValue.x11);
 #endif
     configureAutoChanger(startupConfigValue.autoChange);
-    configureTranslationOptions(startupConfigValue.visual);
-    configureWaveOptions(startupConfigValue.visual);
-    configurePaletteOptions(startupConfigValue.visual);
-    videoDirector().configure(startupConfigValue.visual,
-        startupConfigValue.messages);
+    configureAudioAnalyzer(startupConfigValue.autoChange);
+    configureEffectPolicy(startupConfigValue.effectPolicy);
+    configureTranslationOptions(startupConfigValue.effectPolicy);
+    configureWaveOptions(startupConfigValue.effectPolicy);
+    configurePaletteOptions(startupConfigValue.effectPolicy);
+    videoDirector().configureTransitions(startupConfigValue.sceneTransition);
+    videoDirector().configureQuietMessages(startupConfigValue.messages);
     CthughaBuffer::buffer.setDimensions(startupConfigValue.display.bufferWidth,
         startupConfigValue.display.bufferHeight);
 
-    // Pre-params can affect how much parsing/output should happen at all.
-    if (get_pre_params(argcValue, argvValue))
-        return 0;
-
-    // Help exits successfully without opening terminal, audio, or display state.
-    if (params_request_help(argcValue, argvValue)) {
-        title();
-        usage();
-        exitStatusValue = 0;
-        return 0;
-    }
+    remove_continuation_ini(startupConfigValue.paths);
 
     initSceneRuntime();
-
-    // Full parameter parsing can select initial scene/audio/display options.
-    if (get_params(argcValue, argvValue, startupConfigValue))
-        return 0;
 
     title();
     videoDirector().silenceMessages().initialize();
@@ -267,7 +306,8 @@ int Application::initialize() {
     if (initializeVisualCatalogs(CthughaBuffer::buffer, startupConfigValue.paths))
         return 0;
     CthughaBuffer::buffer.allocatePixels();
-    if (videoDirector().loadImages(startupConfigValue.paths)) {
+    if (loadEffectPolicyImages(startupConfigValue.effectPolicy,
+            startupConfigValue.paths)) {
         exitStatusValue = 0;
         return 0;
     }
@@ -276,7 +316,7 @@ int Application::initialize() {
 
     CTH_INFO("Setting initial effect controls...\n");
     sceneCommands().applyStartupConfig(startupConfigValue.scene);
-    audioProcessing.changeToInitial();
+    configureAudioProcessing(startupConfigValue.scene);
 
     // Interface/keymaps are available before display creation so early display
     // events and option panels can route input immediately.
@@ -298,9 +338,6 @@ int Application::initialize() {
     displayValue = newCthughaDisplay(displayRuntimeOwnership->device(),
         displayRuntimeOwnership->runtime());
     cthughaDisplay = displayValue.get();
-
-    CTH_INFO("Loading effect-control usage and preset slots...\n");
-    read_effect_control_usage_and_presets(startupConfigValue.paths);
 
     CTH_INFO("Initializing the audio-visual bridge...\n");
     initAudioVisualBridge();

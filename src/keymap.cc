@@ -6,7 +6,7 @@
 #include "AudioFrame.h"
 #include "display.h"
 #include "disp-sys.h"
-#include "options.h"
+#include "IniFiles.h"
 #include "AutoChanger.h"
 #include "AudioProcessor.h"
 #include "AudioAnalyzer.h"

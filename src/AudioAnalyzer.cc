@@ -17,7 +17,7 @@ AudioAnalyzer audioAnalyzer;
 AudioMetrics audioMetrics;
 AcousticContext acousticContext;
 
-void configureAudioAnalyzer(const AudioConfig& config) {
+void configureAudioAnalyzer(const AutoChangeConfig& config) {
     sound_minnoise.setValue(config.minNoise);
 }
 

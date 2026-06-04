@@ -5,7 +5,6 @@
 #include "cthugha.h"
 #include "AudioSystem.h"
 #include "AudioOptions.h"
-#include "AudioAnalyzer.h"
 #include "AudioFrame.h"
 #include "AudioRuntime.h"
 #include "Configuration.h"
@@ -158,7 +157,6 @@ void configureAudioOptions(const AudioConfig& config) {
     }
 
     configureAudioOutputOptions(config);
-    configureAudioAnalyzer(config);
 }
 
 int init_sound(const AudioConfig& config, int visualMaxDimension) {

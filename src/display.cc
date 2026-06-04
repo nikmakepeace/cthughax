@@ -1,6 +1,5 @@
 #include "cthugha.h"
 #include "display.h"
-#include "options.h"
 #include "AudioFrame.h"
 #include "AudioAnalyzer.h"
 #include "TranslationOptions.h"

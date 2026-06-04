@@ -14,7 +14,7 @@
 
 OptionTime changeMsgTime("change-msg-time", 0);
 
-double paletteSmoothingChance = 0.0;
+static double paletteSmoothingChance = 0.0;
 static int paletteSmoothSeconds = 1;
 static int quietMessageDurationMs = 0;
 
@@ -89,21 +89,22 @@ VideoDirector::VideoDirector()
     , pendingTextCueId(0)
     , appliedTextCueId(0)
     , pendingTextFrames(0)
-    , pendingTextInkColor(-1)
-    , imageLoadingEnabledValue(0) { }
+    , pendingTextInkColor(-1) { }
 
 VideoDirector::~VideoDirector() {
     if (scene != 0)
         scene->removeObserver(*this);
 }
 
-void VideoDirector::configure(const VisualConfig& visualConfig,
-    const MessagesConfig& messagesConfig) {
-    changeMsgTime.setValue(visualConfig.changeMessageMs);
-    quietMessageDurationMs = visualConfig.quietMessageDurationMs;
-    paletteSmoothingChance = visualConfig.paletteSmoothingChance;
-    paletteSmoothSeconds = visualConfig.paletteSmoothSeconds;
-    imageLoadingEnabledValue = visualConfig.imageLoadingEnabled;
+void VideoDirector::configureTransitions(
+    const SceneTransitionPolicy& transitionPolicy) {
+    paletteSmoothingChance = transitionPolicy.paletteSmoothingChance;
+    paletteSmoothSeconds = transitionPolicy.paletteSmoothSeconds;
+}
+
+void VideoDirector::configureQuietMessages(const MessagesConfig& messagesConfig) {
+    changeMsgTime.setValue(messagesConfig.quietMessageMs);
+    quietMessageDurationMs = messagesConfig.quietMessageDurationMs;
     silenceMessage.configure(messagesConfig);
 }
 
@@ -144,27 +145,6 @@ void VideoDirector::unbindScene() {
     appliedTextCueId = 0;
     pendingTextFrames = 0;
     pendingTextInkColor = -1;
-}
-
-int VideoDirector::imageLoadingEnabled() const {
-    return imageLoadingEnabledValue;
-}
-
-void VideoDirector::setImageLoadingEnabled(int enabled) {
-    imageLoadingEnabledValue = enabled ? 1 : 0;
-}
-
-int VideoDirector::loadImages(const PathConfig& pathConfig) {
-    if (!imageLoadingEnabledValue)
-        return 0;
-
-    CTH_INFO("  loading image files...\n");
-    CthughaBuffer& targetBuffer = CthughaBuffer::buffer;
-    int result = images.loadImages(pathConfig, targetBuffer.width(),
-        targetBuffer.height());
-    CTH_INFO("  number of loaded image files: %d\n", images.getNEntries());
-
-    return result;
 }
 
 SilenceMessage& VideoDirector::silenceMessages() {

@@ -10,7 +10,7 @@
 #include <vector>
 
 class CthughaBuffer;
-struct VisualConfig;
+struct EffectPolicy;
 
 /**
  * Option entry that owns one generated translation table.
@@ -95,7 +95,7 @@ int init_translate(const CthughaBuffer& buffer);
 
 /** Enables built-in translation table generation/loading. */
 extern OptionOnOff use_translates;
-void configureTranslationOptions(const VisualConfig& config);
+void configureTranslationOptions(const EffectPolicy& config);
 
 /** Runtime-selected translation option. */
 extern TranslateOption translation;
