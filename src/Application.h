@@ -14,6 +14,7 @@ class AudioVisualBridge;
 class CthughaDisplay;
 class DisplayRuntimeOwnership;
 class IndexedFrame;
+class RuntimeChangeMediator;
 class Scene;
 class SceneCommands;
 class VideoFilterchain;
@@ -38,6 +39,7 @@ class Application {
     std::unique_ptr<AudioVisualBridge> audioVisualBridge;
     std::unique_ptr<Scene> sceneValue;
     std::unique_ptr<SceneCommands> sceneCommandsValue;
+    std::unique_ptr<RuntimeChangeMediator> runtimeChangeMediatorValue;
     std::unique_ptr<DisplayRuntimeOwnership> displayRuntimeOwnership;
     std::unique_ptr<CthughaDisplay> displayValue;
     PlatformLifecycle platformLifecycle;

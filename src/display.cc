@@ -210,7 +210,6 @@ int screen_2verd(ScreenRenderContext& context) {
         }
 
     } else {
-        context.requestScreenChange(+1, 0);
         return 1;
     }
     return 0;
@@ -237,7 +236,6 @@ int screen_r2verd(ScreenRenderContext& context) {
             scrn -= destinationPitch(context) - visualBuffer(context).width();
         }
     } else {
-        context.requestScreenChange(+1, 0);
         return 1;
     }
     return 0;
@@ -286,7 +284,6 @@ int screen_4kal(ScreenRenderContext& context) {
             scrn -= destinationPitch(context) - visualBuffer(context).width();
         }
     } else {
-        context.requestScreenChange(+1, 0);
         return 1;
     }
     return 0;

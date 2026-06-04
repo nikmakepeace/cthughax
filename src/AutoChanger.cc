@@ -4,6 +4,7 @@
 #include "AudioAnalyzer.h"
 #include "Configuration.h"
 #include "CthughaBuffer.h"
+#include "RuntimeCommandSink.h"
 #include "Scene.h"
 #include "VideoDirector.h"
 
@@ -32,8 +33,8 @@ void configureAutoChanger(const AutoChangeConfig& config) {
     change_little.setValue(config.changeLittle);
 }
 
-AutoChanger::AutoChanger(SceneCommands& sceneCommands_)
-    : sceneCommands(sceneCommands_)
+AutoChanger::AutoChanger(RuntimeCommandSink& runtimeCommands_)
+    : runtimeCommands(runtimeCommands_)
     , quietSince(0)
     , lastChange(0) {
 
@@ -96,9 +97,9 @@ void AutoChanger::operator()() {
 void AutoChanger::change() {
 
     if (int(change_little)) {
-        sceneCommands.changeOne();
+        runtimeCommands.apply(RuntimeCommand::changeOne());
     } else {
-        sceneCommands.changeAll();
+        runtimeCommands.apply(RuntimeCommand::changeAll());
     }
 }
 

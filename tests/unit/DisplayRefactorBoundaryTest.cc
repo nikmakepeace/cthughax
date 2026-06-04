@@ -35,6 +35,10 @@ static void testScreenRenderContextHasNoAmbientCurrentContext() {
         "ScopedScreenRenderContext");
     assertSourceDoesNotContain("src/ScreenRenderContext.cc",
         "ScopedScreenRenderContext");
+    assertSourceDoesNotContain("src/ScreenRenderContext.h",
+        "requestScreenChange");
+    assertSourceDoesNotContain("src/ScreenRenderContext.cc",
+        "requestScreenChange");
 }
 
 static void testScreenDispatchUsesExplicitRenderContextOnly() {
@@ -46,6 +50,7 @@ static void testScreenRenderersDoNotReadDisplayGlobals() {
     assertSourceDoesNotContain("src/display.cc", "currentScreenRenderContext");
     assertSourceDoesNotContain("src/display.cc", "cthughaDisplay");
     assertSourceDoesNotContain("src/display.cc", "draw_size");
+    assertSourceDoesNotContain("src/display.cc", "requestScreenChange");
 }
 
 static void testGenericDisplayCoordinatorUsesOwnedDisplayStage() {

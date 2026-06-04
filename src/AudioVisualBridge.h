@@ -6,21 +6,21 @@
 #ifndef __AUDIO_VISUAL_BRIDGE_H
 #define __AUDIO_VISUAL_BRIDGE_H
 
-class SceneCommands;
+class RuntimeCommandSink;
 
 class AudioVisualBridge {
     int filterchainRefreshRequestedValue;
-    SceneCommands* sceneCommands;
+    RuntimeCommandSink* runtimeCommands;
 
 public:
     /**
      * Creates the audio-to-visual bridge.
      *
-     * @param sceneCommands_ Optional scene command facade used by AutoChanger.
+     * @param runtimeCommands_ Optional runtime command sink used by AutoChanger.
      *        When NULL, audio processing and analysis still run, but automatic
      *        scene changes are disabled.
      */
-    AudioVisualBridge(SceneCommands* sceneCommands_ = 0);
+    AudioVisualBridge(RuntimeCommandSink* runtimeCommands_ = 0);
     ~AudioVisualBridge();
 
     /**

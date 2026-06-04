@@ -75,7 +75,8 @@ There is no current server-mode source entry point in `src/`.
   locks, hotkeys, and file loading helpers.
 - `src/Option.*`, `src/OptionInt.cc`: scalar option classes.
 - `src/AutoChanger.*`: automatic option changes based on silence, cumulative
-  fire level, and elapsed time. It reports quiet intervals to visual policy.
+  fire level, and elapsed time. It reports quiet intervals to visual policy and
+  issues automatic change commands through `RuntimeCommandSink`.
 - `src/SilenceMessage.*`, `src/*MessagesProvider.*`, and
   `src/MessageFormatValidator.*`: quiet-message selection, validated
   CP437-compatible `--quiet-file`/default messages, and opt-in non-blocking
@@ -142,6 +143,11 @@ The current tree only wires up the X11 frontend.
 - `src/InterfaceHelp.cc`, `src/InterfaceCredits.cc`,
   `src/InterfaceList.cc`: specific screens.
 - `src/keymap.*`: configurable keymaps and action dispatch.
+- `src/RuntimeCommand.*`, `src/RuntimeCommandSink.h`, and
+  `src/RuntimeChangeMediator.*`: live runtime command values, sink contract, and
+  mediator used by keymap, interface, X11 panel, credits, audio completion, and
+  AutoChanger actions before they touch
+  scene/audio/display/palette-metadata/lifecycle state.
 - `src/default.keymap`: default keymap source.
 - `src/default.keymap.str`: generated C string include in in-tree builds;
   CMake generates its own copy under `build/src/`.

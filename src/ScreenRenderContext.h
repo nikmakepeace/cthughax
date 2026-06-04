@@ -4,12 +4,6 @@
 #include "IndexedDisplayFrame.h"
 #include "IndexedFrame.h"
 
-class ScreenSelectionController {
-public:
-    virtual ~ScreenSelectionController() { }
-    virtual void change(int by, int doSave) = 0;
-};
-
 class ScreenRenderContext {
     const IndexedFrame* sourceValue;
     IndexedDisplayFrame* destinationValue;
@@ -20,17 +14,15 @@ class ScreenRenderContext {
     double frameTimeSecondsValue;
     double deltaTimeSecondsValue;
     double framesPerSecondValue;
-    ScreenSelectionController* selectionControllerValue;
 
 public:
     ScreenRenderContext(const IndexedFrame& source, IndexedDisplayFrame& destination,
-        double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
-        ScreenSelectionController* selectionController = 0);
+        double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond);
 
     ScreenRenderContext(const IndexedFrame& source, IndexedDisplayFrame& destination,
         unsigned char* destinationPixels, int destinationWidth, int destinationHeight,
         int destinationPitch, double frameTimeSeconds, double deltaTimeSeconds,
-        double framesPerSecond, ScreenSelectionController* selectionController = 0);
+        double framesPerSecond);
 
     const IndexedFrame& source() const;
     IndexedDisplayFrame& destination() const;
@@ -50,8 +42,6 @@ public:
     double frameTimeSeconds() const;
     double deltaTimeSeconds() const;
     double framesPerSecond() const;
-
-    int requestScreenChange(int by, int doSave);
 };
 
 #endif

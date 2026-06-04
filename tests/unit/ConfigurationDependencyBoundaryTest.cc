@@ -319,7 +319,9 @@ static void testIniPersistenceUsesStartupConfigSnapshot() {
         "configure_ini_persistence(startupConfigValue)");
     assertSourceContains("src/Application.cc", "write_ini(startupConfigValue)");
     assertSourceContains("src/keymap.cc",
-        "write_continuation_ini(current_continuation_ini_config())");
+        "RuntimeCommand::stopAndContinue");
+    assertSourceContains("src/RuntimeChangeMediator.cc",
+        "write_continuation_ini(");
     assertSourceDoesNotContain("src/AutoChanger.cc", "write_ini");
     assertSourceDoesNotContain("src/AutoChanger.cc", "options_save");
     assertSourceDoesNotExist("src/EffectControlIni.cc");
@@ -339,6 +341,41 @@ static void testIniPersistenceUsesStartupConfigSnapshot() {
     assertSourceDoesNotContain("src/IniFiles.cc", "putini(change_little)");
     assertSourceDoesNotContain("src/IniFiles.cc", "effectControlPutIniUsages");
     assertSourceDoesNotContain("src/IniFiles.cc", "effectControlPutPresetIni");
+}
+
+static void testRuntimeLifecycleRequestsUseMediator() {
+    assertSourceContains("src/keymap.cc", "RuntimeCommand::requestClose()");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "RuntimeCommand::requestClose()");
+    assertSourceContains("src/InterfaceCredits.cc",
+        "RuntimeCommand::requestClose()");
+    assertSourceContains("src/AudioRuntime.cc",
+        "RuntimeCommand::requestClose()");
+    assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc", "cthugha_close++");
+    assertSourceDoesNotContain("src/InterfaceCredits.cc", "cthugha_close++");
+    assertSourceDoesNotContain("src/AudioRuntime.cc", "cthugha_close++");
+}
+
+static void testX11PanelInputsUseRuntimeCommands() {
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "RuntimeCommand::savePaletteMetadata");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "RuntimeCommand::revertPaletteMetadata");
+    assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc",
+        "d->opt->setValue");
+}
+
+static void testInterfaceInputsDoNotUseLegacyFallbacks() {
+    assertSourceDoesNotContain("src/Interface.cc",
+        "currentEffectControl->change");
+    assertSourceDoesNotContain("src/Interface.cc",
+        "currentOption->change");
+    assertSourceDoesNotContain("src/Interface.cc",
+        "currentEffectControl->lock.change");
+    assertSourceDoesNotContain("src/InterfaceList.cc",
+        "currentOption->change");
+    assertSourceDoesNotContain("src/InterfaceList.cc",
+        "currentEffectControl->setValue");
 }
 
 static void testConfigDefaultsAreNotConsumedAsLegacyDefaults() {
@@ -376,6 +413,9 @@ int main() {
     testInputStartupUsesInputConfig();
     testSceneStartupUsesSceneConfig();
     testIniPersistenceUsesStartupConfigSnapshot();
+    testRuntimeLifecycleRequestsUseMediator();
+    testX11PanelInputsUseRuntimeCommands();
+    testInterfaceInputsDoNotUseLegacyFallbacks();
     testConfigDefaultsAreNotConsumedAsLegacyDefaults();
     return 0;
 }

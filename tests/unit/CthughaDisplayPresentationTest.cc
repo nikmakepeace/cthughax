@@ -101,8 +101,7 @@ static int copySourceRenderer(ScreenRenderContext& context) {
     return 0;
 }
 
-static int retryRenderer(ScreenRenderContext& context) {
-    context.requestScreenChange(+1, 0);
+static int rejectRenderer(ScreenRenderContext&) {
     return 1;
 }
 
@@ -118,38 +117,8 @@ public:
         return currentValue;
     }
 
-    virtual void change(int /*by*/, int /*doSave*/) {
-    }
-};
-
-class RetryingSelection : public PresentationScreenSelection {
-    ScreenEntry* firstValue;
-    ScreenEntry* secondValue;
-    int changed;
-
-public:
-    int calls;
-    int by;
-    int doSave;
-
-    RetryingSelection(ScreenEntry& first, ScreenEntry& second)
-        : firstValue(&first)
-        , secondValue(&second)
-        , changed(0)
-        , calls(0)
-        , by(0)
-        , doSave(0) {
-    }
-
-    virtual ScreenEntry* current() {
-        return changed ? secondValue : firstValue;
-    }
-
-    virtual void change(int by_, int doSave_) {
-        calls++;
-        by = by_;
-        doSave = doSave_;
-        changed = 1;
+    void set(ScreenEntry& current) {
+        currentValue = &current;
     }
 };
 
@@ -236,11 +205,12 @@ static void testPresentComposesCompletedIndexedFrameForConsumer() {
     assertClassicMirroredSource(frame, fixture);
 }
 
-static void testPresentHonorsComposerRetryPath() {
-    ScreenEntry retryEntry(retryRenderer, "retry", "Retry", xy(1, 1));
-    ScreenEntry fallbackEntry(copySourceRenderer, "Up", "Classic 2x",
+static void testPresentFallsBackToLastRenderedScreenAfterRejection() {
+    ScreenEntry previousEntry(copySourceRenderer, "previous", "Previous",
         xy(1, 1));
-    RetryingSelection selection(retryEntry, fallbackEntry);
+    ScreenEntry rejectEntry(rejectRenderer, "reject", "Reject", xy(1, 1),
+        xy(1, 1));
+    StaticSelection selection(previousEntry);
     IndexedFrameFixture source(4, 3, 6);
     DisplayDevice device;
     StaticOutputBackend backend;
@@ -249,14 +219,17 @@ static void testPresentHonorsComposerRetryPath() {
 
     display.present(source.frame());
 
-    assert(selection.calls == 1);
-    assert(selection.by == +1);
-    assert(selection.doSave == 0);
+    assertClassicMirroredSource(display.indexedDisplayFrame(), source);
+
+    selection.set(rejectEntry);
+    display.present(source.frame());
+
+    assert(selection.current() == &rejectEntry);
     assertClassicMirroredSource(display.indexedDisplayFrame(), source);
 }
 
 int main() {
     testPresentComposesCompletedIndexedFrameForConsumer();
-    testPresentHonorsComposerRetryPath();
+    testPresentFallsBackToLastRenderedScreenAfterRejection();
     return 0;
 }

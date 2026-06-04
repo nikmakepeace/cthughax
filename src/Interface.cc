@@ -10,6 +10,7 @@
 #include "AudioProcessor.h"
 #include "Border.h"
 #include "Flashlight.h"
+#include "RuntimeCommandSink.h"
 #include "Scene.h"
 #include "VideoDirector.h"
 #include "flames.h"
@@ -110,50 +111,52 @@ ACTION(end) {
     Interface::current->sel = Interface::current->nElements - 1;
 }
 
+static void changeCurrentInterfaceValueBy(int step) {
+    RuntimeCommandSink* sink = Keymap::runtimeCommandSink();
+    if (sink == NULL)
+        return;
+
+    if (currentEffectControl) {
+        sink->apply(RuntimeCommand::changeEffectControlBy(*currentEffectControl, step));
+    } else if (currentOption) {
+        sink->apply(RuntimeCommand::changeOptionBy(*currentOption, step));
+    }
+}
+
+static void changeCurrentInterfaceValueTo(const char* text) {
+    RuntimeCommandSink* sink = Keymap::runtimeCommandSink();
+    if (sink == NULL)
+        return;
+
+    if (currentEffectControl) {
+        sink->apply(RuntimeCommand::changeEffectControlTo(*currentEffectControl, text));
+        sink->apply(RuntimeCommand::changeEffectControlBy(*currentEffectControl, 0));
+    } else if (currentOption) {
+        sink->apply(RuntimeCommand::changeOptionTo(*currentOption, text));
+        sink->apply(RuntimeCommand::changeOptionBy(*currentOption, 0));
+    }
+}
+
 ACTION(chgValue1) {
     if (currentOptionInterfaceElement == NULL)
         return;
 
     int step = int(v * currentOptionInterfaceElement->inc1);
-    SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
-    if (currentEffectControl && sceneCommands != NULL
-        && sceneCommands->isSceneOption(*currentEffectControl))
-        sceneCommands->change(*currentEffectControl, step, 0);
-    else if (currentEffectControl) {
-        currentEffectControl->change(step, 0);
-    }
-    else if (currentOption)
-        currentOption->change(step);
+    changeCurrentInterfaceValueBy(step);
 }
 ACTION(chgValue2) {
     if (currentOptionInterfaceElement == NULL)
         return;
 
     int step = int(v * currentOptionInterfaceElement->inc2);
-    SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
-    if (currentEffectControl && sceneCommands != NULL
-        && sceneCommands->isSceneOption(*currentEffectControl))
-        sceneCommands->change(*currentEffectControl, step, 0);
-    else if (currentEffectControl) {
-        currentEffectControl->change(step, 0);
-    }
-    else if (currentOption)
-        currentOption->change(step);
+    changeCurrentInterfaceValueBy(step);
 }
 ACTION(chgValue3) {
     if (currentOptionInterfaceElement == NULL)
         return;
 
     int step = int(v * currentOptionInterfaceElement->inc3);
-    SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
-    if (currentEffectControl && sceneCommands != NULL
-        && sceneCommands->isSceneOption(*currentEffectControl))
-        sceneCommands->change(*currentEffectControl, step, 0);
-    else if (currentEffectControl) {
-        currentEffectControl->change(step, 0);
-    }
-    else if (currentOption)
-        currentOption->change(step);
+    changeCurrentInterfaceValueBy(step);
 }
 ACTION(setValue) {
     if (currentOptionInterfaceElement == NULL)
@@ -161,19 +164,7 @@ ACTION(setValue) {
 
     char str[128];
     snprintf(str, sizeof(str), "%d", int(v * currentOptionInterfaceElement->inc1));
-
-    SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
-    if (currentEffectControl && sceneCommands != NULL
-        && sceneCommands->isSceneOption(*currentEffectControl)) {
-        sceneCommands->change(*currentEffectControl, str, 0);
-        sceneCommands->change(*currentEffectControl, 0, 0);
-    } else if (currentEffectControl) {
-        currentEffectControl->change(str, 0);
-        currentEffectControl->change(0, 0);
-    } else if (currentOption) {
-        currentOption->change(str);
-        currentOption->change(0);
-    }
+    changeCurrentInterfaceValueTo(str);
 }
 
 static const char* InterfaceList[] = { "Help", // F1
@@ -331,8 +322,9 @@ int InterfaceElementEffectControl::doKey(int key) {
 }
 
 ACTION(lockElement) {
-    if (currentEffectControl)
-        currentEffectControl->lock.change(+1);
+    RuntimeCommandSink* sink = Keymap::runtimeCommandSink();
+    if (currentEffectControl && sink != NULL)
+        sink->apply(RuntimeCommand::toggleEffectControlLock(*currentEffectControl));
 }
 
 enum SceneOptionText {

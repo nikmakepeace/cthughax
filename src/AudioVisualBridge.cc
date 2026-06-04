@@ -7,13 +7,13 @@
 #include "AutoChanger.h"
 #endif
 
-AudioVisualBridge::AudioVisualBridge(SceneCommands* sceneCommands_)
+AudioVisualBridge::AudioVisualBridge(RuntimeCommandSink* runtimeCommands_)
     : filterchainRefreshRequestedValue(0)
-    , sceneCommands(sceneCommands_) {
+    , runtimeCommands(runtimeCommands_) {
     CTH_DEBUG("audio visual bridge: creating bridge\n");
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
-    if (sceneCommands != 0)
-        autoChanger = new AutoChanger(*sceneCommands);
+    if (runtimeCommands != 0)
+        autoChanger = new AutoChanger(*runtimeCommands);
 #endif
 }
 

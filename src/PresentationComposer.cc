@@ -31,34 +31,67 @@ static void prepareDestination(IndexedDisplayFrame& destination, int width,
         observer->indexedFrameGeometryChanged();
 }
 
+static int screenAlreadyAttempted(ScreenEntry* const* attempted, int count,
+    ScreenEntry* screen) {
+    for (int i = 0; i < count; ++i)
+        if (attempted[i] == screen)
+            return 1;
+
+    return 0;
+}
+
+static int renderWithScreen(ScreenEntry& screen, const IndexedFrame& source,
+    IndexedDisplayFrame& destination, double frameTimeSeconds,
+    double deltaTimeSeconds, double framesPerSecond,
+    PresentationFrameObserver* observer) {
+    xy outputSize = screen.outputSize(source.width, source.height);
+    prepareDestination(destination, outputSize.x, outputSize.y,
+        source.framePalette, observer);
+
+    ScreenRenderContext context(source, destination, frameTimeSeconds,
+        deltaTimeSeconds, framesPerSecond);
+    return screen.render(context);
+}
+
 PresentationComposer::PresentationComposer()
-    : renderedScreenValue(0) {
+    : renderedScreenValue(0)
+    , lastSuccessfulScreenValue(0) {
 }
 
 const IndexedDisplayFrame& PresentationComposer::compose(const IndexedFrame& source,
     IndexedDisplayFrame& destination, PresentationScreenSelection& selection,
     double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
     PresentationFrameObserver* observer) {
-    renderedScreenValue = selection.current();
-    if (!source.valid() || renderedScreenValue == 0) {
+    renderedScreenValue = 0;
+    ScreenEntry* requestedScreen = selection.current();
+    if (!source.valid() || requestedScreen == 0) {
         destination.reset();
         return destination;
     }
 
-    int keepRendering = 1;
-    while (keepRendering && renderedScreenValue != 0) {
-        xy outputSize = renderedScreenValue->outputSize(source.width, source.height);
-        prepareDestination(destination, outputSize.x, outputSize.y,
-            source.framePalette, observer);
+    ScreenEntry* safeFallbackScreen = screenByIndex(0);
+    ScreenEntry* candidates[] = {
+        requestedScreen,
+        lastSuccessfulScreenValue,
+        safeFallbackScreen
+    };
+    ScreenEntry* attempted[3] = { 0, 0, 0 };
+    int attemptedCount = 0;
 
-        ScreenRenderContext context(source, destination, frameTimeSeconds,
-            deltaTimeSeconds, framesPerSecond, &selection);
-        keepRendering = renderedScreenValue->render(context);
-        if (keepRendering) {
-            ScreenEntry* nextScreen = selection.current();
-            if (nextScreen == renderedScreenValue)
-                keepRendering = 0;
-            renderedScreenValue = nextScreen;
+    for (int i = 0; i < int(sizeof(candidates) / sizeof(candidates[0])); ++i) {
+        ScreenEntry* candidate = candidates[i];
+        if (candidate == 0)
+            continue;
+        if (screenAlreadyAttempted(attempted, attemptedCount, candidate))
+            continue;
+
+        attempted[attemptedCount++] = candidate;
+        if (renderWithScreen(*candidate, source, destination, frameTimeSeconds,
+                deltaTimeSeconds, framesPerSecond, observer)
+            == 0) {
+            renderedScreenValue = candidate;
+            lastSuccessfulScreenValue = candidate;
+            break;
         }
     }
 
@@ -67,6 +100,8 @@ const IndexedDisplayFrame& PresentationComposer::compose(const IndexedFrame& sou
             source.height);
         FrameCompletion::completeMirrored(destination, filledSize.x,
             filledSize.y);
+    } else {
+        destination.reset();
     }
 
     return destination;

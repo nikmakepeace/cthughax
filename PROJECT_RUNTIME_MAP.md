@@ -31,7 +31,7 @@ main(argc, argv)
   title()
   videoDirector().silenceMessages().initialize()
   init_imath()
-  init_sound(AudioConfig)
+  init_sound(AudioConfig, RuntimeCommandSink)
   initializeVisualCatalogs(PathConfig)
   CthughaBuffer::buffer.allocatePixels()
   loadEffectPolicyImages(EffectPolicy, PathConfig)
@@ -159,7 +159,8 @@ Important pieces:
   audible sample, with compensation for observed visual latency.
 
 When playback reaches the end and the output has drained, `AudioRuntime` sets
-completion and requests program close.
+completion and issues `RuntimeCommand::requestClose()` through the configured
+runtime command sink.
 
 ### Native Input Processor Path
 
@@ -231,7 +232,10 @@ analysis and before visual mutation. Waves normally read
 - `cumulativeFireLevel()`: accumulated fire used by `AutoChanger`.
 
 `AutoChanger` uses `audioMetrics.noisy` for silence handling and
-`acousticContext.cumulativeFireLevel()` for fire-driven option changes.
+`acousticContext.cumulativeFireLevel()` for fire-driven option changes. When it
+decides to change effects, it issues either `RuntimeCommand::changeOne()` or
+`RuntimeCommand::changeAll()` through `RuntimeCommandSink`; the mediator then
+delegates concrete selection to `SceneCommands` and `EffectControl`.
 
 ## Video Buffer Filterchain
 
@@ -412,7 +416,7 @@ displayDevice->setGlobalPalette()
 displayDevice->preDraw()
 choose direct or temporary indexed buffer
 checkZoom()
-screen() maps selected IndexedFrame pixels into CthughaDisplay::buffer
+PresentationComposer maps selected IndexedFrame pixels into CthughaDisplay::buffer
 optional horizontal mirror
 palette expansion if target is not 8-bit indexed
 optional vertical mirror
@@ -424,6 +428,11 @@ errors.display()
 displayDevice->postPrint()
 displayDevice->postDraw()
 ```
+
+`PresentationComposer` treats the `screen` option as requested user intent. If
+the requested screen renderer rejects the current source geometry, the composer
+falls back for that frame to the last successfully rendered screen, then to the
+safe `Up` screen. It does not mutate the selected `screen` option.
 
 The display function selected by the `display` EffectControl comes from
 `src/display.cc`. It maps one `BUFF_WIDTH x BUFF_HEIGHT`
@@ -455,6 +464,13 @@ Keymap contexts include:
 
 Actions are registered by static `ACTION(name)` objects in `keymap.cc`,
 `Interface.cc`, `InterfaceHelp.cc`, `InterfaceList.cc`, and related modules.
+Keymap, generic interface mutation actions, X11 panel selection/quit/palette
+metadata callbacks, credits key handling, playback completion, and AutoChanger
+now issue `RuntimeCommand` values through a `RuntimeCommandSink`.
+`RuntimeChangeMediator` implements that sink, delegates to existing
+scene/audio/display/lifecycle/panel owners, handles save-and-continue and
+palette metadata persistence, and reports a `RuntimeChangeSet`. This is a
+coordination boundary, not full deglobalisation yet.
 
 ## Configuration Flow
 

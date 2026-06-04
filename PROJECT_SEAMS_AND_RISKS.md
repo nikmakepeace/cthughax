@@ -245,8 +245,9 @@ than inside `flames.cc`.
 ### Display Functions May Self-Reject
 
 Some screen functions return nonzero when the buffer aspect ratio is unsuitable.
-`CthughaDisplayX11` calls `while (screen())` so the current display option
-advances until something works.
+That is only a render rejection, not a request to change the selected display
+option. `PresentationComposer` handles fallback frame-locally by trying the last
+successfully rendered screen and then the safe `Up` screen.
 
 ### Palette Handling Depends on Frontend Color Mode
 
@@ -304,6 +305,15 @@ path is:
 The `Option` and `EffectControl` model is workable but stringly typed. A modern UI
 should treat current option entries as the domain model, then gradually wrap them
 with safer metadata.
+
+`RuntimeCommandSink` / `RuntimeChangeMediator` is the current small
+runtime-change seam. Keymap/interface code, X11 panel callbacks, and
+AutoChanger issue typed `RuntimeCommand` values through the sink; credits input
+and file-playback completion use it for close requests. X11 palette metadata
+save/revert callbacks use it for panel-local persistence and editor state. The
+mediator delegates to existing owners, handles save-and-continue persistence,
+and returns a `RuntimeChangeSet`. It is intentionally a boundary around today's
+globals rather than a complete ownership rewrite.
 
 ## Risk Register
 

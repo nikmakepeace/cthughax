@@ -72,7 +72,7 @@ init scene runtime
 title()
 initialize silence messages
 init_imath()
-init_sound(AudioConfig)
+init_sound(AudioConfig, RuntimeCommandSink)
 initialize visual catalogs from PathConfig
 allocate CthughaBuffer pixels
 load policy-enabled images
@@ -257,7 +257,9 @@ PcmSource -> AudioInput -> AudioInputProcessor
 ```
 
 The result is always exposed as a 1024-sample signed 8-bit stereo visual frame
-through `audioFrameRawData()`.
+through `audioFrameRawData()`. When file playback reaches EOF and the output
+has drained, `AudioRuntime` sends `RuntimeCommand::requestClose()` through the
+configured runtime command sink.
 
 ## 9. Step 3: AudioVisualBridge
 
@@ -326,13 +328,15 @@ It decides whether to change visual options automatically:
 The actual change is:
 
 ```cpp
-EffectControl::changeOne()
+RuntimeCommand::changeOne()
 // or
-EffectControl::changeAll()
+RuntimeCommand::changeAll()
 ```
 
 So the autochanger does not directly know about specific flame or wave
-functions. It asks the EffectControl system to move current selections.
+functions. It issues a high-level runtime command through
+`RuntimeCommandSink`; `RuntimeChangeMediator` routes that to `SceneCommands`,
+and the `EffectControl` system still owns the exact random selection mechanics.
 
 ## 13. Step 4: VideoFilterchain
 
@@ -533,7 +537,7 @@ displayDevice->setGlobalPalette()
 displayDevice->preDraw()
 choose output buffer
 checkZoom()
-while(screen()) draw passive buffer into display buffer
+PresentationComposer draws the selected screen mapping into the display buffer
 maybe mirror horizontally
 expand indexed palette to target pixel format
 maybe mirror vertically
@@ -569,6 +573,12 @@ Examples from `src/display.cc`:
 
 These functions read the current `IndexedFrame` source pixels, which are the
 completed Cthugha image published after the buffer swap.
+
+Some screen renderers can reject an incompatible source geometry by returning
+nonzero. They do not choose a replacement. `PresentationComposer` owns the
+frame-local fallback policy: try the requested screen, then the last screen that
+successfully rendered, then the safe `Up` screen. The selected `screen` option
+remains user intent even when a fallback is rendered for the current frame.
 
 ## 20. Concept: CthughaDisplay vs DisplayDevice
 
@@ -638,6 +648,16 @@ The keymap system can:
 - save/restore hotkeys;
 - request quit;
 - change sound/display options;
+
+Runtime mutation and lifecycle actions from `keymap.cc`, generic option panels
+in `Interface.cc`, list activation in `InterfaceList.cc`, X11 panel callbacks,
+including palette metadata save/revert, credits key handling, and playback
+completion now issue `RuntimeCommand` values through a `RuntimeCommandSink`.
+AutoChanger uses the same sink for automatic `changeOne`/`changeAll` requests.
+`RuntimeChangeMediator` implements that sink, handles save-and-continue
+persistence, palette metadata persistence, and close requests, and still
+delegates to existing globals and `SceneCommands`, but it gives future
+frame-boundary reconfiguration a single command/change-set API to grow into.
 
 Look at:
 

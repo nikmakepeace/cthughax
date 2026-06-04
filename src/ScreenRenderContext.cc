@@ -2,7 +2,7 @@
 
 ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     IndexedDisplayFrame& destination, double frameTimeSeconds, double deltaTimeSeconds,
-    double framesPerSecond, ScreenSelectionController* selectionController)
+    double framesPerSecond)
     : sourceValue(&source)
     , destinationValue(&destination)
     , destinationPixelsValue(destination.pixels())
@@ -11,15 +11,13 @@ ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     , destinationPitchValue(destination.pitch())
     , frameTimeSecondsValue(frameTimeSeconds)
     , deltaTimeSecondsValue(deltaTimeSeconds)
-    , framesPerSecondValue(framesPerSecond)
-    , selectionControllerValue(selectionController) {
+    , framesPerSecondValue(framesPerSecond) {
 }
 
 ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     IndexedDisplayFrame& destination, unsigned char* destinationPixels,
     int destinationWidth, int destinationHeight, int destinationPitch,
-    double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
-    ScreenSelectionController* selectionController)
+    double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond)
     : sourceValue(&source)
     , destinationValue(&destination)
     , destinationPixelsValue(destinationPixels)
@@ -28,8 +26,7 @@ ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     , destinationPitchValue(destinationPitch)
     , frameTimeSecondsValue(frameTimeSeconds)
     , deltaTimeSecondsValue(deltaTimeSeconds)
-    , framesPerSecondValue(framesPerSecond)
-    , selectionControllerValue(selectionController) {
+    , framesPerSecondValue(framesPerSecond) {
 }
 
 const IndexedFrame& ScreenRenderContext::source() const {
@@ -90,12 +87,4 @@ double ScreenRenderContext::deltaTimeSeconds() const {
 
 double ScreenRenderContext::framesPerSecond() const {
     return framesPerSecondValue;
-}
-
-int ScreenRenderContext::requestScreenChange(int by, int doSave) {
-    if (selectionControllerValue == 0)
-        return 0;
-
-    selectionControllerValue->change(by, doSave);
-    return 1;
 }

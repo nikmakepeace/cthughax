@@ -8,6 +8,7 @@
 #include "Configuration.h"
 #include "FramePalette.h"
 #include "Scene.h"
+#include "RuntimeCommandSink.h"
 #include "cthugha.h"
 #include "display.h"
 #include "disp-sys.h"
@@ -438,10 +439,11 @@ void DisplayDeviceX11::freeFont() {
 }
 
 DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
-    const DisplayConfig& config)
+    RuntimeCommandSink& runtimeCommands_, const DisplayConfig& config)
     : DisplayDevice()
     , scene(scene_)
     , sceneCommands(sceneCommands_)
+    , runtimeCommands(runtimeCommands_)
     ,
 
     visual(NULL)
@@ -1371,9 +1373,10 @@ void DisplayDeviceX11::setPalette(const Palette pal) {
 }
 
 std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
-    Scene& scene, SceneCommands& sceneCommands, const DisplayConfig& config) {
+    Scene& scene, SceneCommands& sceneCommands, RuntimeCommandSink& runtimeCommands,
+    const DisplayConfig& config) {
     std::unique_ptr<DisplayDeviceX11> device(
-        new DisplayDeviceX11(scene, sceneCommands, config));
+        new DisplayDeviceX11(scene, sceneCommands, runtimeCommands, config));
     if (!device->isInitialized()) {
         return std::unique_ptr<DisplayRuntimeOwnership>();
     }

@@ -46,10 +46,6 @@ public:
     virtual ScreenEntry* current() {
         return (ScreenEntry*)screen.current();
     }
-
-    virtual void change(int by, int doSave) {
-        screen.change(by, doSave);
-    }
 };
 
 CthughaDisplay::CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime)

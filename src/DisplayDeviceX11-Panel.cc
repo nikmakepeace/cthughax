@@ -10,6 +10,7 @@
 #include "Interface.h"
 #include "Image.h"
 #include "FramePalette.h"
+#include "RuntimeCommandSink.h"
 #include "cth_buffer.h"
 #include "flames.h"
 #include "Scene.h"
@@ -59,6 +60,13 @@ void DisplayDeviceX11::key_button(Widget /*w*/, XtPointer data, XtPointer /*data
     if (data)
         keys_x11((char*)data);
 }
+
+void DisplayDeviceX11::quit(Widget /*w*/, XtPointer data, XtPointer /*data2*/) {
+    RuntimeCommandSink* sink = (RuntimeCommandSink*)data;
+    if (sink != 0)
+        sink->apply(RuntimeCommand::requestClose());
+}
+
 /*
  * handler for activated menu-items
  */
@@ -66,11 +74,9 @@ void DisplayDeviceX11::menuCB(Widget /*item*/, XtPointer data, XtPointer /*data2
     menu_data_t* d = (menu_data_t*)data;
 
     if (d->opt != 0) {
-        if (d->sceneCommands != 0) {
-            d->sceneCommands->activate(*d->opt, d->pos);
-        } else {
-            d->opt->setValue(d->pos);
-            d->opt->change(0, 0);
+        if (d->runtimeCommands != 0) {
+            d->runtimeCommands->apply(
+                RuntimeCommand::activateEffectControl(*d->opt, d->pos));
         }
     }
 }
@@ -386,6 +392,11 @@ int DisplayDeviceX11::savePaletteMetadata() {
     return 1;
 }
 
+void DisplayDeviceX11::revertPaletteMetadata() {
+    updatePaletteMetadataEditor();
+    setPaletteMetadataStatus("reverted");
+}
+
 void DisplayDeviceX11::nextUntaggedPalette() {
     int n = palette.getNEntries();
     int start = scene.settings().paletteIndex;
@@ -395,7 +406,7 @@ void DisplayDeviceX11::nextUntaggedPalette() {
         if ((paletteEntry != NULL)
             && ((paletteEntry->metadataName[0] == '\0') || (paletteEntry->metadataSetCount == 0)
                 || (paletteEntry->metadataEnergyCount == 0))) {
-            sceneCommands.activate(palette, candidate);
+            runtimeCommands.apply(RuntimeCommand::activateEffectControl(palette, candidate));
             palettePreviewPalette = -1;
             updatePalettePreview();
             setPaletteMetadataStatus("next untagged");
@@ -410,16 +421,16 @@ void DisplayDeviceX11::savePaletteMetadataCB(
     Widget /*item*/, XtPointer data, XtPointer /*data2*/) {
     DisplayDeviceX11* device = (DisplayDeviceX11*)data;
     if (device != NULL)
-        device->savePaletteMetadata();
+        device->runtimeCommands.apply(
+            RuntimeCommand::savePaletteMetadata(*device));
 }
 
 void DisplayDeviceX11::revertPaletteMetadataCB(
     Widget /*item*/, XtPointer data, XtPointer /*data2*/) {
     DisplayDeviceX11* device = (DisplayDeviceX11*)data;
-    if (device != NULL) {
-        device->updatePaletteMetadataEditor();
-        device->setPaletteMetadataStatus("reverted");
-    }
+    if (device != NULL)
+        device->runtimeCommands.apply(
+            RuntimeCommand::revertPaletteMetadata(*device));
 }
 
 void DisplayDeviceX11::nextUntaggedPaletteCB(
@@ -485,7 +496,7 @@ Widget DisplayDeviceX11::add_menu(
         menu_data_t* md = new menu_data_t;
         const char* label = (*what)[i]->Desc()[0] ? (*what)[i]->Desc() : (*what)[i]->Name();
 
-        md->sceneCommands = &sceneCommands;
+        md->runtimeCommands = &runtimeCommands;
         md->opt = what;
         md->pos = i;
 
@@ -509,7 +520,7 @@ void DisplayDeviceX11::xcth_create_panel() {
     /* create the quit button */
     xawSetArg(wargs[0], XtNlabel, "Quit!");
     quit_button = XtCreateManagedWidget("quit", commandWidgetClass, panel, wargs, 1);
-    XtAddCallback(quit_button, XtNcallback, (XtCallbackProc)quit, NULL);
+    XtAddCallback(quit_button, XtNcallback, (XtCallbackProc)quit, &runtimeCommands);
 
     /* create the change button */
     xawSetArg(wargs[0], XtNlabel, "Change!");

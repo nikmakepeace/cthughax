@@ -16,11 +16,11 @@ extern OptionInt changeCumulativeFireLevel;
 extern OptionOnOff lock; /* change automatically */
 extern OptionOnOff change_little; /* only change one options */
 
-class SceneCommands;
+class RuntimeCommandSink;
 struct AutoChangeConfig;
 
 class AutoChanger {
-    SceneCommands& sceneCommands;
+    RuntimeCommandSink& runtimeCommands;
 
     int quietSince;
     int waitTime;
@@ -30,10 +30,10 @@ public:
     /**
      * Creates the automatic scene changer.
      *
-     * @param sceneCommands_ Scene command facade used for all visual mutations.
-     *        The referenced object must outlive this AutoChanger.
+     * @param runtimeCommands_ Runtime command sink used for automatic scene
+     *        mutations. The referenced object must outlive this AutoChanger.
      */
-    AutoChanger(SceneCommands& sceneCommands_);
+    AutoChanger(RuntimeCommandSink& runtimeCommands_);
     ~AutoChanger();
 
     /**
@@ -41,7 +41,7 @@ public:
      *
      * Reads global AudioAnalyzer/AcousticContext metrics, tracks quiet duration
      * in milliseconds from gettime(), may emit quiet-message cues through
-     * VideoDirector, and may mutate scene options through SceneCommands.
+     * VideoDirector, and may request scene changes through RuntimeCommandSink.
      */
     void operator()();
 
@@ -49,7 +49,8 @@ public:
      * Applies the selected automatic change action.
      *
      * Uses the little option to choose between changing one eligible EffectControl
-     * and changing the whole unlocked scene option set.
+     * and changing the whole unlocked scene option set. Exact entry selection is
+     * still owned by the runtime command handler and legacy EffectControl policy.
      */
     void change();
 

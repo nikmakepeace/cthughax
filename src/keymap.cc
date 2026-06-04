@@ -6,7 +6,6 @@
 #include "AudioFrame.h"
 #include "display.h"
 #include "disp-sys.h"
-#include "IniFiles.h"
 #include "AutoChanger.h"
 #include "AudioProcessor.h"
 #include "AudioAnalyzer.h"
@@ -20,6 +19,7 @@
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
 #include "Scene.h"
+#include "RuntimeCommandSink.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -212,6 +212,7 @@ Action* Action::head = NULL;
 
 Keymap* Keymap::first = NULL;
 Keymap* Keymap::current = NULL;
+static RuntimeCommandSink* keymapRuntimeCommandSink = NULL;
 
 Keymap::Keymap(const char* n)
     : next(first)
@@ -484,6 +485,14 @@ void Keymap::set(const char* name) {
     }
 }
 
+void Keymap::setRuntimeCommandSink(RuntimeCommandSink* sink) {
+    keymapRuntimeCommandSink = sink;
+}
+
+RuntimeCommandSink* Keymap::runtimeCommandSink() {
+    return keymapRuntimeCommandSink;
+}
+
 //
 // intializiation of the default keymaps
 //
@@ -518,95 +527,100 @@ static std::string continuation_name(const char* name) {
     return name;
 }
 
-static ContinuationIniConfig current_continuation_ini_config() {
-    ContinuationIniConfig config;
+static RuntimeContinuationState current_continuation_state() {
+    RuntimeContinuationState state;
     SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
     if (sceneCommands != NULL) {
         const SceneSettings& settings = sceneCommands->sceneState().settings();
-        config.scene.flame = continuation_name(settings.flameName);
-        config.scene.generalFlame = continuation_name(settings.generalFlameName);
-        config.scene.wave = continuation_name(settings.waveName);
-        config.scene.waveScale = continuation_name(settings.waveScaleName);
-        config.scene.object = continuation_name(settings.objectName);
-        config.scene.translation = continuation_name(settings.translationName);
-        config.scene.palette = continuation_name(settings.paletteName);
-        config.scene.border = continuation_name(settings.borderName);
-        config.scene.flashlight = continuation_name(settings.flashlightName);
-        config.scene.table = continuation_name(settings.tableName);
-        config.scene.image = continuation_name(
-            sceneCommands->imageOption().currentName());
+        state.flame = continuation_name(settings.flameName);
+        state.generalFlame = continuation_name(settings.generalFlameName);
+        state.wave = continuation_name(settings.waveName);
+        state.waveScale = continuation_name(settings.waveScaleName);
+        state.object = continuation_name(settings.objectName);
+        state.translation = continuation_name(settings.translationName);
+        state.palette = continuation_name(settings.paletteName);
+        state.border = continuation_name(settings.borderName);
+        state.flashlight = continuation_name(settings.flashlightName);
+        state.table = continuation_name(settings.tableName);
+        state.image = continuation_name(sceneCommands->imageOption().currentName());
     }
 
-    config.scene.presentation = continuation_name(screen.currentName());
-    config.scene.audioProcessing = continuation_name(audioProcessing.text());
-    config.showFpsEnabled = int(showFPS);
-    return config;
+    state.presentation = continuation_name(screen.currentName());
+    state.audioProcessing = continuation_name(audioProcessing.text());
+    state.showFpsEnabled = int(showFPS);
+    return state;
 }
 
-ACTION(quit) { cthugha_close++; }
+static void applyRuntimeCommand(const RuntimeCommand& command) {
+    RuntimeCommandSink* sink = Keymap::runtimeCommandSink();
+    if (sink != NULL)
+        sink->apply(command);
+}
+
+ACTION(quit) { applyRuntimeCommand(RuntimeCommand::requestClose()); }
 ACTION(stopAndContinue) {
-    if (write_continuation_ini(current_continuation_ini_config()) == 0)
-        cthugha_close++;
+    applyRuntimeCommand(RuntimeCommand::stopAndContinue(
+        current_continuation_state()));
 }
 
-ACTION(screenChg) { screen.change(int(v), 0); }
-ACTION(zoomChg) { zoom.change(int(v)); }
-ACTION(flameChg) { sceneCommandsForLegacyCallbacks()->changeFlame(int(v)); }
-ACTION(flameGeneral) { sceneCommandsForLegacyCallbacks()->changeGeneralFlame(); }
-ACTION(waveChg) { sceneCommandsForLegacyCallbacks()->changeWave(int(v)); }
-ACTION(waveScaleChg) { sceneCommandsForLegacyCallbacks()->changeWaveScale(int(v)); }
-ACTION(objectChg) { sceneCommandsForLegacyCallbacks()->changeObject(int(v)); }
-ACTION(translateChg) { sceneCommandsForLegacyCallbacks()->changeTranslation(int(v)); }
-ACTION(soundProcessChg) { audioProcessing.change(int(v)); }
-ACTION(borderChg) { sceneCommandsForLegacyCallbacks()->changeBorder(int(v)); }
-ACTION(flashlightChg) { sceneCommandsForLegacyCallbacks()->changeFlashlight(int(v)); }
-ACTION(paletteChg) { sceneCommandsForLegacyCallbacks()->changePalette(int(v)); }
-ACTION(tableChg) { sceneCommandsForLegacyCallbacks()->changeTable(int(v)); }
-ACTION(imageChg) { sceneCommandsForLegacyCallbacks()->changeImage(int(v)); }
-ACTION(lockChg) { lock.change(+1); }
+ACTION(screenChg) { applyRuntimeCommand(RuntimeCommand::changeScreenBy(int(v))); }
+ACTION(zoomChg) { applyRuntimeCommand(RuntimeCommand::changeZoomBy(int(v))); }
+ACTION(flameChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneFlame, int(v))); }
+ACTION(flameGeneral) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneGeneralFlame, 0)); }
+ACTION(waveChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneWave, int(v))); }
+ACTION(waveScaleChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneWaveScale, int(v))); }
+ACTION(objectChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneObject, int(v))); }
+ACTION(translateChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneTranslation, int(v))); }
+ACTION(soundProcessChg) { applyRuntimeCommand(RuntimeCommand::changeSoundProcessingBy(int(v))); }
+ACTION(borderChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneBorder, int(v))); }
+ACTION(flashlightChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneFlashlight, int(v))); }
+ACTION(paletteChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeScenePalette, int(v))); }
+ACTION(tableChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneTable, int(v))); }
+ACTION(imageChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneImage, int(v))); }
+ACTION(lockChg) { applyRuntimeCommand(RuntimeCommand::toggleAutoChangeLock()); }
 
-ACTION(screen) { screen.change(p, 0); }
-ACTION(zoom) { zoom.change(p); }
-ACTION(flame) { sceneCommandsForLegacyCallbacks()->changeFlame(p); }
-ACTION(wave) { sceneCommandsForLegacyCallbacks()->changeWave(p); }
-ACTION(waveScale) { sceneCommandsForLegacyCallbacks()->changeWaveScale(p); }
-ACTION(object) { sceneCommandsForLegacyCallbacks()->changeObject(p); }
-ACTION(translate) { sceneCommandsForLegacyCallbacks()->changeTranslation(p); }
-ACTION(soundProcess) { audioProcessing.change(p); }
-ACTION(border) { sceneCommandsForLegacyCallbacks()->changeBorder(p); }
-ACTION(flashlight) { sceneCommandsForLegacyCallbacks()->changeFlashlight(p); }
-ACTION(palette) { sceneCommandsForLegacyCallbacks()->changePalette(p); }
-ACTION(table) { sceneCommandsForLegacyCallbacks()->changeTable(p); }
-ACTION(image) { sceneCommandsForLegacyCallbacks()->changeImage(p); }
-ACTION(lock) { lock.change(+1); }
+ACTION(screen) { applyRuntimeCommand(RuntimeCommand::changeScreenTo(p)); }
+ACTION(zoom) { applyRuntimeCommand(RuntimeCommand::changeZoomTo(p)); }
+ACTION(flame) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneFlame, p)); }
+ACTION(wave) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneWave, p)); }
+ACTION(waveScale) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneWaveScale, p)); }
+ACTION(object) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneObject, p)); }
+ACTION(translate) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneTranslation, p)); }
+ACTION(soundProcess) { applyRuntimeCommand(RuntimeCommand::changeSoundProcessingTo(p)); }
+ACTION(border) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneBorder, p)); }
+ACTION(flashlight) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneFlashlight, p)); }
+ACTION(palette) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeScenePalette, p)); }
+ACTION(table) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneTable, p)); }
+ACTION(image) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneImage, p)); }
+ACTION(lock) { applyRuntimeCommand(RuntimeCommand::toggleAutoChangeLock()); }
 
-ACTION(writeIni) { write_ini(); } // when net-sound: re-sent request to server
-ACTION(soundReset) { audioFrameChange(); }
+ACTION(writeIni) { applyRuntimeCommand(RuntimeCommand::writeIni()); }
+ACTION(soundReset) { applyRuntimeCommand(RuntimeCommand::resetAudioFrame()); }
 
-ACTION(restore) { sceneCommandsForLegacyCallbacks()->restore(); }
+ACTION(restore) { applyRuntimeCommand(RuntimeCommand::restoreScene()); }
 ACTION(toggleSave) { Interface::saveToPreset = 1 - Interface::saveToPreset; }
-ACTION(save) { sceneCommandsForLegacyCallbacks()->savePreset(int(v)); }
+ACTION(save) { applyRuntimeCommand(RuntimeCommand::savePreset(int(v))); }
 ACTION(saveOrRestore) {
     if (Interface::saveToPreset) {
-        sceneCommandsForLegacyCallbacks()->savePreset(int(v));
+        applyRuntimeCommand(RuntimeCommand::savePreset(int(v)));
         Interface::saveToPreset = 0;
     } else {
-        sceneCommandsForLegacyCallbacks()->restorePreset(int(v));
+        applyRuntimeCommand(RuntimeCommand::restorePreset(int(v)));
     }
 }
 
 ACTION(toggleStatus) { Interface::showStatus = 1 - Interface::showStatus; }
-ACTION(toggleFPS) { showFPS.change(+1); }
+ACTION(toggleFPS) { applyRuntimeCommand(RuntimeCommand::toggleShowFps()); }
 
-ACTION(changeAll) { sceneCommandsForLegacyCallbacks()->changeAll(); }
-ACTION(changeOne) { sceneCommandsForLegacyCallbacks()->changeOne(); }
+ACTION(changeAll) { applyRuntimeCommand(RuntimeCommand::changeAll()); }
+ACTION(changeOne) { applyRuntimeCommand(RuntimeCommand::changeOne()); }
 
 ACTION(credits) { Interface::set("credits"); }
 ACTION(setInterface) { Interface::set(p); }
 
 ACTION(randomPalette) {
-    sceneCommandsForLegacyCallbacks()->randomPalette();
+    applyRuntimeCommand(RuntimeCommand::randomPalette());
 }
 ACTION(newRandomPalette) {
-    sceneCommandsForLegacyCallbacks()->addRandomPalette();
+    applyRuntimeCommand(RuntimeCommand::addRandomPalette());
 }

@@ -16,9 +16,16 @@ static int copySourceRenderer(ScreenRenderContext& context) {
     return 0;
 }
 
-static int retryRenderer(ScreenRenderContext& context) {
-    context.requestScreenChange(+1, 0);
+static int rejectRenderer(ScreenRenderContext&) {
     return 1;
+}
+
+static int conditionalRejectRendererShouldReject = 0;
+static int conditionalRejectRenderer(ScreenRenderContext& context) {
+    if (conditionalRejectRendererShouldReject)
+        return 1;
+
+    return copySourceRenderer(context);
 }
 
 int screen_up(ScreenRenderContext&) { return 0; }
@@ -63,56 +70,16 @@ class StaticSelection : public PresentationScreenSelection {
     ScreenEntry* currentValue;
 
 public:
-    int calls;
-    int by;
-    int doSave;
-
     explicit StaticSelection(ScreenEntry& entry)
-        : currentValue(&entry)
-        , calls(0)
-        , by(0)
-        , doSave(0) {
+        : currentValue(&entry) {
     }
 
     virtual ScreenEntry* current() {
         return currentValue;
     }
 
-    virtual void change(int by_, int doSave_) {
-        calls++;
-        by = by_;
-        doSave = doSave_;
-    }
-};
-
-class RetryingSelection : public PresentationScreenSelection {
-    ScreenEntry* firstValue;
-    ScreenEntry* secondValue;
-    int useSecond;
-
-public:
-    int calls;
-    int by;
-    int doSave;
-
-    RetryingSelection(ScreenEntry& first, ScreenEntry& second)
-        : firstValue(&first)
-        , secondValue(&second)
-        , useSecond(0)
-        , calls(0)
-        , by(0)
-        , doSave(0) {
-    }
-
-    virtual ScreenEntry* current() {
-        return useSecond ? secondValue : firstValue;
-    }
-
-    virtual void change(int by_, int doSave_) {
-        calls++;
-        by = by_;
-        doSave = doSave_;
-        useSecond = 1;
+    void set(ScreenEntry& entry) {
+        currentValue = &entry;
     }
 };
 
@@ -268,22 +235,68 @@ static void testCapacityIsReusedWhenFrameShrinks() {
     assertSourceRows(destination, smallSource);
 }
 
-static void testGeometryRetryRendersUpdatedSelection() {
-    ScreenEntry retryEntry(retryRenderer, "retry", "Retry", xy(1, 1));
-    ScreenEntry fallbackEntry(copySourceRenderer, "Up", "Classic 2x",
+static void testRejectedSelectionFallsBackToLastRenderedScreen() {
+    ScreenEntry previousEntry(copySourceRenderer, "previous", "Previous",
         xy(1, 1));
-    RetryingSelection selection(retryEntry, fallbackEntry);
+    ScreenEntry rejectEntry(rejectRenderer, "reject", "Reject", xy(1, 1),
+        xy(1, 1));
+    StaticSelection selection(previousEntry);
     IndexedFrameFixture source(4, 3, 6);
     IndexedDisplayFrame destination;
     PresentationComposer composer;
 
     composer.compose(source.frame(), destination, selection, 12.0, 0.25, 60.0);
 
-    assert(selection.calls == 1);
-    assert(selection.by == +1);
-    assert(selection.doSave == 0);
-    assert(composer.renderedScreen() == &fallbackEntry);
+    assert(composer.renderedScreen() == &previousEntry);
     assertClassicMirroredSource(destination, source);
+
+    selection.set(rejectEntry);
+    composer.compose(source.frame(), destination, selection, 12.5, 0.25, 60.0);
+
+    assert(selection.current() == &rejectEntry);
+    assert(composer.renderedScreen() == &previousEntry);
+    assertClassicMirroredSource(destination, source);
+}
+
+static void testFirstFrameRejectionFallsBackToSafeScreen() {
+    ScreenEntry rejectEntry(rejectRenderer, "reject", "Reject", xy(1, 1),
+        xy(1, 1));
+    StaticSelection selection(rejectEntry);
+    IndexedFrameFixture source(4, 3, 6);
+    IndexedDisplayFrame destination;
+    PresentationComposer composer;
+
+    composer.compose(source.frame(), destination, selection, 12.0, 0.25, 60.0);
+
+    assert(selection.current() == &rejectEntry);
+    assert(composer.renderedScreen() == screenByIndex(0));
+    assert(destination.width() == 8);
+    assert(destination.height() == 6);
+}
+
+static void testRejectedLastRenderedScreenFallsBackToSafeScreen() {
+    ScreenEntry previousEntry(conditionalRejectRenderer, "conditional",
+        "Conditional", xy(1, 1));
+    ScreenEntry rejectEntry(rejectRenderer, "reject", "Reject", xy(1, 1),
+        xy(1, 1));
+    StaticSelection selection(previousEntry);
+    IndexedFrameFixture source(4, 3, 6);
+    IndexedDisplayFrame destination;
+    PresentationComposer composer;
+
+    conditionalRejectRendererShouldReject = 0;
+    composer.compose(source.frame(), destination, selection, 12.0, 0.25, 60.0);
+    assert(composer.renderedScreen() == &previousEntry);
+
+    conditionalRejectRendererShouldReject = 1;
+    selection.set(rejectEntry);
+    composer.compose(source.frame(), destination, selection, 12.5, 0.25, 60.0);
+    conditionalRejectRendererShouldReject = 0;
+
+    assert(selection.current() == &rejectEntry);
+    assert(composer.renderedScreen() == screenByIndex(0));
+    assert(destination.width() == 8);
+    assert(destination.height() == 6);
 }
 
 int main() {
@@ -293,6 +306,8 @@ int main() {
     testScaleXCompletesVerticallyOnly();
     testPalettePointerIsPropagated();
     testCapacityIsReusedWhenFrameShrinks();
-    testGeometryRetryRendersUpdatedSelection();
+    testRejectedSelectionFallsBackToLastRenderedScreen();
+    testFirstFrameRejectionFallsBackToSafeScreen();
+    testRejectedLastRenderedScreenFallsBackToSafeScreen();
     return 0;
 }

@@ -6,6 +6,7 @@
 #include "DisplayDevice.h"
 #include "CthughaBuffer.h"
 #include "Flashlight.h"
+#include "RuntimeCommandSink.h"
 #include "Scene.h"
 #include "VideoDirector.h"
 #include "flames.h"
@@ -102,7 +103,9 @@ Keymap InterfaceList::listOptionKeymap("ListOption");
 ACTION(toggleUse) {
     if (currentOption == NULL)
         return;
-    currentOption->change(+1);
+    RuntimeCommandSink* sink = Keymap::runtimeCommandSink();
+    if (sink != NULL)
+        sink->apply(RuntimeCommand::changeOptionBy(*currentOption, +1));
 }
 
 ACTION(activate) {
@@ -111,14 +114,10 @@ ACTION(activate) {
     if (currentOption == NULL)
         return;
 
-    currentEffectControl->entries[Interface::current->sel]->use.change("on");
-    SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
-    if (sceneCommands != NULL && sceneCommands->isSceneOption(*currentEffectControl)) {
-        sceneCommands->activate(*currentEffectControl, Interface::current->sel);
-    } else {
-        currentEffectControl->setValue(Interface::current->sel);
-        currentEffectControl->change(0, 0);
-    }
+    RuntimeCommandSink* sink = Keymap::runtimeCommandSink();
+    if (sink != NULL)
+        sink->apply(RuntimeCommand::activateEffectControl(
+            *currentEffectControl, Interface::current->sel));
 }
 
 #if 0

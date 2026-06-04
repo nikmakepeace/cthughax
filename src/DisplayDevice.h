@@ -8,6 +8,7 @@
 #include <memory>
 
 class FramePalette;
+class RuntimeCommandSink;
 class Scene;
 class SceneCommands;
 class DisplayRuntimeOwnership;
@@ -128,6 +129,7 @@ public:
 extern DisplayDevice* displayDevice;
 
 extern std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
-    Scene& scene, SceneCommands& sceneCommands, const DisplayConfig& config);
+    Scene& scene, SceneCommands& sceneCommands, RuntimeCommandSink& runtimeCommands,
+    const DisplayConfig& config);
 
 #endif

@@ -15,13 +15,15 @@ public:
     virtual void indexedFrameGeometryChanged() = 0;
 };
 
-class PresentationScreenSelection : public ScreenSelectionController {
+class PresentationScreenSelection {
 public:
+    virtual ~PresentationScreenSelection() { }
     virtual ScreenEntry* current() = 0;
 };
 
 class PresentationComposer {
     ScreenEntry* renderedScreenValue;
+    ScreenEntry* lastSuccessfulScreenValue;
 
 public:
     PresentationComposer();

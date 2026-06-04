@@ -6,6 +6,7 @@
 #include "RuntimeFactory.h"
 
 struct AudioConfig;
+class RuntimeCommandSink;
 
 /**
  * Builds and starts the audio runtime from the current option snapshot.
@@ -17,7 +18,7 @@ struct AudioConfig;
  * @return 0 on success, nonzero if input, output, or processing setup fails.
  */
 int audioRuntimeInit(const AudioConfig& config, int initializeInputControls,
-    int visualMaxDimension);
+    int visualMaxDimension, RuntimeCommandSink* runtimeCommands = 0);
 
 /**
  * Advances the audio runtime by one visual frame boundary.

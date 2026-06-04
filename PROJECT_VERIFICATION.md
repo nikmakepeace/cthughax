@@ -42,6 +42,33 @@ cmake --build /workspaces/cthughanix/build --parallel
 
 The CMake build produced the X11 visualizer and helper tools.
 
+## Display Presentation Checks
+
+`presentation_composer_test`, `cthugha_display_presentation_test`, and
+`screen_renderer_characterization_test` cover the screen rejection contract:
+renderers may reject incompatible geometry, while `PresentationComposer` owns
+frame-local fallback without mutating the selected display option.
+
+## Runtime Command Checks
+
+The runtime reconfiguration seam has focused tests for command construction,
+mediator routing including close/save-and-continue and palette metadata
+commands, and AutoChanger's command-sink consumer behavior:
+
+```sh
+ctest --test-dir build --output-on-failure -R 'runtime_command_test|runtime_change_mediator_test|auto_changer_command_sink_test'
+```
+
+The full local verification pass after adding those tests was:
+
+```sh
+cmake --build build
+tests/headers/check-headers.sh
+ctest --test-dir build --output-on-failure
+```
+
+The full suite currently reports 32 passing tests.
+
 ## Documentation Sweep
 
 The root project notes now describe the modern audio path, raw PCM support,

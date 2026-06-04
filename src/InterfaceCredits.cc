@@ -3,6 +3,7 @@
 #include "Interface.h"
 #include "display.h"
 #include "DisplayDevice.h"
+#include "RuntimeCommandSink.h"
 
 class InterfaceCredits : public Interface {
     double pos;
@@ -14,7 +15,11 @@ public:
         : Interface("credits", NULL, NULL)
         , pos(0) { }
 
-    virtual void doKey(int /* key */) { cthugha_close++; }
+    virtual void doKey(int /* key */) {
+        RuntimeCommandSink* sink = Keymap::runtimeCommandSink();
+        if (sink != NULL)
+            sink->apply(RuntimeCommand::requestClose());
+    }
 
     virtual void display() {
 

@@ -26,6 +26,7 @@
 #include "Interface.h"
 #include "IniFiles.h"
 #include "Option.h"
+#include "RuntimeChangeMediator.h"
 #include "Scene.h"
 #include "VideoDirector.h"
 #include "VideoFilterchain.h"
@@ -113,7 +114,8 @@ void Application::willSuspend() {
 }
 
 void Application::didResume() {
-    if (init_sound(startupConfigValue.audio, CthughaBuffer::buffer.maxDimension()))
+    if (init_sound(startupConfigValue.audio, CthughaBuffer::buffer.maxDimension(),
+            runtimeChangeMediatorValue.get()))
         cthugha_close++;
 }
 
@@ -127,12 +129,16 @@ void Application::initSceneRuntime() {
     videoDirector().bindScene(*sceneValue);
     sceneCommandsValue.reset(new SceneCommands(*sceneValue, CthughaBuffer::buffer,
         videoDirector().imageOption()));
+    runtimeChangeMediatorValue.reset(new RuntimeChangeMediator(*sceneCommandsValue));
+    Keymap::setRuntimeCommandSink(runtimeChangeMediatorValue.get());
     bindSceneCommandsForLegacyCallbacks(sceneCommandsValue.get());
 }
 
 void Application::shutdownSceneRuntime() {
+    Keymap::setRuntimeCommandSink(NULL);
     bindSceneCommandsForLegacyCallbacks(NULL);
     videoDirector().unbindScene();
+    runtimeChangeMediatorValue.reset();
     sceneCommandsValue.reset();
     sceneValue.reset();
 }
@@ -156,7 +162,7 @@ void Application::shutdownVideoFilterchain() {
 
 void Application::initAudioVisualBridge() {
     if (audioVisualBridge.get() == NULL)
-        audioVisualBridge.reset(new AudioVisualBridge(sceneCommandsValue.get()));
+        audioVisualBridge.reset(new AudioVisualBridge(runtimeChangeMediatorValue.get()));
 }
 
 void Application::shutdownAudioVisualBridge() {
@@ -283,7 +289,8 @@ int Application::initialize() {
     init_imath();
 
     CTH_INFO("Initializing the sound device...\n");
-    if (init_sound(startupConfigValue.audio, CthughaBuffer::buffer.maxDimension()))
+    if (init_sound(startupConfigValue.audio, CthughaBuffer::buffer.maxDimension(),
+            runtimeChangeMediatorValue.get()))
         return 0;
 
     // Visual catalogs depend on final buffer dimensions and must be available
@@ -317,6 +324,7 @@ int Application::initialize() {
     if (cth_init(&displayArgc, displayArgv.data()))
         return 0;
     displayRuntimeOwnership = newDisplayDevice(scene(), sceneCommands(),
+        *runtimeChangeMediatorValue,
         startupConfigValue.display);
     if (displayRuntimeOwnership.get() == NULL)
         return 0;

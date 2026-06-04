@@ -159,11 +159,12 @@ void configureAudioOptions(const AudioConfig& config) {
     configureAudioOutputOptions(config);
 }
 
-int init_sound(const AudioConfig& config, int visualMaxDimension) {
+int init_sound(const AudioConfig& config, int visualMaxDimension,
+    RuntimeCommandSink* runtimeCommands) {
     if (audioRuntimeIsInitialized())
         return 0;
 
-    return audioRuntimeInit(config, 1, visualMaxDimension);
+    return audioRuntimeInit(config, 1, visualMaxDimension, runtimeCommands);
 }
 
 int exit_sound() {

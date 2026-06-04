@@ -540,6 +540,61 @@ target_link_libraries(effect_preset_catalog_test PRIVATE m)
 
 add_test(NAME effect_preset_catalog_test COMMAND effect_preset_catalog_test)
 
+add_executable(runtime_command_test
+    unit/RuntimeCommandTest.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+)
+
+target_include_directories(runtime_command_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(runtime_command_test PRIVATE m)
+
+add_test(NAME runtime_command_test COMMAND runtime_command_test)
+
+add_executable(runtime_change_mediator_test
+    unit/RuntimeChangeMediatorTest.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeChangeMediator.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(runtime_change_mediator_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(runtime_change_mediator_test PRIVATE m)
+
+add_test(NAME runtime_change_mediator_test COMMAND runtime_change_mediator_test)
+
+add_executable(auto_changer_command_sink_test
+    unit/AutoChangerCommandSinkTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AutoChanger.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(auto_changer_command_sink_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(auto_changer_command_sink_test PRIVATE m)
+
+add_test(NAME auto_changer_command_sink_test COMMAND auto_changer_command_sink_test)
+
 if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
     add_library(format_warning_clean OBJECT
         ${CMAKE_SOURCE_DIR}/src/AutoChanger.cc

@@ -25,13 +25,15 @@ void configureDisplayDeviceX11(const X11Config& config);
 
 #include "DisplayDevice.h"
 #include "DisplayGeometry.h"
+#include "RuntimeCommandSink.h"
 
 class Scene;
 class SceneCommands;
 
-class DisplayDeviceX11 : public DisplayDevice {
+class DisplayDeviceX11 : public DisplayDevice, public RuntimePaletteMetadataTarget {
     Scene& scene;
     SceneCommands& sceneCommands;
+    RuntimeCommandSink& runtimeCommands;
 
 protected:
     Visual* visual;
@@ -122,13 +124,11 @@ protected:
     int allocNonSharedImage();
     int fallbackToNonSharedImage(const char* reason, int errnum, size_t requestedBytes);
 
-    static void quit(int /*dummy*/) {
-        cthugha_close++;
-    }
+    static void quit(Widget w, XtPointer data, XtPointer data2);
 
     // control panel stuff
     typedef struct {
-        SceneCommands* sceneCommands;
+        RuntimeCommandSink* runtimeCommands;
         EffectControl* opt;
         int pos;
     } menu_data_t;
@@ -144,13 +144,14 @@ protected:
     void drawPalettePreview();
     void updatePaletteMetadataEditor();
     void setPaletteMetadataStatus(const char* status);
-    int savePaletteMetadata();
+    virtual int savePaletteMetadata();
+    virtual void revertPaletteMetadata();
     void nextUntaggedPalette();
     void xcth_create_panel();
 
 public:
     DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
-        const DisplayConfig& config);
+        RuntimeCommandSink& runtimeCommands_, const DisplayConfig& config);
     virtual ~DisplayDeviceX11();
 
     int isInitialized() const { return initialized; }

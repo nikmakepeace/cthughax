@@ -4,6 +4,7 @@
 #define __AUDIO_SYSTEM_H
 
 struct AudioConfig;
+class RuntimeCommandSink;
 
 /**
  * Initializes the selected audio runtime if it is not already running.
@@ -13,7 +14,8 @@ struct AudioConfig;
  *        and is used to size audio analysis/DSP windows to the visual scale.
  * @return 0 on success, nonzero if audio runtime initialization fails.
  */
-int init_sound(const AudioConfig& config, int visualMaxDimension);
+int init_sound(const AudioConfig& config, int visualMaxDimension,
+    RuntimeCommandSink* runtimeCommands = 0);
 
 /**
  * Shuts down the current audio runtime.

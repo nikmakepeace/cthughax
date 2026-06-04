@@ -1,6 +1,7 @@
 #include "cthugha.h"
 #include "AudioRuntime.h"
 #include "Configuration.h"
+#include "RuntimeCommandSink.h"
 
 #include <atomic>
 #include <chrono>
@@ -27,6 +28,7 @@ static std::atomic<int> audioRuntimeCallbackDrainStarted(0);
 static int audioRuntimeCompletionAnnounced = 0;
 static int audioRuntimeVisualClockStarted = 0;
 static double audioRuntimeVisualClockStart = 0;
+static RuntimeCommandSink* audioRuntimeCommands = NULL;
 
 static long long audioRuntimeDecodedSamplePosition();
 static long long audioRuntimeSubmittedSamplePosition();
@@ -373,11 +375,12 @@ static void audioRuntimeAnnounceComplete() {
     CTH_DEBUG("audio runtime: playback complete decoded-end-sample=%lld submitted-end-sample=%lld\n",
         audioRuntimeDecodedSamplePosition(),
         audioRuntimeSubmittedSamplePosition());
-    cthugha_close++;
+    if (audioRuntimeCommands != NULL)
+        audioRuntimeCommands->apply(RuntimeCommand::requestClose());
 }
 
 int audioRuntimeInit(const AudioConfig& config, int initializeInputControls,
-    int visualMaxDimension) {
+    int visualMaxDimension, RuntimeCommandSink* runtimeCommands) {
     CTH_DEBUG("audio runtime: init requested initialize-input-controls=%d visual-max-dimension=%d\n",
         initializeInputControls, visualMaxDimension);
 
@@ -397,6 +400,7 @@ int audioRuntimeInit(const AudioConfig& config, int initializeInputControls,
     audioRuntimeCompletionAnnounced = 0;
     audioRuntimeVisualClockStarted = 0;
     audioRuntimeVisualClockStart = 0;
+    audioRuntimeCommands = runtimeCommands;
     audioRuntimeInitialized = 1;
 
     if (audioRuntimeUsesNativeFilePipeline(settings, sourceStrategy)) {
@@ -406,6 +410,7 @@ int audioRuntimeInit(const AudioConfig& config, int initializeInputControls,
                 sourceStrategy);
             delete audioInput;
             audioInput = NULL;
+            audioRuntimeCommands = NULL;
             audioRuntimeInitialized = 0;
             return 1;
         }
@@ -418,6 +423,7 @@ int audioRuntimeInit(const AudioConfig& config, int initializeInputControls,
             audioInput = NULL;
             delete audioOutput;
             audioOutput = NULL;
+            audioRuntimeCommands = NULL;
             audioRuntimeInitialized = 0;
             return 1;
         }
@@ -537,6 +543,7 @@ void audioRuntimeShutdown() {
     audioRuntimeVisualClockStart = 0;
     audioRuntimeChunkSamples = 0;
     audioRuntimeOutputChunkSamples = 0;
+    audioRuntimeCommands = NULL;
 
     CTH_DEBUG("audio runtime: shutdown completed\n");
 }

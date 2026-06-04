@@ -6,6 +6,7 @@
 #include "cthugha.h"
 
 struct InputConfig;
+class RuntimeCommandSink;
 
 class Action {
     const char* name;
@@ -89,6 +90,8 @@ public:
 
     static void set(const char* name);
     static void init(const InputConfig& config);
+    static void setRuntimeCommandSink(RuntimeCommandSink* sink);
+    static RuntimeCommandSink* runtimeCommandSink();
 };
 
 #endif
