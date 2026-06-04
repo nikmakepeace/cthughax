@@ -186,39 +186,30 @@ int do_param(int c, int value, char* str) {
         // EffectControls
         //
     case opt_flashlight:
-        flashlight.setInitialEntry(str ? str : DEFAULT_FLASHLIGHT_ENABLE_INITIAL_ENTRY);
         break;
     case opt_no_flashlight:
     case 's':
-        flashlight.setInitialEntry(str ? str : DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
         break;
 
     case 'f':
-        flame.setInitialEntry(str);
         break;
 
     case opt_border:
-        border.setInitialEntry(str);
         break;
 
     case 't':
-        translation.setInitialEntry(str);
         break;
 
     case 'w':
-        wave.setInitialEntry(str);
         break;
 
     case opt_wave_scale:
-        waveScale.setInitialEntry(str);
         break;
 
     case 'o':
-        object.setInitialEntry(str);
         break;
 
     case 'p':
-        palette.setInitialEntry(str);
         break;
 
     case opt_palette_smoothing:
@@ -240,15 +231,12 @@ int do_param(int c, int value, char* str) {
         break;
 
     case 'd':
-        screen.setInitialEntry(str);
         break;
 
     case opt_image:
-        videoDirector().imageOption().setInitialEntry(str);
         break;
 
     case 'a':
-        table.setInitialEntry(str);
         break;
 
     case 'm':

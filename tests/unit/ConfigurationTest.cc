@@ -1,8 +1,10 @@
 #include "Configuration.h"
 
 #include "configuration_defaults.h"
+#include "defaults.h"
 
 #include <cassert>
+#include <cstdio>
 #include <map>
 #include <string>
 #include <vector>
@@ -33,6 +35,18 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.paths.extraLibraryPath == PATH_CONFIG_DEFAULT_EXTRA_LIBRARY_PATH);
     assert(result.config.paths.iniFileOverride == PATH_CONFIG_DEFAULT_INI_FILE_OVERRIDE_PATH);
     assert(result.config.catalogs.doubleLoadEnabled == CATALOG_CONFIG_DEFAULT_DOUBLE_LOAD_ENABLED);
+    assert(result.config.scene.flame.empty());
+    assert(result.config.scene.generalFlame.empty());
+    assert(result.config.scene.wave.empty());
+    assert(result.config.scene.waveScale.empty());
+    assert(result.config.scene.object.empty());
+    assert(result.config.scene.translation.empty());
+    assert(result.config.scene.palette.empty());
+    assert(result.config.scene.border.empty());
+    assert(result.config.scene.flashlight.empty());
+    assert(result.config.scene.table.empty());
+    assert(result.config.scene.image.empty());
+    assert(result.config.scene.presentation.empty());
     assert(result.config.audio.inputMode == AUDIO_CONFIG_DEFAULT_INPUT_MODE);
     assert(result.config.audio.inputFile == AUDIO_CONFIG_DEFAULT_INPUT_FILE_PATH);
     assert(result.config.audio.inputLoopEnabled == AUDIO_CONFIG_DEFAULT_INPUT_LOOP_ENABLED);
@@ -86,6 +100,18 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     IniTextConfigSource source("memory",
         "cthugha.verbose: 3\n"
         "cthugha.path: /tmp/cth\n"
+        "cthugha.flame: fuzz\n"
+        "cthugha.flame-general: 42\n"
+        "cthugha.wave: line\n"
+        "cthugha.wave-scale: scale1\n"
+        "cthugha.object: cube\n"
+        "cthugha.translation: swirl\n"
+        "cthugha.palette: fire\n"
+        "cthugha.border: border1\n"
+        "cthugha.flashlight: on\n"
+        "cthugha.table: table3\n"
+        "cthugha.image: splash\n"
+        "cthugha.display: roll\n"
         "cthugha.play: song.wav\n"
         "cthugha.loop: no\n"
         "cthugha.rate: 22050\n"
@@ -112,6 +138,18 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(diagnostics.diagnostics().empty());
     assert(*patchValue(patch, "logging.verbosity") == "3");
     assert(*patchValue(patch, "paths.extra_library") == "/tmp/cth/");
+    assert(*patchValue(patch, "scene.flame") == "fuzz");
+    assert(*patchValue(patch, "scene.general_flame") == "42");
+    assert(*patchValue(patch, "scene.wave") == "line");
+    assert(*patchValue(patch, "scene.wave_scale") == "scale1");
+    assert(*patchValue(patch, "scene.object") == "cube");
+    assert(*patchValue(patch, "scene.translation") == "swirl");
+    assert(*patchValue(patch, "scene.palette") == "fire");
+    assert(*patchValue(patch, "scene.border") == "border1");
+    assert(*patchValue(patch, "scene.flashlight") == "on");
+    assert(*patchValue(patch, "scene.table") == "table3");
+    assert(*patchValue(patch, "scene.image") == "splash");
+    assert(*patchValue(patch, "scene.presentation") == "roll");
     assert(*patchValue(patch, "audio.input_mode") == "2");
     assert(*patchValue(patch, "audio.input_file") == "song.wav");
     assert(*patchValue(patch, "audio.input_loop") == "0");
@@ -258,6 +296,63 @@ static void commandLineSourceBuildsFullAudioConfig() {
     assert(result.diagnostics[1].severity == ConfigDiagnosticWarning);
 }
 
+static void commandLineSourceBuildsSceneConfig() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--flame",
+            "fuzz",
+            "--flame-general=42",
+            "--wave",
+            "line",
+            "--wave-scale",
+            "scale1",
+            "--object",
+            "cube",
+            "--translation",
+            "swirl",
+            "--palette",
+            "fire",
+            "--border",
+            "border1",
+            "--flashlight",
+            "--table",
+            "table3",
+            "--image",
+            "splash",
+            "--display",
+            "roll",
+        })
+        .build();
+
+    assert(result.ok());
+    assert(result.config.scene.flame == "fuzz");
+    assert(result.config.scene.generalFlame == "42");
+    assert(result.config.scene.wave == "line");
+    assert(result.config.scene.waveScale == "scale1");
+    assert(result.config.scene.object == "cube");
+    assert(result.config.scene.translation == "swirl");
+    assert(result.config.scene.palette == "fire");
+    assert(result.config.scene.border == "border1");
+    assert(result.config.scene.flashlight
+        == DEFAULT_FLASHLIGHT_ENABLE_INITIAL_ENTRY);
+    assert(result.config.scene.table == "table3");
+    assert(result.config.scene.image == "splash");
+    assert(result.config.scene.presentation == "roll");
+
+    ConfigurationBuilder noFlashlightBuilder;
+    result = noFlashlightBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--no-flashlight",
+                 })
+                 .build();
+    assert(result.ok());
+    assert(result.config.scene.flashlight
+        == DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
+}
+
 static void commandLineSourceHandlesDisplayAndBufferSettings() {
     ConfigurationBuilder builder;
     ConfigBuildResult result = builder.addDefaults()
@@ -310,12 +405,14 @@ static void invalidTypedValueProducesDeferredError() {
 }
 
 int main() {
+    fflush(stderr);
     assert(configArgumentsFromArgv(0, NULL).empty());
     defaultsProduceTypedConfig();
     iniTextSourceProducesPatchWithoutGlobals();
     sourcePrecedenceIsDefaultsIniEnvironmentCommandLine();
     commandLineSourceHandlesAudioLastWriterWins();
     commandLineSourceBuildsFullAudioConfig();
+    commandLineSourceBuildsSceneConfig();
     commandLineSourceHandlesDisplayAndBufferSettings();
     customBufferSizeIsClampedWithDeferredWarnings();
     invalidTypedValueProducesDeferredError();

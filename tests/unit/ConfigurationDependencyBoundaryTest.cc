@@ -111,6 +111,28 @@ static void testApplicationProvidesStartupConfigSlices() {
     assertSourceContains("src/Application.cc", "configureTranslationOptions(startupConfigValue.visual)");
     assertSourceContains("src/Application.cc", "configureWaveOptions(startupConfigValue.visual)");
     assertSourceContains("src/Application.cc", "videoDirector().configure(startupConfigValue.visual");
+    assertSourceContains("src/Application.cc", "sceneCommands().applyStartupConfig(startupConfigValue.scene)");
+    assertSourceDoesNotContain("src/Application.cc", "EffectControl::changeToInitial");
+}
+
+static void testSceneStartupUsesSceneConfig() {
+    assertSourceContains("src/Configuration.h", "SceneConfig scene");
+    assertSourceContains("src/Scene.cc", "SceneCommands::applyStartupConfig");
+    assertSourceContains("src/Scene.cc", "config.flame");
+    assertSourceContains("src/Scene.cc", "config.wave");
+    assertSourceContains("src/Scene.cc", "config.palette");
+    assertSourceDoesNotContain("src/options.cc", "flame.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "wave.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "waveScale.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "object.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "translation.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "palette.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "border.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "flashlight.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "table.setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "imageOption().setInitialEntry");
+    assertSourceDoesNotContain("src/options.cc", "screen.setInitialEntry");
+    assertSourceDoesNotContain("src/IniFiles.cc", "effectControlGetIniInitials");
 }
 
 static void testConfigDefaultsAreNotConsumedAsLegacyDefaults() {
@@ -140,6 +162,7 @@ int main() {
     testLegacyParserDoesNotWritePortedConfigValues();
     testCatalogLoadingUsesPathConfig();
     testApplicationProvidesStartupConfigSlices();
+    testSceneStartupUsesSceneConfig();
     testConfigDefaultsAreNotConsumedAsLegacyDefaults();
     return 0;
 }

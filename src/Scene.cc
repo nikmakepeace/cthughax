@@ -2,9 +2,11 @@
 #include "Scene.h"
 #include "EffectPresetCatalog.h"
 #include "Border.h"
+#include "Configuration.h"
 #include "CthughaBuffer.h"
 #include "Flashlight.h"
 #include "Image.h"
+#include "Screen.h"
 #include "display.h"
 #include "flames.h"
 #include "TranslationOptions.h"
@@ -219,6 +221,31 @@ void SceneCommands::syncFromOptionsAndMaybeCueImage(
     syncFromOptions(forcedChanges);
     if (&option == &images)
         emitImageCue();
+}
+
+static void applyStartupChoice(EffectControl& option,
+    const std::string& choice) {
+    option.change(choice.c_str(), 0);
+}
+
+void SceneCommands::applyStartupConfig(const SceneConfig& config) {
+    applyStartupChoice(waveScale, config.waveScale);
+    applyStartupChoice(table, config.table);
+    applyStartupChoice(object, config.object);
+    applyStartupChoice(wave, config.wave);
+    applyStartupChoice(flame, config.flame);
+    applyStartupChoice(flameGeneral, config.generalFlame);
+    applyStartupChoice(translation, config.translation);
+    applyStartupChoice(palette, config.palette);
+    applyStartupChoice(border, config.border);
+    applyStartupChoice(flashlight, config.flashlight);
+    applyStartupChoice(images, config.image);
+
+    // Presentation screen selection remains a display-side EffectControl until
+    // runtime reconfiguration gets its own owner.
+    applyStartupChoice(screen, config.presentation);
+
+    initializeFromOptions();
 }
 
 void SceneCommands::initializeFromOptions() {

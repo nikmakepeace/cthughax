@@ -101,6 +101,23 @@ struct CatalogConfig {
     CatalogConfig();
 };
 
+struct SceneConfig {
+    std::string flame;
+    std::string generalFlame;
+    std::string wave;
+    std::string waveScale;
+    std::string object;
+    std::string translation;
+    std::string palette;
+    std::string border;
+    std::string flashlight;
+    std::string table;
+    std::string image;
+    std::string presentation;
+
+    SceneConfig();
+};
+
 struct AudioMixerInitialVolumeConfig {
     std::string name;
     int volume;
@@ -200,6 +217,7 @@ struct Config {
     AppConfig app;
     PathConfig paths;
     CatalogConfig catalogs;
+    SceneConfig scene;
     AudioConfig audio;
     DisplayConfig display;
     AutoChangeConfig autoChange;

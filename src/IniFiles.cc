@@ -408,7 +408,6 @@ static void read_current_ini_initials() {
         }
     }
 
-    effectControlGetIniInitials();
     warn_unknown_ini_entries();
 }
 

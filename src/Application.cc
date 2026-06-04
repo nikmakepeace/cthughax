@@ -13,7 +13,6 @@
 #include "AudioVisualBridge.h"
 #include "AutoChanger.h"
 #include "Border.h"
-#include "EffectControl.h"
 #include "EffectChoiceLoader.h"
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
@@ -268,7 +267,7 @@ int Application::initialize() {
         return 0;
 
     // Visual catalogs depend on final buffer dimensions and must be available
-    // before EffectControl::changeToInitial() resolves staged option names.
+    // before startup scene config can be matched to concrete catalog entries.
     CTH_INFO("Initializing cthugha Buffer...\n");
     if (initializeVisualCatalogs(CthughaBuffer::buffer, startupConfigValue.paths))
         return 0;
@@ -281,9 +280,8 @@ int Application::initialize() {
     init_flashlight();
 
     CTH_INFO("Setting initial effect controls...\n");
-    EffectControl::changeToInitial();
+    sceneCommands().applyStartupConfig(startupConfigValue.scene);
     audioProcessing.changeToInitial();
-    sceneCommands().initializeFromOptions();
 
     // Interface/keymaps are available before display creation so early display
     // events and option panels can route input immediately.

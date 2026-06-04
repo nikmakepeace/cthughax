@@ -15,6 +15,7 @@ class Flame;
 class ImageOption;
 class IndexedImage;
 class PaletteEntry;
+struct SceneConfig;
 class Wave;
 
 enum SceneChange {
@@ -129,6 +130,7 @@ public:
 
     ImageOption& imageOption() { return images; }
 
+    void applyStartupConfig(const SceneConfig& config);
     void initializeFromOptions();
     void refreshFromOptions(unsigned int forcedChanges = 0);
 

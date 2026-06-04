@@ -23,6 +23,18 @@ namespace {
 static const char* KEY_LOGGING_VERBOSITY = "logging.verbosity";
 static const char* KEY_PATH_EXTRA_LIBRARY = "paths.extra_library";
 static const char* KEY_PATH_INI_OVERRIDE = "paths.ini_file_override";
+static const char* KEY_SCENE_FLAME = "scene.flame";
+static const char* KEY_SCENE_GENERAL_FLAME = "scene.general_flame";
+static const char* KEY_SCENE_WAVE = "scene.wave";
+static const char* KEY_SCENE_WAVE_SCALE = "scene.wave_scale";
+static const char* KEY_SCENE_OBJECT = "scene.object";
+static const char* KEY_SCENE_TRANSLATION = "scene.translation";
+static const char* KEY_SCENE_PALETTE = "scene.palette";
+static const char* KEY_SCENE_BORDER = "scene.border";
+static const char* KEY_SCENE_FLASHLIGHT = "scene.flashlight";
+static const char* KEY_SCENE_TABLE = "scene.table";
+static const char* KEY_SCENE_IMAGE = "scene.image";
+static const char* KEY_SCENE_PRESENTATION = "scene.presentation";
 static const char* KEY_AUDIO_INPUT_MODE = "audio.input_mode";
 static const char* KEY_AUDIO_INPUT_FILE = "audio.input_file";
 static const char* KEY_AUDIO_INPUT_LOOP = "audio.input_loop";
@@ -203,6 +215,18 @@ static void setAudioMode(ConfigPatch& patch, const std::string& source,
     patch.set(KEY_AUDIO_INPUT_FILE, fileName, source);
 }
 
+static void setSceneText(ConfigPatch& patch, const std::string& source,
+    const char* key, const std::string& value) {
+    patch.set(key, trim(value), source);
+}
+
+static void setSceneFlashlight(ConfigPatch& patch, const std::string& source,
+    const std::string& value, const char* defaultValue) {
+    std::string cleanedValue = trim(value);
+    patch.set(KEY_SCENE_FLASHLIGHT,
+        cleanedValue.empty() ? defaultValue : cleanedValue, source);
+}
+
 static void setAudioBoolean(ConfigPatch& patch, const std::string& source,
     const char* key, int enabled) {
     patch.set(key, booleanText(enabled), source);
@@ -310,6 +334,34 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     } else if (key == "ini-file") {
         diagnostics.warning(source, key,
             "cthugha.ini-file is ignored inside ini files; use --ini-file before startup config is built");
+    } else if (key == "flame") {
+        setSceneText(patch, source, KEY_SCENE_FLAME, cleanedValue);
+    } else if (key == "flame-general") {
+        setSceneText(patch, source, KEY_SCENE_GENERAL_FLAME, cleanedValue);
+    } else if (key == "wave") {
+        setSceneText(patch, source, KEY_SCENE_WAVE, cleanedValue);
+    } else if (key == "wave-scale") {
+        setSceneText(patch, source, KEY_SCENE_WAVE_SCALE, cleanedValue);
+    } else if (key == "object") {
+        setSceneText(patch, source, KEY_SCENE_OBJECT, cleanedValue);
+    } else if (key == "translation" || key == "translate") {
+        setSceneText(patch, source, KEY_SCENE_TRANSLATION, cleanedValue);
+    } else if (key == "palette") {
+        setSceneText(patch, source, KEY_SCENE_PALETTE, cleanedValue);
+    } else if (key == "border") {
+        setSceneText(patch, source, KEY_SCENE_BORDER, cleanedValue);
+    } else if (key == "flashlight") {
+        setSceneFlashlight(patch, source, cleanedValue,
+            DEFAULT_FLASHLIGHT_ENABLE_INITIAL_ENTRY);
+    } else if (key == "no-flashlight") {
+        setSceneFlashlight(patch, source, cleanedValue,
+            DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
+    } else if (key == "table") {
+        setSceneText(patch, source, KEY_SCENE_TABLE, cleanedValue);
+    } else if (key == "image") {
+        setSceneText(patch, source, KEY_SCENE_IMAGE, cleanedValue);
+    } else if (key == "display") {
+        setSceneText(patch, source, KEY_SCENE_PRESENTATION, cleanedValue);
     } else if (key == "play") {
         setAudioMode(patch, source, AIM_File, cleanedValue);
     } else if (key == "random-noise") {
@@ -431,6 +483,96 @@ static void applyCommandLineOption(ConfigPatch& patch,
             patch.set(KEY_PATH_INI_OVERRIDE, value, "command line");
     } else if (startsWith(arg, "--ini-file=")) {
         patch.set(KEY_PATH_INI_OVERRIDE, arg.substr(11), "command line");
+    } else if (arg == "--flame") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_FLAME, value);
+    } else if (startsWith(arg, "--flame=")) {
+        setSceneText(patch, "command line", KEY_SCENE_FLAME, arg.substr(8));
+    } else if (arg == "--flame-general") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_GENERAL_FLAME,
+                value);
+    } else if (startsWith(arg, "--flame-general=")) {
+        setSceneText(patch, "command line", KEY_SCENE_GENERAL_FLAME,
+            arg.substr(16));
+    } else if (arg == "--wave") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_WAVE, value);
+    } else if (startsWith(arg, "--wave=")) {
+        setSceneText(patch, "command line", KEY_SCENE_WAVE, arg.substr(7));
+    } else if (arg == "--wave-scale") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_WAVE_SCALE, value);
+    } else if (startsWith(arg, "--wave-scale=")) {
+        setSceneText(patch, "command line", KEY_SCENE_WAVE_SCALE,
+            arg.substr(13));
+    } else if (arg == "--object") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_OBJECT, value);
+    } else if (startsWith(arg, "--object=")) {
+        setSceneText(patch, "command line", KEY_SCENE_OBJECT,
+            arg.substr(9));
+    } else if (arg == "--translation" || arg == "--translate") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_TRANSLATION,
+                value);
+    } else if (startsWith(arg, "--translation=")) {
+        setSceneText(patch, "command line", KEY_SCENE_TRANSLATION,
+            arg.substr(14));
+    } else if (startsWith(arg, "--translate=")) {
+        setSceneText(patch, "command line", KEY_SCENE_TRANSLATION,
+            arg.substr(12));
+    } else if (arg == "--palette") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_PALETTE, value);
+    } else if (startsWith(arg, "--palette=")) {
+        setSceneText(patch, "command line", KEY_SCENE_PALETTE,
+            arg.substr(10));
+    } else if (arg == "--border") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_BORDER, value);
+    } else if (startsWith(arg, "--border=")) {
+        setSceneText(patch, "command line", KEY_SCENE_BORDER, arg.substr(9));
+    } else if (arg == "--flashlight") {
+        setSceneFlashlight(patch, "command line", "",
+            DEFAULT_FLASHLIGHT_ENABLE_INITIAL_ENTRY);
+    } else if (startsWith(arg, "--flashlight=")) {
+        setSceneFlashlight(patch, "command line", arg.substr(13),
+            DEFAULT_FLASHLIGHT_ENABLE_INITIAL_ENTRY);
+    } else if (arg == "--no-flashlight") {
+        setSceneFlashlight(patch, "command line", "",
+            DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
+    } else if (startsWith(arg, "--no-flashlight=")) {
+        setSceneFlashlight(patch, "command line", arg.substr(16),
+            DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
+    } else if (arg == "--table") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_TABLE, value);
+    } else if (startsWith(arg, "--table=")) {
+        setSceneText(patch, "command line", KEY_SCENE_TABLE, arg.substr(8));
+    } else if (arg == "--image") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_IMAGE, value);
+    } else if (startsWith(arg, "--image=")) {
+        setSceneText(patch, "command line", KEY_SCENE_IMAGE, arg.substr(8));
+    } else if (arg == "--display") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_PRESENTATION,
+                value);
+    } else if (startsWith(arg, "--display=")) {
+        setSceneText(patch, "command line", KEY_SCENE_PRESENTATION,
+            arg.substr(10));
     } else if (arg == "--play") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -570,6 +712,39 @@ static void applyCommandLineOption(ConfigPatch& patch,
             setBufferSize(patch, "command line", value);
     } else if (startsWith(arg, "--buff-size=")) {
         setBufferSize(patch, "command line", arg.substr(12));
+    } else if (arg == "-f") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_FLAME, value);
+    } else if (arg == "-w") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_WAVE, value);
+    } else if (arg == "-o") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_OBJECT, value);
+    } else if (arg == "-t") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_TRANSLATION,
+                value);
+    } else if (arg == "-p") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_PALETTE, value);
+    } else if (arg == "-a") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_TABLE, value);
+    } else if (arg == "-d") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setSceneText(patch, "command line", KEY_SCENE_PRESENTATION,
+                value);
+    } else if (arg == "-s") {
+        setSceneFlashlight(patch, "command line", "",
+            DEFAULT_FLASHLIGHT_DISABLE_INITIAL_ENTRY);
     } else if (startsWith(arg, "-L")) {
         std::string value;
         if (readShortOptionValue(args, index, arg, &value, diagnostics))
@@ -1141,6 +1316,20 @@ PathConfig::PathConfig()
 CatalogConfig::CatalogConfig()
     : doubleLoadEnabled(CATALOG_CONFIG_DEFAULT_DOUBLE_LOAD_ENABLED) { }
 
+SceneConfig::SceneConfig()
+    : flame()
+    , generalFlame()
+    , wave()
+    , waveScale()
+    , object()
+    , translation()
+    , palette()
+    , border()
+    , flashlight()
+    , table()
+    , image()
+    , presentation() { }
+
 AudioConfig::AudioConfig()
     : inputMode(AUDIO_CONFIG_DEFAULT_INPUT_MODE)
     , inputFile(AUDIO_CONFIG_DEFAULT_INPUT_FILE_PATH)
@@ -1234,6 +1423,31 @@ Config ConfigSchema::build(const ConfigPatch& patch,
         config.paths.extraLibraryPath = *value;
     if (const std::string* value = patch.value(KEY_PATH_INI_OVERRIDE))
         config.paths.iniFileOverride = *value;
+
+    if (const std::string* value = patch.value(KEY_SCENE_FLAME))
+        config.scene.flame = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_GENERAL_FLAME))
+        config.scene.generalFlame = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_WAVE))
+        config.scene.wave = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_WAVE_SCALE))
+        config.scene.waveScale = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_OBJECT))
+        config.scene.object = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_TRANSLATION))
+        config.scene.translation = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_PALETTE))
+        config.scene.palette = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_BORDER))
+        config.scene.border = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_FLASHLIGHT))
+        config.scene.flashlight = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_TABLE))
+        config.scene.table = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_IMAGE))
+        config.scene.image = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_PRESENTATION))
+        config.scene.presentation = *value;
 
     if (const ConfigEntry* entry = patch.entry(KEY_AUDIO_INPUT_MODE)) {
         AudioInputMode mode = AUDIO_CONFIG_DEFAULT_INPUT_MODE;
@@ -1546,6 +1760,18 @@ ConfigPatch hardcodedDefaultConfigPatch() {
         "defaults");
     defaults.set(KEY_PATH_INI_OVERRIDE, PATH_CONFIG_DEFAULT_INI_FILE_OVERRIDE_PATH,
         "defaults");
+    defaults.set(KEY_SCENE_FLAME, "", "defaults");
+    defaults.set(KEY_SCENE_GENERAL_FLAME, "", "defaults");
+    defaults.set(KEY_SCENE_WAVE, "", "defaults");
+    defaults.set(KEY_SCENE_WAVE_SCALE, "", "defaults");
+    defaults.set(KEY_SCENE_OBJECT, "", "defaults");
+    defaults.set(KEY_SCENE_TRANSLATION, "", "defaults");
+    defaults.set(KEY_SCENE_PALETTE, "", "defaults");
+    defaults.set(KEY_SCENE_BORDER, "", "defaults");
+    defaults.set(KEY_SCENE_FLASHLIGHT, "", "defaults");
+    defaults.set(KEY_SCENE_TABLE, "", "defaults");
+    defaults.set(KEY_SCENE_IMAGE, "", "defaults");
+    defaults.set(KEY_SCENE_PRESENTATION, "", "defaults");
     defaults.set(KEY_AUDIO_INPUT_MODE,
         integerText(int(AUDIO_CONFIG_DEFAULT_INPUT_MODE)),
         "defaults");
