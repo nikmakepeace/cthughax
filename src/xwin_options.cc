@@ -40,5 +40,7 @@ int get_ini_str_sys(const char* name, char* value) {
     return 1;
 }
 
+#ifndef CTH_XWIN
 #define CTH_XWIN
+#endif
 #include "options.cc"

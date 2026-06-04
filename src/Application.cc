@@ -209,17 +209,15 @@ int Application::initialize() {
     startupConfigDiagnostics = startupConfig.diagnostics;
     cthugha_configure_logging(startupConfigValue.logging);
     configureApplicationOptions(startupConfigValue.app);
-    configureKeys(startupConfigValue.app);
-    Keymap::configure(startupConfigValue.app);
+    configureKeys(startupConfigValue.input);
     configureIniFiles(startupConfigValue.paths);
     configureEffectChoiceLoader(startupConfigValue.catalogs);
     configureAudioOptions(startupConfigValue.audio);
     configureCthughaDisplay(startupConfigValue.display);
-    configureDisplayDevice(startupConfigValue.display);
     configureNcursesDisplay(startupConfigValue.display);
     configureScreenshot(startupConfigValue.display);
 #ifdef CTH_XWIN
-    configureDisplayDeviceX11(startupConfigValue.display);
+    configureDisplayDeviceX11(startupConfigValue.x11);
 #endif
     configureAutoChanger(startupConfigValue.autoChange);
     configureTranslationOptions(startupConfigValue.visual);
@@ -289,7 +287,7 @@ int Application::initialize() {
     Interface::set("main");
 
     CTH_INFO("Initializing keymaps...\n");
-    Keymap::init();
+    Keymap::init(startupConfigValue.input);
 
     CTH_INFO("Initializing display...\n");
     int displayArgc = int(displayArgv.size());

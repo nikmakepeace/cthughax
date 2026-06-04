@@ -118,6 +118,7 @@ if(CTH_BUILD_X11)
     add_dependencies(xcthugha default_keymap_str)
 
     target_compile_definitions(xcthugha PRIVATE
+        CTH_XWIN
         CTH_LIBDIR="${CTH_DATA_DIR}"
     )
 

@@ -30,8 +30,8 @@ static void defaultsProduceTypedConfig() {
     assert(result.ok());
     assert(result.config.logging.verbosity == LOGGING_CONFIG_DEFAULT_VERBOSITY);
     assert(result.config.app.optionsSaveEnabled == APP_CONFIG_DEFAULT_OPTIONS_SAVE_ENABLED);
-    assert(result.config.app.escapeKeyEnabled == APP_CONFIG_DEFAULT_ESCAPE_KEY_ENABLED);
-    assert(result.config.app.keymapFile == PATH_CONFIG_DEFAULT_KEYMAP_FILE_PATH);
+    assert(result.config.input.escapeKeyEnabled == INPUT_CONFIG_DEFAULT_ESCAPE_KEY_ENABLED);
+    assert(result.config.input.keymapFile == INPUT_CONFIG_DEFAULT_KEYMAP_FILE_PATH);
     assert(result.config.paths.extraLibraryPath == PATH_CONFIG_DEFAULT_EXTRA_LIBRARY_PATH);
     assert(result.config.paths.iniFileOverride == PATH_CONFIG_DEFAULT_INI_FILE_OVERRIDE_PATH);
     assert(result.config.catalogs.doubleLoadEnabled == CATALOG_CONFIG_DEFAULT_DOUBLE_LOAD_ENABLED);
@@ -75,10 +75,8 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.display.maxFramesPerSecond == DISPLAY_CONFIG_DEFAULT_MAX_FRAMES_PER_SECOND);
     assert(result.config.display.showFpsEnabled == DISPLAY_CONFIG_DEFAULT_SHOW_FPS_ENABLED);
     assert(result.config.display.zoomMode == DISPLAY_CONFIG_DEFAULT_ZOOM_MODE);
-    assert(result.config.display.textOnTerm == DISPLAY_CONFIG_DEFAULT_TEXT_ON_TERM);
     assert(result.config.display.ncursesEnabled == DISPLAY_CONFIG_DEFAULT_NCURSES_ENABLED);
     assert(result.config.display.screenshotFilePrefix == DISPLAY_CONFIG_DEFAULT_SCREENSHOT_FILE_PREFIX);
-    assert(result.config.display.x11FontName == DISPLAY_CONFIG_DEFAULT_X11_FONT_NAME);
     assert(result.config.autoChange.quietMs == AUTO_CHANGE_CONFIG_DEFAULT_QUIET_MS);
     assert(result.config.autoChange.waitMinMs == AUTO_CHANGE_CONFIG_DEFAULT_WAIT_MIN_MS);
     assert(result.config.autoChange.waitRandomMs == AUTO_CHANGE_CONFIG_DEFAULT_WAIT_RANDOM_MS);
@@ -100,6 +98,8 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     IniTextConfigSource source("memory",
         "cthugha.verbose: 3\n"
         "cthugha.path: /tmp/cth\n"
+        "cthugha.keymap: custom.keymap\n"
+        "cthugha.no-esc: yes\n"
         "cthugha.flame: fuzz\n"
         "cthugha.flame-general: 42\n"
         "cthugha.wave: line\n"
@@ -138,6 +138,8 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(diagnostics.diagnostics().empty());
     assert(*patchValue(patch, "logging.verbosity") == "3");
     assert(*patchValue(patch, "paths.extra_library") == "/tmp/cth/");
+    assert(*patchValue(patch, "input.keymap_file") == "custom.keymap");
+    assert(*patchValue(patch, "input.escape_key_enabled") == "0");
     assert(*patchValue(patch, "scene.flame") == "fuzz");
     assert(*patchValue(patch, "scene.general_flame") == "42");
     assert(*patchValue(patch, "scene.wave") == "line");
@@ -203,6 +205,36 @@ static void sourcePrecedenceIsDefaultsIniEnvironmentCommandLine() {
 
     assert(result.ok());
     assert(result.config.logging.verbosity == 0);
+}
+
+static void commandLineSourceBuildsInputConfig() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--no-esc",
+            "--keymap",
+            "custom.keymap",
+        })
+        .build();
+
+    assert(result.ok());
+    assert(result.config.input.escapeKeyEnabled == 0);
+    assert(result.config.input.keymapFile == "custom.keymap");
+
+    ConfigurationBuilder escBuilder;
+    result = escBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--no-esc",
+                     "--esc",
+                     "--keymap=other.keymap",
+                 })
+                 .build();
+
+    assert(result.ok());
+    assert(result.config.input.escapeKeyEnabled == 1);
+    assert(result.config.input.keymapFile == "other.keymap");
 }
 
 static void commandLineSourceHandlesAudioLastWriterWins() {
@@ -405,11 +437,13 @@ static void invalidTypedValueProducesDeferredError() {
 }
 
 int main() {
+    fprintf(stderr, "%s", "");
     fflush(stderr);
     assert(configArgumentsFromArgv(0, NULL).empty());
     defaultsProduceTypedConfig();
     iniTextSourceProducesPatchWithoutGlobals();
     sourcePrecedenceIsDefaultsIniEnvironmentCommandLine();
+    commandLineSourceBuildsInputConfig();
     commandLineSourceHandlesAudioLastWriterWins();
     commandLineSourceBuildsFullAudioConfig();
     commandLineSourceBuildsSceneConfig();

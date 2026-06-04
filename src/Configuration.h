@@ -80,10 +80,15 @@ struct LoggingConfig {
 
 struct AppConfig {
     int optionsSaveEnabled;
+
+    AppConfig();
+};
+
+struct InputConfig {
     int escapeKeyEnabled;
     std::string keymapFile;
 
-    AppConfig();
+    InputConfig();
 };
 
 struct PathConfig {
@@ -161,22 +166,29 @@ struct DisplayConfig {
     int maxFramesPerSecond;
     int showFpsEnabled;
     int zoomMode;
-    int textOnTerm;
     int ncursesEnabled;
     std::string screenshotFilePrefix;
-    int x11OverrideRedirect;
-    int x11PrivateCmap;
-    int x11MitShm;
-    int x11RootWindow;
-    int x11Fullscreen;
-    int x11WindowPositionEnabled;
-    int x11WindowPositionX;
-    int x11WindowPositionY;
-    int x11PanelEnabled;
-    std::string x11FontName;
 
     DisplayConfig();
 };
+
+#ifdef CTH_XWIN
+struct X11Config {
+    int textOnTerm;
+    int overrideRedirect;
+    int privateCmap;
+    int mitShm;
+    int rootWindow;
+    int fullscreen;
+    int windowPositionEnabled;
+    int windowPositionX;
+    int windowPositionY;
+    int panelEnabled;
+    std::string fontName;
+
+    X11Config();
+};
+#endif
 
 struct AutoChangeConfig {
     int quietMs;
@@ -215,11 +227,15 @@ struct MessagesConfig {
 struct Config {
     LoggingConfig logging;
     AppConfig app;
+    InputConfig input;
     PathConfig paths;
     CatalogConfig catalogs;
     SceneConfig scene;
     AudioConfig audio;
     DisplayConfig display;
+#ifdef CTH_XWIN
+    X11Config x11;
+#endif
     AutoChangeConfig autoChange;
     VisualConfig visual;
     MessagesConfig messages;

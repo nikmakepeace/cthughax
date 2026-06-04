@@ -6,7 +6,6 @@
 #include "display.h"
 #include "AudioOptions.h"
 #include "Mixer.h"
-#include "keys.h"
 #include "waves.h"
 #include "cth_buffer.h"
 #include "AutoChanger.h"
@@ -24,7 +23,6 @@
 #include "xcthugha.h"
 #endif
 #include "imath.h"
-#include "keymap.h"
 
 #include <unistd.h>
 #include <ctype.h>
@@ -72,6 +70,8 @@ enum option_nr {
     opt_pulse_latency_ms,
     opt_audio_output_dump,
     opt_ini_file,
+    opt_esc,
+    opt_no_esc,
     opt_image,
     opt_images,
     opt_no_images,
@@ -79,6 +79,22 @@ enum option_nr {
     opt_qotd,
     opt_no_qotd,
     opt_qotd_server,
+#ifdef CTH_XWIN
+    opt_x11_mit_shm,
+    opt_x11_no_mit_shm,
+    opt_x11_root,
+    opt_x11_no_root,
+    opt_x11_install,
+    opt_x11_no_install,
+    opt_x11_override_redirect,
+    opt_x11_no_override_redirect,
+    opt_x11_full_screen,
+    opt_x11_no_full_screen,
+    opt_x11_panel,
+    opt_x11_no_panel,
+    opt_x11_text_on_term,
+    opt_x11_no_text_on_term,
+#endif
 };
 
 struct option long_options[] = {
@@ -152,17 +168,23 @@ struct option long_options[] = {
 
 // X11 options
 #ifdef CTH_XWIN
-    { "mit-shm", 0, &display_mit_shm, 1 }, { "no-mit-shm", 0, &display_mit_shm, 0 },
-    { "root", 0, &display_on_root, 1 }, { "no-root", 0, &display_on_root, 0 },
-    { "install", 0, &private_cmap, 1 }, { "no-install", 0, &private_cmap, 0 },
-    { "override-redirect", 0, &display_override_redirect, 1 },
-    { "no-override-redirect", 0, &display_override_redirect, 0 },
-    { "no-decorate", 0, &display_override_redirect, 1 },
-    { "decorate", 0, &display_override_redirect, 0 }, { "full-screen", 0, &full_screen, 1 },
-    { "no-full-screen", 0, &full_screen, 0 }, { "panel", 0, &xcth_panel, 1 },
-    { "no-panel", 0, &xcth_panel, 0 }, { "position", 1, 0, opt_position },
-    { "text-on-term", 0, &DisplayDevice::text_on_term, 1 },
-    { "no-text-on-term", 0, &DisplayDevice::text_on_term, 0 }, { "font", 1, 0, opt_font },
+    { "mit-shm", 0, 0, opt_x11_mit_shm },
+    { "no-mit-shm", 0, 0, opt_x11_no_mit_shm },
+    { "root", 0, 0, opt_x11_root },
+    { "no-root", 0, 0, opt_x11_no_root },
+    { "install", 0, 0, opt_x11_install },
+    { "no-install", 0, 0, opt_x11_no_install },
+    { "override-redirect", 0, 0, opt_x11_override_redirect },
+    { "no-override-redirect", 0, 0, opt_x11_no_override_redirect },
+    { "no-decorate", 0, 0, opt_x11_override_redirect },
+    { "decorate", 0, 0, opt_x11_no_override_redirect },
+    { "full-screen", 0, 0, opt_x11_full_screen },
+    { "no-full-screen", 0, 0, opt_x11_no_full_screen },
+    { "panel", 0, 0, opt_x11_panel },
+    { "no-panel", 0, 0, opt_x11_no_panel }, { "position", 1, 0, opt_position },
+    { "text-on-term", 0, 0, opt_x11_text_on_term },
+    { "no-text-on-term", 0, 0, opt_x11_no_text_on_term },
+    { "font", 1, 0, opt_font },
 #endif
 
     // general options
@@ -170,8 +192,8 @@ struct option long_options[] = {
     { "dbl-load", 0, &double_load.value, 1 }, { "no-dbl-load", 0, &double_load.value, 0 },
     { "save", 0, &options_save.value, 1 }, { "no-save", 0, &options_save.value, 0 },
     { "prt-file", 1, 0, opt_prt_file },
-    { "esc", 0, &key_esc, 1 },
-    { "no-esc", 0, &key_esc, 0 }, { "verbose", 2, 0, opt_verbose },
+    { "esc", 0, 0, opt_esc },
+    { "no-esc", 0, 0, opt_no_esc }, { "verbose", 2, 0, opt_verbose },
     { "no-verbose", 0, 0, opt_no_verbose }, { "help", 0, 0, '?' },
 
     { 0, 0, 0, 0 }
@@ -344,7 +366,10 @@ int do_param(int c, int value, char* str) {
 
 
     case opt_keymap:
-        strncpy(Keymap::keymapFile, str, PATH_MAX);
+        break;
+
+    case opt_esc:
+    case opt_no_esc:
         break;
 
     case opt_verbose:
@@ -391,14 +416,26 @@ int do_param(int c, int value, char* str) {
         break;
 
 #ifdef CTH_XWIN
+    case opt_x11_mit_shm:
+    case opt_x11_no_mit_shm:
+    case opt_x11_root:
+    case opt_x11_no_root:
+    case opt_x11_install:
+    case opt_x11_no_install:
+    case opt_x11_override_redirect:
+    case opt_x11_no_override_redirect:
+    case opt_x11_full_screen:
+    case opt_x11_no_full_screen:
+    case opt_x11_panel:
+    case opt_x11_no_panel:
+    case opt_x11_text_on_term:
+    case opt_x11_no_text_on_term:
+        break;
+
     case opt_position:
-        sscanf(str, "%d%d", &window_pos.x, &window_pos.y);
-        window_do_pos = 1;
-        CTH_DEBUG("window pos: %d %d\n", window_pos.x, window_pos.y);
         break;
 
     case opt_font:
-        strncpy(xcth_font, str, 256);
         break;
 #endif
 
@@ -422,10 +459,6 @@ int get_pre_params(int argc, char* argv[]) {
     static struct option long_options_preini[] = { { "path", 1, 0, 'E' },
         { "ini-file", 1, 0, opt_ini_file },
         { "verbose", 2, 0, opt_verbose }, { "no-verbose", 0, 0, opt_no_verbose },
-#ifdef CTH_XWIN
-        { "text-on-term", 0, &DisplayDevice::text_on_term, 1 },
-        { "no-text-on-term", 0, &DisplayDevice::text_on_term, 0 },
-#endif
         { 0, 0, 0, 0 } };
 
     char* argv_tmp[argc]; /* copy of argv to work with */

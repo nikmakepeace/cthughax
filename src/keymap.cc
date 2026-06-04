@@ -212,17 +212,10 @@ public:
     }
 };
 
-char Keymap::keymapFile[PATH_MAX] = "";
-
 Action* Action::head = NULL;
 
 Keymap* Keymap::first = NULL;
 Keymap* Keymap::current = NULL;
-
-void Keymap::configure(const AppConfig& config) {
-    strncpy(keymapFile, config.keymapFile.c_str(), PATH_MAX);
-    keymapFile[PATH_MAX - 1] = '\0';
-}
 
 Keymap::Keymap(const char* n)
     : next(first)
@@ -498,7 +491,7 @@ void Keymap::set(const char* name) {
 //
 // intializiation of the default keymaps
 //
-void Keymap::init() {
+void Keymap::init(const InputConfig& config) {
 
     static Keymap defaultKM("default");
     static Keymap mainKM("main");
@@ -514,8 +507,8 @@ void Keymap::init() {
 #include <default.keymap.str>
         NULL);
 
-    if (keymapFile[0] != '\0')
-        readFile(keymapFile);
+    if (!config.keymapFile.empty())
+        readFile(config.keymapFile.c_str());
 }
 
 //

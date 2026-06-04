@@ -5,7 +5,7 @@
 
 #include "cthugha.h"
 
-struct AppConfig;
+struct InputConfig;
 
 class Action {
     const char* name;
@@ -77,8 +77,6 @@ protected:
     Binding parseBinding(const char* line);
 
 public:
-    static char keymapFile[PATH_MAX];
-
     Keymap(const char* name);
 
     static void readFile(const char* fileName);
@@ -90,8 +88,7 @@ public:
     static int action(const char* name, int key);
 
     static void set(const char* name);
-    static void init();
-    static void configure(const AppConfig& config);
+    static void init(const InputConfig& config);
 };
 
 #endif

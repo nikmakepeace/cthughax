@@ -134,6 +134,4 @@ extern DisplayDevice* displayDevice;
 extern std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
     Scene& scene, SceneCommands& sceneCommands, const DisplayConfig& config);
 
-void configureDisplayDevice(const DisplayConfig& config);
-
 #endif

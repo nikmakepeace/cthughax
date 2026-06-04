@@ -53,6 +53,29 @@ static void testDisplayStartupUsesDisplayConfig() {
     assertSourceDoesNotContain("src/DisplayDeviceX11.cc", "display_mode");
 }
 
+static void testX11StartupUsesX11ConfigOnlyForX11Builds() {
+    assertSourceContains("src/Configuration.h", "#ifdef CTH_XWIN\nstruct X11Config");
+    assertSourceContains("src/Configuration.h", "#ifdef CTH_XWIN\n    X11Config x11;");
+    assertSourceContains("src/Application.cc",
+        "configureDisplayDeviceX11(startupConfigValue.x11)");
+    assertSourceDoesNotContain("src/Application.cc",
+        "configureDisplayDevice(startupConfigValue.display)");
+    assertSourceContains("src/xcthugha.h",
+        "void configureDisplayDeviceX11(const X11Config& config)");
+    assertSourceContains("src/DisplayDeviceX11.cc",
+        "void configureDisplayDeviceX11(const X11Config& config)");
+    assertSourceDoesNotContain("src/Configuration.h", "x11FontName");
+    assertSourceDoesNotContain("src/Configuration.h", "x11MitShm");
+    assertSourceDoesNotContain("src/options.cc", "&display_mit_shm");
+    assertSourceDoesNotContain("src/options.cc", "&display_on_root");
+    assertSourceDoesNotContain("src/options.cc", "&private_cmap");
+    assertSourceDoesNotContain("src/options.cc", "&display_override_redirect");
+    assertSourceDoesNotContain("src/options.cc", "&xcth_panel");
+    assertSourceDoesNotContain("src/options.cc", "&DisplayDevice::text_on_term");
+    assertSourceDoesNotContain("src/options.cc", "window_pos.x");
+    assertSourceDoesNotContain("src/options.cc", "strncpy(xcth_font");
+}
+
 static void testLoggingUsesLoggingConfig() {
     assertSourceContains("src/Application.cc", "cthugha_configure_logging");
     assertSourceDoesNotContain("src/misc.cc", "cthugha_verbose");
@@ -89,6 +112,8 @@ static void testLegacyParserDoesNotWritePortedConfigValues() {
     assertSourceDoesNotContain("src/options.cc", "soundDSPFragments.change");
     assertSourceDoesNotContain("src/options.cc", "soundDSPMethod.change");
     assertSourceDoesNotContain("src/options.cc", "mixer_initial_volume");
+    assertSourceDoesNotContain("src/options.cc", "&key_esc");
+    assertSourceDoesNotContain("src/options.cc", "Keymap::keymapFile");
     assertSourceContains("src/AudioSystem.cc", "config.mixerInitialVolumes");
 }
 
@@ -102,17 +127,30 @@ static void testCatalogLoadingUsesPathConfig() {
 
 static void testApplicationProvidesStartupConfigSlices() {
     assertSourceContains("src/Application.cc", "configureApplicationOptions(startupConfigValue.app)");
+    assertSourceContains("src/Application.cc", "configureKeys(startupConfigValue.input)");
+    assertSourceContains("src/Application.cc", "Keymap::init(startupConfigValue.input)");
     assertSourceContains("src/Application.cc", "configureIniFiles(startupConfigValue.paths)");
     assertSourceContains("src/Application.cc", "configureEffectChoiceLoader(startupConfigValue.catalogs)");
     assertSourceContains("src/Application.cc", "configureAudioOptions(startupConfigValue.audio)");
     assertSourceContains("src/Application.cc", "configureCthughaDisplay(startupConfigValue.display)");
-    assertSourceContains("src/Application.cc", "configureDisplayDevice(startupConfigValue.display)");
     assertSourceContains("src/Application.cc", "configureAutoChanger(startupConfigValue.autoChange)");
     assertSourceContains("src/Application.cc", "configureTranslationOptions(startupConfigValue.visual)");
     assertSourceContains("src/Application.cc", "configureWaveOptions(startupConfigValue.visual)");
     assertSourceContains("src/Application.cc", "videoDirector().configure(startupConfigValue.visual");
     assertSourceContains("src/Application.cc", "sceneCommands().applyStartupConfig(startupConfigValue.scene)");
+    assertSourceDoesNotContain("src/Application.cc", "Keymap::configure");
     assertSourceDoesNotContain("src/Application.cc", "EffectControl::changeToInitial");
+}
+
+static void testInputStartupUsesInputConfig() {
+    assertSourceContains("src/Configuration.h", "struct InputConfig");
+    assertSourceContains("src/Configuration.h", "InputConfig input");
+    assertSourceContains("src/keys.h", "void configureKeys(const InputConfig& config)");
+    assertSourceContains("src/keymap.h", "static void init(const InputConfig& config)");
+    assertSourceDoesNotContain("src/Configuration.h",
+        "struct AppConfig {\n    int optionsSaveEnabled;\n    int escapeKeyEnabled");
+    assertSourceDoesNotContain("src/keymap.h", "keymapFile[PATH_MAX]");
+    assertSourceDoesNotContain("src/keymap.cc", "Keymap::configure");
 }
 
 static void testSceneStartupUsesSceneConfig() {
@@ -151,17 +189,21 @@ static void testConfigDefaultsAreNotConsumedAsLegacyDefaults() {
     assertSourceDoesNotContain("src/waves.cc", "DEFAULT_USE_OBJECTS_ENABLED");
     assertSourceDoesNotContain("src/keymap.cc", "DEFAULT_KEYMAP_FILE_PATH");
     assertSourceDoesNotContain("src/keys.cc", "DEFAULT_ESCAPE_KEY_ENABLED");
+    assertSourceContains("src/configuration_defaults.h", "INPUT_CONFIG_DEFAULT_KEYMAP_FILE_PATH");
+    assertSourceContains("src/configuration_defaults.h", "INPUT_CONFIG_DEFAULT_ESCAPE_KEY_ENABLED");
     assertSourceDoesNotContain("src/Screenshot.cc", "DEFAULT_SCREENSHOT_FILE_PREFIX");
 }
 
 int main() {
     testAudioRuntimeUsesAudioConfig();
     testDisplayStartupUsesDisplayConfig();
+    testX11StartupUsesX11ConfigOnlyForX11Builds();
     testLoggingUsesLoggingConfig();
     testAudioInputFileGlobalWasDeleted();
     testLegacyParserDoesNotWritePortedConfigValues();
     testCatalogLoadingUsesPathConfig();
     testApplicationProvidesStartupConfigSlices();
+    testInputStartupUsesInputConfig();
     testSceneStartupUsesSceneConfig();
     testConfigDefaultsAreNotConsumedAsLegacyDefaults();
     return 0;

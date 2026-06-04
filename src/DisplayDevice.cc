@@ -74,10 +74,6 @@ int DisplayDevice::textColors = 3;
 
 int DisplayDevice::text_on_term = 0;
 
-void configureDisplayDevice(const DisplayConfig& config) {
-    DisplayDevice::text_on_term = config.textOnTerm;
-}
-
 xy text_size(0, 0);
 
 xy fontSize(8, 8);

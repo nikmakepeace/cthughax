@@ -6,8 +6,8 @@
 #define __KEYS_H__
 
 extern int key_esc; /* disable/enable ESC-key */
-struct AppConfig;
-void configureKeys(const AppConfig& config);
+struct InputConfig;
+void configureKeys(const InputConfig& config);
 
 int translate_key(int key);
 int getkey(); /* get a key and return a code */

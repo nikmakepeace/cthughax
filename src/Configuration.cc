@@ -21,6 +21,8 @@
 namespace {
 
 static const char* KEY_LOGGING_VERBOSITY = "logging.verbosity";
+static const char* KEY_INPUT_ESCAPE_ENABLED = "input.escape_key_enabled";
+static const char* KEY_INPUT_KEYMAP_FILE = "input.keymap_file";
 static const char* KEY_PATH_EXTRA_LIBRARY = "paths.extra_library";
 static const char* KEY_PATH_INI_OVERRIDE = "paths.ini_file_override";
 static const char* KEY_SCENE_FLAME = "scene.flame";
@@ -64,6 +66,20 @@ static const char* KEY_BUFFER_PRESET = "buffer.preset";
 static const char* KEY_BUFFER_WIDTH = "buffer.width";
 static const char* KEY_BUFFER_HEIGHT = "buffer.height";
 static const char* KEY_BUFFER_CUSTOM_SIZE = "buffer.custom_size";
+#ifdef CTH_XWIN
+static const char* KEY_X11_TEXT_ON_TERM = "x11.text_on_term";
+static const char* KEY_X11_OVERRIDE_REDIRECT = "x11.override_redirect";
+static const char* KEY_X11_PRIVATE_CMAP = "x11.private_cmap";
+static const char* KEY_X11_MIT_SHM = "x11.mit_shm";
+static const char* KEY_X11_ROOT_WINDOW = "x11.root_window";
+static const char* KEY_X11_FULLSCREEN = "x11.fullscreen";
+static const char* KEY_X11_WINDOW_POSITION_ENABLED
+    = "x11.window_position_enabled";
+static const char* KEY_X11_WINDOW_POSITION_X = "x11.window_position_x";
+static const char* KEY_X11_WINDOW_POSITION_Y = "x11.window_position_y";
+static const char* KEY_X11_PANEL_ENABLED = "x11.panel_enabled";
+static const char* KEY_X11_FONT_NAME = "x11.font_name";
+#endif
 
 struct ConfigSize {
     int width;
@@ -227,10 +243,81 @@ static void setSceneFlashlight(ConfigPatch& patch, const std::string& source,
         cleanedValue.empty() ? defaultValue : cleanedValue, source);
 }
 
-static void setAudioBoolean(ConfigPatch& patch, const std::string& source,
+static void setConfigBoolean(ConfigPatch& patch, const std::string& source,
     const char* key, int enabled) {
     patch.set(key, booleanText(enabled), source);
 }
+
+static void setAudioBoolean(ConfigPatch& patch, const std::string& source,
+    const char* key, int enabled) {
+    setConfigBoolean(patch, source, key, enabled);
+}
+
+#ifdef CTH_XWIN
+static void setX11Boolean(ConfigPatch& patch, const std::string& source,
+    const char* key, int enabled) {
+    patch.set(key, booleanText(enabled), source);
+}
+
+static void setIniX11BooleanOption(ConfigPatch& patch,
+    DeferredLogBuffer& diagnostics, const std::string& source,
+    const std::string& optionName, const char* key,
+    const std::string& value, int defaultWhenPresent, int invert) {
+    int enabled = defaultWhenPresent;
+
+    if (!value.empty() && !parseBoolean(value, &enabled)) {
+        diagnostics.error(source, optionName, "expected yes/no value");
+        return;
+    }
+
+    if (invert)
+        enabled = !enabled;
+    setX11Boolean(patch, source, key, enabled);
+}
+
+static bool parsePositionSpec(const std::string& text, int* x, int* y) {
+    std::string cleaned = trim(text);
+    char* end = NULL;
+    const char* begin = cleaned.c_str();
+    errno = 0;
+
+    long parsedX = std::strtol(begin, &end, 10);
+    if (cleaned.empty() || end == begin || errno != 0)
+        return false;
+
+    char* secondBegin = end;
+    long parsedY = std::strtol(secondBegin, &end, 10);
+    if (end == secondBegin || errno != 0)
+        return false;
+
+    while (*end != '\0') {
+        if (!std::isspace(static_cast<unsigned char>(*end)))
+            return false;
+        end++;
+    }
+
+    *x = int(parsedX);
+    *y = int(parsedY);
+    return true;
+}
+
+static void setX11Position(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
+    const std::string& source, const std::string& optionName,
+    const std::string& value) {
+    int x = 0;
+    int y = 0;
+
+    if (!parsePositionSpec(value, &x, &y)) {
+        diagnostics.error(source, optionName,
+            "expected X11 position as +X+Y or X Y");
+        return;
+    }
+
+    patch.set(KEY_X11_WINDOW_POSITION_ENABLED, "1", source);
+    patch.set(KEY_X11_WINDOW_POSITION_X, integerText(x), source);
+    patch.set(KEY_X11_WINDOW_POSITION_Y, integerText(y), source);
+}
+#endif
 
 static void setIniBooleanOption(ConfigPatch& patch,
     DeferredLogBuffer& diagnostics, const std::string& source,
@@ -245,7 +332,7 @@ static void setIniBooleanOption(ConfigPatch& patch,
 
     if (invert)
         enabled = !enabled;
-    setAudioBoolean(patch, source, key, enabled);
+    setConfigBoolean(patch, source, key, enabled);
 }
 
 static void setIniStereoOption(ConfigPatch& patch,
@@ -334,6 +421,14 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     } else if (key == "ini-file") {
         diagnostics.warning(source, key,
             "cthugha.ini-file is ignored inside ini files; use --ini-file before startup config is built");
+    } else if (key == "keymap") {
+        patch.set(KEY_INPUT_KEYMAP_FILE, cleanedValue, source);
+    } else if (key == "esc") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_INPUT_ESCAPE_ENABLED, cleanedValue, 1, 0);
+    } else if (key == "no-esc") {
+        setIniBooleanOption(patch, diagnostics, source, key,
+            KEY_INPUT_ESCAPE_ENABLED, cleanedValue, 1, 1);
     } else if (key == "flame") {
         setSceneText(patch, source, KEY_SCENE_FLAME, cleanedValue);
     } else if (key == "flame-general") {
@@ -430,6 +525,54 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
         setDisplayMode(patch, source, cleanedValue);
     } else if (key == "buff-size") {
         setBufferSize(patch, source, cleanedValue);
+#ifdef CTH_XWIN
+    } else if (key == "mit-shm") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_MIT_SHM, cleanedValue, 1, 0);
+    } else if (key == "no-mit-shm") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_MIT_SHM, cleanedValue, 1, 1);
+    } else if (key == "root") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_ROOT_WINDOW, cleanedValue, 1, 0);
+    } else if (key == "no-root") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_ROOT_WINDOW, cleanedValue, 1, 1);
+    } else if (key == "install") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_PRIVATE_CMAP, cleanedValue, 1, 0);
+    } else if (key == "no-install") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_PRIVATE_CMAP, cleanedValue, 1, 1);
+    } else if (key == "override-redirect" || key == "no-decorate") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_OVERRIDE_REDIRECT, cleanedValue, 1, 0);
+    } else if (key == "no-override-redirect" || key == "decorate") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_OVERRIDE_REDIRECT, cleanedValue, 1, 1);
+    } else if (key == "full-screen") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_FULLSCREEN, cleanedValue, 1, 0);
+    } else if (key == "no-full-screen") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_FULLSCREEN, cleanedValue, 1, 1);
+    } else if (key == "panel") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_PANEL_ENABLED, cleanedValue, 1, 0);
+    } else if (key == "no-panel") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_PANEL_ENABLED, cleanedValue, 1, 1);
+    } else if (key == "text-on-term") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_TEXT_ON_TERM, cleanedValue, 1, 0);
+    } else if (key == "no-text-on-term") {
+        setIniX11BooleanOption(patch, diagnostics, source, key,
+            KEY_X11_TEXT_ON_TERM, cleanedValue, 1, 1);
+    } else if (key == "position") {
+        setX11Position(patch, diagnostics, source, key, cleanedValue);
+    } else if (key == "font") {
+        patch.set(KEY_X11_FONT_NAME, cleanedValue, source);
+#endif
     }
 }
 
@@ -483,6 +626,16 @@ static void applyCommandLineOption(ConfigPatch& patch,
             patch.set(KEY_PATH_INI_OVERRIDE, value, "command line");
     } else if (startsWith(arg, "--ini-file=")) {
         patch.set(KEY_PATH_INI_OVERRIDE, arg.substr(11), "command line");
+    } else if (arg == "--keymap") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_INPUT_KEYMAP_FILE, value, "command line");
+    } else if (startsWith(arg, "--keymap=")) {
+        patch.set(KEY_INPUT_KEYMAP_FILE, arg.substr(9), "command line");
+    } else if (arg == "--esc") {
+        setConfigBoolean(patch, "command line", KEY_INPUT_ESCAPE_ENABLED, 1);
+    } else if (arg == "--no-esc") {
+        setConfigBoolean(patch, "command line", KEY_INPUT_ESCAPE_ENABLED, 0);
     } else if (arg == "--flame") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -712,6 +865,49 @@ static void applyCommandLineOption(ConfigPatch& patch,
             setBufferSize(patch, "command line", value);
     } else if (startsWith(arg, "--buff-size=")) {
         setBufferSize(patch, "command line", arg.substr(12));
+#ifdef CTH_XWIN
+    } else if (arg == "--mit-shm") {
+        setX11Boolean(patch, "command line", KEY_X11_MIT_SHM, 1);
+    } else if (arg == "--no-mit-shm") {
+        setX11Boolean(patch, "command line", KEY_X11_MIT_SHM, 0);
+    } else if (arg == "--root") {
+        setX11Boolean(patch, "command line", KEY_X11_ROOT_WINDOW, 1);
+    } else if (arg == "--no-root") {
+        setX11Boolean(patch, "command line", KEY_X11_ROOT_WINDOW, 0);
+    } else if (arg == "--install") {
+        setX11Boolean(patch, "command line", KEY_X11_PRIVATE_CMAP, 1);
+    } else if (arg == "--no-install") {
+        setX11Boolean(patch, "command line", KEY_X11_PRIVATE_CMAP, 0);
+    } else if (arg == "--override-redirect" || arg == "--no-decorate") {
+        setX11Boolean(patch, "command line", KEY_X11_OVERRIDE_REDIRECT, 1);
+    } else if (arg == "--no-override-redirect" || arg == "--decorate") {
+        setX11Boolean(patch, "command line", KEY_X11_OVERRIDE_REDIRECT, 0);
+    } else if (arg == "--full-screen") {
+        setX11Boolean(patch, "command line", KEY_X11_FULLSCREEN, 1);
+    } else if (arg == "--no-full-screen") {
+        setX11Boolean(patch, "command line", KEY_X11_FULLSCREEN, 0);
+    } else if (arg == "--panel") {
+        setX11Boolean(patch, "command line", KEY_X11_PANEL_ENABLED, 1);
+    } else if (arg == "--no-panel") {
+        setX11Boolean(patch, "command line", KEY_X11_PANEL_ENABLED, 0);
+    } else if (arg == "--text-on-term") {
+        setX11Boolean(patch, "command line", KEY_X11_TEXT_ON_TERM, 1);
+    } else if (arg == "--no-text-on-term") {
+        setX11Boolean(patch, "command line", KEY_X11_TEXT_ON_TERM, 0);
+    } else if (arg == "--position") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            setX11Position(patch, diagnostics, "command line", arg, value);
+    } else if (startsWith(arg, "--position=")) {
+        setX11Position(patch, diagnostics, "command line", "--position",
+            arg.substr(11));
+    } else if (arg == "--font") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_X11_FONT_NAME, value, "command line");
+    } else if (startsWith(arg, "--font=")) {
+        patch.set(KEY_X11_FONT_NAME, arg.substr(7), "command line");
+#endif
     } else if (arg == "-f") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -1305,9 +1501,11 @@ LoggingConfig::LoggingConfig()
     : verbosity(LOGGING_CONFIG_DEFAULT_VERBOSITY) { }
 
 AppConfig::AppConfig()
-    : optionsSaveEnabled(APP_CONFIG_DEFAULT_OPTIONS_SAVE_ENABLED)
-    , escapeKeyEnabled(APP_CONFIG_DEFAULT_ESCAPE_KEY_ENABLED)
-    , keymapFile(PATH_CONFIG_DEFAULT_KEYMAP_FILE_PATH) { }
+    : optionsSaveEnabled(APP_CONFIG_DEFAULT_OPTIONS_SAVE_ENABLED) { }
+
+InputConfig::InputConfig()
+    : escapeKeyEnabled(INPUT_CONFIG_DEFAULT_ESCAPE_KEY_ENABLED)
+    , keymapFile(INPUT_CONFIG_DEFAULT_KEYMAP_FILE_PATH) { }
 
 PathConfig::PathConfig()
     : extraLibraryPath(PATH_CONFIG_DEFAULT_EXTRA_LIBRARY_PATH)
@@ -1364,19 +1562,23 @@ DisplayConfig::DisplayConfig()
     , maxFramesPerSecond(DISPLAY_CONFIG_DEFAULT_MAX_FRAMES_PER_SECOND)
     , showFpsEnabled(DISPLAY_CONFIG_DEFAULT_SHOW_FPS_ENABLED)
     , zoomMode(DISPLAY_CONFIG_DEFAULT_ZOOM_MODE)
-    , textOnTerm(DISPLAY_CONFIG_DEFAULT_TEXT_ON_TERM)
     , ncursesEnabled(DISPLAY_CONFIG_DEFAULT_NCURSES_ENABLED)
-    , screenshotFilePrefix(DISPLAY_CONFIG_DEFAULT_SCREENSHOT_FILE_PREFIX)
-    , x11OverrideRedirect(DISPLAY_CONFIG_DEFAULT_X11_OVERRIDE_REDIRECT)
-    , x11PrivateCmap(DISPLAY_CONFIG_DEFAULT_X11_PRIVATE_CMAP)
-    , x11MitShm(DISPLAY_CONFIG_DEFAULT_X11_MIT_SHM)
-    , x11RootWindow(DISPLAY_CONFIG_DEFAULT_X11_ROOT_WINDOW)
-    , x11Fullscreen(DISPLAY_CONFIG_DEFAULT_X11_FULLSCREEN)
-    , x11WindowPositionEnabled(DISPLAY_CONFIG_DEFAULT_X11_WINDOW_POSITION_ENABLED)
-    , x11WindowPositionX(DISPLAY_CONFIG_DEFAULT_X11_WINDOW_POSITION_X)
-    , x11WindowPositionY(DISPLAY_CONFIG_DEFAULT_X11_WINDOW_POSITION_Y)
-    , x11PanelEnabled(DISPLAY_CONFIG_DEFAULT_X11_PANEL_ENABLED)
-    , x11FontName(DISPLAY_CONFIG_DEFAULT_X11_FONT_NAME) { }
+    , screenshotFilePrefix(DISPLAY_CONFIG_DEFAULT_SCREENSHOT_FILE_PREFIX) { }
+
+#ifdef CTH_XWIN
+X11Config::X11Config()
+    : textOnTerm(X11_CONFIG_DEFAULT_TEXT_ON_TERM)
+    , overrideRedirect(X11_CONFIG_DEFAULT_OVERRIDE_REDIRECT)
+    , privateCmap(X11_CONFIG_DEFAULT_PRIVATE_CMAP)
+    , mitShm(X11_CONFIG_DEFAULT_MIT_SHM)
+    , rootWindow(X11_CONFIG_DEFAULT_ROOT_WINDOW)
+    , fullscreen(X11_CONFIG_DEFAULT_FULLSCREEN)
+    , windowPositionEnabled(X11_CONFIG_DEFAULT_WINDOW_POSITION_ENABLED)
+    , windowPositionX(X11_CONFIG_DEFAULT_WINDOW_POSITION_X)
+    , windowPositionY(X11_CONFIG_DEFAULT_WINDOW_POSITION_Y)
+    , panelEnabled(X11_CONFIG_DEFAULT_PANEL_ENABLED)
+    , fontName(X11_CONFIG_DEFAULT_FONT_NAME) { }
+#endif
 
 AutoChangeConfig::AutoChangeConfig()
     : quietMs(AUTO_CHANGE_CONFIG_DEFAULT_QUIET_MS)
@@ -1418,6 +1620,11 @@ Config ConfigSchema::build(const ConfigPatch& patch,
 
     applyIntEntry(patch, diagnostics, KEY_LOGGING_VERBOSITY,
         &config.logging.verbosity);
+
+    applyBoolEntry(patch, diagnostics, KEY_INPUT_ESCAPE_ENABLED,
+        &config.input.escapeKeyEnabled);
+    if (const std::string* value = patch.value(KEY_INPUT_KEYMAP_FILE))
+        config.input.keymapFile = *value;
 
     if (const std::string* value = patch.value(KEY_PATH_EXTRA_LIBRARY))
         config.paths.extraLibraryPath = *value;
@@ -1580,6 +1787,30 @@ Config ConfigSchema::build(const ConfigPatch& patch,
                 = patch.has(KEY_BUFFER_CUSTOM_SIZE);
         }
     }
+
+#ifdef CTH_XWIN
+    applyBoolEntry(patch, diagnostics, KEY_X11_TEXT_ON_TERM,
+        &config.x11.textOnTerm);
+    applyBoolEntry(patch, diagnostics, KEY_X11_OVERRIDE_REDIRECT,
+        &config.x11.overrideRedirect);
+    applyBoolEntry(patch, diagnostics, KEY_X11_PRIVATE_CMAP,
+        &config.x11.privateCmap);
+    applyBoolEntry(patch, diagnostics, KEY_X11_MIT_SHM, &config.x11.mitShm);
+    applyBoolEntry(patch, diagnostics, KEY_X11_ROOT_WINDOW,
+        &config.x11.rootWindow);
+    applyBoolEntry(patch, diagnostics, KEY_X11_FULLSCREEN,
+        &config.x11.fullscreen);
+    applyBoolEntry(patch, diagnostics, KEY_X11_WINDOW_POSITION_ENABLED,
+        &config.x11.windowPositionEnabled);
+    applyIntEntry(patch, diagnostics, KEY_X11_WINDOW_POSITION_X,
+        &config.x11.windowPositionX);
+    applyIntEntry(patch, diagnostics, KEY_X11_WINDOW_POSITION_Y,
+        &config.x11.windowPositionY);
+    applyBoolEntry(patch, diagnostics, KEY_X11_PANEL_ENABLED,
+        &config.x11.panelEnabled);
+    if (const std::string* value = patch.value(KEY_X11_FONT_NAME))
+        config.x11.fontName = *value;
+#endif
 
     return config;
 }
@@ -1756,6 +1987,10 @@ ConfigPatch hardcodedDefaultConfigPatch() {
 
     defaults.set(KEY_LOGGING_VERBOSITY, integerText(LOGGING_CONFIG_DEFAULT_VERBOSITY),
         "defaults");
+    defaults.set(KEY_INPUT_ESCAPE_ENABLED,
+        booleanText(INPUT_CONFIG_DEFAULT_ESCAPE_KEY_ENABLED), "defaults");
+    defaults.set(KEY_INPUT_KEYMAP_FILE, INPUT_CONFIG_DEFAULT_KEYMAP_FILE_PATH,
+        "defaults");
     defaults.set(KEY_PATH_EXTRA_LIBRARY, PATH_CONFIG_DEFAULT_EXTRA_LIBRARY_PATH,
         "defaults");
     defaults.set(KEY_PATH_INI_OVERRIDE, PATH_CONFIG_DEFAULT_INI_FILE_OVERRIDE_PATH,
@@ -1815,6 +2050,30 @@ ConfigPatch hardcodedDefaultConfigPatch() {
         integerText(AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS), "defaults");
     defaults.set(KEY_DISPLAY_MODE, integerText(DISPLAY_CONFIG_DEFAULT_MODE),
         "defaults");
+#ifdef CTH_XWIN
+    defaults.set(KEY_X11_TEXT_ON_TERM,
+        booleanText(X11_CONFIG_DEFAULT_TEXT_ON_TERM), "defaults");
+    defaults.set(KEY_X11_OVERRIDE_REDIRECT,
+        booleanText(X11_CONFIG_DEFAULT_OVERRIDE_REDIRECT), "defaults");
+    defaults.set(KEY_X11_PRIVATE_CMAP,
+        booleanText(X11_CONFIG_DEFAULT_PRIVATE_CMAP), "defaults");
+    defaults.set(KEY_X11_MIT_SHM, booleanText(X11_CONFIG_DEFAULT_MIT_SHM),
+        "defaults");
+    defaults.set(KEY_X11_ROOT_WINDOW,
+        booleanText(X11_CONFIG_DEFAULT_ROOT_WINDOW), "defaults");
+    defaults.set(KEY_X11_FULLSCREEN,
+        booleanText(X11_CONFIG_DEFAULT_FULLSCREEN), "defaults");
+    defaults.set(KEY_X11_WINDOW_POSITION_ENABLED,
+        booleanText(X11_CONFIG_DEFAULT_WINDOW_POSITION_ENABLED), "defaults");
+    defaults.set(KEY_X11_WINDOW_POSITION_X,
+        integerText(X11_CONFIG_DEFAULT_WINDOW_POSITION_X), "defaults");
+    defaults.set(KEY_X11_WINDOW_POSITION_Y,
+        integerText(X11_CONFIG_DEFAULT_WINDOW_POSITION_Y), "defaults");
+    defaults.set(KEY_X11_PANEL_ENABLED,
+        booleanText(X11_CONFIG_DEFAULT_PANEL_ENABLED), "defaults");
+    defaults.set(KEY_X11_FONT_NAME, X11_CONFIG_DEFAULT_FONT_NAME,
+        "defaults");
+#endif
 
     return defaults;
 }

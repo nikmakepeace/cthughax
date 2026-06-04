@@ -127,17 +127,18 @@ xy window_pos(0, 0);
 int xcth_panel = 0; // use control panel
 char xcth_font[256] = "";
 
-void configureDisplayDeviceX11(const DisplayConfig& config) {
-    display_override_redirect = config.x11OverrideRedirect;
-    private_cmap = config.x11PrivateCmap;
-    display_mit_shm = config.x11MitShm;
-    display_on_root = config.x11RootWindow;
-    full_screen = config.x11Fullscreen;
-    window_do_pos = config.x11WindowPositionEnabled;
-    window_pos.x = config.x11WindowPositionX;
-    window_pos.y = config.x11WindowPositionY;
-    xcth_panel = config.x11PanelEnabled;
-    strncpy(xcth_font, config.x11FontName.c_str(), sizeof(xcth_font));
+void configureDisplayDeviceX11(const X11Config& config) {
+    DisplayDevice::text_on_term = config.textOnTerm;
+    display_override_redirect = config.overrideRedirect;
+    private_cmap = config.privateCmap;
+    display_mit_shm = config.mitShm;
+    display_on_root = config.rootWindow;
+    full_screen = config.fullscreen;
+    window_do_pos = config.windowPositionEnabled;
+    window_pos.x = config.windowPositionX;
+    window_pos.y = config.windowPositionY;
+    xcth_panel = config.panelEnabled;
+    strncpy(xcth_font, config.fontName.c_str(), sizeof(xcth_font));
     xcth_font[sizeof(xcth_font) - 1] = '\0';
 }
 

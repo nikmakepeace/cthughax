@@ -453,6 +453,25 @@ target_link_libraries(configuration_test PRIVATE m)
 
 add_test(NAME configuration_test COMMAND configuration_test)
 
+if(CTH_BUILD_X11)
+    add_executable(x11_configuration_test
+        unit/X11ConfigurationTest.cc
+        ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    )
+
+    target_compile_definitions(x11_configuration_test PRIVATE CTH_XWIN)
+
+    target_include_directories(x11_configuration_test PRIVATE
+        ${CMAKE_BINARY_DIR}
+        ${CMAKE_BINARY_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(x11_configuration_test PRIVATE m)
+
+    add_test(NAME x11_configuration_test COMMAND x11_configuration_test)
+endif()
+
 add_executable(configuration_dependency_boundary_test
     unit/ConfigurationDependencyBoundaryTest.cc
 )

@@ -20,7 +20,8 @@ extern int full_screen;
 extern char xcth_font[];
 
 struct DisplayConfig;
-void configureDisplayDeviceX11(const DisplayConfig& config);
+struct X11Config;
+void configureDisplayDeviceX11(const X11Config& config);
 
 #include "DisplayDevice.h"
 #include "DisplayGeometry.h"

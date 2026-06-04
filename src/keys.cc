@@ -14,7 +14,7 @@ int key_esc = 0; /* disable/enable ESC-key. When enable it
                     only get the leading ESC and quits. */
 int x11_key = CK_NONE;
 
-void configureKeys(const AppConfig& config) {
+void configureKeys(const InputConfig& config) {
     key_esc = config.escapeKeyEnabled;
 }
 
