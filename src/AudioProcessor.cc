@@ -72,6 +72,37 @@ static AudioFrame* currentAudioFrame() {
     return audioFrameCurrent();
 }
 
+AudioMetrics AudioProcessor::analyze(const char2* frame, int minNoise) const {
+    AudioMetrics metrics;
+    int al = 0, ar = 0;
+
+    if (frame == 0)
+        return metrics;
+
+    /* Get the amplitude of this sound frame as root mean squared. */
+    const char* d = (const char*)frame;
+    for (int i = 1024; i != 0; i--) {
+        al += *d * *d;
+        d++;
+        ar += *d * *d;
+        d++;
+    }
+
+    al = int(sqrt(double(al) / 1024));
+    ar = int(sqrt(double(ar) / 1024));
+
+    metrics.amplitude = (al + ar) / 2;
+    metrics.amplitudeLeft = al;
+    metrics.amplitudeRight = ar;
+    metrics.noisy = ((metrics.amplitudeLeft >= minNoise)
+        || (metrics.amplitudeRight >= minNoise));
+    return metrics;
+}
+
+void AudioProcessor::analyze(AudioFrame& frame, int minNoise) const {
+    frame.metrics = analyze(frame.raw, minNoise);
+}
+
 void AudioProcessor::none(AudioFrame& frame) {
     none(frame.raw, frame.processedWaveData);
 }

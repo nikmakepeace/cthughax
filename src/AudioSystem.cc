@@ -1,11 +1,10 @@
-// Audio option registry and lifecycle wrapper for the current audio runtime.
-// Backend selection enters through AudioRuntime/RuntimeFactory; option changes
-// notify the active Audio* source so it can reconfigure device buffers.
+// Audio device configuration and lifecycle wrapper for the current audio runtime.
+// Backend selection enters through AudioRuntime/RuntimeFactory; device settings
+// are startup configuration plus backend negotiation, not runtime UI controls.
 
 #include "cthugha.h"
 #include "AudioSystem.h"
 #include "AudioOptions.h"
-#include "AudioFrame.h"
 #include "AudioRuntime.h"
 #include "Configuration.h"
 #include "Interface.h"
@@ -13,74 +12,7 @@
 
 #include <string.h>
 
-class OptionAudio : public OptionInt {
-public:
-    OptionAudio(const char* name, int iV, int maxV = 0, int minV = 0)
-        : OptionInt(name, iV, maxV, minV) { }
-
-    virtual void change(int by) {
-        OptionInt::change(by);
-        audioFrameChange();
-    }
-
-    virtual void change(const char* to) { OptionInt::change(to); }
-};
-
-class OptionAudioOnOff : public OptionOnOff {
-public:
-    OptionAudioOnOff(const char* name, int iV)
-        : OptionOnOff(name, iV) { }
-
-    virtual void change(int by) {
-        OptionOnOff::change(by);
-        audioFrameChange();
-    }
-
-    virtual void change(const char* to) { OptionOnOff::change(to); }
-};
-
-class OptionChannels : public OptionAudio {
-public:
-    OptionChannels(const char* name, int iV)
-        // OptionInt's maximum is exclusive, so this accepts 1 or 2 channels.
-        : OptionAudio(name, iV, SOUND_CHANNELS_MAX_EXCLUSIVE, SOUND_CHANNELS_MIN) { }
-
-    const char* text() const {
-        switch (value) {
-        case 1:
-            return "mono";
-        case 2:
-            return "stereo";
-        default:
-            return "unknown";
-        }
-    }
-};
-
-class OptionFormat : public OptionAudio {
-    static const char* fmts[];
-    static const int nFmts;
-
-public:
-    OptionFormat(const char* name, int iV)
-        : OptionAudio(name, iV, nFmts) { }
-
-    virtual void change(const char* to) {
-        for (value = 0; value < nFmts; value++)
-            if (strcasecmp(fmts[value], to) == 0)
-                return;
-
-        OptionInt::change(to);
-    }
-
-    const char* text() const {
-        if ((value >= 0) && (value < nFmts))
-            return fmts[value];
-        return "unknown";
-    }
-};
-
-const char* OptionFormat::fmts[] = {
+static const char* audioSampleFormatNames[] = {
     "8bit unsigned",
     "8bit signed",
     "16bit unsigned (le)",
@@ -88,66 +20,152 @@ const char* OptionFormat::fmts[] = {
     "16bit unsigned (be)",
     "16bit signed (be)",
 };
-const int OptionFormat::nFmts = sizeof(OptionFormat::fmts) / sizeof(const char*);
+static const int audioSampleFormatCount
+    = sizeof(audioSampleFormatNames) / sizeof(const char*);
 
-int audioInputLoop = 0;
+static AudioDeviceConfig audioDeviceConfigValue;
 
-char dev_dsp[PATH_MAX] = "";
+AudioDeviceConfig::AudioDeviceConfig()
+    : inputMode(AIM_DSPIn)
+    , inputLoopEnabled(0)
+    , pcmFormat()
+    , dspMethod(0)
+    , dspFragments(0)
+    , dspFragmentSize(0)
+    , dspSyncEnabled(0)
+    , silentEnabled(0) {
+    dspDevicePath[0] = '\0';
+}
 
-static OptionInt audioInputModeImpl = OptionInt("sound-device-number", 0, AIM_Max);
+const AudioDeviceConfig& audioDeviceConfig() {
+    return audioDeviceConfigValue;
+}
 
-static OptionAudio soundSampleRateImpl("sound-sample-rate", 0);
-static OptionChannels soundChannelsImpl("sound-channels", SOUND_CHANNELS_MIN);
-static OptionFormat soundFormatImpl("sound-format", 0);
+const PcmFormat& audioPcmFormat() {
+    return audioDeviceConfigValue.pcmFormat;
+}
 
-static OptionAudio soundDSPMethodImpl("sound-method", 0);
-static OptionAudio soundDSPFragmentsImpl("sound-fragments", 0);
-static OptionAudio soundDSPFragmentSizeImpl("sound-fragment-size", 0);
-static OptionOnOff soundDSPSyncImpl("sound-sync", 0);
+AudioInputMode audioInputModeValue() {
+    return audioDeviceConfigValue.inputMode;
+}
 
-static OptionAudioOnOff soundSilentImpl("silent", 0);
+int audioInputLoopEnabled() {
+    return audioDeviceConfigValue.inputLoopEnabled;
+}
 
-Option& audioInputMode = audioInputModeImpl;
-Option& soundSampleRate = soundSampleRateImpl;
-Option& soundChannels = soundChannelsImpl;
-Option& soundFormat = soundFormatImpl;
+void audioSetInputLoopEnabled(int enabled) {
+    audioDeviceConfigValue.inputLoopEnabled = enabled ? 1 : 0;
+}
 
-Option& soundDSPMethod = soundDSPMethodImpl;
-Option& soundDSPFragments = soundDSPFragmentsImpl;
-Option& soundDSPFragmentSize = soundDSPFragmentSizeImpl;
-Option& soundDSPSync = soundDSPSyncImpl;
+int audioSampleRateHz() {
+    return audioDeviceConfigValue.pcmFormat.sampleRate;
+}
 
-Option& soundSilent = soundSilentImpl;
+int audioChannels() {
+    return audioDeviceConfigValue.pcmFormat.channels;
+}
 
-InterfaceElement* elementsAudio[] = {
-    new InterfaceElementOption("Sample rate       : %10s Hz", &soundSampleRate, 500, 1000, 5000),
-    new InterfaceElementOption("Channels          : %10s", &soundChannels),
-    new InterfaceElementOption("Format            : %10s", &soundFormat, 1, 1, 1),
-#if WITH_DSP == 1
-    new InterfaceElementOption("DSP Method        : %10s", &soundDSPMethod),
-    new InterfaceElementOption("DSP Fragments     : %10s", &soundDSPFragments),
-    new InterfaceElementOption("DSP Fragment Size : %10s", &soundDSPFragmentSize),
-    new InterfaceElementOption("DSP Sound sync    : %10s", &soundDSPSync),
-#endif
-};
-int nElementsAudio = sizeof(elementsAudio) / sizeof(InterfaceElement*);
+int audioSampleFormat() {
+    return audioDeviceConfigValue.pcmFormat.sampleFormat;
+}
 
-Interface interfaceAudio("sound", "Audio Interface", NULL, elementsAudio, nElementsAudio);
+void audioSetPcmFormat(const PcmFormat& format) {
+    audioDeviceConfigValue.pcmFormat = format;
+}
+
+void audioSetSampleRateHz(int sampleRateHz) {
+    audioDeviceConfigValue.pcmFormat.sampleRate = sampleRateHz;
+}
+
+void audioSetChannels(int channels) {
+    audioDeviceConfigValue.pcmFormat.channels = channels;
+}
+
+void audioSetSampleFormat(int sampleFormat) {
+    audioDeviceConfigValue.pcmFormat.sampleFormat = sampleFormat;
+}
+
+int audioBytesPerSample() {
+    return audioDeviceConfigValue.pcmFormat.bytesPerSample();
+}
+
+int audioDspMethod() {
+    return audioDeviceConfigValue.dspMethod;
+}
+
+int audioDspFragments() {
+    return audioDeviceConfigValue.dspFragments;
+}
+
+int audioDspFragmentSize() {
+    return audioDeviceConfigValue.dspFragmentSize;
+}
+
+void audioSetDspFragment(int fragments, int fragmentSize) {
+    audioDeviceConfigValue.dspFragments = fragments;
+    audioDeviceConfigValue.dspFragmentSize = fragmentSize;
+}
+
+void audioSetDspFragments(int fragments) {
+    audioDeviceConfigValue.dspFragments = fragments;
+}
+
+void audioSetDspFragmentSize(int fragmentSize) {
+    audioDeviceConfigValue.dspFragmentSize = fragmentSize;
+}
+
+int audioDspSyncEnabled() {
+    return audioDeviceConfigValue.dspSyncEnabled;
+}
+
+int audioSilentEnabled() {
+    return audioDeviceConfigValue.silentEnabled;
+}
+
+const char* audioDspDevicePath() {
+    return audioDeviceConfigValue.dspDevicePath;
+}
+
+const char* audioChannelsText() {
+    switch (audioChannels()) {
+    case 1:
+        return "mono";
+    case 2:
+        return "stereo";
+    default:
+        return "unknown";
+    }
+}
+
+const char* audioSampleFormatText(int sampleFormat) {
+    if ((sampleFormat >= 0) && (sampleFormat < audioSampleFormatCount))
+        return audioSampleFormatNames[sampleFormat];
+    return "unknown";
+}
+
+const char* audioSampleFormatText() {
+    return audioSampleFormatText(audioSampleFormat());
+}
+
+const char* audioOnOffText(int enabled) {
+    return enabled ? (char*)" on" : (char*)"off";
+}
 
 void configureAudioOptions(const AudioConfig& config) {
-    audioInputMode.setValue(int(config.inputMode));
-    audioInputLoop = config.inputLoopEnabled ? 1 : 0;
-    soundSampleRate.setValue(config.sampleRateHz);
-    soundChannels.setValue(config.channels);
-    soundFormat.setValue(int(config.sampleFormat));
-    soundDSPMethod.setValue(config.dspMethod);
-    soundDSPFragments.setValue(config.dspFragments);
-    soundDSPFragmentSize.setValue(config.dspFragmentSize);
-    soundDSPSync.setValue(config.dspSyncEnabled);
-    soundSilent.setValue(config.silentEnabled);
+    audioDeviceConfigValue.inputMode = config.inputMode;
+    audioDeviceConfigValue.inputLoopEnabled = config.inputLoopEnabled ? 1 : 0;
+    audioDeviceConfigValue.pcmFormat.sampleRate = config.sampleRateHz;
+    audioDeviceConfigValue.pcmFormat.channels = config.channels;
+    audioDeviceConfigValue.pcmFormat.sampleFormat = int(config.sampleFormat);
+    audioDeviceConfigValue.dspMethod = config.dspMethod;
+    audioDeviceConfigValue.dspFragments = config.dspFragments;
+    audioDeviceConfigValue.dspFragmentSize = config.dspFragmentSize;
+    audioDeviceConfigValue.dspSyncEnabled = config.dspSyncEnabled ? 1 : 0;
+    audioDeviceConfigValue.silentEnabled = config.silentEnabled ? 1 : 0;
 
-    strncpy(dev_dsp, config.dspDevicePath.c_str(), PATH_MAX);
-    dev_dsp[PATH_MAX - 1] = '\0';
+    strncpy(audioDeviceConfigValue.dspDevicePath, config.dspDevicePath.c_str(),
+        PATH_MAX);
+    audioDeviceConfigValue.dspDevicePath[PATH_MAX - 1] = '\0';
     strncpy(dev_mixer, config.mixerDevicePath.c_str(), PATH_MAX);
     dev_mixer[PATH_MAX - 1] = '\0';
     for (std::vector<AudioMixerInitialVolumeConfig>::const_iterator it

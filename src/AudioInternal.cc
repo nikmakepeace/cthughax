@@ -33,11 +33,11 @@ int audioSampleWindowForVisualMaxDimension(int visualMaxDimension) {
 static int audioPcmPeak(const char* data, int samples) {
     const unsigned char* bytes = (const unsigned char*)data;
     int peak = 0;
-    int channels = int(soundChannels);
+    int channels = audioChannels();
     if ((data == NULL) || (samples <= 0) || (channels <= 0))
         return 0;
 
-    switch (soundFormat) {
+    switch (audioSampleFormat()) {
     case SF_u8:
         for (int i = 0; i < samples * channels; i++) {
             int sample = (int)bytes[i] - 128;
@@ -102,7 +102,7 @@ static void audioOutputDumpWriteLe32(FILE* out, unsigned int value) {
 }
 
 static int audioOutputDumpBitsPerSample() {
-    switch (soundFormat) {
+    switch (audioSampleFormat()) {
     case SF_u8:
         return 8;
     case SF_s16_le:
@@ -158,13 +158,13 @@ void audioOutputDumpSubmittedPcm(const char* data, int bytes) {
         initialized = 1;
         enabled = audio_output_dump[0] != '\0';
         if (enabled) {
-            sampleRate = int(soundSampleRate);
-            channels = int(soundChannels);
+            sampleRate = audioSampleRateHz();
+            channels = audioChannels();
             bitsPerSample = audioOutputDumpBitsPerSample();
 
             if ((sampleRate <= 0) || (channels <= 0) || (bitsPerSample == 0)) {
                 CTH_WARN("Can not create audio output dump `%s' for format `%s'.\n",
-                    audio_output_dump, soundFormat.text());
+                    audio_output_dump, audioSampleFormatText());
                 enabled = 0;
             }
         }
@@ -178,7 +178,7 @@ void audioOutputDumpSubmittedPcm(const char* data, int bytes) {
                 audioOutputDumpWriteHeader(out, 0, sampleRate, channels, bitsPerSample);
                 CTH_DEBUG("    audio output: dumping submitted PCM to `%s' rate=%d channels=%d bits=%d format=%s\n",
                     audio_output_dump, sampleRate, channels, bitsPerSample,
-                    soundFormat.text());
+                    audioSampleFormatText());
             }
         }
     }
@@ -186,7 +186,7 @@ void audioOutputDumpSubmittedPcm(const char* data, int bytes) {
     if (!enabled || (out == NULL) || (data == NULL) || (bytes <= 0))
         return;
 
-    if (soundFormat == SF_s16_be) {
+    if (audioSampleFormat() == SF_s16_be) {
         for (int i = 0; i + 1 < bytes; i += 2) {
             fputc((unsigned char)data[i + 1], out);
             fputc((unsigned char)data[i], out);

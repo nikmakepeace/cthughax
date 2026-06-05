@@ -571,6 +571,31 @@ target_link_libraries(runtime_command_test PRIVATE m)
 
 add_test(NAME runtime_command_test COMMAND runtime_command_test)
 
+add_executable(audio_frame_processor_test
+    unit/AudioFrameProcessorTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_compile_definitions(audio_frame_processor_test PRIVATE
+    CTH_AUDIO_FRAME_NO_RUNTIME
+    CTH_AUDIO_FRAME_TEST_OVERRIDE
+)
+
+target_include_directories(audio_frame_processor_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(audio_frame_processor_test PRIVATE m)
+
+add_test(NAME audio_frame_processor_test COMMAND audio_frame_processor_test)
+
 add_executable(runtime_audio_controls_test
     unit/RuntimeAudioControlsTest.cc
     ${CMAKE_SOURCE_DIR}/src/RuntimeAudioControls.cc

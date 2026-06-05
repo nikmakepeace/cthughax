@@ -1,5 +1,6 @@
 #include "cthugha.h"
 #include "AudioVisualBridge.h"
+#include "Audio.h"
 #include "AudioAnalyzer.h"
 #include "AudioProcessor.h"
 #include "AudioFrame.h"
@@ -28,12 +29,14 @@ AudioVisualBridge::~AudioVisualBridge() {
 void AudioVisualBridge::runFrame() {
     double start = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
     static int debugReports = 0;
+    static AudioProcessor processor;
 
     audioProcessing.process();
     double processed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
-        AudioMetrics processedMetrics = audioAnalyzer.analyze(audioFrameProcessedWaveData());
+        AudioMetrics processedMetrics = processor.analyze(
+            audioFrameProcessedWaveData(), int(sound_minnoise));
         debugReports++;
         CTH_DEBUG("processed wave audio: mode=%s amplitude=%d left=%d right=%d noisy=%d\n",
             audioProcessing.text(), processedMetrics.amplitude,
@@ -41,7 +44,18 @@ void AudioVisualBridge::runFrame() {
             processedMetrics.noisy);
     }
 
-    audioAnalyzer();
+    AudioMetrics metrics = processor.analyze(audioFrameRawData(), int(sound_minnoise));
+    audioFramePublishMetrics(metrics);
+    acousticContext.update(audioFrameMetrics());
+
+    if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
+        AudioFrame* frame = audioFrameCurrent();
+        CTH_DEBUG("audio analysis: amplitude=%d left=%d right=%d noisy=%d frame-samples=%d center-sample=%lld\n",
+            metrics.amplitude, metrics.amplitudeLeft,
+            metrics.amplitudeRight, metrics.noisy,
+            frame ? frame->samples : 1024, frame ? frame->centerSample : 0);
+    }
+
     double analyzed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
 
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER

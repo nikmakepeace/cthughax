@@ -51,8 +51,12 @@ int AcousticContext::fire() const { return 0; }
 int AcousticContext::cumulativeFireLevel() const { return 0; }
 void AcousticContext::resetCumulativeFireLevel() { }
 
-AudioMetrics audioMetrics;
+static AudioMetrics testAudioMetrics;
 AcousticContext acousticContext;
+
+const AudioMetrics& audioFrameMetrics() {
+    return testAudioMetrics;
+}
 
 VideoDirector& videoDirector() {
     static char storage[sizeof(VideoDirector)];

@@ -39,9 +39,10 @@ public:
     /**
      * Runs one automatic-change policy step for the current audio frame.
      *
-     * Reads global AudioAnalyzer/AcousticContext metrics, tracks quiet duration
-     * in milliseconds from gettime(), may emit quiet-message cues through
-     * VideoDirector, and may request scene changes through RuntimeCommandSink.
+     * Reads current AudioFrame metrics and global AcousticContext, tracks quiet
+     * duration in milliseconds from gettime(), may emit quiet-message cues
+     * through VideoDirector, and may request scene changes through
+     * RuntimeCommandSink.
      */
     void operator()();
 

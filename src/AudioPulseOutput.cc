@@ -21,7 +21,7 @@ static int audioPulseBytesToMs(unsigned int bytes, int bytesPerSecond) {
 }
 
 static pa_sample_format_t audioPulseSampleFormat() {
-    switch (soundFormat) {
+    switch (audioSampleFormat()) {
     case SF_u8:
         return PA_SAMPLE_U8;
     case SF_s16_le:
@@ -177,16 +177,16 @@ void AudioPulseOutput::update() {
     closePulse();
 
     sampleSpec.format = audioPulseSampleFormat();
-    sampleSpec.rate = int(soundSampleRate);
-    sampleSpec.channels = int(soundChannels);
+    sampleSpec.rate = audioSampleRateHz();
+    sampleSpec.channels = audioChannels();
 
     if (sampleSpec.format == PA_SAMPLE_INVALID) {
         CTH_DEBUG("    audio output strategy: Pulse unavailable for format `%s'\n",
-            soundFormat.text());
+            audioSampleFormatText());
         return;
     }
 
-    int bytesPerSampleValue = (soundFormat < 2) ? int(soundChannels) : 2 * int(soundChannels);
+    int bytesPerSampleValue = audioBytesPerSample();
     int targetSamples = (sampleSpec.rate * defaultTargetLatencyMs()) / 1000;
     int minRequestSamples = sampleSpec.rate / 20;
     if (minRequestSamples < 1)

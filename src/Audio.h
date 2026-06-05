@@ -16,17 +16,6 @@
 
 class AudioBuffer;
 
-/**
- * Converts a sample count to bytes.
- *
- * @param samples Number of PCM frames/samples, not bytes.
- * @param bytesPerSample Bytes per interleaved PCM sample frame.
- * @return Byte count required to hold the requested samples.
- */
-static inline int pcmBytesForSamples(int samples, int bytesPerSample) {
-    return samples * bytesPerSample;
-}
-
 class AudioOutput {
     int outputSamplesPerSecond;
     int outputBytesPerSample;
@@ -259,20 +248,6 @@ public:
     void build(AudioFrame& frame, const AudioBuffer& buffer, long long centerSample);
 };
 
-struct PcmFormat {
-    int sampleRate;
-    int channels;
-    int sampleFormat;
-
-    PcmFormat()
-        : sampleRate(0)
-        , channels(0)
-        , sampleFormat(SF_u8) { }
-
-    int bytesPerSample() const { return (sampleFormat < 2) ? channels : 2 * channels; }
-    int bytesForSamples(int samples) const { return pcmBytesForSamples(samples, bytesPerSample()); }
-};
-
 class PcmSource {
 protected:
     int error;
@@ -431,9 +406,49 @@ public:
 
 class AudioProcessor {
 public:
+    /**
+     * Measures one signed 8-bit stereo audio frame.
+     *
+     * @param frame Pointer to 1024 stereo samples in Cthugha's char2 format.
+     * @param minNoise Noise-floor threshold used to set AudioMetrics::noisy.
+     * @return Frame-local RMS amplitudes and noisy/quiet flag.
+     */
+    AudioMetrics analyze(const char2* frame, int minNoise) const;
+
+    /**
+     * Measures AudioFrame::raw and writes AudioFrame::metrics.
+     *
+     * @param frame Frame whose raw samples should be analyzed.
+     * @param minNoise Noise-floor threshold used to set AudioMetrics::noisy.
+     */
+    void analyze(AudioFrame& frame, int minNoise) const;
+
+    /**
+     * Copies raw samples into processedWaveData without filtering.
+     *
+     * @param frame Frame whose raw data should become processed data.
+     */
     void none(AudioFrame& frame);
+
+    /**
+     * Applies the first smoothing filter to frame raw samples.
+     *
+     * @param frame Frame whose processed data should be populated.
+     */
     void filter1(AudioFrame& frame);
+
+    /**
+     * Applies the second smoothing filter to frame raw samples.
+     *
+     * @param frame Frame whose processed data should be populated.
+     */
     void filter2(AudioFrame& frame);
+
+    /**
+     * Applies FFT visualization processing to frame raw samples.
+     *
+     * @param frame Frame whose processed data should be populated.
+     */
     void fft(AudioFrame& frame);
 
     /**

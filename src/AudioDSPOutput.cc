@@ -47,30 +47,31 @@ int AudioDSPOutput::timingScratchSamples(int, int targetDelaySamples) const {
 }
 
 void AudioDSPOutput::setFragment() {
-    int soundDSPFragment = (int(soundDSPFragments) << 16) | int(soundDSPFragmentSize);
+    int soundDSPFragment = (audioDspFragments() << 16) | audioDspFragmentSize();
     if (ioctl(handle, SNDCTL_DSP_SETFRAGMENT, &soundDSPFragment) < 0)
         CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_SETFRAGMENT failed.");
 
-    soundDSPFragments.setValue(soundDSPFragment >> 16);
-    soundDSPFragmentSize.setValue(soundDSPFragment & 0x7fff);
+    audioSetDspFragment(soundDSPFragment >> 16, soundDSPFragment & 0x7fff);
 }
 
 void AudioDSPOutput::setChannels() {
-    int channels = int(soundChannels) - 1;
+    int channels = audioChannels() - 1;
     if (ioctl(handle, SNDCTL_DSP_STEREO, &channels) < 0)
         CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_STEREO failed");
-    soundChannels.setValue(channels + 1);
+    audioSetChannels(channels + 1);
 }
 
 void AudioDSPOutput::setSampleRate() {
-    if (ioctl(handle, SNDCTL_DSP_SPEED, &(soundSampleRate.value)) < 0)
+    int sampleRate = audioSampleRateHz();
+    if (ioctl(handle, SNDCTL_DSP_SPEED, &sampleRate) < 0)
         CTH_ERRNO(errno, "ioctl: SNDCTL_DSP_SPEED failed");
+    audioSetSampleRateHz(sampleRate);
 }
 
 void AudioDSPOutput::setFormat() {
     int sound_format;
 
-    switch (soundFormat) {
+    switch (audioSampleFormat()) {
     case SF_u8:
         sound_format = AFMT_U8;
         break;
@@ -106,22 +107,22 @@ void AudioDSPOutput::setFormat() {
 
     switch (sound_format) {
     case AFMT_U8:
-        soundFormat.setValue(SF_u8);
+        audioSetSampleFormat(SF_u8);
         break;
     case AFMT_S8:
-        soundFormat.setValue(SF_s8);
+        audioSetSampleFormat(SF_s8);
         break;
     case AFMT_U16_LE:
-        soundFormat.setValue(SF_u16_le);
+        audioSetSampleFormat(SF_u16_le);
         break;
     case AFMT_S16_LE:
-        soundFormat.setValue(SF_s16_le);
+        audioSetSampleFormat(SF_s16_le);
         break;
     case AFMT_U16_BE:
-        soundFormat.setValue(SF_u16_be);
+        audioSetSampleFormat(SF_u16_be);
         break;
     case AFMT_S16_BE:
-        soundFormat.setValue(SF_s16_be);
+        audioSetSampleFormat(SF_s16_be);
         break;
     default:
         CTH_ERROR("Unknown sound format returned by SNDCTL_DSP_SETFMT %d.\n", sound_format);
@@ -129,23 +130,23 @@ void AudioDSPOutput::setFormat() {
 }
 
 void AudioDSPOutput::init() {
-    CTH_DEBUG("  setting %s for writing...\n", dev_dsp);
-    CTH_DEBUG("audio dsp output: init device=`%s' method=%d\n", dev_dsp,
+    CTH_DEBUG("  setting %s for writing...\n", audioDspDevicePath());
+    CTH_DEBUG("audio dsp output: init device=`%s' method=%d\n", audioDspDevicePath(),
         method);
 
     if (handle >= 0)
         close(handle);
     handle = -1;
 
-    if ((handle = open(dev_dsp, O_WRONLY)) < 0) {
-        CTH_ERRNO(errno, "Can't open `%s' for writing.", dev_dsp);
+    if ((handle = open(audioDspDevicePath(), O_WRONLY)) < 0) {
+        CTH_ERRNO(errno, "Can't open `%s' for writing.", audioDspDevicePath());
         return;
     }
 
     switch (method) {
     case 0: {
         CTH_INFO("   Using sound method 0 - optimal fragment size\n");
-        soundDSPFragmentSize.setValue(ilog2(sampleWindow) - 1);
+        audioSetDspFragmentSize(ilog2(sampleWindow) - 1);
         setFragment();
         setChannels();
         setSampleRate();
@@ -155,8 +156,7 @@ void AudioDSPOutput::init() {
 
     case 1:
         CTH_INFO("   Using sound method 1 - small fragment size\n");
-        soundDSPFragments.setValue(2);
-        soundDSPFragmentSize.setValue(4);
+        audioSetDspFragment(2, 4);
         setFragment();
         setChannels();
         setSampleRate();

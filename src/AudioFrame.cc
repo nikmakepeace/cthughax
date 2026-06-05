@@ -7,6 +7,7 @@
 
 static char2 silentAudioFrameRawData[1024];
 static char2 silentAudioFrameProcessedWaveData[1024];
+static AudioMetrics audioFrameFallbackMetrics;
 
 #ifdef CTH_AUDIO_FRAME_TEST_OVERRIDE
 static AudioFrame* testAudioFrameOverride = NULL;
@@ -15,6 +16,12 @@ void audioFrameSetTestOverride(AudioFrame* frame) {
     testAudioFrameOverride = frame;
 }
 #endif
+
+AudioMetrics::AudioMetrics()
+    : amplitude(0)
+    , amplitudeLeft(0)
+    , amplitudeRight(0)
+    , noisy(0) { }
 
 AudioFrame::AudioFrame() {
     clear();
@@ -25,6 +32,7 @@ void AudioFrame::clear() {
     samples = 0;
     memset(raw, 0, sizeof(raw));
     memset(processedWaveData, 0, sizeof(processedWaveData));
+    metrics = AudioMetrics();
 }
 
 void audioFrameTick() {
@@ -88,16 +96,34 @@ char2* audioFrameProcessedWaveData() {
     return silentAudioFrameProcessedWaveData;
 }
 
+void audioFramePublishMetrics(const AudioMetrics& metrics) {
+    AudioFrame* frame = audioFrameCurrent();
+    if (frame != NULL) {
+        frame->metrics = metrics;
+        return;
+    }
+
+    audioFrameFallbackMetrics = metrics;
+}
+
+const AudioMetrics& audioFrameMetrics() {
+    AudioFrame* frame = audioFrameCurrent();
+    if (frame != NULL)
+        return frame->metrics;
+
+    return audioFrameFallbackMetrics;
+}
+
 int audioFrameBroadcastBytes() {
 #ifdef CTH_AUDIO_FRAME_TEST_OVERRIDE
     if (testAudioFrameOverride != NULL) {
-        int bytesPerSample = (soundFormat < 2) ? int(soundChannels) : 2 * int(soundChannels);
+        int bytesPerSample = audioBytesPerSample();
         return testAudioFrameOverride->samples * bytesPerSample;
     }
 #endif
 #ifndef CTH_AUDIO_FRAME_NO_RUNTIME
     if (audioRuntimeCurrentFrame()) {
-        int bytesPerSample = (soundFormat < 2) ? int(soundChannels) : 2 * int(soundChannels);
+        int bytesPerSample = audioBytesPerSample();
         return audioRuntimeCurrentFrame()->samples * bytesPerSample;
     }
 

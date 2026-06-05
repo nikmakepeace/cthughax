@@ -15,10 +15,11 @@ Environment::Environment()
 
 Environment Environment::detect() {
     Environment environment;
+    const char* dspDevicePath = audioDspDevicePath();
 
-    if (dev_dsp[0] != '\0') {
-        environment.ossInputAvailable = (access(dev_dsp, R_OK) == 0);
-        environment.ossOutputAvailable = (access(dev_dsp, W_OK) == 0);
+    if (dspDevicePath[0] != '\0') {
+        environment.ossInputAvailable = (access(dspDevicePath, R_OK) == 0);
+        environment.ossOutputAvailable = (access(dspDevicePath, W_OK) == 0);
     }
 
 #if WITH_PULSE == 1
@@ -26,7 +27,7 @@ Environment Environment::detect() {
 #endif
 
     CTH_DEBUG("runtime environment: dev-dsp=`%s' oss-input=%d oss-output=%d pulse-output=%d\n",
-        dev_dsp, environment.ossInputAvailable, environment.ossOutputAvailable,
+        dspDevicePath, environment.ossInputAvailable, environment.ossOutputAvailable,
         environment.pulseOutputAvailable);
 
     return environment;

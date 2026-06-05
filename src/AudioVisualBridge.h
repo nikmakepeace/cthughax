@@ -26,8 +26,8 @@ public:
     /**
      * Runs the audio side of one visual frame.
      *
-     * Processes the current audio frame, updates global AudioMetrics and
-     * AcousticContext through AudioAnalyzer, then runs AutoChanger if available.
+     * Processes the current audio frame, publishes AudioFrame metrics, updates
+     * AcousticContext, then runs AutoChanger if available.
      * Called after audioFrameTick() and before visual filterchain mutation.
      */
     void runFrame();

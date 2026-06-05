@@ -4,7 +4,6 @@
 #include "AudioProcessor.h"
 #include "AudioTypes.h"
 #include "AudioVisualBridge.h"
-#include "Option.h"
 
 #include <benchmark/benchmark.h>
 
@@ -17,28 +16,68 @@
 #define PATH_MAX 4096
 #endif
 
-static OptionInt audioInputModeImpl("sound-device-number", AIM_File, AIM_Max);
-static OptionInt soundFormatImpl("sound-format", SF_s16_le);
-static OptionInt soundChannelsImpl("sound-channels", 2);
-static OptionInt soundSampleRateImpl("sound-sample-rate", 44100);
-static OptionInt soundDSPMethodImpl("sound-method", 0);
-static OptionInt soundDSPFragmentsImpl("sound-fragments", 16);
-static OptionInt soundDSPFragmentSizeImpl("sound-fragment-size", 0);
-static OptionOnOff soundDSPSyncImpl("sound-sync", 0);
-static OptionOnOff soundSilentImpl("silent", 0);
+static AudioDeviceConfig audioDeviceConfigValue;
 
-Option& audioInputMode = audioInputModeImpl;
-Option& soundFormat = soundFormatImpl;
-Option& soundChannels = soundChannelsImpl;
-Option& soundSampleRate = soundSampleRateImpl;
-Option& soundDSPMethod = soundDSPMethodImpl;
-Option& soundDSPFragments = soundDSPFragmentsImpl;
-Option& soundDSPFragmentSize = soundDSPFragmentSizeImpl;
-Option& soundDSPSync = soundDSPSyncImpl;
-Option& soundSilent = soundSilentImpl;
+AudioDeviceConfig::AudioDeviceConfig()
+    : inputMode(AIM_File)
+    , inputLoopEnabled(0)
+    , pcmFormat()
+    , dspMethod(0)
+    , dspFragments(16)
+    , dspFragmentSize(0)
+    , dspSyncEnabled(0)
+    , silentEnabled(0) {
+    pcmFormat.sampleRate = 44100;
+    pcmFormat.channels = 2;
+    pcmFormat.sampleFormat = SF_s16_le;
+    dspDevicePath[0] = '\0';
+}
 
-int audioInputLoop = 0;
-char dev_dsp[PATH_MAX] = "";
+const AudioDeviceConfig& audioDeviceConfig() { return audioDeviceConfigValue; }
+const PcmFormat& audioPcmFormat() { return audioDeviceConfigValue.pcmFormat; }
+AudioInputMode audioInputModeValue() { return audioDeviceConfigValue.inputMode; }
+int audioInputLoopEnabled() { return audioDeviceConfigValue.inputLoopEnabled; }
+void audioSetInputLoopEnabled(int enabled) {
+    audioDeviceConfigValue.inputLoopEnabled = enabled ? 1 : 0;
+}
+int audioSampleRateHz() { return audioDeviceConfigValue.pcmFormat.sampleRate; }
+int audioChannels() { return audioDeviceConfigValue.pcmFormat.channels; }
+int audioSampleFormat() { return audioDeviceConfigValue.pcmFormat.sampleFormat; }
+void audioSetPcmFormat(const PcmFormat& format) {
+    audioDeviceConfigValue.pcmFormat = format;
+}
+void audioSetSampleRateHz(int sampleRateHz) {
+    audioDeviceConfigValue.pcmFormat.sampleRate = sampleRateHz;
+}
+void audioSetChannels(int channels) {
+    audioDeviceConfigValue.pcmFormat.channels = channels;
+}
+void audioSetSampleFormat(int sampleFormat) {
+    audioDeviceConfigValue.pcmFormat.sampleFormat = sampleFormat;
+}
+int audioBytesPerSample() {
+    return audioDeviceConfigValue.pcmFormat.bytesPerSample();
+}
+int audioDspMethod() { return audioDeviceConfigValue.dspMethod; }
+int audioDspFragments() { return audioDeviceConfigValue.dspFragments; }
+int audioDspFragmentSize() { return audioDeviceConfigValue.dspFragmentSize; }
+void audioSetDspFragment(int fragments, int fragmentSize) {
+    audioDeviceConfigValue.dspFragments = fragments;
+    audioDeviceConfigValue.dspFragmentSize = fragmentSize;
+}
+void audioSetDspFragments(int fragments) {
+    audioDeviceConfigValue.dspFragments = fragments;
+}
+void audioSetDspFragmentSize(int fragmentSize) {
+    audioDeviceConfigValue.dspFragmentSize = fragmentSize;
+}
+int audioDspSyncEnabled() { return audioDeviceConfigValue.dspSyncEnabled; }
+int audioSilentEnabled() { return audioDeviceConfigValue.silentEnabled; }
+const char* audioDspDevicePath() { return audioDeviceConfigValue.dspDevicePath; }
+const char* audioChannelsText() { return audioChannels() == 1 ? "mono" : "stereo"; }
+const char* audioSampleFormatText(int) { return "benchmark-format"; }
+const char* audioSampleFormatText() { return audioSampleFormatText(audioSampleFormat()); }
+const char* audioOnOffText(int enabled) { return enabled ? (char*)" on" : (char*)"off"; }
 
 int init_mixer() {
     return 0;
@@ -65,9 +104,7 @@ const char* primaryFixturePath() {
 }
 
 void applyFormat(const PcmFormat& format) {
-    soundSampleRate.setValue(format.sampleRate);
-    soundChannels.setValue(format.channels);
-    soundFormat.setValue(format.sampleFormat);
+    audioSetPcmFormat(format);
 }
 
 struct PcmFixture {
@@ -190,11 +227,11 @@ static void BM_Wav_Read10ms(benchmark::State& state) {
 }
 
 static void BM_AudioInput_Read10ms(benchmark::State& state) {
-    int previousLoop = audioInputLoop;
-    audioInputLoop = 1;
+    int previousLoop = audioInputLoopEnabled();
+    audioSetInputLoopEnabled(1);
     AudioInput input(new WavPcmSource(primaryFixturePath()));
-    int bytesPerSample = (soundFormat < 2) ? int(soundChannels) : 2 * int(soundChannels);
-    int sliceSamples = (int(soundSampleRate) * kAudioSliceMs) / 1000;
+    int bytesPerSample = audioBytesPerSample();
+    int sliceSamples = (audioSampleRateHz() * kAudioSliceMs) / 1000;
     std::vector<char> scratch(pcmBytesForSamples(sliceSamples, bytesPerSample));
     long long totalSamples = 0;
 
@@ -212,7 +249,7 @@ static void BM_AudioInput_Read10ms(benchmark::State& state) {
     }
 
     state.SetItemsProcessed(totalSamples);
-    audioInputLoop = previousLoop;
+    audioSetInputLoopEnabled(previousLoop);
 }
 
 static void BM_AudioBuffer_Append10ms(benchmark::State& state) {
@@ -365,20 +402,22 @@ static void BM_AudioProcessor_FFT(benchmark::State& state) {
     }
 }
 
-static void BM_AudioAnalyzer_Analyze1024(benchmark::State& state) {
+static void BM_AudioProcessor_Analyze1024(benchmark::State& state) {
+    AudioProcessor processor;
     AudioFrame frame;
     fillFrameFromFixture(frame);
 
     for (auto _ : state) {
-        AudioMetrics metrics = audioAnalyzer.analyze(frame.raw);
+        AudioMetrics metrics = processor.analyze(frame.raw, int(sound_minnoise));
         benchmark::DoNotOptimize(metrics.amplitude);
     }
 }
 
 static void BM_AcousticContext_Update(benchmark::State& state) {
+    AudioProcessor processor;
     AudioFrame frame;
     fillFrameFromFixture(frame);
-    AudioMetrics metrics = audioAnalyzer.analyze(frame.raw);
+    AudioMetrics metrics = processor.analyze(frame.raw, int(sound_minnoise));
 
     for (auto _ : state) {
         acousticContext.update(metrics);
@@ -397,7 +436,7 @@ static void BM_AudioVisualBridge_RunFrameNone(benchmark::State& state) {
     for (auto _ : state) {
         bridge.runFrame();
         benchmark::DoNotOptimize(frame.processedWaveData);
-        benchmark::DoNotOptimize(audioMetrics.amplitude);
+        benchmark::DoNotOptimize(frame.metrics.amplitude);
         benchmark::ClobberMemory();
     }
 
@@ -406,8 +445,8 @@ static void BM_AudioVisualBridge_RunFrameNone(benchmark::State& state) {
 
 static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State& state) {
     const PcmFixture& fixture = pcmFixture();
-    int previousLoop = audioInputLoop;
-    audioInputLoop = 1;
+    int previousLoop = audioInputLoopEnabled();
+    audioSetInputLoopEnabled(1);
     AudioInput input(new WavPcmSource(primaryFixturePath()));
     AudioBuffer buffer(kBufferCapacitySamples, fixture.bytesPerSample(),
         kProtectedHistorySamples);
@@ -443,13 +482,13 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
 
         totalSamples += samples;
         benchmark::DoNotOptimize(frame.processedWaveData);
-        benchmark::DoNotOptimize(audioMetrics.amplitude);
+        benchmark::DoNotOptimize(frame.metrics.amplitude);
         benchmark::ClobberMemory();
     }
 
     audioFrameSetTestOverride(NULL);
     state.SetItemsProcessed(totalSamples);
-    audioInputLoop = previousLoop;
+    audioSetInputLoopEnabled(previousLoop);
 }
 
 BENCHMARK(BM_Wav_OpenParse);
@@ -464,7 +503,7 @@ BENCHMARK(BM_AudioProcessor_None);
 BENCHMARK(BM_AudioProcessor_Filter1);
 BENCHMARK(BM_AudioProcessor_Filter2);
 BENCHMARK(BM_AudioProcessor_FFT);
-BENCHMARK(BM_AudioAnalyzer_Analyze1024);
+BENCHMARK(BM_AudioProcessor_Analyze1024);
 BENCHMARK(BM_AcousticContext_Update);
 BENCHMARK(BM_AudioVisualBridge_RunFrameNone);
 BENCHMARK(BM_EndToEnd_Process10msWavToNullOutputToBridgeNone);

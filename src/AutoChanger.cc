@@ -2,6 +2,7 @@
 #include "imath.h"
 #include "AutoChanger.h"
 #include "AudioAnalyzer.h"
+#include "AudioFrame.h"
 #include "Configuration.h"
 #include "CthughaBuffer.h"
 #include "RuntimeCommandSink.h"
@@ -53,14 +54,15 @@ AutoChanger::~AutoChanger() { }
 void AutoChanger::operator()() {
 
     int now = gettime();
+    const AudioMetrics& metrics = audioFrameMetrics();
 
     /* get time since last sound */
     int quiet_length = now - quietSince;
-    if (audioMetrics.noisy)
+    if (metrics.noisy)
         quietSince = now;
 
     /* Report long quietness to visual policy. */
-    if (!audioMetrics.noisy && videoDirector().observeQuiet(quiet_length))
+    if (!metrics.noisy && videoDirector().observeQuiet(quiet_length))
         quietSince = now; // start quiet-length again
 
     if (int(lock))
@@ -68,7 +70,7 @@ void AutoChanger::operator()() {
 
     /* Check for interrupted silence (like the pause btw. 2 tracks on a CD) */
     if (int(changeQuiet))
-        if (audioMetrics.noisy && (quiet_length > int(changeQuiet))) {
+        if (metrics.noisy && (quiet_length > int(changeQuiet))) {
             change();
             return;
         }

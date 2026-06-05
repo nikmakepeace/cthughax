@@ -64,9 +64,7 @@ void AudioInput::applyFormat() {
 
     CTH_DEBUG("audio input: applying format rate=%d channels=%d format=%d\n",
         format.sampleRate, format.channels, format.sampleFormat);
-    soundSampleRate.setValue(format.sampleRate);
-    soundChannels.setValue(format.channels);
-    soundFormat.setValue(format.sampleFormat);
+    audioSetPcmFormat(format);
 }
 
 int AudioInput::read(char* dst, int rawSize, int samplesRequested) {
@@ -76,7 +74,7 @@ int AudioInput::read(char* dst, int rawSize, int samplesRequested) {
     int samplesRead = source ? source->read(dst, rawSize, samplesRequested) : 0;
 
     if ((samplesRead == 0) && source && source->canFinish()) {
-        if (audioInputLoop) {
+        if (audioInputLoopEnabled()) {
             CTH_DEBUG("audio input: source reached end; rewinding\n");
             source->rewind();
             applyFormat();
@@ -447,9 +445,7 @@ int RawPcmSource::open() {
 }
 
 int RawPcmSource::applyFormat() {
-    pcmFormat.sampleRate = int(soundSampleRate);
-    pcmFormat.channels = int(soundChannels);
-    pcmFormat.sampleFormat = int(soundFormat);
+    pcmFormat = audioPcmFormat();
 
     if (pcmFormat.sampleRate <= 0) {
         CTH_WARN("  Unsupported raw audio sample rate %d.\n", pcmFormat.sampleRate);
@@ -507,7 +503,7 @@ RandomNoisePcmSource::RandomNoisePcmSource()
     , v1(0)
     , v2(0)
     , maxdv(2) {
-    pcmFormat.sampleRate = int(soundSampleRate);
+    pcmFormat.sampleRate = audioSampleRateHz();
     pcmFormat.channels = 2;
     pcmFormat.sampleFormat = SF_u8;
     CTH_DEBUG("random noise pcm source: created rate=%d channels=%d format=%d\n",

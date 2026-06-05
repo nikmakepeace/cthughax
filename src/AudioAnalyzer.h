@@ -1,34 +1,27 @@
-// -*- c++ -*-
+/** @file
+ * Acoustic context and audio-analysis configuration.
+ */
 
 #ifndef __AUDIO_ANALYZER_H
 #define __AUDIO_ANALYZER_H
 
 #include "cthugha.h"
-#include "AudioTypes.h"
-
-#include "EffectControl.h"
+#include "AudioFrame.h"
+#include "Option.h"
 
 struct AutoChangeConfig;
 
+/** Configured noise floor used when AudioProcessor analyzes frame metrics. */
 extern OptionInt sound_minnoise; /* quiet is below this */
+
+/**
+ * Applies startup auto-change audio-analysis configuration.
+ *
+ * @param config Startup auto-change configuration containing minNoise.
+ */
 void configureAudioAnalyzer(const AutoChangeConfig& config);
 
-struct AudioMetrics {
-    /** Average RMS amplitude across left and right channels, in signed 8-bit sample units. */
-    int amplitude;
-
-    /** Left-channel RMS amplitude, in signed 8-bit sample units. */
-    int amplitudeLeft;
-
-    /** Right-channel RMS amplitude, in signed 8-bit sample units. */
-    int amplitudeRight;
-
-    /** Nonzero when either channel is at or above sound_minnoise. */
-    int noisy;
-
-    AudioMetrics();
-};
-
+/** Rolling acoustic state derived from consecutive AudioFrame metrics. */
 class AcousticContext {
     double intensityValue;
     int lastAmplitudeValue;
@@ -42,7 +35,7 @@ public:
     /**
      * Updates rolling acoustic state from one analyzed frame.
      *
-     * @param metrics Frame-local audio metrics from AudioAnalyzer::analyze().
+     * @param metrics Frame-local audio metrics from AudioProcessor::analyze().
      *        Amplitudes are signed 8-bit RMS units.
      */
     void update(const AudioMetrics& metrics);
@@ -68,29 +61,7 @@ public:
     void resetCumulativeFireLevel();
 };
 
-class AudioAnalyzer {
-public:
-    AudioAnalyzer();
-
-    /**
-     * Measures one signed 8-bit stereo audio frame.
-     *
-     * @param frame Pointer to 1024 stereo samples in Cthugha's char2 format.
-     * @return Frame-local RMS amplitudes and noisy/quiet flag.
-     */
-    AudioMetrics analyze(const char2* frame);
-
-    /**
-     * Publishes global audio metrics for the current frame.
-     *
-     * Reads audioFrameRawData(), stores audioMetrics, and updates
-     * acousticContext. Called once per visual frame by AudioVisualBridge.
-     */
-    void operator()();
-};
-
-extern AudioAnalyzer audioAnalyzer;
-extern AudioMetrics audioMetrics;
+/** Multi-frame acoustic context consumed by visual effects and AutoChanger. */
 extern AcousticContext acousticContext;
 
 #endif

@@ -228,13 +228,13 @@ const IndexedFrame* Application::runVideoFilterchain() {
     initVideoFilterchain();
 
     // The filterchain receives a snapshot-like context for this visual frame.
-    // The pointed-to audio/analysis state remains owned by the audio facade and
-    // global analyzers; filters borrow it only during run().
+    // Audio frame data and frame-local metrics are owned by the audio facade;
+    // filters borrow them only during run().
     VideoFrameContext context;
     context.audioFrame = audioFrameCurrent();
     context.rawAudioData = audioFrameRawData();
     context.processedWaveData = audioFrameProcessedWaveData();
-    context.audioMetrics = &audioMetrics;
+    context.audioMetrics = &audioFrameMetrics();
     context.acousticContext = &acousticContext;
     context.now = now;
     context.deltaT = deltaT;

@@ -13,7 +13,6 @@ static const unsigned char kDestinationSentinel = 0xa5;
 double now = 0.0;
 double deltaT = 0.0;
 
-AudioMetrics audioMetrics;
 AcousticContext acousticContext;
 
 AudioMetrics::AudioMetrics()
@@ -33,6 +32,11 @@ AcousticContext::AcousticContext()
 
 double AcousticContext::intensity() const {
     return intensityValue;
+}
+
+const AudioMetrics& audioFrameMetrics() {
+    static AudioMetrics metrics;
+    return metrics;
 }
 
 static char2 emptyProcessedWaveData[1024];

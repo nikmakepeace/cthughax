@@ -57,11 +57,64 @@ static void testAudioRuntimeUsesAudioConfig() {
     assertSourceDoesNotContain("src/AudioRuntime.cc", "fromCurrentOptions");
     assertSourceDoesNotContain("src/AudioRuntime.cc", "audio_input_file");
     assertSourceDoesNotContain("src/AudioRuntime.cc", "::audioInputMode");
+    assertSourceDoesNotContain("src/AudioRuntime.cc", "soundSampleRate");
+    assertSourceDoesNotContain("src/AudioRuntime.cc", "soundChannels");
+    assertSourceDoesNotContain("src/AudioRuntime.cc", "soundFormat");
     assertSourceDoesNotContain("src/AudioSettings.cc", "fromCurrentOptions");
     assertSourceDoesNotContain("src/AudioSettings.cc", "audio_input_file");
     assertSourceDoesNotContain("src/AudioSettings.cc", "::audioInputMode");
     assertSourceDoesNotContain("src/AudioSettings.cc", "::soundDSPMethod");
     assertSourceDoesNotContain("src/AudioSettings.cc", "soundSilent");
+}
+
+static void testAudioDeviceSettingsAreStartupOnly() {
+    assertSourceContains("src/AudioOptions.h", "struct AudioDeviceConfig");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& audioInputMode");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundFormat");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundChannels");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundSampleRate");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundDSPMethod");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundDSPFragments");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundDSPFragmentSize");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundDSPSync");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern Option& soundSilent");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern int audioInputLoop");
+    assertSourceDoesNotContain("src/AudioOptions.h", "extern char dev_dsp");
+    assertSourceDoesNotContain("src/AudioSystem.cc", "InterfaceElementOption");
+    assertSourceDoesNotContain("src/AudioSystem.cc", "interfaceAudio");
+    assertSourceDoesNotContain("src/AudioSystem.cc", "Audio Interface");
+    assertSourceDoesNotContain("src/AudioSystem.cc", "audioFrameChange");
+    assertSourceContains("src/AudioSystem.cc",
+        "audioDeviceConfigValue.pcmFormat.sampleRate = config.sampleRateHz");
+    assertSourceContains("src/PcmSource.cc", "audioSetPcmFormat(format)");
+    assertSourceContains("src/DspPcmSource.cc", "audioSetSampleRateHz(sampleRate)");
+    assertSourceContains("src/AudioDSPOutput.cc", "audioSetSampleRateHz(sampleRate)");
+}
+
+static void testAudioFrameOwnsPerFrameMetrics() {
+    assertSourceContains("src/AudioFrame.h", "struct AudioMetrics");
+    assertSourceContains("src/AudioFrame.h", "AudioMetrics metrics");
+    assertSourceContains("src/AudioFrame.h", "audioFramePublishMetrics");
+    assertSourceContains("src/AudioFrame.h", "audioFrameMetrics");
+    assertSourceContains("src/AudioProcessor.cc",
+        "AudioProcessor::analyze(const char2* frame, int minNoise)");
+    assertSourceContains("src/AudioVisualBridge.cc",
+        "audioFramePublishMetrics(metrics)");
+    assertSourceContains("src/AudioVisualBridge.cc",
+        "acousticContext.update(audioFrameMetrics())");
+    assertSourceContains("src/Application.cc",
+        "context.audioMetrics = &audioFrameMetrics()");
+    assertSourceContains("src/AutoChanger.cc",
+        "const AudioMetrics& metrics = audioFrameMetrics()");
+    assertSourceContains("tests/CMakeLists.txt",
+        "audio_frame_processor_test");
+    assertSourceDoesNotContain("src/AudioAnalyzer.h", "class AudioAnalyzer");
+    assertSourceDoesNotContain("src/AudioAnalyzer.h", "extern AudioMetrics audioMetrics");
+    assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AudioAnalyzer::");
+    assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AudioMetrics audioMetrics");
+    assertSourceDoesNotContain("src/AudioVisualBridge.cc", "audioAnalyzer");
+    assertSourceDoesNotContain("src/AutoChanger.cc", "audioMetrics.");
+    assertSourceDoesNotContain("src/display.cc", "audioMetrics.");
 }
 
 static void testDisplayStartupUsesDisplayConfig() {
@@ -556,6 +609,8 @@ static void testConfigDefaultsAreNotConsumedAsLegacyDefaults() {
 
 int main() {
     testAudioRuntimeUsesAudioConfig();
+    testAudioDeviceSettingsAreStartupOnly();
+    testAudioFrameOwnsPerFrameMetrics();
     testDisplayStartupUsesDisplayConfig();
     testX11StartupUsesX11ConfigOnlyForX11Builds();
     testLoggingUsesLoggingConfig();

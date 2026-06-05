@@ -2,6 +2,7 @@
 #include "information.h"
 #include "AudioOptions.h"
 #include "Mixer.h"
+#include "Option.h"
 #include "DisplayDevice.h"
 #include "AutoChanger.h"
 #include "CthughaBuffer.h"
@@ -64,6 +65,12 @@ static void PH(const char* txt, const char* def = "") {
 
 static void PH(const char* txt, const Option& Opt) { PH(txt, Opt.text()); }
 
+static const char* PHInt(int value) {
+    static char s[64];
+    snprintf(s, sizeof(s), "%7d", value);
+    return s;
+}
+
 void usage() {
     char qotdPrefetchTimeoutDefault[32];
     snprintf(qotdPrefetchTimeoutDefault, sizeof(qotdPrefetchTimeoutDefault),
@@ -75,14 +82,14 @@ void usage() {
     PH(" -x, --no-sound      Use no sound input");
     PH(" --random-noise      Use generated random-noise input");
     PH(" --play FILE         Play FILE for sound input");
-    PH(" --silent            Play silently", soundSilent.text());
+    PH(" --silent            Play silently", audioOnOffText(audioSilentEnabled()));
     PH(" --loop, --no-loop   Play sound file over and over again or only once");
 
     PH("");
     PH("General sound device options:");
-    PH(" -v, --rate N        Set sample rate to N", soundSampleRate.text());
-    PH(" -1, -2, --stereo, --no-stereo Set number of sound channels", soundChannels.text());
-    PH(" --snd-format FMT    Set sound format to FMT", soundFormat.text());
+    PH(" -v, --rate N        Set sample rate to N", PHInt(audioSampleRateHz()));
+    PH(" -1, -2, --stereo, --no-stereo Set number of sound channels", audioChannelsText());
+    PH(" --snd-format FMT    Set sound format to FMT", audioSampleFormatText());
     PH(" --pulse-server SERVER  Set PulseAudio server", pulse_server);
     PH(" --pulse-latency-ms N  Set PulseAudio target latency");
     PH(" --audio-output-dump FILE  Dump submitted output PCM to WAV");
@@ -90,10 +97,10 @@ void usage() {
 
 #if WITH_DSP == 1
     PH("Advanced sound device options:");
-    PH(" --snd-method M      Use method M for sound reading", soundDSPMethod.text());
-    PH(" --snd-sync          Reset soundcard after reading each block", soundDSPSync.text());
-    PH(" --snd-fragments     Set number of sound fragments", soundDSPFragments.text());
-    PH(" --dev-dsp DEV       Set the DSP device to DEV", dev_dsp);
+    PH(" --snd-method M      Use method M for sound reading", PHInt(audioDspMethod()));
+    PH(" --snd-sync          Reset soundcard after reading each block", audioOnOffText(audioDspSyncEnabled()));
+    PH(" --snd-fragments     Set number of sound fragments", PHInt(audioDspFragments()));
+    PH(" --dev-dsp DEV       Set the DSP device to DEV", audioDspDevicePath());
 #endif
 
     PH("");

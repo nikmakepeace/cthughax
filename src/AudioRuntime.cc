@@ -62,11 +62,11 @@ static void audioRuntimeUpdatePeak(int& peak, int sample) {
 static int audioRuntimePcmPeak(const char* data, int samples) {
     const unsigned char* bytes = (const unsigned char*)data;
     int peak = 0;
-    int channels = int(soundChannels);
+    int channels = audioChannels();
     if ((data == NULL) || (samples <= 0) || (channels <= 0))
         return 0;
 
-    switch (soundFormat) {
+    switch (audioSampleFormat()) {
     case SF_u8:
         for (int i = 0; i < samples * channels; i++)
             audioRuntimeUpdatePeak(peak, (int)bytes[i] - 128);
@@ -108,8 +108,8 @@ static void audioRuntimeDebugDecodedPcm(const char* data, int samples, int bytes
     reports++;
     CTH_DEBUG("    audio input: decoded samples=%d bytes=%d appended-samples=%d peak=%d queued-samples=%d decoded-end-sample=%lld format=%s channels=%d rate=%d\n",
         samples, bytes, appendedSamples, audioRuntimePcmPeak(data, samples), queuedSamples,
-        audioRuntimeDecodedSamplePosition(), soundFormat.text(), int(soundChannels),
-        int(soundSampleRate));
+        audioRuntimeDecodedSamplePosition(), audioSampleFormatText(), audioChannels(),
+        audioSampleRateHz());
 }
 
 static int audioRuntimeUsesNativeFilePipeline(const AudioSettings& settings,
@@ -124,11 +124,11 @@ static int audioRuntimeUsesNativeFilePipeline(const AudioSettings& settings,
 }
 
 static int audioRuntimeBytesPerSample() {
-    return (soundFormat < 2) ? int(soundChannels) : 2 * int(soundChannels);
+    return audioBytesPerSample();
 }
 
 static int audioRuntimeSamplesPerSecond() {
-    return int(soundSampleRate);
+    return audioSampleRateHz();
 }
 
 static int audioRuntimeStrategyChunkSamples() {
@@ -444,7 +444,7 @@ int audioRuntimeInit(const AudioConfig& config, int initializeInputControls,
         audioRuntimeFrame.clear();
         audioRuntimeStartThreads();
         CTH_DEBUG("    audio runtime: native file pipeline rate=%d channels=%d format=%s bytes-per-sample=%d input-chunk-samples=%d output-chunk-samples=%d target-buffer-samples=%d protected-history-samples=%d buffer-samples=%d\n",
-            int(soundSampleRate), int(soundChannels), soundFormat.text(), bytesPerSample,
+            audioSampleRateHz(), audioChannels(), audioSampleFormatText(), bytesPerSample,
             audioRuntimeChunkSamples, audioRuntimeOutputChunkSamples,
             audioOutput->targetDelaySamples(), protectedHistorySamples, bufferSamples);
         CTH_DEBUG("audio runtime: installed native file pipeline strategy=%d input=%p buffer=%p output=%p frame-builder=%p input-chunk-samples=%d output-chunk-samples=%d bytes-per-sample=%d target-buffer-samples=%d protected-history-samples=%d protected-history-ms=%d buffer-samples=%d buffer-ms=%d\n",

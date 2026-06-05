@@ -480,7 +480,7 @@ int screen_bent(ScreenRenderContext& context) {
 
     prepare_3d(context, 256);
 
-    h = h * 0.95 + (min((2 * audioMetrics.amplitude), 120)) * 0.05;
+    h = h * 0.95 + (min((2 * audioFrameMetrics().amplitude), 120)) * 0.05;
 
     for (i = visualBuffer(context).width(); i != 0; i--) {
         height[i] = (int)(h * sin(t) * sin((double)(i) / (double)visualBuffer(context).width() * 3.0 * M_PI)) + 128;

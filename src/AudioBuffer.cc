@@ -236,9 +236,9 @@ void AudioFrameBuilder::convert(char2* dst, void* src, int n) {
     unsigned short* data_u16 = (unsigned short*)src;
     short* data_s16 = (short*)src;
 
-    int cInc = (soundChannels == 1) ? 0 : 1;
+    int cInc = (audioChannels() == 1) ? 0 : 1;
 
-    switch (soundFormat) {
+    switch (audioSampleFormat()) {
     case SF_u8:
         for (int i = 0; i < n; i++) {
             dst[i][1] = int(*data_u8) - 128;
