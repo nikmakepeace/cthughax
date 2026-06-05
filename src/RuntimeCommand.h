@@ -36,7 +36,6 @@ enum RuntimeCommandType {
     RuntimeCommandChangeSoundProcessingBy,
     RuntimeCommandChangeSoundProcessingTo,
     RuntimeCommandToggleAutoChangeLock,
-    RuntimeCommandResetAudioFrame,
     RuntimeCommandWriteIni,
     RuntimeCommandStopAndContinue,
     RuntimeCommandToggleShowFps,
@@ -193,13 +192,6 @@ struct RuntimeCommand {
      * @return Runtime command.
      */
     static RuntimeCommand toggleAutoChangeLock();
-
-    /**
-     * Creates an audio-frame reset command.
-     *
-     * @return Runtime command.
-     */
-    static RuntimeCommand resetAudioFrame();
 
     /**
      * Creates a command that persists the current runtime configuration.

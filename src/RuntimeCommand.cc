@@ -88,10 +88,6 @@ RuntimeCommand RuntimeCommand::toggleAutoChangeLock() {
     return RuntimeCommand(RuntimeCommandToggleAutoChangeLock);
 }
 
-RuntimeCommand RuntimeCommand::resetAudioFrame() {
-    return RuntimeCommand(RuntimeCommandResetAudioFrame);
-}
-
 RuntimeCommand RuntimeCommand::writeIni() {
     return RuntimeCommand(RuntimeCommandWriteIni);
 }
@@ -207,7 +203,6 @@ RuntimeChangeSet::RuntimeChangeSet()
     , displayChanged(0)
     , audioProcessingChanged(0)
     , autoChangeChanged(0)
-    , audioResetRequested(0)
     , persistenceRequested(0)
     , fpsChanged(0)
     , closeRequested(0)
@@ -215,8 +210,8 @@ RuntimeChangeSet::RuntimeChangeSet()
 
 int RuntimeChangeSet::any() const {
     return sceneChanges || displayChanged || audioProcessingChanged
-        || autoChangeChanged || audioResetRequested || persistenceRequested
-        || fpsChanged || closeRequested || uiChanged;
+        || autoChangeChanged || persistenceRequested || fpsChanged
+        || closeRequested || uiChanged;
 }
 
 void RuntimeChangeSet::merge(const RuntimeChangeSet& other) {
@@ -224,7 +219,6 @@ void RuntimeChangeSet::merge(const RuntimeChangeSet& other) {
     displayChanged |= other.displayChanged;
     audioProcessingChanged |= other.audioProcessingChanged;
     autoChangeChanged |= other.autoChangeChanged;
-    audioResetRequested |= other.audioResetRequested;
     persistenceRequested |= other.persistenceRequested;
     fpsChanged |= other.fpsChanged;
     closeRequested |= other.closeRequested;

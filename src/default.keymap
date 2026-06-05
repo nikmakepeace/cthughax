@@ -74,8 +74,6 @@ R newRandomPalette()
 
 a writeIni()
 A writeIni()
-n soundReset()
-N soundReset()
 
 backSpace restore()
 h toggleSave()

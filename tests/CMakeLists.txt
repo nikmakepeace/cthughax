@@ -571,6 +571,22 @@ target_link_libraries(runtime_command_test PRIVATE m)
 
 add_test(NAME runtime_command_test COMMAND runtime_command_test)
 
+add_executable(runtime_audio_controls_test
+    unit/RuntimeAudioControlsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeAudioControls.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+)
+
+target_include_directories(runtime_audio_controls_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(runtime_audio_controls_test PRIVATE m)
+
+add_test(NAME runtime_audio_controls_test COMMAND runtime_audio_controls_test)
+
 add_executable(runtime_config_selection_test
     unit/RuntimeConfigSelectionTest.cc
     ${CMAKE_SOURCE_DIR}/src/Configuration.cc

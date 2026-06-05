@@ -83,7 +83,7 @@ static void testRuntimeChangeSetMergesFlags() {
 
     left.sceneChanges = 4;
     right.displayChanged = 1;
-    right.audioResetRequested = 1;
+    right.audioProcessingChanged = 1;
     right.closeRequested = 1;
     right.uiChanged = 1;
     left.merge(right);
@@ -91,7 +91,7 @@ static void testRuntimeChangeSetMergesFlags() {
     assert(left.any());
     assert(left.sceneChanges == 4);
     assert(left.displayChanged == 1);
-    assert(left.audioResetRequested == 1);
+    assert(left.audioProcessingChanged == 1);
     assert(left.closeRequested == 1);
     assert(left.uiChanged == 1);
 }

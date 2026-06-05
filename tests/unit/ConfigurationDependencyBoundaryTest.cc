@@ -422,6 +422,20 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "displayControls.changePresentationBy(command.value)");
     assertSourceContains("src/RuntimeChangeMediator.cc",
         "audioControls.changeSoundProcessingBy(command.value)");
+    assertSourceDoesNotContain("src/RuntimeCommand.h",
+        "RuntimeCommandResetAudioFrame");
+    assertSourceDoesNotContain("src/RuntimeCommand.h",
+        "resetAudioFrame");
+    assertSourceDoesNotContain("src/RuntimeCommandSink.h",
+        "audioResetRequested");
+    assertSourceDoesNotContain("src/RuntimeChangeMediator.cc",
+        "RuntimeCommandResetAudioFrame");
+    assertSourceDoesNotContain("src/keymap.cc", "soundReset");
+    assertSourceDoesNotContain("src/default.keymap", "soundReset");
+    assertSourceDoesNotContain("src/keymap.cc",
+        "#include \"AudioAnalyzer.h\"");
+    assertSourceDoesNotContain("src/keymap.cc",
+        "#include \"AudioFrame.h\"");
     assertSourceContains("src/RuntimeChangeMediator.cc",
         "autoChangeControls.toggleLock()");
     assertSourceContains("src/RuntimeChangeMediator.cc",
@@ -446,6 +460,14 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "RuntimeEffectCatalogControls.cc");
     assertSourceContains("src/CMakeLists.txt",
         "RuntimeEffectControls.cc");
+    assertSourceDoesNotContain("src/RuntimeAudioControls.cc",
+        "#include \"AudioAnalyzer.h\"");
+    assertSourceDoesNotContain("src/RuntimeAudioControls.cc",
+        "#include \"AudioFrame.h\"");
+    assertSourceDoesNotContain("src/RuntimeAudioControls.cc",
+        "sound_minnoise");
+    assertSourceContains("src/RuntimeAudioControls.cc",
+        "audioProcessing.change");
     assertSourceDoesNotContain("src/RuntimeChangeMediator.cc",
         "#include \"AudioFrame.h\"");
     assertSourceDoesNotContain("src/RuntimeChangeMediator.cc",

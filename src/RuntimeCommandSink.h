@@ -12,7 +12,6 @@ struct RuntimeChangeSet {
     int displayChanged;
     int audioProcessingChanged;
     int autoChangeChanged;
-    int audioResetRequested;
     int persistenceRequested;
     int fpsChanged;
     int closeRequested;

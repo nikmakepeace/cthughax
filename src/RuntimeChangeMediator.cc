@@ -213,10 +213,6 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
         autoChangeControls.toggleLock();
         changes.autoChangeChanged = 1;
         break;
-    case RuntimeCommandResetAudioFrame:
-        audioControls.resetAudioFrame();
-        changes.audioResetRequested = 1;
-        break;
     case RuntimeCommandWriteIni:
         runtimePersistence.writeCurrentConfig();
         changes.persistenceRequested = 1;

@@ -311,7 +311,6 @@ public:
     int lastSoundBy;
     int soundToCalls;
     const char* lastSoundTo;
-    int resets;
     int audioOptionByCalls;
     int audioOptionToCalls;
     int handlesAudioOption;
@@ -325,7 +324,6 @@ public:
         , lastSoundBy(0)
         , soundToCalls(0)
         , lastSoundTo(0)
-        , resets(0)
         , audioOptionByCalls(0)
         , audioOptionToCalls(0)
         , handlesAudioOption(0)
@@ -342,10 +340,6 @@ public:
     virtual void changeSoundProcessingTo(const char* to) {
         soundToCalls++;
         lastSoundTo = to;
-    }
-
-    virtual void resetAudioFrame() {
-        resets++;
     }
 
     virtual int changeAudioOptionBy(
@@ -575,11 +569,6 @@ static void testReportsNonSceneRuntimeChanges() {
         = harness.mediator.apply(RuntimeCommand::toggleAutoChangeLock());
     assert(autoChange.autoChangeChanged == 1);
     assert(harness.autoChangeControls.lockToggles == 1);
-
-    RuntimeChangeSet reset
-        = harness.mediator.apply(RuntimeCommand::resetAudioFrame());
-    assert(reset.audioResetRequested == 1);
-    assert(harness.audioControls.resets == 1);
 
     RuntimeChangeSet persist = harness.mediator.apply(RuntimeCommand::writeIni());
     assert(persist.persistenceRequested == 1);

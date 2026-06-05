@@ -3,12 +3,10 @@
 #include "keymap.h"
 #include "Interface.h"
 #include "keys.h"
-#include "AudioFrame.h"
 #include "display.h"
 #include "disp-sys.h"
 #include "AutoChanger.h"
 #include "AudioProcessor.h"
-#include "AudioAnalyzer.h"
 #include "Border.h"
 #include "CthughaBuffer.h"
 #include "Flashlight.h"
@@ -595,7 +593,6 @@ ACTION(image) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneIm
 ACTION(lock) { applyRuntimeCommand(RuntimeCommand::toggleAutoChangeLock()); }
 
 ACTION(writeIni) { applyRuntimeCommand(RuntimeCommand::writeIni()); }
-ACTION(soundReset) { applyRuntimeCommand(RuntimeCommand::resetAudioFrame()); }
 
 ACTION(restore) { applyRuntimeCommand(RuntimeCommand::restoreScene()); }
 ACTION(toggleSave) { Interface::saveToPreset = 1 - Interface::saveToPreset; }
