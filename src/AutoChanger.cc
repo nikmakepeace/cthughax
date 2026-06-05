@@ -52,9 +52,12 @@ AutoChanger::AutoChanger(RuntimeCommandSink& runtimeCommands_)
 AutoChanger::~AutoChanger() { }
 
 void AutoChanger::operator()() {
+    operator()(audioFrameMetrics());
+}
+
+void AutoChanger::operator()(const AudioMetrics& metrics) {
 
     int now = gettime();
-    const AudioMetrics& metrics = audioFrameMetrics();
 
     /* get time since last sound */
     int quiet_length = now - quietSince;

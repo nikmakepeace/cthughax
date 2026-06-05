@@ -7,6 +7,7 @@
 #define __AUDIO_VISUAL_BRIDGE_H
 
 class RuntimeCommandSink;
+class AudioFrame;
 
 class AudioVisualBridge {
     int filterchainRefreshRequestedValue;
@@ -26,11 +27,10 @@ public:
     /**
      * Runs the audio side of one visual frame.
      *
-     * Processes the current audio frame, publishes AudioFrame metrics, updates
-     * AcousticContext, then runs AutoChanger if available.
-     * Called after audioFrameTick() and before visual filterchain mutation.
+     * Processes the supplied audio frame, publishes metrics on the frame,
+     * updates AcousticContext, then runs AutoChanger if available.
      */
-    void runFrame();
+    void runFrame(AudioFrame& frame);
 
     /**
      * @return Nonzero when audio-side option changes require rebuilding the

@@ -1,11 +1,13 @@
-// Audio device configuration and lifecycle wrapper for the current audio runtime.
-// Backend selection enters through AudioRuntime/RuntimeFactory; device settings
-// are startup configuration plus backend negotiation, not runtime UI controls.
+/** @file
+ * Audio device configuration and negotiated backend settings.
+ *
+ * Backend lifecycle is owned by AudioIngest/Application. Device settings are
+ * startup configuration plus backend negotiation, not runtime UI controls.
+ */
 
 #include "cthugha.h"
 #include "AudioSystem.h"
 #include "AudioOptions.h"
-#include "AudioRuntime.h"
 #include "Configuration.h"
 #include "Interface.h"
 #include "Mixer.h"
@@ -175,19 +177,6 @@ void configureAudioOptions(const AudioConfig& config) {
     }
 
     configureAudioOutputOptions(config);
-}
-
-int init_sound(const AudioConfig& config, int visualMaxDimension,
-    RuntimeCommandSink* runtimeCommands) {
-    if (audioRuntimeIsInitialized())
-        return 0;
-
-    return audioRuntimeInit(config, 1, visualMaxDimension, runtimeCommands);
-}
-
-int exit_sound() {
-    audioRuntimeShutdown();
-    return 0;
 }
 
 Interface interfacePlayList("playList", "Sound Play List", "Not yet implemented");

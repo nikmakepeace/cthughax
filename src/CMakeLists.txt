@@ -10,12 +10,12 @@ set(CTHUGHA_COMMON_SOURCES
     AudioOutput.cc
     AudioPulseOutput.cc
     AudioDSPOutput.cc
-    AudioBuffer.cc
+    DecodedAudioHistory.cc
+    AudioPassthrough.cc
+    AudioIngest.cc
     PcmSource.cc
-    AudioInputProcessor.cc
     DspPcmSource.cc
     AudioFrame.cc
-    AudioRuntime.cc
     AudioSettings.cc
     RuntimeFactory.cc
     Scene.cc

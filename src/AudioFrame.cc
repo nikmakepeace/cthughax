@@ -1,13 +1,11 @@
 #include "cthugha.h"
 #include "AudioFrame.h"
 #include "AudioOptions.h"
-#ifndef CTH_AUDIO_FRAME_NO_RUNTIME
-#include "AudioRuntime.h"
-#endif
 
 static char2 silentAudioFrameRawData[1024];
 static char2 silentAudioFrameProcessedWaveData[1024];
 static AudioMetrics audioFrameFallbackMetrics;
+static AudioFrame* currentAudioFrame = NULL;
 
 #ifdef CTH_AUDIO_FRAME_TEST_OVERRIDE
 static AudioFrame* testAudioFrameOverride = NULL;
@@ -35,21 +33,8 @@ void AudioFrame::clear() {
     metrics = AudioMetrics();
 }
 
-void audioFrameTick() {
-#ifndef CTH_AUDIO_FRAME_NO_RUNTIME
-    double tickStart = getTime();
-    audioRuntimeTick();
-    CTH_TRACE("audioFrameTick-ms=%.3f\n", "audio timing", (getTime() - tickStart) * 1000.0);
-#endif
-}
-
-void audioFrameChange() {
-#ifndef CTH_AUDIO_FRAME_NO_RUNTIME
-    if (audioRuntimeProcessor()) {
-        audioRuntimeProcessor()->change();
-        return;
-    }
-#endif
+void audioFrameSetCurrent(AudioFrame* frame) {
+    currentAudioFrame = frame;
 }
 
 AudioFrame* audioFrameCurrent() {
@@ -57,11 +42,7 @@ AudioFrame* audioFrameCurrent() {
     if (testAudioFrameOverride != NULL)
         return testAudioFrameOverride;
 #endif
-#ifdef CTH_AUDIO_FRAME_NO_RUNTIME
-    return NULL;
-#else
-    return audioRuntimeCurrentFrame();
-#endif
+    return currentAudioFrame;
 }
 
 char2* audioFrameRawData() {
@@ -69,13 +50,8 @@ char2* audioFrameRawData() {
     if (testAudioFrameOverride != NULL)
         return testAudioFrameOverride->raw;
 #endif
-#ifndef CTH_AUDIO_FRAME_NO_RUNTIME
-    if (audioRuntimeCurrentFrame())
-        return audioRuntimeCurrentFrame()->raw;
-
-    if (audioRuntimeProcessor())
-        return audioRuntimeProcessor()->data;
-#endif
+    if (currentAudioFrame != NULL)
+        return currentAudioFrame->raw;
 
     return silentAudioFrameRawData;
 }
@@ -85,13 +61,8 @@ char2* audioFrameProcessedWaveData() {
     if (testAudioFrameOverride != NULL)
         return testAudioFrameOverride->processedWaveData;
 #endif
-#ifndef CTH_AUDIO_FRAME_NO_RUNTIME
-    if (audioRuntimeCurrentFrame())
-        return audioRuntimeCurrentFrame()->processedWaveData;
-
-    if (audioRuntimeProcessor())
-        return audioRuntimeProcessor()->dataProc;
-#endif
+    if (currentAudioFrame != NULL)
+        return currentAudioFrame->processedWaveData;
 
     return silentAudioFrameProcessedWaveData;
 }
@@ -121,15 +92,10 @@ int audioFrameBroadcastBytes() {
         return testAudioFrameOverride->samples * bytesPerSample;
     }
 #endif
-#ifndef CTH_AUDIO_FRAME_NO_RUNTIME
-    if (audioRuntimeCurrentFrame()) {
+    if (currentAudioFrame != NULL) {
         int bytesPerSample = audioBytesPerSample();
-        return audioRuntimeCurrentFrame()->samples * bytesPerSample;
+        return currentAudioFrame->samples * bytesPerSample;
     }
-
-    if (audioRuntimeProcessor())
-        return audioRuntimeProcessor()->frameRawSize();
-#endif
 
     return 0;
 }

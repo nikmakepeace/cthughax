@@ -96,7 +96,7 @@ AudioPulseOutput::AudioPulseOutput()
     , context(NULL)
     , stream(NULL)
     , drainEvent(NULL)
-    , callbackBuffer(NULL)
+    , callbackStream(NULL)
     , callbackInputFinished(NULL)
     , callbackScratch(NULL)
     , callbackScratchSamples(0)
@@ -117,7 +117,7 @@ void AudioPulseOutput::closePulse() {
         pa_threaded_mainloop_lock(pulseMainloop);
 
     callbackDrainActive.store(0);
-    callbackBuffer = NULL;
+    callbackStream = NULL;
     callbackInputFinished = NULL;
     callbackScratchSamples = 0;
 
@@ -409,19 +409,19 @@ int AudioPulseOutput::isOpen() const { return stream != NULL; }
 int AudioPulseOutput::isRealtime() const { return 1; }
 
 int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
-    if (!callbackDrainActive.load() || (callbackBuffer == NULL) || (callbackScratch == NULL)
+    if (!callbackDrainActive.load() || (callbackStream == NULL) || (callbackScratch == NULL)
         || (callbackScratchSamples <= 0) || (stream == NULL))
         return 0;
 
     pa_stream* pulseStream = (pa_stream*)stream;
-    int bytesPerSampleValue = callbackBuffer->bytesPerSample();
+    int bytesPerSampleValue = callbackStream->bytesPerSample();
     int writes = 0;
 
     if (bytesPerSampleValue <= 0)
         return 0;
 
     for (;;) {
-        if (!callbackDrainActive.load() || (callbackBuffer == NULL))
+        if (!callbackDrainActive.load() || (callbackStream == NULL))
             break;
         if (!PA_STREAM_IS_GOOD(pa_stream_get_state(pulseStream))) {
             CTH_ERROR("Pulse passthrough stream failed on server `%s': stream is not ready\n",
@@ -429,7 +429,13 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
             break;
         }
 
-        int queuedSamples = callbackBuffer->queuedForOutputSamples();
+        int skippedSamples = callbackStream->resyncIfBehind();
+        if (skippedSamples > 0) {
+            CTH_WARN("Pulse passthrough fell behind decoded history; skipped %d samples.\n",
+                skippedSamples);
+        }
+
+        int queuedSamples = callbackStream->queuedForOutputSamples();
         if (queuedSamples <= 0)
             break;
 
@@ -456,8 +462,8 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
         if (samplesWanted <= 0)
             break;
 
-        long long startSample = callbackBuffer->submittedEndPosition();
-        int samples = callbackBuffer->peekForOutput(callbackScratch, samplesWanted);
+        long long startSample = callbackStream->submittedEndPosition();
+        int samples = callbackStream->peekForOutput(callbackScratch, samplesWanted);
         if (samples <= 0)
             break;
 
@@ -466,7 +472,7 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
         if (written <= 0)
             break;
 
-        int committedSamples = callbackBuffer->commitOutputSamples(
+        int committedSamples = callbackStream->commitOutputSamples(
             written / bytesPerSampleValue);
         int committedBytes = pcmBytesForSamples(committedSamples, bytesPerSampleValue);
         if (committedSamples <= 0)
@@ -474,14 +480,14 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
 
         audioOutputDumpSubmittedPcm(callbackScratch, committedBytes);
 
-        audioDebugSubmittedPcm(callbackScratch, committedSamples, committedBytes, written,
-            callbackBuffer->queuedForOutputSamples(),
-            callbackBuffer->submittedEndPosition());
+            audioDebugSubmittedPcm(callbackScratch, committedSamples, committedBytes, written,
+            callbackStream->queuedForOutputSamples(),
+            callbackStream->submittedEndPosition());
         CTH_TRACE("pulse callback drained samples=%d bytes=%d written=%d committed-samples=%d committed-bytes=%d writable-bytes=%lu requested-bytes=%lu queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld input-finished=%d\n",
             "audio runtime", samples, bytes, written, committedSamples, committedBytes,
             (unsigned long)streamWritableBytes,
-            (unsigned long)requestedBytes, callbackBuffer->queuedForOutputSamples(),
-            startSample, callbackBuffer->submittedEndPosition(),
+            (unsigned long)requestedBytes, callbackStream->queuedForOutputSamples(),
+            startSample, callbackStream->submittedEndPosition(),
             callbackInputFinished ? callbackInputFinished->load() : 0);
 
         writes++;
@@ -496,7 +502,7 @@ int AudioPulseOutput::supportsCallbackDrain() const {
     return (mainloop != NULL) && (stream != NULL) && (drainEvent != NULL);
 }
 
-void AudioPulseOutput::startCallbackDrain(AudioBuffer& buffer,
+void AudioPulseOutput::startCallbackDrain(AudioOutputStream& outputStream,
     const std::atomic<int>* inputFinished, int scratchSamples) {
     if ((mainloop == NULL) || (stream == NULL) || (drainEvent == NULL))
         return;
@@ -507,13 +513,13 @@ void AudioPulseOutput::startCallbackDrain(AudioBuffer& buffer,
     if (samples <= 0)
         samples = 1024;
 
-    char* scratch = new char[pcmBytesForSamples(samples, buffer.bytesPerSample())];
+    char* scratch = new char[pcmBytesForSamples(samples, outputStream.bytesPerSample())];
     char* oldScratch = NULL;
     pa_threaded_mainloop* pulseMainloop = (pa_threaded_mainloop*)mainloop;
 
     pa_threaded_mainloop_lock(pulseMainloop);
     oldScratch = callbackScratch;
-    callbackBuffer = &buffer;
+    callbackStream = &outputStream;
     callbackInputFinished = inputFinished;
     callbackScratch = scratch;
     callbackScratchSamples = samples;
@@ -526,7 +532,7 @@ void AudioPulseOutput::startCallbackDrain(AudioBuffer& buffer,
     delete[] oldScratch;
 
     CTH_DEBUG("audio runtime: pulse callback drain started scratch-samples=%d target-buffer-samples=%d queued-samples=%d input-finished=%d\n",
-        samples, targetDelaySamples(), buffer.queuedForOutputSamples(),
+        samples, targetDelaySamples(), outputStream.queuedForOutputSamples(),
         inputFinished ? inputFinished->load() : 0);
 }
 
@@ -548,7 +554,7 @@ void AudioPulseOutput::stopCallbackDrain() {
     if (mainloop == NULL) {
         delete[] callbackScratch;
         callbackScratch = NULL;
-        callbackBuffer = NULL;
+        callbackStream = NULL;
         callbackInputFinished = NULL;
         callbackScratchSamples = 0;
         callbackDrainActive.store(0);
@@ -560,7 +566,7 @@ void AudioPulseOutput::stopCallbackDrain() {
 
     pa_threaded_mainloop_lock(pulseMainloop);
     callbackDrainActive.store(0);
-    callbackBuffer = NULL;
+    callbackStream = NULL;
     callbackInputFinished = NULL;
     callbackScratchSamples = 0;
     oldScratch = callbackScratch;
@@ -594,7 +600,7 @@ void AudioPulseOutput::pulseUnderflow() {
             pulse_server_display_name(), underflows);
 }
 
-int AudioPulseOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
+int AudioPulseOutput::service(AudioOutputStream& outputStream, char* scratch, int scratchSamples,
     int /*inputFinished*/) {
     if (callbackDrainActive.load())
         return 0;
@@ -603,11 +609,17 @@ int AudioPulseOutput::service(AudioBuffer& buffer, char* scratch, int scratchSam
         || (scratchSamples <= 0))
         return 0;
 
-    int queuedSamples = buffer.queuedForOutputSamples();
+    int skippedSamples = outputStream.resyncIfBehind();
+    if (skippedSamples > 0) {
+        CTH_WARN("Pulse passthrough fell behind decoded history; skipped %d samples.\n",
+            skippedSamples);
+    }
+
+    int queuedSamples = outputStream.queuedForOutputSamples();
     if (queuedSamples <= 0)
         return 0;
 
-    int bytesPerSampleValue = buffer.bytesPerSample();
+    int bytesPerSampleValue = outputStream.bytesPerSample();
     if (bytesPerSampleValue <= 0)
         return 0;
 
@@ -642,7 +654,7 @@ int AudioPulseOutput::service(AudioBuffer& buffer, char* scratch, int scratchSam
 
     if (writableBytes == 0) {
         CTH_TRACE("pulse output idle writable-bytes=0 queued-samples=%d submitted-end-sample=%lld\n",
-            "audio runtime", queuedSamples, buffer.submittedEndPosition());
+            "audio runtime", queuedSamples, outputStream.submittedEndPosition());
         return 0;
     }
 
@@ -656,8 +668,8 @@ int AudioPulseOutput::service(AudioBuffer& buffer, char* scratch, int scratchSam
     if (samplesWanted <= 0)
         return 0;
 
-    long long startSample = buffer.submittedEndPosition();
-    int samples = buffer.peekForOutput(scratch, samplesWanted);
+    long long startSample = outputStream.submittedEndPosition();
+    int samples = outputStream.peekForOutput(scratch, samplesWanted);
     if (samples <= 0)
         return 0;
 
@@ -666,19 +678,19 @@ int AudioPulseOutput::service(AudioBuffer& buffer, char* scratch, int scratchSam
     int committedSamples = 0;
     int committedBytes = 0;
     if (written > 0) {
-        committedSamples = buffer.commitOutputSamples(written / bytesPerSampleValue);
+        committedSamples = outputStream.commitOutputSamples(written / bytesPerSampleValue);
         committedBytes = pcmBytesForSamples(committedSamples, bytesPerSampleValue);
     }
     if (committedSamples > 0) {
         audioOutputDumpSubmittedPcm(scratch, committedBytes);
     }
 
-    audioDebugSubmittedPcm(scratch, committedSamples, committedBytes, written, buffer.queuedForOutputSamples(),
-        buffer.submittedEndPosition());
+    audioDebugSubmittedPcm(scratch, committedSamples, committedBytes, written, outputStream.queuedForOutputSamples(),
+        outputStream.submittedEndPosition());
     CTH_TRACE("pulse output submitted samples=%d bytes=%d written=%d committed-samples=%d committed-bytes=%d writable-bytes=%lu queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld\n",
         "audio runtime", samples, bytes, written, committedSamples, committedBytes,
         (unsigned long)writableBytes,
-        buffer.queuedForOutputSamples(), startSample, buffer.submittedEndPosition());
+        outputStream.queuedForOutputSamples(), startSample, outputStream.submittedEndPosition());
 
     return committedSamples > 0 ? 1 : 0;
 }
@@ -690,7 +702,7 @@ AudioPulseOutput::AudioPulseOutput()
     , context(NULL)
     , stream(NULL)
     , drainEvent(NULL)
-    , callbackBuffer(NULL)
+    , callbackStream(NULL)
     , callbackInputFinished(NULL)
     , callbackScratch(NULL)
     , callbackScratchSamples(0)
@@ -708,9 +720,9 @@ int AudioPulseOutput::write(const void*, int) { return 0; }
 int AudioPulseOutput::isOpen() const { return 0; }
 int AudioPulseOutput::isRealtime() const { return 1; }
 void AudioPulseOutput::update() { }
-int AudioPulseOutput::service(AudioBuffer&, char*, int, int) { return 0; }
+int AudioPulseOutput::service(AudioOutputStream&, char*, int, int) { return 0; }
 int AudioPulseOutput::supportsCallbackDrain() const { return 0; }
-void AudioPulseOutput::startCallbackDrain(AudioBuffer&, const std::atomic<int>*, int) { }
+void AudioPulseOutput::startCallbackDrain(AudioOutputStream&, const std::atomic<int>*, int) { }
 void AudioPulseOutput::notifyCallbackDrain() { }
 void AudioPulseOutput::stopCallbackDrain() { }
 void AudioPulseOutput::pulseWritable(size_t) { }

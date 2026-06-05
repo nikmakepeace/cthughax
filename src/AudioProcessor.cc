@@ -340,3 +340,22 @@ int AudioProcessingOption::process() {
     CTH_TRACE("processing mode=`%s'\n", "audio processing", text());
     return entries[value]->operator()();
 }
+
+int AudioProcessingOption::process(AudioFrame& frame) {
+    if ((value < 0) || (value >= entryCount()) || (entries[value] == NULL))
+        return 0;
+
+    CTH_TRACE("processing mode=`%s'\n", "audio processing", text());
+    const char* mode = text();
+    if (strcmp(mode, "FFT") == 0) {
+        audioFrameProcessor.fft(frame);
+    } else if (strcmp(mode, "Filter1") == 0) {
+        audioFrameProcessor.filter1(frame);
+    } else if (strcmp(mode, "Filter2") == 0) {
+        audioFrameProcessor.filter2(frame);
+    } else {
+        audioFrameProcessor.none(frame);
+    }
+
+    return 1;
+}

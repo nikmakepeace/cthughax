@@ -1,4 +1,6 @@
-// Audio input, output, buffering, and frame conversion interfaces.
+/** @file
+ * Audio input, output, decoded-history, and frame conversion interfaces.
+ */
 
 #ifndef __AUDIO_H
 #define __AUDIO_H
@@ -14,7 +16,8 @@
 #define PATH_MAX 4096
 #endif
 
-class AudioBuffer;
+class AudioOutputStream;
+class DecodedAudioHistory;
 
 class AudioOutput {
     int outputSamplesPerSecond;
@@ -56,21 +59,21 @@ public:
     int targetDelaySamples() const { return outputTargetDelaySamples; }
     int scratchSamples() const { return outputScratchSamples; }
     int queuedTargetSamples() const;
-    int playbackComplete(const AudioBuffer& buffer, int inputFinished) const;
+    int playbackComplete(const AudioOutputStream& stream, int inputFinished) const;
 
     /**
      * Moves queued decoded PCM toward the output backend.
      *
-     * @param buffer Shared decoded-audio buffer to consume from.
+     * @param stream Passthrough stream cursor over decoded audio history.
      * @param scratch Temporary PCM buffer owned by the runtime.
      * @param scratchSamples Capacity of scratch in sample frames.
      * @param inputFinished Nonzero when the input source has no more samples.
      * @return Nonzero when at least one sample frame was submitted to output.
      */
-    virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
+    virtual int service(AudioOutputStream& stream, char* scratch, int scratchSamples,
         int inputFinished);
     virtual int supportsCallbackDrain() const { return 0; }
-    virtual void startCallbackDrain(AudioBuffer&, const std::atomic<int>*, int) { }
+    virtual void startCallbackDrain(AudioOutputStream&, const std::atomic<int>*, int) { }
     virtual void notifyCallbackDrain() { }
     virtual void stopCallbackDrain() { }
 };
@@ -90,7 +93,7 @@ class AudioPulseOutput : public AudioOutput {
     void* context;
     void* stream;
     void* drainEvent;
-    AudioBuffer* callbackBuffer;
+    AudioOutputStream* callbackStream;
     const std::atomic<int>* callbackInputFinished;
     char* callbackScratch;
     int callbackScratchSamples;
@@ -114,10 +117,10 @@ public:
     virtual int isOpen() const;
     virtual int isRealtime() const;
     virtual void update();
-    virtual int service(AudioBuffer& buffer, char* scratch, int scratchSamples,
+    virtual int service(AudioOutputStream& stream, char* scratch, int scratchSamples,
         int inputFinished);
     virtual int supportsCallbackDrain() const;
-    virtual void startCallbackDrain(AudioBuffer& buffer,
+    virtual void startCallbackDrain(AudioOutputStream& stream,
         const std::atomic<int>* inputFinished, int scratchSamples);
     virtual void notifyCallbackDrain();
     virtual void stopCallbackDrain();
@@ -157,16 +160,22 @@ public:
     virtual void update();
 };
 
-class AudioBuffer {
+/**
+ * Thread-safe decoded PCM history owned by audio acquisition.
+ *
+ * The history keeps a recent window of decoded samples for visual-frame
+ * reconstruction. It deliberately has no output/submitted cursor; passthrough
+ * playback owns that cursor through AudioOutputStream.
+ */
+class DecodedAudioHistory {
     char* data;
     int bytesPerSampleValue;
     int capacitySamples;
-    int protectedHistorySamples;
+    int retainedHistorySamples;
     long long decodedEndSample;
-    long long submittedEndSample;
     mutable std::mutex mutex;
 
-    long long protectedWindowStartSample() const;
+    long long retainedWindowStartSample() const;
     int copyAt(long long samplePosition, char* dst, int samples) const;
 
 public:
@@ -175,19 +184,18 @@ public:
      *
      * @param capacitySamples Writable capacity in sample frames.
      * @param bytesPerSample Bytes per interleaved PCM sample frame.
-     * @param protectedHistorySamples Number of already-submitted samples to keep
-     *        available for visual-frame reconstruction.
+     * @param retainedHistorySamples Recent decoded sample frames retained for
+     *        visual-frame reconstruction.
      */
-    AudioBuffer(int capacitySamples, int bytesPerSample, int protectedHistorySamples = 0);
-    ~AudioBuffer();
+    DecodedAudioHistory(int capacitySamples, int bytesPerSample,
+        int retainedHistorySamples = 0);
+    ~DecodedAudioHistory();
 
     int bytesPerSample() const { return bytesPerSampleValue; }
-    int queuedForOutputSamples() const;
-    int protectedWindowSamples() const;
+    int retainedWindowSamples() const;
     int writableSamples() const;
-    long long oldestProtectedPosition() const;
+    long long oldestAvailablePosition() const;
     long long decodedEndPosition() const;
-    long long submittedEndPosition() const;
     void clear();
 
     /**
@@ -217,14 +225,77 @@ public:
     int commitOutputSamples(int samples);
 
     /**
-     * Reads PCM from the protected history window.
+     * Reads PCM from the retained history window.
      *
      * @param samplePosition Absolute sample-frame position to read from.
      * @param dst Destination buffer for PCM bytes.
      * @param samples Maximum number of sample frames to copy.
-     * @return Number of sample frames copied from protected history.
+     * @return Number of sample frames copied from retained history.
      */
-    int readProtectedPcmAt(long long samplePosition, char* dst, int samples) const;
+    int readPcmAt(long long samplePosition, char* dst, int samples) const;
+};
+
+/**
+ * Output-side cursor over decoded PCM history.
+ *
+ * Audio passthrough owns this object. It advances independently of acquisition
+ * and resynchronizes if it falls behind the history retained by
+ * DecodedAudioHistory.
+ */
+class AudioOutputStream {
+    const DecodedAudioHistory& history;
+    long long submittedEndSample;
+    mutable std::mutex mutex;
+
+public:
+    /**
+     * Creates an output cursor over decoded history.
+     *
+     * @param history_ Decoded PCM history to read from. The referenced object
+     *        must outlive this stream.
+     */
+    AudioOutputStream(const DecodedAudioHistory& history_);
+
+    /** Resets the submitted cursor to the given absolute sample-frame position. */
+    void reset(long long samplePosition = 0);
+
+    /** @return Bytes per interleaved PCM sample frame in the backing history. */
+    int bytesPerSample() const;
+
+    /** @return Absolute decoded sample-frame position available through history. */
+    long long decodedEndPosition() const;
+
+    /** @return Absolute sample-frame position after the last output submission. */
+    long long submittedEndPosition() const;
+
+    /**
+     * @return Sample frames currently available to submit from this cursor.
+     */
+    int queuedForOutputSamples() const;
+
+    /**
+     * Copies queued PCM without advancing the submitted cursor.
+     *
+     * @param dst Destination buffer for PCM bytes.
+     * @param samples Maximum number of sample frames to copy.
+     * @return Number of sample frames copied.
+     */
+    int peekForOutput(char* dst, int samples) const;
+
+    /**
+     * Marks PCM as submitted to the output backend.
+     *
+     * @param samples Number of sample frames accepted by output.
+     * @return Number of sample frames committed.
+     */
+    int commitOutputSamples(int samples);
+
+    /**
+     * Moves the cursor to the oldest retained sample when it has fallen behind.
+     *
+     * @return Number of skipped sample frames.
+     */
+    int resyncIfBehind();
 };
 
 class AudioFrameBuilder {
@@ -242,10 +313,11 @@ public:
      * Builds Cthugha's signed 8-bit stereo visual-audio frame.
      *
      * @param frame Frame object to populate.
-     * @param buffer Decoded PCM buffer to sample from.
+     * @param history Decoded PCM history to sample from.
      * @param centerSample Absolute sample-frame position centered in frame.
      */
-    void build(AudioFrame& frame, const AudioBuffer& buffer, long long centerSample);
+    void build(AudioFrame& frame, const DecodedAudioHistory& history,
+        long long centerSample);
 };
 
 class PcmSource {
@@ -479,41 +551,6 @@ public:
      * @param processedWaveData Destination buffer for 1024 processed samples.
      */
     void fft(char2* raw, char2* processedWaveData);
-};
-
-class AudioInputProcessor {
-    AudioInput* input;
-    int inputOwned;
-
-    char* tmpData;
-    int tmpSize;
-    int rawSize;
-    int bytesPerSample;
-
-    void setTmpData();
-    void convert(char2* dst, void* src, int n);
-
-public:
-    int size;
-    char2* data;
-    char2 dataProc[1024];
-
-    /**
-     * Creates the live-input processor and sample window.
-     *
-     * @param input Audio input wrapper to read from.
-     * @param visualMaxDimension Maximum logical visual-buffer dimension, in pixels,
-     *        before display zoom. Used to choose the processor sample window.
-     * @param takeOwnership Nonzero to delete input in the processor destructor.
-     */
-    AudioInputProcessor(AudioInput* input, int visualMaxDimension, int takeOwnership = 1);
-    ~AudioInputProcessor();
-
-    AudioInput* audioInput() { return input; }
-
-    void operator()();
-    void change();
-    int frameRawSize() const { return rawSize; }
 };
 
 class DspPcmSource : public PcmSource {

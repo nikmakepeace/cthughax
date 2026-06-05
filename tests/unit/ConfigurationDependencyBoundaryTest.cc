@@ -52,14 +52,17 @@ static void assertSourceContains(const char* relativePath, const char* token) {
     assert(contents.find(token) != std::string::npos);
 }
 
-static void testAudioRuntimeUsesAudioConfig() {
-    assertSourceContains("src/AudioRuntime.cc", "AudioSettings::fromConfig");
-    assertSourceDoesNotContain("src/AudioRuntime.cc", "fromCurrentOptions");
-    assertSourceDoesNotContain("src/AudioRuntime.cc", "audio_input_file");
-    assertSourceDoesNotContain("src/AudioRuntime.cc", "::audioInputMode");
-    assertSourceDoesNotContain("src/AudioRuntime.cc", "soundSampleRate");
-    assertSourceDoesNotContain("src/AudioRuntime.cc", "soundChannels");
-    assertSourceDoesNotContain("src/AudioRuntime.cc", "soundFormat");
+static void testAudioIngestUsesAudioConfig() {
+    assertSourceDoesNotExist("src/AudioRuntime.cc");
+    assertSourceDoesNotExist("src/AudioRuntime.h");
+    assertSourceContains("src/AudioIngest.cc", "AudioSettings::fromConfig");
+    assertSourceContains("src/AudioIngest.cc", "RuntimeFactory runtimeFactory");
+    assertSourceDoesNotContain("src/AudioIngest.cc", "fromCurrentOptions");
+    assertSourceDoesNotContain("src/AudioIngest.cc", "audio_input_file");
+    assertSourceDoesNotContain("src/AudioIngest.cc", "::audioInputMode");
+    assertSourceDoesNotContain("src/AudioIngest.cc", "soundSampleRate");
+    assertSourceDoesNotContain("src/AudioIngest.cc", "soundChannels");
+    assertSourceDoesNotContain("src/AudioIngest.cc", "soundFormat");
     assertSourceDoesNotContain("src/AudioSettings.cc", "fromCurrentOptions");
     assertSourceDoesNotContain("src/AudioSettings.cc", "audio_input_file");
     assertSourceDoesNotContain("src/AudioSettings.cc", "::audioInputMode");
@@ -99,13 +102,15 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/AudioProcessor.cc",
         "AudioProcessor::analyze(const char2* frame, int minNoise)");
     assertSourceContains("src/AudioVisualBridge.cc",
-        "audioFramePublishMetrics(metrics)");
+        "audioProcessing.process(frame)");
     assertSourceContains("src/AudioVisualBridge.cc",
-        "acousticContext.update(audioFrameMetrics())");
+        "processor.analyze(frame, int(sound_minnoise))");
+    assertSourceContains("src/AudioVisualBridge.cc",
+        "acousticContext.update(frame.metrics)");
     assertSourceContains("src/Application.cc",
-        "context.audioMetrics = &audioFrameMetrics()");
+        "context.audioMetrics = &frame.metrics");
     assertSourceContains("src/AutoChanger.cc",
-        "const AudioMetrics& metrics = audioFrameMetrics()");
+        "void AutoChanger::operator()(const AudioMetrics& metrics)");
     assertSourceContains("tests/CMakeLists.txt",
         "audio_frame_processor_test");
     assertSourceDoesNotContain("src/AudioAnalyzer.h", "class AudioAnalyzer");
@@ -432,11 +437,9 @@ static void testRuntimeLifecycleRequestsUseMediator() {
         "RuntimeCommand::requestClose()");
     assertSourceContains("src/InterfaceCredits.cc",
         "RuntimeCommand::requestClose()");
-    assertSourceContains("src/AudioRuntime.cc",
-        "RuntimeCommand::requestClose()");
     assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc", "cthugha_close++");
     assertSourceDoesNotContain("src/InterfaceCredits.cc", "cthugha_close++");
-    assertSourceDoesNotContain("src/AudioRuntime.cc", "cthugha_close++");
+    assertSourceDoesNotExist("src/AudioRuntime.cc");
     assertSourceContains("src/Application.cc", "new RuntimeCloseState()");
     assertSourceContains("src/Application.cc",
         "runtimeShutdownValue->requestClose()");
@@ -608,7 +611,7 @@ static void testConfigDefaultsAreNotConsumedAsLegacyDefaults() {
 }
 
 int main() {
-    testAudioRuntimeUsesAudioConfig();
+    testAudioIngestUsesAudioConfig();
     testAudioDeviceSettingsAreStartupOnly();
     testAudioFrameOwnsPerFrameMetrics();
     testDisplayStartupUsesDisplayConfig();

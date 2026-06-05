@@ -26,17 +26,17 @@ AudioVisualBridge::~AudioVisualBridge() {
 #endif
 }
 
-void AudioVisualBridge::runFrame() {
+void AudioVisualBridge::runFrame(AudioFrame& frame) {
     double start = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
     static int debugReports = 0;
     static AudioProcessor processor;
 
-    audioProcessing.process();
+    audioProcessing.process(frame);
     double processed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
         AudioMetrics processedMetrics = processor.analyze(
-            audioFrameProcessedWaveData(), int(sound_minnoise));
+            frame.processedWaveData, int(sound_minnoise));
         debugReports++;
         CTH_DEBUG("processed wave audio: mode=%s amplitude=%d left=%d right=%d noisy=%d\n",
             audioProcessing.text(), processedMetrics.amplitude,
@@ -44,23 +44,21 @@ void AudioVisualBridge::runFrame() {
             processedMetrics.noisy);
     }
 
-    AudioMetrics metrics = processor.analyze(audioFrameRawData(), int(sound_minnoise));
-    audioFramePublishMetrics(metrics);
-    acousticContext.update(audioFrameMetrics());
+    processor.analyze(frame, int(sound_minnoise));
+    acousticContext.update(frame.metrics);
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
-        AudioFrame* frame = audioFrameCurrent();
         CTH_DEBUG("audio analysis: amplitude=%d left=%d right=%d noisy=%d frame-samples=%d center-sample=%lld\n",
-            metrics.amplitude, metrics.amplitudeLeft,
-            metrics.amplitudeRight, metrics.noisy,
-            frame ? frame->samples : 1024, frame ? frame->centerSample : 0);
+            frame.metrics.amplitude, frame.metrics.amplitudeLeft,
+            frame.metrics.amplitudeRight, frame.metrics.noisy,
+            frame.samples, frame.centerSample);
     }
 
     double analyzed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
 
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
     if (autoChanger != 0)
-        (*autoChanger)();
+        (*autoChanger)(frame.metrics);
 #endif
 
     if (CTH_LOG_ENABLED(CTH_LOG_TRACE)) {

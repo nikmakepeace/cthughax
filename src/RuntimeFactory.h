@@ -54,11 +54,6 @@ public:
     AudioOutput* createAudioOutput() const;
 
     /**
-     * @return Newly allocated input processor. Caller owns the returned pointer.
-     */
-    AudioInputProcessor* createAudioProcessor() const;
-
-    /**
      * @return Strategy selected from the current settings and environment.
      */
     AudioSourceStrategy selectAudioSourceStrategy() const;

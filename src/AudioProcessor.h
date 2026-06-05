@@ -10,6 +10,7 @@
 #include <string>
 
 struct SceneConfig;
+class AudioFrame;
 
 class AudioProcessingOption : public Option {
     EffectChoiceList& entries;
@@ -65,6 +66,14 @@ public:
      * @return Result from the selected processing entry.
      */
     int process();
+
+    /**
+     * Processes a supplied audio frame into processedWaveData.
+     *
+     * @param frame Frame to process.
+     * @return Nonzero when a processing mode was applied.
+     */
+    int process(AudioFrame& frame);
 };
 
 extern AudioProcessingOption audioProcessing;

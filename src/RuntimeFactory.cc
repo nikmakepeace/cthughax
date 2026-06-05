@@ -144,27 +144,3 @@ AudioOutput* RuntimeFactory::createAudioOutput() const {
     CTH_DEBUG("    audio output strategy: selected AudioNullOutput fallback\n");
     return new AudioNullOutput();
 }
-
-AudioInputProcessor* RuntimeFactory::createAudioProcessor() const {
-    CTH_DEBUG("    audio input strategy: creating AudioInputProcessor\n");
-    AudioInput* input = createAudioInput();
-    if (input == NULL) {
-        if (settings.audioInputMode == AIM_DSPIn) {
-            CTH_WARN("Can not use requested sound input. Visual audio input is silent.\n");
-            CTH_DEBUG("    audio input strategy: no AudioInputProcessor after null input\n");
-        }
-        return NULL;
-    }
-
-    if (input->hasError()) {
-        CTH_DEBUG("    audio input strategy: native AudioInput construction failed\n");
-        delete input;
-        if (settings.audioInputMode == AIM_DSPIn) {
-            CTH_WARN("Can not use requested sound input. Visual audio input is silent.\n");
-            CTH_DEBUG("    audio input strategy: no AudioInputProcessor after input error\n");
-        }
-        return NULL;
-    }
-
-    return new AudioInputProcessor(input, visualMaxDimension);
-}

@@ -31,7 +31,7 @@ AudioDSPOutput::AudioDSPOutput(int method_, int visualMaxDimension)
 int AudioDSPOutput::defaultTargetLatencyMs() const {
     // OSS latency behaviour varies with the selected snd-method and driver.
     // Keep the conservative passthrough target here, owned by the OSS output
-    // path rather than by AudioRuntime.
+    // path rather than by AudioIngest.
     switch (method) {
     case 0:
     case 1:

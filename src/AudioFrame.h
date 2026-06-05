@@ -1,8 +1,8 @@
 /** @file
  * Current audio-frame facade and per-frame audio metrics.
  *
- * This keeps visual/audio consumers on the frame facade instead of runtime
- * implementation details.
+ * This keeps legacy visual/audio consumers on a frame view while Application
+ * owns the actual AudioIngest lifecycle.
  */
 
 #ifndef __AUDIO_FRAME_H
@@ -53,20 +53,11 @@ public:
 };
 
 /**
- * Advances the published audio frame to the current visual-frame time.
+ * Publishes the current frame pointer for legacy readers.
  *
- * Services AudioRuntime and updates the AudioFrame returned by audioFrameCurrent().
- * Called once per visual frame before AudioVisualBridge::runFrame().
+ * @param frame Frame owned elsewhere, or NULL to publish silence.
  */
-void audioFrameTick();
-
-/**
- * Reconfigures audio frame processing after audio options change.
- *
- * Used by option setters and sound reset actions to rebuild processor buffers
- * without tearing down the whole application.
- */
-void audioFrameChange();
+void audioFrameSetCurrent(AudioFrame* frame);
 
 /**
  * @return Current audio frame, or NULL when the runtime has not published one.
@@ -74,22 +65,22 @@ void audioFrameChange();
 AudioFrame* audioFrameCurrent();
 
 /**
- * @return Current raw signed 8-bit stereo frame data. Falls back to legacy
- *         processor storage when no AudioFrame facade is available.
+ * @return Current raw signed 8-bit stereo frame data, or silence when no frame
+ *         is published.
  */
 char2* audioFrameRawData();
 
 /**
- * @return Current processed signed 8-bit stereo frame data. Falls back to legacy
- *         processor storage when no AudioFrame facade is available.
+ * @return Current processed signed 8-bit stereo frame data, or silence when no
+ *         frame is published.
  */
 char2* audioFrameProcessedWaveData();
 
 /**
  * Publishes metrics for the current audio frame.
  *
- * If an AudioFrame facade exists, this updates AudioFrame::metrics. Legacy
- * processor-only paths keep the latest metrics in a facade-owned fallback slot.
+ * If an AudioFrame facade exists, this updates AudioFrame::metrics. Otherwise
+ * the latest metrics are kept in a facade-owned fallback slot.
  *
  * @param metrics Metrics measured for this visual frame.
  */

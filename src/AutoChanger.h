@@ -18,6 +18,7 @@ extern OptionOnOff change_little; /* only change one options */
 
 class RuntimeCommandSink;
 struct AutoChangeConfig;
+struct AudioMetrics;
 
 class AutoChanger {
     RuntimeCommandSink& runtimeCommands;
@@ -45,6 +46,13 @@ public:
      * RuntimeCommandSink.
      */
     void operator()();
+
+    /**
+     * Runs one automatic-change policy step using supplied audio metrics.
+     *
+     * @param metrics Metrics for the current visual audio frame.
+     */
+    void operator()(const AudioMetrics& metrics);
 
     /**
      * Applies the selected automatic change action.

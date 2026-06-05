@@ -571,6 +571,96 @@ target_link_libraries(runtime_command_test PRIVATE m)
 
 add_test(NAME runtime_command_test COMMAND runtime_command_test)
 
+add_executable(audio_decoded_history_test
+    unit/AudioDecodedHistoryTest.cc
+    ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(audio_decoded_history_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(audio_decoded_history_test PRIVATE m)
+
+add_test(NAME audio_decoded_history_test COMMAND audio_decoded_history_test)
+
+add_executable(audio_passthrough_test
+    unit/AudioPassthroughTest.cc
+    ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioInternal.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioOutput.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioPassthrough.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(audio_passthrough_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(audio_passthrough_test PRIVATE Threads::Threads m)
+
+add_test(NAME audio_passthrough_test COMMAND audio_passthrough_test)
+
+add_executable(audio_ingest_test
+    unit/AudioIngestTest.cc
+    ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioIngest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioInternal.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioOutput.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioPassthrough.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_compile_definitions(audio_ingest_test PRIVATE
+    CTH_AUDIO_INGEST_NO_CONFIG
+)
+
+target_include_directories(audio_ingest_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(audio_ingest_test PRIVATE Threads::Threads m)
+
+add_test(NAME audio_ingest_test COMMAND audio_ingest_test)
+
+add_executable(audio_visual_bridge_frame_test
+    unit/AudioVisualBridgeFrameTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioVisualBridge.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_compile_definitions(audio_visual_bridge_frame_test PRIVATE
+    CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
+)
+
+target_include_directories(audio_visual_bridge_frame_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(audio_visual_bridge_frame_test PRIVATE m)
+
+add_test(NAME audio_visual_bridge_frame_test COMMAND audio_visual_bridge_frame_test)
+
 add_executable(audio_frame_processor_test
     unit/AudioFrameProcessorTest.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc

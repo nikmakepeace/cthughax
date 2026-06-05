@@ -1,91 +1,77 @@
-// Decoded PCM ring buffer and visual-frame builder.
+/** @file
+ * Decoded PCM history, passthrough cursor, and visual-frame builder.
+ */
 
 #include "cthugha.h"
 #include "Audio.h"
 #include "imath.h"
 
-AudioBuffer::AudioBuffer(int capacitySamples_, int bytesPerSample_, int protectedHistorySamples_)
+DecodedAudioHistory::DecodedAudioHistory(int capacitySamples_, int bytesPerSample_,
+    int retainedHistorySamples_)
     : data(NULL)
     , bytesPerSampleValue(bytesPerSample_)
     , capacitySamples(capacitySamples_)
-    , protectedHistorySamples(protectedHistorySamples_)
-    , decodedEndSample(0)
-    , submittedEndSample(0) {
+    , retainedHistorySamples(retainedHistorySamples_)
+    , decodedEndSample(0) {
     if (bytesPerSampleValue < 1)
         bytesPerSampleValue = 1;
     if (capacitySamples < 1)
         capacitySamples = 1;
-    if (protectedHistorySamples < 0)
-        protectedHistorySamples = 0;
-    if (protectedHistorySamples > capacitySamples)
-        protectedHistorySamples = capacitySamples;
+    if (retainedHistorySamples < 0)
+        retainedHistorySamples = 0;
+    if (retainedHistorySamples >= capacitySamples)
+        retainedHistorySamples = capacitySamples - 1;
     data = new char[pcmBytesForSamples(capacitySamples, bytesPerSampleValue)];
-    CTH_DEBUG("audio buffer: created capacity-samples=%d bytes-per-sample=%d protected-history-samples=%d\n",
-        capacitySamples, bytesPerSampleValue, protectedHistorySamples);
+    CTH_DEBUG("decoded audio history: created capacity-samples=%d bytes-per-sample=%d retained-history-samples=%d\n",
+        capacitySamples, bytesPerSampleValue, retainedHistorySamples);
 }
 
-AudioBuffer::~AudioBuffer() {
+DecodedAudioHistory::~DecodedAudioHistory() {
     delete[] data;
     data = NULL;
 }
 
-void AudioBuffer::clear() {
+void DecodedAudioHistory::clear() {
     std::lock_guard<std::mutex> lock(mutex);
     decodedEndSample = 0;
-    submittedEndSample = 0;
 }
 
-long long AudioBuffer::protectedWindowStartSample() const {
-    // Protected span:
-    //   [protectedWindowStartSample(), submittedEndSample) = recent submitted
-    //       history retained for visual-frame reads.
-    //   [submittedEndSample, decodedEndSample) = decoded PCM queued ahead of output.
-    // Future driver writes may overwrite only data outside this span.
-    long long historyStartSample = submittedEndSample - protectedHistorySamples;
+long long DecodedAudioHistory::retainedWindowStartSample() const {
+    long long historyStartSample = decodedEndSample - retainedHistorySamples;
     long long capacityStartSample = decodedEndSample - capacitySamples;
     long long startSample = (historyStartSample > capacityStartSample) ? historyStartSample : capacityStartSample;
 
     if (startSample < 0)
         startSample = 0;
-    if (startSample > submittedEndSample)
-        startSample = submittedEndSample;
+    if (startSample > decodedEndSample)
+        startSample = decodedEndSample;
 
     return startSample;
 }
 
-int AudioBuffer::queuedForOutputSamples() const {
+int DecodedAudioHistory::retainedWindowSamples() const {
     std::lock_guard<std::mutex> lock(mutex);
-    return int(decodedEndSample - submittedEndSample);
+    return int(decodedEndSample - retainedWindowStartSample());
 }
 
-int AudioBuffer::protectedWindowSamples() const {
+int DecodedAudioHistory::writableSamples() const {
     std::lock_guard<std::mutex> lock(mutex);
-    return int(decodedEndSample - protectedWindowStartSample());
+    return capacitySamples - int(decodedEndSample - retainedWindowStartSample());
 }
 
-int AudioBuffer::writableSamples() const {
+long long DecodedAudioHistory::oldestAvailablePosition() const {
     std::lock_guard<std::mutex> lock(mutex);
-    return capacitySamples - int(decodedEndSample - protectedWindowStartSample());
+    return retainedWindowStartSample();
 }
 
-long long AudioBuffer::oldestProtectedPosition() const {
-    std::lock_guard<std::mutex> lock(mutex);
-    return protectedWindowStartSample();
-}
-
-long long AudioBuffer::decodedEndPosition() const {
+long long DecodedAudioHistory::decodedEndPosition() const {
     std::lock_guard<std::mutex> lock(mutex);
     return decodedEndSample;
 }
 
-long long AudioBuffer::submittedEndPosition() const {
-    std::lock_guard<std::mutex> lock(mutex);
-    return submittedEndSample;
-}
-
-int AudioBuffer::copyAt(long long samplePosition, char* dst, int samples) const {
+int DecodedAudioHistory::copyAt(long long samplePosition, char* dst, int samples) const {
     int copiedSamples = 0;
-    long long startSample = protectedWindowStartSample();
+    long long startSample = retainedWindowStartSample();
 
     if ((samples <= 0) || (samplePosition < startSample) || (samplePosition >= decodedEndSample))
         return 0;
@@ -105,11 +91,11 @@ int AudioBuffer::copyAt(long long samplePosition, char* dst, int samples) const 
     return copiedSamples;
 }
 
-int AudioBuffer::appendDecodedPcm(const char* src, int samples) {
+int DecodedAudioHistory::appendDecodedPcm(const char* src, int samples) {
     std::lock_guard<std::mutex> lock(mutex);
     int writtenSamples = 0;
-    int protectedSamples = int(decodedEndSample - protectedWindowStartSample());
-    int wantedSamples = min(samples, capacitySamples - protectedSamples);
+    int retainedSamples = int(decodedEndSample - retainedWindowStartSample());
+    int wantedSamples = min(samples, capacitySamples - retainedSamples);
 
     while (writtenSamples < wantedSamples) {
         int posSample = int((decodedEndSample + writtenSamples) % capacitySamples);
@@ -125,29 +111,92 @@ int AudioBuffer::appendDecodedPcm(const char* src, int samples) {
     return writtenSamples;
 }
 
-int AudioBuffer::peekForOutput(char* dst, int samples) const {
+int DecodedAudioHistory::readPcmAt(long long samplePosition, char* dst, int samples) const {
     std::lock_guard<std::mutex> lock(mutex);
-    return copyAt(submittedEndSample, dst, samples);
+    return copyAt(samplePosition, dst, samples);
 }
 
-int AudioBuffer::commitOutputSamples(int samples) {
+AudioOutputStream::AudioOutputStream(const DecodedAudioHistory& history_)
+    : history(history_)
+    , submittedEndSample(0) { }
+
+void AudioOutputStream::reset(long long samplePosition) {
     std::lock_guard<std::mutex> lock(mutex);
-    int queuedSamples = int(decodedEndSample - submittedEndSample);
+    submittedEndSample = samplePosition;
+    if (submittedEndSample < 0)
+        submittedEndSample = 0;
+}
+
+int AudioOutputStream::bytesPerSample() const {
+    return history.bytesPerSample();
+}
+
+long long AudioOutputStream::decodedEndPosition() const {
+    return history.decodedEndPosition();
+}
+
+long long AudioOutputStream::submittedEndPosition() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    return submittedEndSample;
+}
+
+int AudioOutputStream::queuedForOutputSamples() const {
+    std::lock_guard<std::mutex> lock(mutex);
+    long long decodedEndSample = history.decodedEndPosition();
+    long long oldestSample = history.oldestAvailablePosition();
+    long long cursor = submittedEndSample;
+
+    if (cursor < oldestSample)
+        cursor = oldestSample;
+    if (cursor > decodedEndSample)
+        return 0;
+
+    return int(decodedEndSample - cursor);
+}
+
+int AudioOutputStream::peekForOutput(char* dst, int samples) const {
+    std::lock_guard<std::mutex> lock(mutex);
+    long long oldestSample = history.oldestAvailablePosition();
+    long long cursor = submittedEndSample;
+
+    if (cursor < oldestSample)
+        cursor = oldestSample;
+
+    return history.readPcmAt(cursor, dst, samples);
+}
+
+int AudioOutputStream::commitOutputSamples(int samples) {
+    std::lock_guard<std::mutex> lock(mutex);
+    long long decodedEndSample = history.decodedEndPosition();
+    long long oldestSample = history.oldestAvailablePosition();
     int committedSamples = samples;
 
+    if (submittedEndSample < oldestSample)
+        submittedEndSample = oldestSample;
     if (committedSamples <= 0)
         return 0;
+
+    long long queuedSamples = decodedEndSample - submittedEndSample;
+    if (queuedSamples <= 0)
+        return 0;
     if (committedSamples > queuedSamples)
-        committedSamples = queuedSamples;
+        committedSamples = int(queuedSamples);
 
     submittedEndSample += committedSamples;
 
     return committedSamples;
 }
 
-int AudioBuffer::readProtectedPcmAt(long long samplePosition, char* dst, int samples) const {
+int AudioOutputStream::resyncIfBehind() {
     std::lock_guard<std::mutex> lock(mutex);
-    return copyAt(samplePosition, dst, samples);
+    long long oldestSample = history.oldestAvailablePosition();
+
+    if (submittedEndSample >= oldestSample)
+        return 0;
+
+    int skippedSamples = int(oldestSample - submittedEndSample);
+    submittedEndSample = oldestSample;
+    return skippedSamples;
 }
 
 AudioFrameBuilder::AudioFrameBuilder()
@@ -170,8 +219,9 @@ void AudioFrameBuilder::setRawCapacity(int rawBytes) {
     CTH_DEBUG("audio frame builder: resized raw buffer to %d bytes\n", rawCapacity);
 }
 
-void AudioFrameBuilder::build(AudioFrame& frame, const AudioBuffer& buffer, long long centerSample) {
-    int bytesPerSample = buffer.bytesPerSample();
+void AudioFrameBuilder::build(AudioFrame& frame, const DecodedAudioHistory& history,
+    long long centerSample) {
+    int bytesPerSample = history.bytesPerSample();
     int rawBytes;
     int halfFrameSamples;
     long long startSample;
@@ -196,7 +246,7 @@ void AudioFrameBuilder::build(AudioFrame& frame, const AudioBuffer& buffer, long
         startSample = 0;
     }
 
-    long long oldestSample = buffer.oldestProtectedPosition();
+    long long oldestSample = history.oldestAvailablePosition();
     if (startSample < oldestSample) {
         long long skippedSamples = oldestSample - startSample;
         if (skippedSamples < 1024)
@@ -207,11 +257,11 @@ void AudioFrameBuilder::build(AudioFrame& frame, const AudioBuffer& buffer, long
     }
     if (sampleOffset >= 1024) {
         CTH_TRACE("no overlap center-sample=%lld oldest-sample=%lld decoded-end-sample=%lld\n",
-            "audio frame builder", centerSample, oldestSample, buffer.decodedEndPosition());
+            "audio frame builder", centerSample, oldestSample, history.decodedEndPosition());
         return;
     }
 
-    samplesRead = buffer.readProtectedPcmAt(startSample,
+    samplesRead = history.readPcmAt(startSample,
         rawData + pcmBytesForSamples(sampleOffset, bytesPerSample),
         1024 - sampleOffset);
     if (samplesRead <= 0) {

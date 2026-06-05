@@ -13,6 +13,8 @@
 #include <vector>
 
 class AudioVisualBridge;
+class AudioFrame;
+class AudioIngest;
 class CthughaDisplay;
 class DisplayRuntimeOwnership;
 class IndexedFrame;
@@ -46,6 +48,7 @@ class Application {
     std::vector<ConfigDiagnostic> startupConfigDiagnostics;
     std::unique_ptr<VideoFilterchain> videoFilterchain;
     VideoFilterchainSequence videoFilterchainSequence;
+    std::unique_ptr<AudioIngest> audioIngestValue;
     std::unique_ptr<AudioVisualBridge> audioVisualBridge;
     std::unique_ptr<Scene> sceneValue;
     std::unique_ptr<SceneCommands> sceneCommandsValue;
@@ -85,6 +88,16 @@ class Application {
     /** Destroys the visual filterchain and its owned filters. */
     void shutdownVideoFilterchain();
 
+    /**
+     * Creates and starts application-owned audio ingest.
+     *
+     * @return 0 on success, nonzero when requested startup audio cannot open.
+     */
+    int initAudioIngest();
+
+    /** Stops audio ingest and clears the legacy current-frame facade. */
+    void shutdownAudioIngest();
+
     /** Destroys the audio-to-visual bridge and its AutoChanger state. */
     void shutdownAudioVisualBridge();
 
@@ -94,14 +107,14 @@ class Application {
      * This updates audio analysis/acoustic context and refreshes visual filters
      * when an audio-side option change requires it.
      */
-    void runAudioVisualBridge();
+    void runAudioVisualBridge(AudioFrame& frame);
 
     /**
      * Runs the visual filterchain for one frame.
      *
      * @return Published IndexedFrame for display, or NULL when no frame is ready.
      */
-    const IndexedFrame* runVideoFilterchain();
+    const IndexedFrame* runVideoFilterchain(AudioFrame& frame);
 
 public:
     /**

@@ -78,25 +78,31 @@ int AudioOutput::queuedTargetSamples() const {
     return isRealtime() ? outputTargetDelaySamples : outputScratchSamples;
 }
 
-int AudioOutput::playbackComplete(const AudioBuffer& buffer, int inputFinished) const {
-    return inputFinished && (buffer.queuedForOutputSamples() == 0);
+int AudioOutput::playbackComplete(const AudioOutputStream& stream, int inputFinished) const {
+    return inputFinished && (stream.queuedForOutputSamples() == 0);
 }
 
 int AudioNullOutput::defaultTargetLatencyMs() const { return audio_null_target_latency_msec; }
 int AudioNullOutput::write(const void*, int size) { return size; }
 int AudioNullOutput::isOpen() const { return 1; }
 int AudioNullOutput::isRealtime() const { return 0; }
-int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
+int AudioOutput::service(AudioOutputStream& stream, char* scratch, int scratchSamples,
     int /*inputFinished*/) {
     if ((scratch == NULL) || (scratchSamples <= 0))
         return 0;
 
     double serviceStart = getTime();
-    int bytesPerSample = buffer.bytesPerSample();
+    int bytesPerSample = stream.bytesPerSample();
     if (bytesPerSample <= 0)
         return 0;
 
-    int queuedBefore = buffer.queuedForOutputSamples();
+    int skippedSamples = stream.resyncIfBehind();
+    if (skippedSamples > 0) {
+        CTH_WARN("Audio passthrough fell behind decoded history; skipped %d samples.\n",
+            skippedSamples);
+    }
+
+    int queuedBefore = stream.queuedForOutputSamples();
     if (queuedBefore <= 0)
         return 0;
 
@@ -112,8 +118,8 @@ int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
         "audio timing", isRealtime(), queuedBefore, scratchSamples, samplesWanted);
 
     double bufferReadStart = getTime();
-    long long startSample = buffer.submittedEndPosition();
-    int samples = buffer.peekForOutput(scratch, samplesWanted);
+    long long startSample = stream.submittedEndPosition();
+    int samples = stream.peekForOutput(scratch, samplesWanted);
     double bufferReadEnd = getTime();
     if (samples <= 0)
         return 0;
@@ -125,25 +131,25 @@ int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
     int committedSamples = 0;
     int committedBytes = 0;
     if (written > 0) {
-        committedSamples = buffer.commitOutputSamples(written / bytesPerSample);
+        committedSamples = stream.commitOutputSamples(written / bytesPerSample);
         committedBytes = pcmBytesForSamples(committedSamples, bytesPerSample);
     }
     if (committedSamples > 0) {
         audioOutputDumpSubmittedPcm(scratch, committedBytes);
     }
 
-    audioDebugSubmittedPcm(scratch, committedSamples, committedBytes, written, buffer.queuedForOutputSamples(),
-        buffer.submittedEndPosition());
+    audioDebugSubmittedPcm(scratch, committedSamples, committedBytes, written, stream.queuedForOutputSamples(),
+        stream.submittedEndPosition());
     CTH_TRACE("output submitted samples=%d bytes=%d written=%d committed-samples=%d committed-bytes=%d queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld requested-samples=%d\n", "audio runtime",
         samples, bytes, written, committedSamples, committedBytes,
-        buffer.queuedForOutputSamples(), startSample, buffer.submittedEndPosition(),
+        stream.queuedForOutputSamples(), startSample, stream.submittedEndPosition(),
         samplesWanted);
     CTH_TRACE("drain buffer-read-ms=%.3f output-write-ms=%.3f service-ms=%.3f samples=%d bytes=%d written=%d committed-samples=%d queued-samples=%d\n", "audio timing",
         (bufferReadEnd - bufferReadStart) * 1000.0,
         (outputWriteEnd - outputWriteStart) * 1000.0,
         (getTime() - serviceStart) * 1000.0,
         samples, bytes, written, committedSamples,
-        buffer.queuedForOutputSamples());
+        stream.queuedForOutputSamples());
 
     return committedSamples > 0 ? 1 : 0;
 }

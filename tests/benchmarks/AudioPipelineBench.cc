@@ -149,26 +149,27 @@ const PcmFixture& pcmFixture() {
 
 void fillFrameFromFixture(AudioFrame& frame) {
     const PcmFixture& fixture = pcmFixture();
-    AudioBuffer buffer(kVideoFrameSamples * 2, fixture.bytesPerSample(), kVideoFrameSamples);
+    DecodedAudioHistory history(kVideoFrameSamples * 2, fixture.bytesPerSample(), kVideoFrameSamples);
     AudioFrameBuilder builder;
 
     applyFormat(fixture.format);
     frame.clear();
-    buffer.appendDecodedPcm(fixture.frame1024.data(), kVideoFrameSamples);
-    builder.build(frame, buffer, kVideoFrameSamples / 2);
+    history.appendDecodedPcm(fixture.frame1024.data(), kVideoFrameSamples);
+    builder.build(frame, history, kVideoFrameSamples / 2);
 }
 
-void primeBuffer(AudioBuffer& buffer) {
+void primeHistory(DecodedAudioHistory& history) {
     const PcmFixture& fixture = pcmFixture();
-    buffer.clear();
-    buffer.appendDecodedPcm(fixture.threeSeconds.data(), fixture.threeSecondSamples());
+    history.clear();
+    history.appendDecodedPcm(fixture.threeSeconds.data(), fixture.threeSecondSamples());
 }
 
-void refillBufferIfNeeded(AudioBuffer& buffer) {
+void refillHistoryIfNeeded(DecodedAudioHistory& history, AudioOutputStream& stream) {
     const PcmFixture& fixture = pcmFixture();
-    if (buffer.queuedForOutputSamples() < fixture.sliceSamples * 2) {
-        buffer.clear();
-        buffer.appendDecodedPcm(fixture.threeSeconds.data(), fixture.threeSecondSamples());
+    if (stream.queuedForOutputSamples() < fixture.sliceSamples * 2) {
+        history.clear();
+        history.appendDecodedPcm(fixture.threeSeconds.data(), fixture.threeSecondSamples());
+        stream.reset(0);
     }
 }
 
@@ -252,19 +253,19 @@ static void BM_AudioInput_Read10ms(benchmark::State& state) {
     audioSetInputLoopEnabled(previousLoop);
 }
 
-static void BM_AudioBuffer_Append10ms(benchmark::State& state) {
+static void BM_DecodedAudioHistory_Append10ms(benchmark::State& state) {
     const PcmFixture& fixture = pcmFixture();
-    AudioBuffer buffer(kBufferCapacitySamples, fixture.bytesPerSample(),
+    DecodedAudioHistory history(kBufferCapacitySamples, fixture.bytesPerSample(),
         kProtectedHistorySamples);
     long long totalSamples = 0;
 
     for (auto _ : state) {
-        if (buffer.writableSamples() < fixture.sliceSamples) {
+        if (history.writableSamples() < fixture.sliceSamples) {
             state.PauseTiming();
-            buffer.clear();
+            history.clear();
             state.ResumeTiming();
         }
-        int appended = buffer.appendDecodedPcm(fixture.slice10ms.data(), fixture.sliceSamples);
+        int appended = history.appendDecodedPcm(fixture.slice10ms.data(), fixture.sliceSamples);
         totalSamples += appended;
         benchmark::DoNotOptimize(appended);
         benchmark::ClobberMemory();
@@ -275,25 +276,26 @@ static void BM_AudioBuffer_Append10ms(benchmark::State& state) {
 
 static void BM_AudioOutput_NullService10ms(benchmark::State& state) {
     const PcmFixture& fixture = pcmFixture();
-    AudioBuffer buffer(kBufferCapacitySamples, fixture.bytesPerSample(),
+    DecodedAudioHistory history(kBufferCapacitySamples, fixture.bytesPerSample(),
         kProtectedHistorySamples);
+    AudioOutputStream stream(history);
     AudioNullOutput output;
     std::vector<char> scratch(fixture.format.bytesForSamples(fixture.sliceSamples));
     long long totalSamples = 0;
 
-    primeBuffer(buffer);
+    primeHistory(history);
     output.configureTiming(fixture.format.sampleRate, fixture.bytesPerSample(),
         fixture.sliceSamples);
 
     for (auto _ : state) {
-        if (buffer.queuedForOutputSamples() < fixture.sliceSamples) {
+        if (stream.queuedForOutputSamples() < fixture.sliceSamples) {
             state.PauseTiming();
-            refillBufferIfNeeded(buffer);
+            refillHistoryIfNeeded(history, stream);
             state.ResumeTiming();
         }
-        int queuedBefore = buffer.queuedForOutputSamples();
-        int writes = output.service(buffer, scratch.data(), fixture.sliceSamples, 0);
-        totalSamples += queuedBefore - buffer.queuedForOutputSamples();
+        int queuedBefore = stream.queuedForOutputSamples();
+        int writes = output.service(stream, scratch.data(), fixture.sliceSamples, 0);
+        totalSamples += queuedBefore - stream.queuedForOutputSamples();
         benchmark::DoNotOptimize(writes);
         benchmark::ClobberMemory();
     }
@@ -301,24 +303,26 @@ static void BM_AudioOutput_NullService10ms(benchmark::State& state) {
     state.SetItemsProcessed(totalSamples);
 }
 
-static void BM_AudioBuffer_PeekCommit10ms(benchmark::State& state) {
+static void BM_AudioOutputStream_PeekCommit10ms(benchmark::State& state) {
     const PcmFixture& fixture = pcmFixture();
-    AudioBuffer buffer(kBufferCapacitySamples, fixture.bytesPerSample(),
+    DecodedAudioHistory history(kBufferCapacitySamples, fixture.bytesPerSample(),
         kProtectedHistorySamples);
+    AudioOutputStream stream(history);
     std::vector<char> scratch(fixture.format.bytesForSamples(fixture.sliceSamples));
     long long totalSamples = 0;
 
-    primeBuffer(buffer);
+    primeHistory(history);
 
     for (auto _ : state) {
-        if (buffer.queuedForOutputSamples() < fixture.sliceSamples) {
+        if (stream.queuedForOutputSamples() < fixture.sliceSamples) {
             state.PauseTiming();
-            primeBuffer(buffer);
+            primeHistory(history);
+            stream.reset(0);
             state.ResumeTiming();
         }
 
-        int samples = buffer.peekForOutput(scratch.data(), fixture.sliceSamples);
-        int committed = buffer.commitOutputSamples(samples);
+        int samples = stream.peekForOutput(scratch.data(), fixture.sliceSamples);
+        int committed = stream.commitOutputSamples(samples);
         totalSamples += committed;
         benchmark::DoNotOptimize(samples);
         benchmark::DoNotOptimize(committed);
@@ -330,7 +334,7 @@ static void BM_AudioBuffer_PeekCommit10ms(benchmark::State& state) {
 
 static void BM_AudioFrameBuilder_Build1024(benchmark::State& state) {
     const PcmFixture& fixture = pcmFixture();
-    AudioBuffer buffer(kBufferCapacitySamples, fixture.bytesPerSample(),
+    DecodedAudioHistory history(kBufferCapacitySamples, fixture.bytesPerSample(),
         kProtectedHistorySamples);
     AudioFrameBuilder builder;
     AudioFrame frame;
@@ -338,10 +342,10 @@ static void BM_AudioFrameBuilder_Build1024(benchmark::State& state) {
     long long totalSamples = 0;
 
     applyFormat(fixture.format);
-    primeBuffer(buffer);
+    primeHistory(history);
 
     for (auto _ : state) {
-        builder.build(frame, buffer, centerSample);
+        builder.build(frame, history, centerSample);
         centerSample += kVideoFrameSamples;
         if (centerSample + kVideoFrameSamples >= fixture.threeSecondSamples()) {
             centerSample = kVideoFrameSamples;
@@ -434,7 +438,7 @@ static void BM_AudioVisualBridge_RunFrameNone(benchmark::State& state) {
     audioFrameSetTestOverride(&frame);
 
     for (auto _ : state) {
-        bridge.runFrame();
+        bridge.runFrame(frame);
         benchmark::DoNotOptimize(frame.processedWaveData);
         benchmark::DoNotOptimize(frame.metrics.amplitude);
         benchmark::ClobberMemory();
@@ -448,8 +452,9 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
     int previousLoop = audioInputLoopEnabled();
     audioSetInputLoopEnabled(1);
     AudioInput input(new WavPcmSource(primaryFixturePath()));
-    AudioBuffer buffer(kBufferCapacitySamples, fixture.bytesPerSample(),
+    DecodedAudioHistory history(kBufferCapacitySamples, fixture.bytesPerSample(),
         kProtectedHistorySamples);
+    AudioOutputStream stream(history);
     AudioNullOutput output;
     AudioFrameBuilder builder;
     AudioFrame frame;
@@ -469,16 +474,17 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
         if (samples <= 0) {
             state.PauseTiming();
             input.update();
-            buffer.clear();
+            history.clear();
+            stream.reset(0);
             state.ResumeTiming();
             samples = input.read(inputChunk.data(), (int)inputChunk.size(),
                 fixture.sliceSamples);
         }
 
-        buffer.appendDecodedPcm(inputChunk.data(), samples);
-        output.service(buffer, outputChunk.data(), fixture.sliceSamples, 0);
-        builder.build(frame, buffer, buffer.submittedEndPosition());
-        bridge.runFrame();
+        history.appendDecodedPcm(inputChunk.data(), samples);
+        output.service(stream, outputChunk.data(), fixture.sliceSamples, 0);
+        builder.build(frame, history, stream.submittedEndPosition());
+        bridge.runFrame(frame);
 
         totalSamples += samples;
         benchmark::DoNotOptimize(frame.processedWaveData);
@@ -495,9 +501,9 @@ BENCHMARK(BM_Wav_OpenParse);
 BENCHMARK(BM_Wav_Read1024);
 BENCHMARK(BM_Wav_Read10ms);
 BENCHMARK(BM_AudioInput_Read10ms);
-BENCHMARK(BM_AudioBuffer_Append10ms);
+BENCHMARK(BM_DecodedAudioHistory_Append10ms);
 BENCHMARK(BM_AudioOutput_NullService10ms);
-BENCHMARK(BM_AudioBuffer_PeekCommit10ms);
+BENCHMARK(BM_AudioOutputStream_PeekCommit10ms);
 BENCHMARK(BM_AudioFrameBuilder_Build1024);
 BENCHMARK(BM_AudioProcessor_None);
 BENCHMARK(BM_AudioProcessor_Filter1);

@@ -8,7 +8,7 @@
 #include "information.h"
 #include "display.h"
 #include "AudioFrame.h"
-#include "AudioRuntime.h"
+#include "AudioIngest.h"
 #include "AudioSystem.h"
 #include "AudioAnalyzer.h"
 #include "AudioProcessor.h"
@@ -119,13 +119,11 @@ void Application::platformDidResume(void* context) {
 }
 
 void Application::willSuspend() {
-    exit_sound();
+    shutdownAudioIngest();
 }
 
 void Application::didResume() {
-    if (init_sound(startupConfigValue.audio, CthughaBuffer::buffer.maxDimension(),
-            runtimeChangeMediatorValue.get())
-        && runtimeShutdownValue.get() != NULL)
+    if (initAudioIngest() && runtimeShutdownValue.get() != NULL)
         runtimeShutdownValue->requestClose();
 }
 
@@ -201,6 +199,29 @@ void Application::shutdownVideoFilterchain() {
     videoFilterchain.reset();
 }
 
+int Application::initAudioIngest() {
+    if (audioIngestValue.get() != NULL)
+        return 0;
+
+    audioIngestValue.reset(new AudioIngest(startupConfigValue.audio,
+        CthughaBuffer::buffer.maxDimension()));
+    if (audioIngestValue->start(1)) {
+        audioFrameSetCurrent(NULL);
+        audioIngestValue.reset();
+        return 1;
+    }
+
+    audioFrameSetCurrent(&audioIngestValue->currentFrame());
+    return 0;
+}
+
+void Application::shutdownAudioIngest() {
+    audioFrameSetCurrent(NULL);
+    if (audioIngestValue.get() != NULL)
+        audioIngestValue->stop();
+    audioIngestValue.reset();
+}
+
 void Application::initAudioVisualBridge() {
     if (audioVisualBridge.get() == NULL)
         audioVisualBridge.reset(new AudioVisualBridge(runtimeChangeMediatorValue.get()));
@@ -210,9 +231,9 @@ void Application::shutdownAudioVisualBridge() {
     audioVisualBridge.reset();
 }
 
-void Application::runAudioVisualBridge() {
+void Application::runAudioVisualBridge(AudioFrame& frame) {
     initAudioVisualBridge();
-    audioVisualBridge->runFrame();
+    audioVisualBridge->runFrame(frame);
 
     // AutoChanger and audio processing can request option changes that require
     // filters to refresh cached scene/display state before visual mutation.
@@ -224,17 +245,17 @@ void Application::runAudioVisualBridge() {
     }
 }
 
-const IndexedFrame* Application::runVideoFilterchain() {
+const IndexedFrame* Application::runVideoFilterchain(AudioFrame& frame) {
     initVideoFilterchain();
 
     // The filterchain receives a snapshot-like context for this visual frame.
     // Audio frame data and frame-local metrics are owned by the audio facade;
     // filters borrow them only during run().
     VideoFrameContext context;
-    context.audioFrame = audioFrameCurrent();
-    context.rawAudioData = audioFrameRawData();
-    context.processedWaveData = audioFrameProcessedWaveData();
-    context.audioMetrics = &audioFrameMetrics();
+    context.audioFrame = &frame;
+    context.rawAudioData = frame.raw;
+    context.processedWaveData = frame.processedWaveData;
+    context.audioMetrics = &frame.metrics;
     context.acousticContext = &acousticContext;
     context.now = now;
     context.deltaT = deltaT;
@@ -267,7 +288,7 @@ void Application::shutdown() {
         displayRuntimeOwnership->shutdown();
     displayRuntimeOwnership.reset();
     platformLifecycle.shutdown();
-    audioRuntimeShutdown();
+    shutdownAudioIngest();
     shutdownVideoFilterchain();
     shutdownSceneRuntime();
 }
@@ -330,8 +351,7 @@ int Application::initialize() {
     init_imath();
 
     CTH_INFO("Initializing the sound device...\n");
-    if (init_sound(startupConfigValue.audio, CthughaBuffer::buffer.maxDimension(),
-            runtimeChangeMediatorValue.get()))
+    if (initAudioIngest())
         return 0;
 
     // Visual catalogs depend on final buffer dimensions and must be available
@@ -485,19 +505,25 @@ void Application::runFrame(int doDisplay) {
     if (traceFrameTiming)
         frameTiming[1] = getTime();
 
-    // Publish the audio frame that corresponds to the visual clock.
-    audioFrameTick();
+    // Publish the audio frame that corresponds to the visual/presentation clock.
+    AudioFrame& audioFrame = audioIngestValue->currentFrame();
+    audioIngestValue->tick();
+    audioFrameSetCurrent(&audioFrame);
+    if (audioIngestValue->complete() && runtimeShutdownValue.get() != NULL) {
+        CTH_INFO("Stopping...\n");
+        runtimeShutdownValue->requestClose();
+    }
     if (traceFrameTiming)
         frameTiming[2] = getTime();
 
     // Analyze audio and run option-changing policy before visual filters read
     // SceneSettings.
-    runAudioVisualBridge();
+    runAudioVisualBridge(audioFrame);
     if (traceFrameTiming)
         frameTiming[3] = getTime();
 
     // Mutate Cthugha's indexed active/passive buffers and publish a frame view.
-    const IndexedFrame* indexedFrame = runVideoFilterchain();
+    const IndexedFrame* indexedFrame = runVideoFilterchain(audioFrame);
     if (traceFrameTiming)
         frameTiming[4] = getTime();
 
