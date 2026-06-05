@@ -11,6 +11,7 @@
 #include "Interface.h"
 #include "IndexedFrame.h"
 #include "Screen.h"
+#include "VideoFilterchain.h"
 #include "ViewportPolicy.h"
 #include "ViewportPresentation.h"
 
@@ -52,6 +53,7 @@ CthughaDisplay::CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime)
     : deviceValue(device)
     , runtimeValue(runtime)
     , sourceFrame(0)
+    , presentationContextValue(0)
     , indexedDisplayFrameValue()
     , presentationComposer()
     , displayViewportValue()
@@ -73,7 +75,30 @@ void CthughaDisplay::present(const IndexedFrame& frame) {
     sourceFrame = &frame;
     if (frame.framePalette != NULL)
         device().setFramePalette(frame.framePalette);
+    presentCurrentWithContext(0);
+}
+
+void CthughaDisplay::present(const IndexedFrame& frame,
+    const VideoFrameContext& context) {
+    if (!frame.valid()) {
+        sourceFrame = NULL;
+        return;
+    }
+
+    sourceFrame = &frame;
+    if (frame.framePalette != NULL)
+        device().setFramePalette(frame.framePalette);
+    presentCurrentWithContext(&context);
+}
+
+void CthughaDisplay::presentCurrent(const VideoFrameContext& context) {
+    presentCurrentWithContext(&context);
+}
+
+void CthughaDisplay::presentCurrentWithContext(const VideoFrameContext* context) {
+    presentationContextValue = context;
     (*this)();
+    presentationContextValue = 0;
 }
 
 const unsigned char* CthughaDisplay::sourcePixels() const {
@@ -144,7 +169,8 @@ const IndexedDisplayFrame& CthughaDisplay::composePresentationFrame(
     IndexedFrame screenSource(sourcePixels(), sourceWidth(), sourceHeight(), sourcePitch(),
         sourceFrame != NULL ? sourceFrame->framePalette : NULL);
     const IndexedDisplayFrame& frame = presentationComposer.compose(screenSource,
-        indexedDisplayFrameValue, screenSelection, now, deltaT, fps, this);
+        indexedDisplayFrameValue, screenSelection, now, deltaT, fps, this,
+        presentationContextValue);
     buffer0 = indexedDisplayFrameValue.pixels();
     return frame;
 }

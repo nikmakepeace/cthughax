@@ -51,13 +51,6 @@ int AcousticContext::fire() const { return 0; }
 int AcousticContext::cumulativeFireLevel() const { return 0; }
 void AcousticContext::resetCumulativeFireLevel() { }
 
-static AudioMetrics testAudioMetrics;
-AcousticContext acousticContext;
-
-const AudioMetrics& audioFrameMetrics() {
-    return testAudioMetrics;
-}
-
 VideoDirector& videoDirector() {
     static char storage[sizeof(VideoDirector)];
     return *reinterpret_cast<VideoDirector*>(storage);
@@ -90,7 +83,8 @@ static void testAutoChangerRequestsChangeOneForLittleChanges() {
     change_little.setValue(1);
 
     RecordingSink sink;
-    AutoChanger changer(sink);
+    AcousticContext acousticContext;
+    AutoChanger changer(sink, acousticContext);
     changer.change();
 
     assert(sink.commands.size() == 1);
@@ -102,7 +96,8 @@ static void testAutoChangerRequestsChangeAllForFullChanges() {
     change_little.setValue(0);
 
     RecordingSink sink;
-    AutoChanger changer(sink);
+    AcousticContext acousticContext;
+    AutoChanger changer(sink, acousticContext);
     changer.change();
 
     assert(sink.commands.size() == 1);

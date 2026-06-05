@@ -8,27 +8,34 @@
 
 class RuntimeCommandSink;
 class AudioFrame;
+class AcousticContext;
 
 class AudioVisualBridge {
     int filterchainRefreshRequestedValue;
+    AcousticContext& acousticContextValue;
     RuntimeCommandSink* runtimeCommands;
 
 public:
     /**
      * Creates the audio-to-visual bridge.
      *
+     * @param acousticContext_ Rolling acoustic context to update from analyzed
+     *        frame metrics. The referenced object must outlive the bridge.
      * @param runtimeCommands_ Optional runtime command sink used by AutoChanger.
      *        When NULL, audio processing and analysis still run, but automatic
      *        scene changes are disabled.
      */
-    AudioVisualBridge(RuntimeCommandSink* runtimeCommands_ = 0);
+    AudioVisualBridge(AcousticContext& acousticContext_,
+        RuntimeCommandSink* runtimeCommands_ = 0);
     ~AudioVisualBridge();
 
     /**
      * Runs the audio side of one visual frame.
      *
      * Processes the supplied audio frame, publishes metrics on the frame,
-     * updates AcousticContext, then runs AutoChanger if available.
+     * updates the supplied AcousticContext, then runs AutoChanger if available.
+     *
+     * @param frame Current visual audio frame to process and analyze.
      */
     void runFrame(AudioFrame& frame);
 

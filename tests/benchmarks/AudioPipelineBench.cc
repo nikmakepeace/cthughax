@@ -420,6 +420,7 @@ static void BM_AudioProcessor_Analyze1024(benchmark::State& state) {
 static void BM_AcousticContext_Update(benchmark::State& state) {
     AudioProcessor processor;
     AudioFrame frame;
+    AcousticContext acousticContext;
     fillFrameFromFixture(frame);
     AudioMetrics metrics = processor.analyze(frame.raw, int(sound_minnoise));
 
@@ -431,11 +432,11 @@ static void BM_AcousticContext_Update(benchmark::State& state) {
 
 static void BM_AudioVisualBridge_RunFrameNone(benchmark::State& state) {
     AudioFrame frame;
+    AcousticContext acousticContext;
     fillFrameFromFixture(frame);
-    AudioVisualBridge bridge;
+    AudioVisualBridge bridge(acousticContext);
 
     audioProcessing.change("none");
-    audioFrameSetTestOverride(&frame);
 
     for (auto _ : state) {
         bridge.runFrame(frame);
@@ -443,8 +444,6 @@ static void BM_AudioVisualBridge_RunFrameNone(benchmark::State& state) {
         benchmark::DoNotOptimize(frame.metrics.amplitude);
         benchmark::ClobberMemory();
     }
-
-    audioFrameSetTestOverride(NULL);
 }
 
 static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State& state) {
@@ -458,13 +457,13 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
     AudioNullOutput output;
     AudioFrameBuilder builder;
     AudioFrame frame;
-    AudioVisualBridge bridge;
+    AcousticContext acousticContext;
+    AudioVisualBridge bridge(acousticContext);
     std::vector<char> inputChunk(fixture.format.bytesForSamples(fixture.sliceSamples));
     std::vector<char> outputChunk(fixture.format.bytesForSamples(fixture.sliceSamples));
     long long totalSamples = 0;
 
     audioProcessing.change("none");
-    audioFrameSetTestOverride(&frame);
     output.configureTiming(fixture.format.sampleRate, fixture.bytesPerSample(),
         fixture.sliceSamples);
 
@@ -492,7 +491,6 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
         benchmark::ClobberMemory();
     }
 
-    audioFrameSetTestOverride(NULL);
     state.SetItemsProcessed(totalSamples);
     audioSetInputLoopEnabled(previousLoop);
 }

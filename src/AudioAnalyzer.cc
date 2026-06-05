@@ -4,8 +4,6 @@
 
 OptionInt sound_minnoise("minnoise", 0, SOUND_MINNOISE_MAX_EXCLUSIVE); /* quiet is below this */
 
-AcousticContext acousticContext;
-
 void configureAudioAnalyzer(const AutoChangeConfig& config) {
     sound_minnoise.setValue(config.minNoise);
 }

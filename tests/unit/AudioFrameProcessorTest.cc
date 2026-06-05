@@ -74,48 +74,8 @@ static void testAudioProcessorAnalyzesRawFrame() {
     assert(frame.metrics.noisy == 1);
 }
 
-static void testAudioFrameMetricsFacadePublishesToCurrentFrame() {
-    AudioFrame frame;
-    AudioMetrics metrics;
-
-    metrics.amplitude = 9;
-    metrics.amplitudeLeft = 7;
-    metrics.amplitudeRight = 11;
-    metrics.noisy = 1;
-
-    audioFrameSetTestOverride(&frame);
-    audioFramePublishMetrics(metrics);
-
-    assert(audioFrameMetrics().amplitude == 9);
-    assert(frame.metrics.amplitude == 9);
-    assert(frame.metrics.amplitudeLeft == 7);
-    assert(frame.metrics.amplitudeRight == 11);
-    assert(frame.metrics.noisy == 1);
-
-    audioFrameSetTestOverride(0);
-}
-
-static void testAudioFrameMetricsFacadeKeepsLegacyFallback() {
-    AudioMetrics metrics;
-
-    metrics.amplitude = 6;
-    metrics.amplitudeLeft = 5;
-    metrics.amplitudeRight = 7;
-    metrics.noisy = 0;
-
-    audioFrameSetTestOverride(0);
-    audioFramePublishMetrics(metrics);
-
-    assert(audioFrameMetrics().amplitude == 6);
-    assert(audioFrameMetrics().amplitudeLeft == 5);
-    assert(audioFrameMetrics().amplitudeRight == 7);
-    assert(audioFrameMetrics().noisy == 0);
-}
-
 int main() {
     testAudioFrameOwnsMetrics();
     testAudioProcessorAnalyzesRawFrame();
-    testAudioFrameMetricsFacadePublishesToCurrentFrame();
-    testAudioFrameMetricsFacadeKeepsLegacyFallback();
     return 0;
 }

@@ -8,13 +8,15 @@
 #include "AutoChanger.h"
 #endif
 
-AudioVisualBridge::AudioVisualBridge(RuntimeCommandSink* runtimeCommands_)
+AudioVisualBridge::AudioVisualBridge(AcousticContext& acousticContext_,
+    RuntimeCommandSink* runtimeCommands_)
     : filterchainRefreshRequestedValue(0)
+    , acousticContextValue(acousticContext_)
     , runtimeCommands(runtimeCommands_) {
     CTH_DEBUG("audio visual bridge: creating bridge\n");
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
     if (runtimeCommands != 0)
-        autoChanger = new AutoChanger(*runtimeCommands);
+        autoChanger = new AutoChanger(*runtimeCommands, acousticContextValue);
 #endif
 }
 
@@ -45,7 +47,7 @@ void AudioVisualBridge::runFrame(AudioFrame& frame) {
     }
 
     processor.analyze(frame, int(sound_minnoise));
-    acousticContext.update(frame.metrics);
+    acousticContextValue.update(frame.metrics);
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
         CTH_DEBUG("audio analysis: amplitude=%d left=%d right=%d noisy=%d frame-samples=%d center-sample=%lld\n",

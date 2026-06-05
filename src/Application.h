@@ -5,6 +5,7 @@
 #ifndef __APPLICATION_H
 #define __APPLICATION_H
 
+#include "AudioAnalyzer.h"
 #include "PlatformLifecycle.h"
 #include "Configuration.h"
 #include "VideoFilterchainSequence.h"
@@ -48,6 +49,7 @@ class Application {
     std::vector<ConfigDiagnostic> startupConfigDiagnostics;
     std::unique_ptr<VideoFilterchain> videoFilterchain;
     VideoFilterchainSequence videoFilterchainSequence;
+    AcousticContext acousticContextValue;
     std::unique_ptr<AudioIngest> audioIngestValue;
     std::unique_ptr<AudioVisualBridge> audioVisualBridge;
     std::unique_ptr<Scene> sceneValue;
@@ -95,7 +97,7 @@ class Application {
      */
     int initAudioIngest();
 
-    /** Stops audio ingest and clears the legacy current-frame facade. */
+    /** Stops audio ingest and releases its owned acquisition pipeline. */
     void shutdownAudioIngest();
 
     /** Destroys the audio-to-visual bridge and its AutoChanger state. */

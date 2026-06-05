@@ -68,10 +68,6 @@ static void initAudioProcessorFft() {
     audioProcessorFftInit = 1;
 }
 
-static AudioFrame* currentAudioFrame() {
-    return audioFrameCurrent();
-}
-
 AudioMetrics AudioProcessor::analyze(const char2* frame, int minNoise) const {
     AudioMetrics metrics;
     int al = 0, ar = 0;
@@ -202,56 +198,24 @@ class FFT : public EffectChoice {
 public:
     FFT()
         : EffectChoice("FFT", "", 1) { }
-
-    int operator()() {
-        if (currentAudioFrame())
-            audioFrameProcessor.fft(*currentAudioFrame());
-        else
-            audioFrameProcessor.fft(audioFrameRawData(), audioFrameProcessedWaveData());
-        return 0;
-    }
 };
 
 class Massage1 : public EffectChoice {
 public:
     Massage1()
         : EffectChoice("Filter1", "", 1) { }
-
-    int operator()() {
-        if (currentAudioFrame())
-            audioFrameProcessor.filter1(*currentAudioFrame());
-        else
-            audioFrameProcessor.filter1(audioFrameRawData(), audioFrameProcessedWaveData());
-        return 0;
-    }
 };
 
 class Massage2 : public EffectChoice {
 public:
     Massage2()
         : EffectChoice("Filter2", "low pass filter", 1) { }
-
-    int operator()() {
-        if (currentAudioFrame())
-            audioFrameProcessor.filter2(*currentAudioFrame());
-        else
-            audioFrameProcessor.filter2(audioFrameRawData(), audioFrameProcessedWaveData());
-        return 0;
-    }
 };
 
 class NoAudioProcess : public EffectChoice {
 public:
     NoAudioProcess()
         : EffectChoice("none", "", 1) { }
-
-    int operator()() {
-        if (currentAudioFrame())
-            audioFrameProcessor.none(*currentAudioFrame());
-        else
-            audioFrameProcessor.none(audioFrameRawData(), audioFrameProcessedWaveData());
-        return 0;
-    }
 };
 
 static EffectChoice* _audioProcessorOptionEntries[]
@@ -331,14 +295,6 @@ const char* AudioProcessingOption::text() const {
         return "unknown";
 
     return entries[value]->Name();
-}
-
-int AudioProcessingOption::process() {
-    if ((value < 0) || (value >= entryCount()) || (entries[value] == NULL))
-        return 0;
-
-    CTH_TRACE("processing mode=`%s'\n", "audio processing", text());
-    return entries[value]->operator()();
 }
 
 int AudioProcessingOption::process(AudioFrame& frame) {

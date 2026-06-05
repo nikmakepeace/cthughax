@@ -78,6 +78,7 @@ add_test(NAME screen_renderer_characterization_test COMMAND screen_renderer_char
 add_executable(screen_render_context_test
     unit/ScreenRenderContextTest.cc
     ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
     ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
 )
 
@@ -202,6 +203,7 @@ add_test(NAME presentation_composer_test COMMAND presentation_composer_test)
 add_executable(cthugha_display_presentation_test
     unit/CthughaDisplayPresentationTest.cc
     ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
     ${CMAKE_SOURCE_DIR}/src/DisplayRuntime.cc
     ${CMAKE_SOURCE_DIR}/src/FrameClock.cc
     ${CMAKE_SOURCE_DIR}/src/FrameRateMeter.cc
@@ -673,7 +675,6 @@ add_executable(audio_frame_processor_test
 
 target_compile_definitions(audio_frame_processor_test PRIVATE
     CTH_AUDIO_FRAME_NO_RUNTIME
-    CTH_AUDIO_FRAME_TEST_OVERRIDE
 )
 
 target_include_directories(audio_frame_processor_test PRIVATE

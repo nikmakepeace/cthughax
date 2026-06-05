@@ -1,14 +1,25 @@
+#include "AudioFrame.h"
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
 #include "DisplayRuntime.h"
 #include "FramePalette.h"
 #include "IndexedFrameTestFixtures.h"
 #include "Screen.h"
+#include "VideoFilterchain.h"
 
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+
+VideoFrameContext::VideoFrameContext()
+    : audioFrame(0)
+    , rawAudioData(0)
+    , processedWaveData(0)
+    , audioMetrics(0)
+    , acousticContext(0)
+    , now(0.0)
+    , deltaT(0.0) { }
 
 DisplayDevice::DisplayDevice()
     : textOnScreen(0)
@@ -103,6 +114,19 @@ static int copySourceRenderer(ScreenRenderContext& context) {
 
 static int rejectRenderer(ScreenRenderContext&) {
     return 1;
+}
+
+static const AudioMetrics* observedAudioMetrics = 0;
+static const char2* observedRawAudio = 0;
+static const char2* observedProcessedAudio = 0;
+static const AcousticContext* observedAcousticContext = 0;
+
+static int observeAudioRenderer(ScreenRenderContext& context) {
+    observedAudioMetrics = context.audioMetrics();
+    observedRawAudio = context.rawAudioData();
+    observedProcessedAudio = context.processedWaveData();
+    observedAcousticContext = context.acousticContext();
+    return copySourceRenderer(context);
 }
 
 class StaticSelection : public PresentationScreenSelection {
@@ -228,8 +252,41 @@ static void testPresentFallsBackToLastRenderedScreenAfterRejection() {
     assertClassicMirroredSource(display.indexedDisplayFrame(), source);
 }
 
+static void testPresentPassesAudioContextToScreenRenderer() {
+    ScreenEntry audioEntry(observeAudioRenderer, "audio", "Audio",
+        xy(1, 1), xy(1, 1));
+    StaticSelection selection(audioEntry);
+    IndexedFrameFixture source(4, 3, 6);
+    DisplayDevice device;
+    StaticOutputBackend backend;
+    DisplayRuntime runtime(backend);
+    DisplayConsumerHarness display(selection, device, runtime);
+    AudioFrame audioFrame;
+    audioFrame.metrics.amplitude = 42;
+
+    VideoFrameContext frameContext;
+    frameContext.audioFrame = &audioFrame;
+    frameContext.rawAudioData = audioFrame.raw;
+    frameContext.processedWaveData = audioFrame.processedWaveData;
+    frameContext.audioMetrics = &audioFrame.metrics;
+    frameContext.acousticContext = (const AcousticContext*)0x1234;
+    observedAudioMetrics = 0;
+    observedRawAudio = 0;
+    observedProcessedAudio = 0;
+    observedAcousticContext = 0;
+
+    display.present(source.frame(), frameContext);
+
+    assert(observedAudioMetrics == &audioFrame.metrics);
+    assert(observedRawAudio == audioFrame.raw);
+    assert(observedProcessedAudio == audioFrame.processedWaveData);
+    assert(observedAcousticContext == (const AcousticContext*)0x1234);
+    assert(observedAudioMetrics->amplitude == 42);
+}
+
 int main() {
     testPresentComposesCompletedIndexedFrameForConsumer();
     testPresentFallsBackToLastRenderedScreenAfterRejection();
+    testPresentPassesAudioContextToScreenRenderer();
     return 0;
 }

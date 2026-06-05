@@ -61,13 +61,6 @@ public:
     virtual const char* text() const;
 
     /**
-     * Processes the current audio frame into processedWaveData.
-     *
-     * @return Result from the selected processing entry.
-     */
-    int process();
-
-    /**
      * Processes a supplied audio frame into processedWaveData.
      *
      * @param frame Frame to process.

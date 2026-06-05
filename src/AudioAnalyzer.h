@@ -61,7 +61,4 @@ public:
     void resetCumulativeFireLevel();
 };
 
-/** Multi-frame acoustic context consumed by visual effects and AutoChanger. */
-extern AcousticContext acousticContext;
-
 #endif

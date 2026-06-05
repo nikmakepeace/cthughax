@@ -28,7 +28,8 @@ static void fillConstant(AudioFrame& frame, int left, int right) {
 
 static void testBridgeProcessesSuppliedFrame() {
     AudioFrame frame;
-    AudioVisualBridge bridge;
+    AcousticContext acousticContext;
+    AudioVisualBridge bridge(acousticContext);
 
     sound_minnoise.setValue(4);
     audioProcessing.change("none");
@@ -42,6 +43,7 @@ static void testBridgeProcessesSuppliedFrame() {
     assert(frame.metrics.noisy == 1);
     assert(frame.processedWaveData[0][0] == 3);
     assert(frame.processedWaveData[0][1] == 4);
+    assert(acousticContext.intensity() > 0.0);
 }
 
 int main() {

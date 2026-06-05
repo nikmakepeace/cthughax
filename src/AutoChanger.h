@@ -17,11 +17,13 @@ extern OptionOnOff lock; /* change automatically */
 extern OptionOnOff change_little; /* only change one options */
 
 class RuntimeCommandSink;
+class AcousticContext;
 struct AutoChangeConfig;
 struct AudioMetrics;
 
 class AutoChanger {
     RuntimeCommandSink& runtimeCommands;
+    AcousticContext& acousticContextValue;
 
     int quietSince;
     int waitTime;
@@ -33,19 +35,12 @@ public:
      *
      * @param runtimeCommands_ Runtime command sink used for automatic scene
      *        mutations. The referenced object must outlive this AutoChanger.
+     * @param acousticContext_ Rolling acoustic state used for fire-triggered
+     *        scene changes. The referenced object must outlive this AutoChanger.
      */
-    AutoChanger(RuntimeCommandSink& runtimeCommands_);
+    AutoChanger(RuntimeCommandSink& runtimeCommands_,
+        AcousticContext& acousticContext_);
     ~AutoChanger();
-
-    /**
-     * Runs one automatic-change policy step for the current audio frame.
-     *
-     * Reads current AudioFrame metrics and global AcousticContext, tracks quiet
-     * duration in milliseconds from gettime(), may emit quiet-message cues
-     * through VideoDirector, and may request scene changes through
-     * RuntimeCommandSink.
-     */
-    void operator()();
 
     /**
      * Runs one automatic-change policy step using supplied audio metrics.

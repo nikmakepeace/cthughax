@@ -64,6 +64,19 @@ static void emitStartupConfigDiagnostics(
 static SystemFrameSleeper systemFrameSleeper;
 static FramePacer framePacer(systemFrameSleeper);
 
+static VideoFrameContext videoFrameContextFor(const AudioFrame& frame,
+    const AcousticContext& acousticContext) {
+    VideoFrameContext context;
+    context.audioFrame = &frame;
+    context.rawAudioData = frame.raw;
+    context.processedWaveData = frame.processedWaveData;
+    context.audioMetrics = &frame.metrics;
+    context.acousticContext = &acousticContext;
+    context.now = now;
+    context.deltaT = deltaT;
+    return context;
+}
+
 static void emitStartupConfigDiagnostics(
     const std::vector<ConfigDiagnostic>& diagnostics) {
     for (std::vector<ConfigDiagnostic>::const_iterator it = diagnostics.begin();
@@ -206,17 +219,14 @@ int Application::initAudioIngest() {
     audioIngestValue.reset(new AudioIngest(startupConfigValue.audio,
         CthughaBuffer::buffer.maxDimension()));
     if (audioIngestValue->start(1)) {
-        audioFrameSetCurrent(NULL);
         audioIngestValue.reset();
         return 1;
     }
 
-    audioFrameSetCurrent(&audioIngestValue->currentFrame());
     return 0;
 }
 
 void Application::shutdownAudioIngest() {
-    audioFrameSetCurrent(NULL);
     if (audioIngestValue.get() != NULL)
         audioIngestValue->stop();
     audioIngestValue.reset();
@@ -224,7 +234,8 @@ void Application::shutdownAudioIngest() {
 
 void Application::initAudioVisualBridge() {
     if (audioVisualBridge.get() == NULL)
-        audioVisualBridge.reset(new AudioVisualBridge(runtimeChangeMediatorValue.get()));
+        audioVisualBridge.reset(new AudioVisualBridge(acousticContextValue,
+            runtimeChangeMediatorValue.get()));
 }
 
 void Application::shutdownAudioVisualBridge() {
@@ -249,16 +260,9 @@ const IndexedFrame* Application::runVideoFilterchain(AudioFrame& frame) {
     initVideoFilterchain();
 
     // The filterchain receives a snapshot-like context for this visual frame.
-    // Audio frame data and frame-local metrics are owned by the audio facade;
-    // filters borrow them only during run().
-    VideoFrameContext context;
-    context.audioFrame = &frame;
-    context.rawAudioData = frame.raw;
-    context.processedWaveData = frame.processedWaveData;
-    context.audioMetrics = &frame.metrics;
-    context.acousticContext = &acousticContext;
-    context.now = now;
-    context.deltaT = deltaT;
+    // Audio frame data and frame-local metrics are owned by AudioIngest; filters
+    // borrow them only during run().
+    VideoFrameContext context = videoFrameContextFor(frame, acousticContextValue);
 
     CTH_TRACE("running filterchain=%p filters=%d\n", "video runtime",
         videoFilterchain.get(), videoFilterchain.get() ? videoFilterchain->size() : 0);
@@ -505,10 +509,8 @@ void Application::runFrame(int doDisplay) {
     if (traceFrameTiming)
         frameTiming[1] = getTime();
 
-    // Publish the audio frame that corresponds to the visual/presentation clock.
-    AudioFrame& audioFrame = audioIngestValue->currentFrame();
     audioIngestValue->tick();
-    audioFrameSetCurrent(&audioFrame);
+    AudioFrame& audioFrame = audioIngestValue->currentFrame();
     if (audioIngestValue->complete() && runtimeShutdownValue.get() != NULL) {
         CTH_INFO("Stopping...\n");
         runtimeShutdownValue->requestClose();
@@ -524,6 +526,8 @@ void Application::runFrame(int doDisplay) {
 
     // Mutate Cthugha's indexed active/passive buffers and publish a frame view.
     const IndexedFrame* indexedFrame = runVideoFilterchain(audioFrame);
+    VideoFrameContext presentationContext = videoFrameContextFor(audioFrame,
+        acousticContextValue);
     if (traceFrameTiming)
         frameTiming[4] = getTime();
 
@@ -532,9 +536,9 @@ void Application::runFrame(int doDisplay) {
     double visualStart = getTime();
     if (doDisplay) {
         if (indexedFrame != NULL && indexedFrame->valid())
-            displayValue->present(*indexedFrame);
+            displayValue->present(*indexedFrame, presentationContext);
         else
-            (*displayValue)();
+            displayValue->presentCurrent(presentationContext);
     }
     double visualEnd = getTime();
     if (traceFrameTiming)

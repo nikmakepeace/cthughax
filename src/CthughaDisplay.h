@@ -27,6 +27,7 @@ extern double deltaT; // elapsed time between the last two frames, in seconds
 class IndexedFrame;
 class DisplayDevice;
 class DisplayRuntime;
+class VideoFrameContext;
 struct DisplayConfig;
 
 class CthughaDisplay : public PresentationFrameObserver {
@@ -34,6 +35,7 @@ protected:
     DisplayDevice& deviceValue;
     DisplayRuntime& runtimeValue;
     const IndexedFrame* sourceFrame;
+    const VideoFrameContext* presentationContextValue;
     IndexedDisplayFrame indexedDisplayFrameValue;
     PresentationComposer presentationComposer;
     DisplayViewport displayViewportValue;
@@ -53,6 +55,7 @@ protected:
     const IndexedDisplayFrame& composePresentationFrame(
         PresentationScreenSelection& screenSelection);
     const IndexedDisplayFrame& composePresentationFrame();
+    void presentCurrentWithContext(const VideoFrameContext* context);
 
     void updateFPS();
     void checkZoom();
@@ -84,6 +87,25 @@ public:
      *        the display backend.
      */
     void present(const IndexedFrame& frame);
+
+    /**
+     * Presents a filterchain-published indexed frame with audio context.
+     *
+     * @param frame Indexed pixels, dimensions, pitch, and palette to hand to
+     *        the display backend.
+     * @param context Borrowed per-frame audio/timing context.
+     */
+    void present(const IndexedFrame& frame, const VideoFrameContext& context);
+
+    /**
+     * Presents the current source frame or legacy buffer with audio context.
+     *
+     * This keeps the no-argument virtual display entry point while allowing the
+     * application frame loop to supply explicit audio state.
+     *
+     * @param context Borrowed per-frame audio/timing context.
+     */
+    void presentCurrent(const VideoFrameContext& context);
 
     /** Legacy display path used when no IndexedFrame is available. */
     virtual void operator()() { }

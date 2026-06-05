@@ -2,7 +2,6 @@
 #include "imath.h"
 #include "AutoChanger.h"
 #include "AudioAnalyzer.h"
-#include "AudioFrame.h"
 #include "Configuration.h"
 #include "CthughaBuffer.h"
 #include "RuntimeCommandSink.h"
@@ -34,8 +33,10 @@ void configureAutoChanger(const AutoChangeConfig& config) {
     change_little.setValue(config.changeLittle);
 }
 
-AutoChanger::AutoChanger(RuntimeCommandSink& runtimeCommands_)
+AutoChanger::AutoChanger(RuntimeCommandSink& runtimeCommands_,
+    AcousticContext& acousticContext_)
     : runtimeCommands(runtimeCommands_)
+    , acousticContextValue(acousticContext_)
     , quietSince(0)
     , lastChange(0) {
 
@@ -50,10 +51,6 @@ AutoChanger::AutoChanger(RuntimeCommandSink& runtimeCommands_)
 }
 
 AutoChanger::~AutoChanger() { }
-
-void AutoChanger::operator()() {
-    operator()(audioFrameMetrics());
-}
 
 void AutoChanger::operator()(const AudioMetrics& metrics) {
 
@@ -80,10 +77,10 @@ void AutoChanger::operator()(const AudioMetrics& metrics) {
 
     /* Check for enough fire to change */
     if (int(changeCumulativeFireLevel))
-        if (acousticContext.cumulativeFireLevel() > int(changeCumulativeFireLevel)) {
+        if (acousticContextValue.cumulativeFireLevel() > int(changeCumulativeFireLevel)) {
             CTH_DEBUG("autochange: cumulativeFireLevel threshold reached level=%d threshold=%d\n",
-                acousticContext.cumulativeFireLevel(), int(changeCumulativeFireLevel));
-            acousticContext.resetCumulativeFireLevel();
+                acousticContextValue.cumulativeFireLevel(), int(changeCumulativeFireLevel));
+            acousticContextValue.resetCumulativeFireLevel();
             change();
             return;
         }
@@ -117,7 +114,7 @@ const char* AutoChanger::status() {
         int now = gettime();
 
         snprintf(txt, sizeof(txt), "change: T:%.2f F:%d S:%.2f ", double(waitTime - (now - lastChange)) / 1000.0,
-            changeCumulativeFireLevel - acousticContext.cumulativeFireLevel(),
+            changeCumulativeFireLevel - acousticContextValue.cumulativeFireLevel(),
             double(changeQuiet - (now - quietSince)) / 1000.0);
     }
 

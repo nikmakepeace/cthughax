@@ -1,5 +1,4 @@
 #include "cthugha.h"
-#include "AudioFrame.h"
 #include "Border.h"
 #include "CthughaBuffer.h"
 #include "VideoFilterchain.h"
@@ -14,6 +13,26 @@ EffectControl border(0, "border", borderEntries, EFFECT_CONTROL_AUTO_CHANGE);
 
 void init_border() {
     border.add(border_entries, 4);
+}
+
+static int audioBorderBytesAvailable(const VideoFrameContext& context) {
+    if (context.audioFrame != 0)
+        return context.audioFrame->samples * int(sizeof(char2));
+
+    return context.rawAudioData != 0 ? 1024 * int(sizeof(char2)) : 0;
+}
+
+static void copyAudioBorderRow(unsigned char* destination, int width,
+    const VideoFrameContext& context) {
+    const unsigned char* rawBytes
+        = reinterpret_cast<const unsigned char*>(context.rawAudioData);
+    int available = audioBorderBytesAvailable(context);
+    int copyBytes = available < width ? available : width;
+
+    if (rawBytes != 0 && copyBytes > 0)
+        memcpy(destination, rawBytes, copyBytes);
+    if (copyBytes < width)
+        memset(destination + copyBytes, 0, width - copyBytes);
 }
 
 void apply_border(CthughaBuffer& buffer, const VideoFrameContext& context, int borderMode) {
@@ -34,8 +53,8 @@ void apply_border(CthughaBuffer& buffer, const VideoFrameContext& context, int b
         break;
     case 1:
         for (int i = 0; i < hiddenRows; i++) {
-            memcpy(top + i * width, audioFrameRawData(), width);
-            memcpy(bottom + i * width, audioFrameRawData(), width);
+            copyAudioBorderRow(top + i * width, width, context);
+            copyAudioBorderRow(bottom + i * width, width, context);
         }
         break;
     case 2: {

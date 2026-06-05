@@ -1,6 +1,5 @@
 #include "cthugha.h"
 #include "display.h"
-#include "AudioFrame.h"
 #include "AudioAnalyzer.h"
 #include "TranslationOptions.h"
 #include "imath.h"
@@ -63,6 +62,24 @@ static double visualFramesPerSecond(ScreenRenderContext& context) {
 
 static double visualDeltaTime(ScreenRenderContext& context) {
     return context.deltaTimeSeconds();
+}
+
+static int audioAmplitude(ScreenRenderContext& context) {
+    const AudioMetrics* metrics = context.audioMetrics();
+    return metrics != 0 ? metrics->amplitude : 0;
+}
+
+static int processedWaveSample(ScreenRenderContext& context, int sampleIndex) {
+    const char2* processedWaveData = context.processedWaveData();
+    if (processedWaveData == 0 || sampleIndex < 0 || sampleIndex >= 1024)
+        return 0;
+
+    return processedWaveData[sampleIndex][0];
+}
+
+static double acousticIntensity(ScreenRenderContext& context) {
+    const AcousticContext* acousticContext = context.acousticContext();
+    return acousticContext != 0 ? acousticContext->intensity() : 0.0;
 }
 
 /*****************************************************************************
@@ -367,7 +384,8 @@ void update_3d_scale_factor(ScreenRenderContext& context) {
     if (scaleFactorPhase >= 2.0 * M_PI)
         scaleFactorPhase = fmod(scaleFactorPhase, 2.0 * M_PI);
 
-    scaleFactor = mid - amp * cos(scaleFactorPhase) + (intensityFactor * acousticContext.intensity());
+    double intensity = acousticIntensity(context);
+    scaleFactor = mid - amp * cos(scaleFactorPhase) + (intensityFactor * intensity);
     splatSize = int(scaleFactor + 0.5);
     if (splatSize < 1)
         splatSize = 1;
@@ -377,7 +395,7 @@ void update_3d_scale_factor(ScreenRenderContext& context) {
     CTH_TRACE("update_3d_scale_factor: dt=%.3f, phase=%.3f, scaleFactor=%.3f\n", "display",
         dt, scaleFactorPhase,
         scaleFactor);
-    CTH_TRACE("intensity: %.3f\n", "display", acousticContext.intensity());
+    CTH_TRACE("intensity: %.3f\n", "display", intensity);
 }
 
 /*
@@ -480,7 +498,7 @@ int screen_bent(ScreenRenderContext& context) {
 
     prepare_3d(context, 256);
 
-    h = h * 0.95 + (min((2 * audioFrameMetrics().amplitude), 120)) * 0.05;
+    h = h * 0.95 + (min((2 * audioAmplitude(context)), 120)) * 0.05;
 
     for (i = visualBuffer(context).width(); i != 0; i--) {
         height[i] = (int)(h * sin(t) * sin((double)(i) / (double)visualBuffer(context).width() * 3.0 * M_PI)) + 128;
@@ -582,7 +600,7 @@ int screen_zick(ScreenRenderContext& context) {
     }
 
     for (i = visualBuffer(context).height(); i != 0; i--) {
-        zicks[i] = ((audioFrameProcessedWaveData()[i][0]) + ZICK_SMOOTH * zicks[i]) / (ZICK_SMOOTH + 1);
+        zicks[i] = (processedWaveSample(context, i) + ZICK_SMOOTH * zicks[i]) / (ZICK_SMOOTH + 1);
         d = (d + zicks[i]) / 2;
         if (d == 0) {
             memcpy(scrn, src, visualBuffer(context).width());

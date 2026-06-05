@@ -97,8 +97,6 @@ static void testAudioDeviceSettingsAreStartupOnly() {
 static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/AudioFrame.h", "struct AudioMetrics");
     assertSourceContains("src/AudioFrame.h", "AudioMetrics metrics");
-    assertSourceContains("src/AudioFrame.h", "audioFramePublishMetrics");
-    assertSourceContains("src/AudioFrame.h", "audioFrameMetrics");
     assertSourceContains("src/AudioProcessor.cc",
         "AudioProcessor::analyze(const char2* frame, int minNoise)");
     assertSourceContains("src/AudioVisualBridge.cc",
@@ -106,17 +104,50 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/AudioVisualBridge.cc",
         "processor.analyze(frame, int(sound_minnoise))");
     assertSourceContains("src/AudioVisualBridge.cc",
-        "acousticContext.update(frame.metrics)");
+        "acousticContextValue.update(frame.metrics)");
+    assertSourceContains("src/Application.h",
+        "AcousticContext acousticContextValue");
+    assertSourceContains("src/Application.cc",
+        "new AudioVisualBridge(acousticContextValue");
     assertSourceContains("src/Application.cc",
         "context.audioMetrics = &frame.metrics");
+    assertSourceContains("src/Application.cc",
+        "context.acousticContext = &acousticContext");
+    assertSourceContains("src/Application.cc",
+        "displayValue->present(*indexedFrame, presentationContext)");
+    assertSourceContains("src/ScreenRenderContext.h",
+        "const AudioMetrics* audioMetrics() const");
+    assertSourceContains("src/ScreenRenderContext.h",
+        "const AcousticContext* acousticContext() const");
+    assertSourceContains("src/PresentationComposer.cc",
+        "ScreenRenderContext(source, destination, frameTimeSeconds,");
     assertSourceContains("src/AutoChanger.cc",
         "void AutoChanger::operator()(const AudioMetrics& metrics)");
+    assertSourceContains("src/AutoChanger.h",
+        "AcousticContext& acousticContext_");
     assertSourceContains("tests/CMakeLists.txt",
         "audio_frame_processor_test");
+    assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameSetCurrent");
+    assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameCurrent");
+    assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameRawData");
+    assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameProcessedWaveData");
+    assertSourceDoesNotContain("src/AudioFrame.h", "audioFramePublishMetrics");
+    assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameMetrics");
+    assertSourceDoesNotContain("src/AudioFrame.cc", "currentAudioFrame");
+    assertSourceDoesNotContain("src/Application.cc", "audioFrameSetCurrent");
+    assertSourceDoesNotContain("src/AudioProcessor.cc", "audioFrameCurrent");
+    assertSourceDoesNotContain("src/AudioProcessor.cc", "audioFrameRawData");
+    assertSourceDoesNotContain("src/AudioProcessor.cc", "audioFrameProcessedWaveData");
+    assertSourceDoesNotContain("src/AutoChanger.cc", "audioFrameMetrics");
+    assertSourceDoesNotContain("src/Border.cc", "audioFrameRawData");
+    assertSourceDoesNotContain("src/display.cc", "audioFrameMetrics");
+    assertSourceDoesNotContain("src/display.cc", "audioFrameProcessedWaveData");
     assertSourceDoesNotContain("src/AudioAnalyzer.h", "class AudioAnalyzer");
     assertSourceDoesNotContain("src/AudioAnalyzer.h", "extern AudioMetrics audioMetrics");
+    assertSourceDoesNotContain("src/AudioAnalyzer.h", "extern AcousticContext acousticContext");
     assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AudioAnalyzer::");
     assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AudioMetrics audioMetrics");
+    assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AcousticContext acousticContext");
     assertSourceDoesNotContain("src/AudioVisualBridge.cc", "audioAnalyzer");
     assertSourceDoesNotContain("src/AutoChanger.cc", "audioMetrics.");
     assertSourceDoesNotContain("src/display.cc", "audioMetrics.");

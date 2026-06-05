@@ -4,6 +4,7 @@
 #include "IndexedDisplayFrame.h"
 #include "IndexedFrame.h"
 #include "Screen.h"
+#include "VideoFilterchain.h"
 
 static void prepareDestination(IndexedDisplayFrame& destination, int width,
     int height, FramePalette* framePalette, PresentationFrameObserver* observer) {
@@ -43,13 +44,16 @@ static int screenAlreadyAttempted(ScreenEntry* const* attempted, int count,
 static int renderWithScreen(ScreenEntry& screen, const IndexedFrame& source,
     IndexedDisplayFrame& destination, double frameTimeSeconds,
     double deltaTimeSeconds, double framesPerSecond,
-    PresentationFrameObserver* observer) {
+    PresentationFrameObserver* observer, const VideoFrameContext* frameContext) {
     xy outputSize = screen.outputSize(source.width, source.height);
     prepareDestination(destination, outputSize.x, outputSize.y,
         source.framePalette, observer);
 
-    ScreenRenderContext context(source, destination, frameTimeSeconds,
-        deltaTimeSeconds, framesPerSecond);
+    ScreenRenderContext context = frameContext != 0
+        ? ScreenRenderContext(source, destination, frameTimeSeconds,
+              deltaTimeSeconds, framesPerSecond, *frameContext)
+        : ScreenRenderContext(source, destination, frameTimeSeconds,
+              deltaTimeSeconds, framesPerSecond);
     return screen.render(context);
 }
 
@@ -61,7 +65,7 @@ PresentationComposer::PresentationComposer()
 const IndexedDisplayFrame& PresentationComposer::compose(const IndexedFrame& source,
     IndexedDisplayFrame& destination, PresentationScreenSelection& selection,
     double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
-    PresentationFrameObserver* observer) {
+    PresentationFrameObserver* observer, const VideoFrameContext* frameContext) {
     renderedScreenValue = 0;
     ScreenEntry* requestedScreen = selection.current();
     if (!source.valid() || requestedScreen == 0) {
@@ -87,7 +91,7 @@ const IndexedDisplayFrame& PresentationComposer::compose(const IndexedFrame& sou
 
         attempted[attemptedCount++] = candidate;
         if (renderWithScreen(*candidate, source, destination, frameTimeSeconds,
-                deltaTimeSeconds, framesPerSecond, observer)
+                deltaTimeSeconds, framesPerSecond, observer, frameContext)
             == 0) {
             renderedScreenValue = candidate;
             lastSuccessfulScreenValue = candidate;

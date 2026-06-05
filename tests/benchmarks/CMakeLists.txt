@@ -21,7 +21,6 @@ add_executable(audio_pipeline_bench
 target_compile_definitions(audio_pipeline_bench PRIVATE
     CTH_AUDIO_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/audio"
     CTH_AUDIO_FRAME_NO_RUNTIME
-    CTH_AUDIO_FRAME_TEST_OVERRIDE
     CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
     CTH_LIBDIR="${CTH_DATA_DIR}"
 )

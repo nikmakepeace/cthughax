@@ -57,10 +57,6 @@ const char* AudioProcessingOption::text() const {
     return "test-processing";
 }
 
-int AudioProcessingOption::process() {
-    return 0;
-}
-
 class RecordingOption : public Option {
 public:
     int byCalls;

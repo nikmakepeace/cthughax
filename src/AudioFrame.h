@@ -1,8 +1,5 @@
 /** @file
- * Current audio-frame facade and per-frame audio metrics.
- *
- * This keeps legacy visual/audio consumers on a frame view while Application
- * owns the actual AudioIngest lifecycle.
+ * Per-frame audio samples and audio metrics.
  */
 
 #ifndef __AUDIO_FRAME_H
@@ -51,59 +48,5 @@ public:
     /** Resets sample positions, audio data, and metrics. */
     void clear();
 };
-
-/**
- * Publishes the current frame pointer for legacy readers.
- *
- * @param frame Frame owned elsewhere, or NULL to publish silence.
- */
-void audioFrameSetCurrent(AudioFrame* frame);
-
-/**
- * @return Current audio frame, or NULL when the runtime has not published one.
- */
-AudioFrame* audioFrameCurrent();
-
-/**
- * @return Current raw signed 8-bit stereo frame data, or silence when no frame
- *         is published.
- */
-char2* audioFrameRawData();
-
-/**
- * @return Current processed signed 8-bit stereo frame data, or silence when no
- *         frame is published.
- */
-char2* audioFrameProcessedWaveData();
-
-/**
- * Publishes metrics for the current audio frame.
- *
- * If an AudioFrame facade exists, this updates AudioFrame::metrics. Otherwise
- * the latest metrics are kept in a facade-owned fallback slot.
- *
- * @param metrics Metrics measured for this visual frame.
- */
-void audioFramePublishMetrics(const AudioMetrics& metrics);
-
-/**
- * @return Metrics for the current audio frame, or silent metrics when no audio
- *         frame or legacy metrics have been published.
- */
-const AudioMetrics& audioFrameMetrics();
-
-/**
- * @return Number of bytes in the current broadcast audio frame.
- */
-int audioFrameBroadcastBytes();
-
-#ifdef CTH_AUDIO_FRAME_TEST_OVERRIDE
-/**
- * Installs a test-only current-frame override.
- *
- * @param frame Frame pointer to publish during tests, or NULL to clear.
- */
-void audioFrameSetTestOverride(AudioFrame* frame);
-#endif
 
 #endif
