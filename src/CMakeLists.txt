@@ -20,6 +20,8 @@ set(CTHUGHA_COMMON_SOURCES
     RuntimeFactory.cc
     Scene.cc
     RuntimeCommand.cc
+    RuntimePersistence.cc
+    RuntimeShutdown.cc
     RuntimeChangeMediator.cc
     Screen.cc
     ScreenRenderContext.cc
@@ -36,6 +38,10 @@ set(CTHUGHA_COMMON_SOURCES
     imath.cc
     AudioSystem.cc
     Configuration.cc
+    StartupConfiguration.cc
+    RuntimeConfigRegistry.cc
+    RuntimeConfigSelection.cc
+    LegacyRuntimeConfigContributor.cc
     IniFiles.cc
     Interface.cc
     info_title_usage.cc

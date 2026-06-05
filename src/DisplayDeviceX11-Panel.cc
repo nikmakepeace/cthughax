@@ -10,6 +10,8 @@
 #include "Interface.h"
 #include "Image.h"
 #include "FramePalette.h"
+#include "RuntimeConfigRegistry.h"
+#include "RuntimeConfigSelection.h"
 #include "RuntimeCommandSink.h"
 #include "cth_buffer.h"
 #include "flames.h"
@@ -35,6 +37,7 @@
 #include <sys/shm.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -453,6 +456,49 @@ void DisplayDeviceX11::palettePreviewExpose(
     }
 }
 
+static const char* currentNameOrEmpty(EffectControl& control) {
+    const char* name = control.currentName();
+    return (name != NULL && strcmp(name, "unknown") != 0) ? name : "";
+}
+
+void DisplayDeviceX11::updatePanelSelectionLabels() {
+    if (panelMenuButtons[0] == NULL)
+        return;
+
+    Config config = runtimeConfigRegistry.currentConfig();
+    struct PanelSelection {
+        const char* name;
+        RuntimeConfigSelectionField field;
+        const char* fallback;
+    };
+
+    PanelSelection selections[8] = {
+        { "Display", RuntimeConfigSelectionDisplay, currentNameOrEmpty(::screen) },
+        { "Wave", RuntimeConfigSelectionWave, currentNameOrEmpty(wave) },
+        { "Flame", RuntimeConfigSelectionFlame, currentNameOrEmpty(flame) },
+        { "Translation", RuntimeConfigSelectionTranslation,
+            currentNameOrEmpty(translation) },
+        { "Palette", RuntimeConfigSelectionPalette, currentNameOrEmpty(palette) },
+        { "Table", RuntimeConfigSelectionTable, currentNameOrEmpty(table) },
+        { "Image", RuntimeConfigSelectionImage,
+            currentNameOrEmpty(sceneCommands.imageOption()) },
+        { "Objects", RuntimeConfigSelectionObject, currentNameOrEmpty(object) },
+    };
+
+    Arg wargs[1];
+    for (int i = 0; i < 8; i++) {
+        if (panelMenuButtons[i] == NULL)
+            continue;
+
+        std::string selected = runtimeConfigSelectionTextOrFallback(config,
+            selections[i].field, selections[i].fallback);
+        snprintf(panelMenuLabels[i], sizeof(panelMenuLabels[i]), "%s: %s",
+            selections[i].name, selected.c_str());
+        xawSetArg(wargs[0], XtNlabel, panelMenuLabels[i]);
+        XtSetValues(panelMenuButtons[i], wargs, 1);
+    }
+}
+
 Widget DisplayDeviceX11::add_menu(
     const char* name, EffectControl* what, Widget parent, Widget under, Widget right) {
     Arg wargs[3];
@@ -511,7 +557,6 @@ void DisplayDeviceX11::xcth_create_panel() {
     Widget quit_button, change_button;
     Widget name_label, set_label, energy_label;
     Widget save_metadata_button, revert_metadata_button, next_untagged_button;
-    Widget menu[8];
     Arg wargs[8];
 
     /* create the panel formWidget */
@@ -529,21 +574,29 @@ void DisplayDeviceX11::xcth_create_panel() {
     XtAddCallback(change_button, XtNcallback, key_button, (char*)" ");
 
     /* create the menus */
-    menu[0] = add_menu("Display", &::screen, panel, quit_button, NULL);
-    menu[1] = add_menu("Wave", &wave, panel, quit_button, menu[0]);
-    menu[2] = add_menu("Flame", &flame, panel, quit_button, menu[1]);
-    menu[3] = add_menu("Translation", &translation, panel, quit_button, menu[2]);
-    menu[4] = add_menu("Palette", &palette, panel, quit_button, menu[3]);
-    menu[5] = add_menu("Table", &table, panel, quit_button, menu[4]);
-    menu[6] = add_menu("Image", &sceneCommands.imageOption(), panel, quit_button, menu[5]);
-    menu[7] = add_menu("Objects", &object, panel, quit_button, menu[6]);
+    panelMenuButtons[0] = add_menu("Display", &::screen, panel, quit_button, NULL);
+    panelMenuButtons[1] = add_menu("Wave", &wave, panel, quit_button,
+        panelMenuButtons[0]);
+    panelMenuButtons[2] = add_menu("Flame", &flame, panel, quit_button,
+        panelMenuButtons[1]);
+    panelMenuButtons[3] = add_menu("Translation", &translation, panel,
+        quit_button, panelMenuButtons[2]);
+    panelMenuButtons[4] = add_menu("Palette", &palette, panel, quit_button,
+        panelMenuButtons[3]);
+    panelMenuButtons[5] = add_menu("Table", &table, panel, quit_button,
+        panelMenuButtons[4]);
+    panelMenuButtons[6] = add_menu("Image", &sceneCommands.imageOption(), panel,
+        quit_button, panelMenuButtons[5]);
+    panelMenuButtons[7] = add_menu("Objects", &object, panel, quit_button,
+        panelMenuButtons[6]);
+    updatePanelSelectionLabels();
 
     // create the panelText Widget
     text_size.x = 80;
     text_size.y = 40 / fontSize.y;
     if (text_size.y < 1)
         text_size.y = 1;
-    xawSetArg(wargs[0], XtNfromVert, menu[0]);
+    xawSetArg(wargs[0], XtNfromVert, panelMenuButtons[0]);
     xawSetArg(wargs[1], XtNwidth, fontSize.x * text_size.x);
     xawSetArg(wargs[2], XtNheight, 40);
     panelTextWidget = XtCreateManagedWidget("panelText", labelWidgetClass, panel, wargs, 3);

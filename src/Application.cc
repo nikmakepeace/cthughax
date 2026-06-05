@@ -1,4 +1,6 @@
-// Application lifecycle, shutdown handling, and one-frame runtime dispatcher.
+/** @file
+ * Application lifecycle, shutdown handling, and one-frame runtime dispatcher.
+ */
 
 #include "Application.h"
 
@@ -26,7 +28,10 @@
 #include "Interface.h"
 #include "IniFiles.h"
 #include "Option.h"
+#include "RuntimeConfigRegistry.h"
 #include "RuntimeChangeMediator.h"
+#include "RuntimePersistence.h"
+#include "RuntimeShutdown.h"
 #include "Scene.h"
 #include "VideoDirector.h"
 #include "VideoFilterchain.h"
@@ -129,7 +134,17 @@ void Application::initSceneRuntime() {
     videoDirector().bindScene(*sceneValue);
     sceneCommandsValue.reset(new SceneCommands(*sceneValue, CthughaBuffer::buffer,
         videoDirector().imageOption()));
-    runtimeChangeMediatorValue.reset(new RuntimeChangeMediator(*sceneCommandsValue));
+    runtimeConfigRegistryValue.reset(new RuntimeConfigRegistry(startupConfigValue));
+    runtimeConfigContributorValue.reset(
+        new LegacyRuntimeConfigContributor(*sceneCommandsValue));
+    runtimeConfigRegistryValue->addContributor(*runtimeConfigContributorValue);
+    runtimePersistenceValue.reset(
+        new IniRuntimePersistence(*runtimeConfigRegistryValue));
+    runtimeShutdownValue.reset(new CthughaRuntimeShutdown());
+    Interface::setRuntimeConfigRegistry(runtimeConfigRegistryValue.get());
+    runtimeChangeMediatorValue.reset(new RuntimeChangeMediator(
+        *sceneCommandsValue, *runtimePersistenceValue,
+        *runtimeShutdownValue));
     Keymap::setRuntimeCommandSink(runtimeChangeMediatorValue.get());
     bindSceneCommandsForLegacyCallbacks(sceneCommandsValue.get());
 }
@@ -138,7 +153,12 @@ void Application::shutdownSceneRuntime() {
     Keymap::setRuntimeCommandSink(NULL);
     bindSceneCommandsForLegacyCallbacks(NULL);
     videoDirector().unbindScene();
+    Interface::setRuntimeConfigRegistry(NULL);
     runtimeChangeMediatorValue.reset();
+    runtimePersistenceValue.reset();
+    runtimeShutdownValue.reset();
+    runtimeConfigRegistryValue.reset();
+    runtimeConfigContributorValue.reset();
     sceneCommandsValue.reset();
     sceneValue.reset();
 }
@@ -215,8 +235,9 @@ void Application::shutdown() {
 
     shutdownComplete = 1;
 
-    if (startupInitialized && startupConfigValue.app.optionsSaveEnabled)
-        write_ini(startupConfigValue);
+    if (startupInitialized && startupConfigValue.app.optionsSaveEnabled
+        && runtimePersistenceValue.get() != NULL)
+        runtimePersistenceValue->writeCurrentConfig();
 
     shutdownAudioVisualBridge();
     displayValue.reset();
@@ -261,7 +282,6 @@ int Application::initialize() {
         return 0;
     }
 
-    configure_ini_persistence(startupConfigValue);
     configureKeys(startupConfigValue.input);
     configureAudioOptions(startupConfigValue.audio);
     configureCthughaDisplay(startupConfigValue.display);
@@ -325,6 +345,7 @@ int Application::initialize() {
         return 0;
     displayRuntimeOwnership = newDisplayDevice(scene(), sceneCommands(),
         *runtimeChangeMediatorValue,
+        *runtimeConfigRegistryValue,
         startupConfigValue.display);
     if (displayRuntimeOwnership.get() == NULL)
         return 0;

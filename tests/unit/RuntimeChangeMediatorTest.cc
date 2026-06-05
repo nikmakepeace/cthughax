@@ -4,15 +4,14 @@
 #include "CthughaDisplay.h"
 #include "EffectControl.h"
 #include "EffectControlPolicy.h"
-#include "IniFiles.h"
 #include "RuntimeChangeMediator.h"
+#include "RuntimePersistence.h"
+#include "RuntimeShutdown.h"
 #include "Scene.h"
 #include "Screen.h"
 
 #include <assert.h>
 #include <string.h>
-
-int cthugha_close = 0;
 
 int cth_log_enabled(int) {
     return 0;
@@ -33,25 +32,6 @@ int cth_log_error(const char*, ...) {
 int cth_log_errno(int, const char*, ...) {
     return 0;
 }
-
-SceneConfig::SceneConfig()
-    : flame()
-    , generalFlame()
-    , wave()
-    , waveScale()
-    , object()
-    , translation()
-    , palette()
-    , border()
-    , flashlight()
-    , table()
-    , image()
-    , presentation()
-    , audioProcessing() { }
-
-ContinuationIniConfig::ContinuationIniConfig()
-    : scene()
-    , showFpsEnabled(0) { }
 
 void effectControlPolicyObserve(EffectControl&) { }
 void configureEffectPolicy(const EffectPolicy&) { }
@@ -89,21 +69,6 @@ EffectControl screen(-1, "display", screenEntries);
 static int audioFrameChanged = 0;
 void audioFrameChange() {
     audioFrameChanged++;
-}
-
-static int iniWrites = 0;
-int write_ini() {
-    iniWrites++;
-    return 0;
-}
-
-static int continuationWrites = 0;
-static int continuationWriteResult = 0;
-static ContinuationIniConfig lastContinuationConfig;
-int write_continuation_ini(const ContinuationIniConfig& config) {
-    continuationWrites++;
-    lastContinuationConfig = config;
-    return continuationWriteResult;
 }
 
 struct SceneCommandRecord {
@@ -196,56 +161,116 @@ public:
     }
 };
 
+class RecordingRuntimePersistence : public RuntimePersistence {
+public:
+    int currentWrites;
+    int currentResult;
+    int continuationWrites;
+    int continuationResult;
+    RuntimeContinuationState lastContinuation;
+
+    RecordingRuntimePersistence()
+        : currentWrites(0)
+        , currentResult(0)
+        , continuationWrites(0)
+        , continuationResult(0)
+        , lastContinuation() { }
+
+    virtual int writeCurrentConfig() {
+        currentWrites++;
+        return currentResult;
+    }
+
+    virtual int writeContinuation(
+        const RuntimeContinuationState& continuation) {
+        continuationWrites++;
+        lastContinuation = continuation;
+        return continuationResult;
+    }
+};
+
+class RecordingRuntimeShutdown : public RuntimeShutdown {
+public:
+    int closeRequests;
+
+    RecordingRuntimeShutdown()
+        : closeRequests(0) { }
+
+    virtual void requestClose() {
+        closeRequests++;
+    }
+};
+
+class MediatorHarness {
+public:
+    RecordingRuntimePersistence persistence;
+    RecordingRuntimeShutdown shutdown;
+    RuntimeChangeMediator mediator;
+
+    MediatorHarness()
+        : persistence()
+        , shutdown()
+        , mediator(fakeSceneCommands(), persistence, shutdown) { }
+};
+
 static void testRoutesSceneCommandsThroughSceneCommands() {
-    RuntimeChangeMediator mediator(fakeSceneCommands());
+    MediatorHarness harness;
 
     RuntimeChangeSet waveChange
-        = mediator.apply(RuntimeCommand::changeSceneBy(RuntimeSceneWave, 3));
+        = harness.mediator.apply(RuntimeCommand::changeSceneBy(RuntimeSceneWave, 3));
     assert(waveChange.sceneChanges == 1);
     assert(strcmp(sceneRecord.name, "wave-by") == 0);
     assert(sceneRecord.value == 3);
 
-    RuntimeChangeSet changeAll = mediator.apply(RuntimeCommand::changeAll());
+    RuntimeChangeSet changeAll = harness.mediator.apply(RuntimeCommand::changeAll());
     assert(changeAll.sceneChanges == 1);
     assert(strcmp(sceneRecord.name, "change-all") == 0);
 
-    RuntimeChangeSet restorePreset = mediator.apply(RuntimeCommand::restorePreset(4));
+    RuntimeChangeSet restorePreset
+        = harness.mediator.apply(RuntimeCommand::restorePreset(4));
     assert(restorePreset.sceneChanges == 1);
     assert(strcmp(sceneRecord.name, "restore-preset") == 0);
     assert(sceneRecord.value == 4);
 }
 
 static void testReportsNonSceneRuntimeChanges() {
-    RuntimeChangeMediator mediator(fakeSceneCommands());
+    MediatorHarness harness;
 
-    cthugha_close = 0;
-    RuntimeChangeSet close = mediator.apply(RuntimeCommand::requestClose());
+    RuntimeChangeSet close = harness.mediator.apply(RuntimeCommand::requestClose());
     assert(close.closeRequested == 1);
-    assert(cthugha_close == 1);
+    assert(harness.shutdown.closeRequests == 1);
 
-    RuntimeChangeSet sound = mediator.apply(RuntimeCommand::changeSoundProcessingBy(2));
+    RuntimeChangeSet sound
+        = harness.mediator.apply(RuntimeCommand::changeSoundProcessingBy(2));
     assert(sound.audioProcessingChanged == 1);
     assert(audioProcessingBy == 2);
 
-    RuntimeChangeSet reset = mediator.apply(RuntimeCommand::resetAudioFrame());
+    RuntimeChangeSet reset
+        = harness.mediator.apply(RuntimeCommand::resetAudioFrame());
     assert(reset.audioResetRequested == 1);
     assert(audioFrameChanged == 1);
 
-    RuntimeChangeSet persist = mediator.apply(RuntimeCommand::writeIni());
+    RuntimeChangeSet persist = harness.mediator.apply(RuntimeCommand::writeIni());
     assert(persist.persistenceRequested == 1);
-    assert(iniWrites == 1);
+    assert(harness.persistence.currentWrites == 1);
 
-    RuntimeChangeSet fps = mediator.apply(RuntimeCommand::toggleShowFps());
+    RuntimeChangeSet fps = harness.mediator.apply(RuntimeCommand::toggleShowFps());
     assert(fps.fpsChanged == 1);
     assert(int(showFPS) == 1);
 }
 
-static void testStopAndContinuePersistsSnapshotBeforeClosing() {
-    RuntimeChangeMediator mediator(fakeSceneCommands());
+static void testWriteIniDelegatesToPersistence() {
+    MediatorHarness harness;
+    RuntimeChangeSet persist = harness.mediator.apply(RuntimeCommand::writeIni());
 
-    cthugha_close = 0;
-    continuationWrites = 0;
-    continuationWriteResult = 0;
+    assert(persist.persistenceRequested == 1);
+    assert(harness.persistence.currentWrites == 1);
+    assert(harness.persistence.continuationWrites == 0);
+    assert(harness.shutdown.closeRequests == 0);
+}
+
+static void testStopAndContinuePersistsSnapshotBeforeClosing() {
+    MediatorHarness harness;
 
     RuntimeContinuationState continuation;
     continuation.flame = "saved-flame";
@@ -264,47 +289,47 @@ static void testStopAndContinuePersistsSnapshotBeforeClosing() {
     continuation.showFpsEnabled = 1;
 
     RuntimeChangeSet changes
-        = mediator.apply(RuntimeCommand::stopAndContinue(continuation));
+        = harness.mediator.apply(RuntimeCommand::stopAndContinue(continuation));
     assert(changes.persistenceRequested == 1);
     assert(changes.closeRequested == 1);
-    assert(continuationWrites == 1);
-    assert(cthugha_close == 1);
-    assert(lastContinuationConfig.scene.flame == "saved-flame");
-    assert(lastContinuationConfig.scene.generalFlame == "saved-general");
-    assert(lastContinuationConfig.scene.wave == "saved-wave");
-    assert(lastContinuationConfig.scene.waveScale == "saved-scale");
-    assert(lastContinuationConfig.scene.object == "saved-object");
-    assert(lastContinuationConfig.scene.translation == "saved-translation");
-    assert(lastContinuationConfig.scene.palette == "saved-palette");
-    assert(lastContinuationConfig.scene.border == "saved-border");
-    assert(lastContinuationConfig.scene.flashlight == "saved-flashlight");
-    assert(lastContinuationConfig.scene.table == "saved-table");
-    assert(lastContinuationConfig.scene.image == "saved-image");
-    assert(lastContinuationConfig.scene.presentation == "saved-screen");
-    assert(lastContinuationConfig.scene.audioProcessing == "saved-audio");
-    assert(lastContinuationConfig.showFpsEnabled == 1);
+    assert(harness.persistence.continuationWrites == 1);
+    assert(harness.shutdown.closeRequests == 1);
+    assert(harness.persistence.lastContinuation.flame == "saved-flame");
+    assert(harness.persistence.lastContinuation.generalFlame == "saved-general");
+    assert(harness.persistence.lastContinuation.wave == "saved-wave");
+    assert(harness.persistence.lastContinuation.waveScale == "saved-scale");
+    assert(harness.persistence.lastContinuation.object == "saved-object");
+    assert(harness.persistence.lastContinuation.translation == "saved-translation");
+    assert(harness.persistence.lastContinuation.palette == "saved-palette");
+    assert(harness.persistence.lastContinuation.border == "saved-border");
+    assert(harness.persistence.lastContinuation.flashlight == "saved-flashlight");
+    assert(harness.persistence.lastContinuation.table == "saved-table");
+    assert(harness.persistence.lastContinuation.image == "saved-image");
+    assert(harness.persistence.lastContinuation.presentation == "saved-screen");
+    assert(harness.persistence.lastContinuation.audioProcessing == "saved-audio");
+    assert(harness.persistence.lastContinuation.showFpsEnabled == 1);
 
-    continuationWriteResult = 1;
-    changes = mediator.apply(RuntimeCommand::stopAndContinue(continuation));
+    harness.persistence.continuationResult = 1;
+    changes = harness.mediator.apply(RuntimeCommand::stopAndContinue(continuation));
     assert(changes.persistenceRequested == 1);
     assert(changes.closeRequested == 0);
-    assert(continuationWrites == 2);
-    assert(cthugha_close == 1);
+    assert(harness.persistence.continuationWrites == 2);
+    assert(harness.shutdown.closeRequests == 1);
 }
 
 static void testRoutesPaletteMetadataCommandsThroughTarget() {
-    RuntimeChangeMediator mediator(fakeSceneCommands());
+    MediatorHarness harness;
     RecordingPaletteMetadataTarget target;
 
     RuntimeChangeSet save
-        = mediator.apply(RuntimeCommand::savePaletteMetadata(target));
+        = harness.mediator.apply(RuntimeCommand::savePaletteMetadata(target));
     assert(target.saves == 1);
     assert(target.reverts == 0);
     assert(save.persistenceRequested == 1);
     assert(save.uiChanged == 1);
 
     RuntimeChangeSet revert
-        = mediator.apply(RuntimeCommand::revertPaletteMetadata(target));
+        = harness.mediator.apply(RuntimeCommand::revertPaletteMetadata(target));
     assert(target.saves == 1);
     assert(target.reverts == 1);
     assert(revert.persistenceRequested == 0);
@@ -312,7 +337,7 @@ static void testRoutesPaletteMetadataCommandsThroughTarget() {
 }
 
 static void testGenericEffectControlCommandsRespectSceneBoundary() {
-    RuntimeChangeMediator mediator(fakeSceneCommands());
+    MediatorHarness harness;
 
     EffectChoice first("alpha", "");
     EffectChoice second("beta", "");
@@ -322,7 +347,7 @@ static void testGenericEffectControlCommandsRespectSceneBoundary() {
 
     currentSceneOption = &effect;
     RuntimeChangeSet sceneChange
-        = mediator.apply(RuntimeCommand::changeEffectControlBy(effect, 5));
+        = harness.mediator.apply(RuntimeCommand::changeEffectControlBy(effect, 5));
     assert(sceneChange.sceneChanges == 1);
     assert(strcmp(sceneRecord.name, "change-by") == 0);
     assert(sceneRecord.option == &effect);
@@ -331,7 +356,7 @@ static void testGenericEffectControlCommandsRespectSceneBoundary() {
     currentSceneOption = 0;
     effect.change("alpha", 0);
     RuntimeChangeSet localChange
-        = mediator.apply(RuntimeCommand::changeEffectControlBy(effect, 1));
+        = harness.mediator.apply(RuntimeCommand::changeEffectControlBy(effect, 1));
     assert(localChange.sceneChanges == 0);
     assert(strcmp(effect.currentName(), "beta") == 0);
 }
@@ -339,6 +364,7 @@ static void testGenericEffectControlCommandsRespectSceneBoundary() {
 int main() {
     testRoutesSceneCommandsThroughSceneCommands();
     testReportsNonSceneRuntimeChanges();
+    testWriteIniDelegatesToPersistence();
     testStopAndContinuePersistsSnapshotBeforeClosing();
     testRoutesPaletteMetadataCommandsThroughTarget();
     testGenericEffectControlCommandsRespectSceneBoundary();

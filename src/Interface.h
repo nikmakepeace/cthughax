@@ -7,6 +7,8 @@
 #include "EffectControl.h"
 #include "keymap.h"
 
+class RuntimeConfigRegistry;
+
 class InterfaceElement {
 protected:
     const char* str;
@@ -21,6 +23,8 @@ public:
 };
 
 class Interface {
+    static RuntimeConfigRegistry* runtimeConfigRegistryValue;
+
 public:
     static int saveToPreset;
     static int showStatus;
@@ -44,6 +48,21 @@ public:
     virtual ~Interface();
 
     void setElements(InterfaceElement** el, int nEl);
+
+    /**
+     * Installs the registry used for displaying current runtime selections.
+     *
+     * @param registry Registry to read; NULL restores direct option fallbacks.
+     */
+    static void setRuntimeConfigRegistry(RuntimeConfigRegistry* registry);
+
+    /**
+     * Returns the registry used for displaying current runtime selections.
+     *
+     * @return Installed registry, or NULL when not yet available.
+     */
+    static const RuntimeConfigRegistry* runtimeConfigRegistry();
+
     static void set(const char* n);
 
     virtual void preRun() { }

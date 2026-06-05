@@ -10,6 +10,8 @@
 #include "AudioProcessor.h"
 #include "Border.h"
 #include "Flashlight.h"
+#include "RuntimeConfigRegistry.h"
+#include "RuntimeConfigSelection.h"
 #include "RuntimeCommandSink.h"
 #include "Scene.h"
 #include "VideoDirector.h"
@@ -19,6 +21,7 @@
 
 #include <ctype.h>
 #include <signal.h>
+#include <string>
 
 int Interface::saveToPreset = 0;
 int Interface::showStatus = 0;
@@ -26,6 +29,8 @@ int Interface::showStatus = 0;
 Interface* Interface::current = NULL;
 
 Interface* Interface::head = NULL;
+
+RuntimeConfigRegistry* Interface::runtimeConfigRegistryValue = NULL;
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -61,6 +66,14 @@ Interface::~Interface() { }
 void Interface::setElements(InterfaceElement** el, int nEl) {
     elements = el;
     nElements = nEl;
+}
+
+void Interface::setRuntimeConfigRegistry(RuntimeConfigRegistry* registry) {
+    runtimeConfigRegistryValue = registry;
+}
+
+const RuntimeConfigRegistry* Interface::runtimeConfigRegistry() {
+    return runtimeConfigRegistryValue;
 }
 
 void Interface::set(const char* n) {
@@ -327,58 +340,29 @@ ACTION(lockElement) {
         sink->apply(RuntimeCommand::toggleEffectControlLock(*currentEffectControl));
 }
 
-enum SceneOptionText {
-    SceneOptionFlame,
-    SceneOptionGeneralFlame,
-    SceneOptionBorder,
-    SceneOptionTranslate,
-    SceneOptionWave,
-    SceneOptionTable,
-    SceneOptionWaveScale,
-    SceneOptionPalette,
-    SceneOptionObject,
-    SceneOptionFlashlight
-};
-
-static const char* sceneOptionText(SceneOptionText field, EffectControl* fallback) {
-    SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
-    if (sceneCommands == NULL)
-        return fallback->text();
-
-    const SceneSettings& settings = sceneCommands->sceneState().settings();
-    switch (field) {
-    case SceneOptionFlame:
-        return settings.flameName;
-    case SceneOptionGeneralFlame:
-        return settings.generalFlameName;
-    case SceneOptionBorder:
-        return settings.borderName;
-    case SceneOptionTranslate:
-        return settings.translationName;
-    case SceneOptionWave:
-        return settings.waveName;
-    case SceneOptionTable:
-        return settings.tableName;
-    case SceneOptionWaveScale:
-        return settings.waveScaleName;
-    case SceneOptionPalette:
-        return settings.paletteName;
-    case SceneOptionObject:
-        return settings.objectName;
-    case SceneOptionFlashlight:
-        return settings.flashlightName;
+static const char* runtimeConfigSelectionTextForInterface(
+    RuntimeConfigSelectionField field, Option* fallback) {
+    static std::string text;
+    const RuntimeConfigRegistry* registry = Interface::runtimeConfigRegistry();
+    if (registry == NULL) {
+        text = fallback != NULL ? fallback->text() : "";
+        return text.c_str();
     }
 
-    return fallback->text();
+    Config config = registry->currentConfig();
+    text = runtimeConfigSelectionTextOrFallback(config, field,
+        fallback != NULL ? fallback->text() : "");
+    return text.c_str();
 }
 
-class InterfaceElementSceneEffectControl : public InterfaceElementEffectControl {
-    SceneOptionText sceneText;
+class InterfaceElementRuntimeConfigOption : public InterfaceElementOption {
+    RuntimeConfigSelectionField field;
 
 public:
-    InterfaceElementSceneEffectControl(const char* t, EffectControl* o, SceneOptionText sceneText_)
-        : InterfaceElementEffectControl(t, o)
-        , sceneText(sceneText_) { }
+    InterfaceElementRuntimeConfigOption(const char* t, Option* o,
+        RuntimeConfigSelectionField field_)
+        : InterfaceElementOption(t, o)
+        , field(field_) { }
 
     virtual const char* text(int selected) {
         static char strRet[512];
@@ -386,8 +370,34 @@ public:
         char in[512];
 
         snprintf(fmt, sizeof(fmt), "%%c%%-%ds%%c", min(text_size.x - 3, 77));
-        snprintf(in, sizeof(in), str, sceneOptionText(sceneText, effectControl));
+        snprintf(in, sizeof(in), str,
+            runtimeConfigSelectionTextForInterface(field, opt));
         snprintf(strRet, sizeof(strRet), fmt, selected ? '>' : ' ', in, selected ? '<' : ' ');
+
+        return strRet;
+    }
+};
+
+class InterfaceElementRuntimeConfigEffectControl
+    : public InterfaceElementEffectControl {
+    RuntimeConfigSelectionField field;
+
+public:
+    InterfaceElementRuntimeConfigEffectControl(const char* t, EffectControl* o,
+        RuntimeConfigSelectionField field_)
+        : InterfaceElementEffectControl(t, o)
+        , field(field_) { }
+
+    virtual const char* text(int selected) {
+        static char strRet[512];
+        char fmt[512];
+        char in[512];
+
+        snprintf(fmt, sizeof(fmt), "%%c%%-%ds%%c", min(text_size.x - 3, 77));
+        snprintf(in, sizeof(in), str,
+            runtimeConfigSelectionTextForInterface(field, effectControl));
+        snprintf(strRet, sizeof(strRet), fmt, selected ? '>' : ' ', in,
+            selected ? '<' : ' ');
 
         return strRet;
     }
@@ -457,36 +467,52 @@ public:
         elements = new InterfaceElement*[nElements];
 
         {
-            elements[0] = new InterfaceElementEffectControl("Display (d,D)         : %s", &screen);
-            elements[1] = new InterfaceElementSceneEffectControl("Flame (f,F)           : %s",
-                &flame, SceneOptionFlame);
+            elements[0] = new InterfaceElementRuntimeConfigEffectControl(
+                "Display (d,D)         : %s", &screen,
+                RuntimeConfigSelectionDisplay);
+            elements[1] = new InterfaceElementRuntimeConfigEffectControl(
+                "Flame (f,F)           : %s", &flame,
+                RuntimeConfigSelectionFlame);
             elements[2]
-                = new InterfaceElementSceneEffectControl("General Flame (g)     : %s",
-                    &flameGeneral, SceneOptionGeneralFlame);
-            elements[3] = new InterfaceElementSceneEffectControl("Border (=)            : %s",
-                &border, SceneOptionBorder);
+                = new InterfaceElementRuntimeConfigEffectControl(
+                    "General Flame (g)     : %s", &flameGeneral,
+                    RuntimeConfigSelectionGeneralFlame);
+            elements[3] = new InterfaceElementRuntimeConfigEffectControl(
+                "Border (=)            : %s", &border,
+                RuntimeConfigSelectionBorder);
             elements[4]
-                = new InterfaceElementSceneEffectControl("Translate (t,T)       : %s",
-                    &translation, SceneOptionTranslate);
-            elements[5] = new InterfaceElementSceneEffectControl("Wave (w)              : %s",
-                &wave, SceneOptionWave);
+                = new InterfaceElementRuntimeConfigEffectControl(
+                    "Translate (t,T)       : %s", &translation,
+                    RuntimeConfigSelectionTranslation);
+            elements[5] = new InterfaceElementRuntimeConfigEffectControl(
+                "Wave (w)              : %s", &wave,
+                RuntimeConfigSelectionWave);
             elements[6]
-                = new InterfaceElementOption("Sound Processing (m,M): %s", &audioProcessing);
-            elements[7] = new InterfaceElementSceneEffectControl("Table (b,B)           : %s",
-                &table, SceneOptionTable);
-            elements[8] = new InterfaceElementSceneEffectControl("WaveScale (W)         : %s",
-                &waveScale, SceneOptionWaveScale);
+                = new InterfaceElementRuntimeConfigOption(
+                    "Sound Processing (m,M): %s", &audioProcessing,
+                    RuntimeConfigSelectionAudioProcessing);
+            elements[7] = new InterfaceElementRuntimeConfigEffectControl(
+                "Table (b,B)           : %s", &table,
+                RuntimeConfigSelectionTable);
+            elements[8] = new InterfaceElementRuntimeConfigEffectControl(
+                "WaveScale (W)         : %s", &waveScale,
+                RuntimeConfigSelectionWaveScale);
             elements[9]
-                = new InterfaceElementSceneEffectControl("Palette (p,P)         : %s",
-                    &palette, SceneOptionPalette);
+                = new InterfaceElementRuntimeConfigEffectControl(
+                    "Palette (p,P)         : %s", &palette,
+                    RuntimeConfigSelectionPalette);
             elements[10]
-                = new InterfaceElementEffectControl("Image (x,X))          : %s",
-                    &videoDirector().imageOption());
-            elements[11] = new InterfaceElementSceneEffectControl("3D-Object (j,J)       : %s",
-                &object, SceneOptionObject);
+                = new InterfaceElementRuntimeConfigEffectControl(
+                    "Image (x,X))          : %s",
+                    &videoDirector().imageOption(),
+                    RuntimeConfigSelectionImage);
+            elements[11] = new InterfaceElementRuntimeConfigEffectControl(
+                "3D-Object (j,J)       : %s", &object,
+                RuntimeConfigSelectionObject);
             elements[12]
-                = new InterfaceElementSceneEffectControl("Flashlight (s)        : %s",
-                    &flashlight, SceneOptionFlashlight);
+                = new InterfaceElementRuntimeConfigEffectControl(
+                    "Flashlight (s)        : %s", &flashlight,
+                    RuntimeConfigSelectionFlashlight);
         }
     }
 

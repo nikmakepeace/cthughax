@@ -1,4 +1,6 @@
-// Application lifecycle and shared graphical frame scheduler.
+/** @file
+ * Application lifecycle and shared graphical frame scheduler.
+ */
 
 #ifndef __APPLICATION_H
 #define __APPLICATION_H
@@ -14,7 +16,11 @@ class AudioVisualBridge;
 class CthughaDisplay;
 class DisplayRuntimeOwnership;
 class IndexedFrame;
+class LegacyRuntimeConfigContributor;
 class RuntimeChangeMediator;
+class RuntimeConfigRegistry;
+class RuntimePersistence;
+class RuntimeShutdown;
 class Scene;
 class SceneCommands;
 class VideoFilterchain;
@@ -39,6 +45,10 @@ class Application {
     std::unique_ptr<AudioVisualBridge> audioVisualBridge;
     std::unique_ptr<Scene> sceneValue;
     std::unique_ptr<SceneCommands> sceneCommandsValue;
+    std::unique_ptr<RuntimeConfigRegistry> runtimeConfigRegistryValue;
+    std::unique_ptr<LegacyRuntimeConfigContributor> runtimeConfigContributorValue;
+    std::unique_ptr<RuntimePersistence> runtimePersistenceValue;
+    std::unique_ptr<RuntimeShutdown> runtimeShutdownValue;
     std::unique_ptr<RuntimeChangeMediator> runtimeChangeMediatorValue;
     std::unique_ptr<DisplayRuntimeOwnership> displayRuntimeOwnership;
     std::unique_ptr<CthughaDisplay> displayValue;
@@ -90,6 +100,8 @@ public:
      * @param argv Argument vector from main(); borrowed for process lifetime.
      */
     Application(int argc, char* argv[]);
+
+    /** Releases owned runtime objects through shutdown(). */
     ~Application();
 
     /**

@@ -9,6 +9,7 @@
 #include "FramePalette.h"
 #include "Scene.h"
 #include "RuntimeCommandSink.h"
+#include "RuntimeConfigRegistry.h"
 #include "cthugha.h"
 #include "display.h"
 #include "disp-sys.h"
@@ -439,11 +440,13 @@ void DisplayDeviceX11::freeFont() {
 }
 
 DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
-    RuntimeCommandSink& runtimeCommands_, const DisplayConfig& config)
+    RuntimeCommandSink& runtimeCommands_,
+    RuntimeConfigRegistry& runtimeConfigRegistry_, const DisplayConfig& config)
     : DisplayDevice()
     , scene(scene_)
     , sceneCommands(sceneCommands_)
     , runtimeCommands(runtimeCommands_)
+    , runtimeConfigRegistry(runtimeConfigRegistry_)
     ,
 
     visual(NULL)
@@ -459,6 +462,7 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
     ,
 
     panelTextWidget(NULL)
+    , panelMenuButtons()
     , palettePreviewWidget(NULL)
     , paletteNameTextWidget(NULL)
     , paletteSetTextWidget(NULL)
@@ -469,6 +473,7 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
     , palettePreviewPalette(-1)
     , palettePreviewWidth(0)
     , palettePreviewHeight(0)
+    , panelMenuLabels()
     , shmAttached(0)
     , shmMarkedForRemoval(0)
     , pixmap(None)
@@ -968,6 +973,8 @@ void DisplayDeviceX11::postDraw() {
         stepStart = getTime();
     if (palettePreviewWidget)
         updatePalettePreview();
+    if (panelTextWidget)
+        updatePanelSelectionLabels();
     if (traceDisplayTiming)
         previewMs = (getTime() - stepStart) * 1000.0;
 
@@ -1374,9 +1381,10 @@ void DisplayDeviceX11::setPalette(const Palette pal) {
 
 std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
     Scene& scene, SceneCommands& sceneCommands, RuntimeCommandSink& runtimeCommands,
-    const DisplayConfig& config) {
+    RuntimeConfigRegistry& runtimeConfigRegistry, const DisplayConfig& config) {
     std::unique_ptr<DisplayDeviceX11> device(
-        new DisplayDeviceX11(scene, sceneCommands, runtimeCommands, config));
+        new DisplayDeviceX11(scene, sceneCommands, runtimeCommands,
+            runtimeConfigRegistry, config));
     if (!device->isInitialized()) {
         return std::unique_ptr<DisplayRuntimeOwnership>();
     }

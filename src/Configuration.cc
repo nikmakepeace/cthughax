@@ -1,4 +1,6 @@
-// Explicit startup configuration acquisition and typed config slices.
+/** @file
+ * Typed configuration model, acquisition sources, diagnostics, and builder.
+ */
 
 #include "Configuration.h"
 
@@ -776,6 +778,9 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     } else if (key == "font") {
         patch.set(KEY_X11_FONT_NAME, cleanedValue, source);
 #endif
+    } else if (key.find('?') != std::string::npos) {
+        diagnostics.warning(source, key,
+            "wildcard ini entries are no longer supported; entry ignored");
     } else {
         appendEffectPolicyIniOption(patch, diagnostics, source, key,
             cleanedValue);
@@ -1855,24 +1860,6 @@ static int clampIntWithWarning(int value, int minimum, int maximum,
     return value;
 }
 
-static std::string joinedPath(const std::string& directory,
-    const std::string& fileName) {
-    if (directory.empty())
-        return fileName;
-    if (directory[directory.size() - 1] == '/')
-        return directory + fileName;
-    return directory + "/" + fileName;
-}
-
-static void addHomeFile(std::vector<std::string>& files,
-    const std::string& fileName) {
-    const char* home = std::getenv("HOME");
-    if (home == NULL || home[0] == '\0')
-        return;
-
-    files.push_back(joinedPath(home, fileName));
-}
-
 static std::map<std::string, std::string> processEnvironment(
     const std::vector<std::string>& names) {
     std::map<std::string, std::string> values;
@@ -1885,71 +1872,6 @@ static std::map<std::string, std::string> processEnvironment(
     }
 
     return values;
-}
-
-static std::vector<std::string> startupIniFiles(const ConfigPatch& commandLinePatch,
-    std::string* continuationFile) {
-    std::vector<std::string> files;
-    const std::string* overridePath = commandLinePatch.value(KEY_PATH_INI_OVERRIDE);
-    const std::string* extraPath = commandLinePatch.value(KEY_PATH_EXTRA_LIBRARY);
-
-    if (overridePath != NULL && !overridePath->empty()) {
-        files.push_back(*overridePath);
-    } else {
-        std::string libDir = CTH_LIBDIR;
-        if (!libDir.empty())
-            files.push_back(joinedPath(libDir, "cthugha.ini"));
-
-        addHomeFile(files, ".cthugha.auto");
-        addHomeFile(files, ".cthugha.ini");
-        files.push_back("./cthugha.ini");
-
-        if (extraPath != NULL && !extraPath->empty())
-            files.push_back(joinedPath(*extraPath, "cthugha.ini"));
-    }
-
-    const char* home = std::getenv("HOME");
-    continuationFile->clear();
-    if (home != NULL && home[0] != '\0') {
-        *continuationFile = joinedPath(home, ".cthugha.continue");
-        files.push_back(*continuationFile);
-    }
-
-    return files;
-}
-
-static ConfigPatch acquireBootstrapCommandLineConfig(
-    const std::vector<std::string>& args, DeferredLogBuffer& diagnostics) {
-    ConfigPatch patch;
-
-    for (int i = 1; i < int(args.size()); i++) {
-        const std::string& arg = args[i];
-
-        if (arg == "--") {
-            break;
-        } else if (arg == "--path") {
-            std::string value;
-            if (readOptionValue(args, &i, arg, &value, diagnostics))
-                patch.set(KEY_PATH_EXTRA_LIBRARY, withTrailingSlash(value),
-                    "command line");
-        } else if (startsWith(arg, "--path=")) {
-            patch.set(KEY_PATH_EXTRA_LIBRARY, withTrailingSlash(arg.substr(7)),
-                "command line");
-        } else if (arg == "--ini-file") {
-            std::string value;
-            if (readOptionValue(args, &i, arg, &value, diagnostics))
-                patch.set(KEY_PATH_INI_OVERRIDE, value, "command line");
-        } else if (startsWith(arg, "--ini-file=")) {
-            patch.set(KEY_PATH_INI_OVERRIDE, arg.substr(11), "command line");
-        } else if (startsWith(arg, "-E")) {
-            std::string value;
-            if (readShortOptionValue(args, &i, arg, &value, diagnostics))
-                patch.set(KEY_PATH_EXTRA_LIBRARY, withTrailingSlash(value),
-                    "command line");
-        }
-    }
-
-    return patch;
 }
 
 }
@@ -2828,49 +2750,4 @@ std::vector<std::string> configArgumentsFromArgv(int argc, char* argv[]) {
     for (int i = 0; i < argc; i++)
         args.push_back(argv[i] ? argv[i] : "");
     return args;
-}
-
-ConfigBuildResult buildStartupConfig(int argc, char* argv[]) {
-    std::vector<std::string> args = configArgumentsFromArgv(argc, argv);
-    DeferredLogBuffer bootstrapDiagnostics;
-
-    // 1. Peek at CLI to determine paths
-    ConfigPatch commandLinePatch
-        = acquireBootstrapCommandLineConfig(args, bootstrapDiagnostics);
-    std::string continuationFile;
-    std::vector<std::string> iniFiles
-        = startupIniFiles(commandLinePatch, &continuationFile);
-
-    // 2. Supply the builder with our diagnostics buffer
-    ConfigurationBuilder builder(bootstrapDiagnostics);
-    builder.addDefaults();
-
-    // Clean range-based loop with index tracking
-    bool isFirst = true;
-    for (const std::string& iniPath : iniFiles) {
-        bool optional = true;
-        if (isFirst && commandLinePatch.has(KEY_PATH_INI_OVERRIDE))
-            optional = false;
-
-        builder.addIniFile(iniPath, optional);
-        isFirst = false;
-    }
-
-    std::vector<std::string> environmentNames;
-    environmentNames.push_back("CTH_VERBOSE");
-#ifdef CTH_XWIN
-    environmentNames.push_back("CTHUGHA_DUMP_X11_FRAMES");
-    environmentNames.push_back("CTHUGHA_DUMP_X11_FRAME_LIMIT");
-    environmentNames.push_back("CTHUGHA_DUMP_X11_FRAME_EVERY");
-#endif
-    builder.addEnvironmentVariables(environmentNames);
-
-    // Move args into the builder since we don't need them anymore
-    builder.addCommandLine(std::move(args));
-
-    // 3. Assemble result
-    ConfigBuildResult result = builder.build();
-    result.config.paths.iniFiles = std::move(iniFiles);
-    result.config.paths.continuationIniFile = std::move(continuationFile);
-    return result;
 }

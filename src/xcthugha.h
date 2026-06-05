@@ -29,11 +29,13 @@ void configureDisplayDeviceX11(const X11Config& config);
 
 class Scene;
 class SceneCommands;
+class RuntimeConfigRegistry;
 
 class DisplayDeviceX11 : public DisplayDevice, public RuntimePaletteMetadataTarget {
     Scene& scene;
     SceneCommands& sceneCommands;
     RuntimeCommandSink& runtimeCommands;
+    RuntimeConfigRegistry& runtimeConfigRegistry;
 
 protected:
     Visual* visual;
@@ -89,6 +91,7 @@ public:
     void printString(int x, int y, const char* text, int color, int len, int noDarken);
 
     Widget panelTextWidget;
+    Widget panelMenuButtons[8];
     Widget palettePreviewWidget;
     Widget paletteNameTextWidget;
     Widget paletteSetTextWidget;
@@ -99,6 +102,7 @@ public:
     int palettePreviewPalette;
     int palettePreviewWidth;
     int palettePreviewHeight;
+    char panelMenuLabels[8][128];
 
     enum { shmNone, shmImage, shmPixmap } shmLevel;
     XShmSegmentInfo shminfo;
@@ -139,6 +143,7 @@ protected:
     static void nextUntaggedPaletteCB(Widget item, XtPointer data, XtPointer data2);
     static void palettePreviewExpose(Widget item, XtPointer data, XEvent* event, Boolean* cont);
     Widget add_menu(const char* name, EffectControl* what, Widget parent, Widget under, Widget right);
+    void updatePanelSelectionLabels();
     unsigned long palettePreviewPixel(unsigned char r, unsigned char g, unsigned char b);
     void updatePalettePreview();
     void drawPalettePreview();
@@ -151,7 +156,8 @@ protected:
 
 public:
     DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
-        RuntimeCommandSink& runtimeCommands_, const DisplayConfig& config);
+        RuntimeCommandSink& runtimeCommands_,
+        RuntimeConfigRegistry& runtimeConfigRegistry_, const DisplayConfig& config);
     virtual ~DisplayDeviceX11();
 
     int isInitialized() const { return initialized; }

@@ -298,15 +298,18 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceDoesNotContain("src/IniFiles.cc", "effectControlGetIniInitials");
 }
 
-static void testIniPersistenceUsesStartupConfigSnapshot() {
-    assertSourceContains("src/IniFiles.h",
-        "void configure_ini_persistence(const Config& config)");
+static void testIniPersistenceUsesRuntimePersistenceAdapter() {
     assertSourceContains("src/IniFiles.h", "struct ContinuationIniConfig");
     assertSourceContains("src/IniFiles.h", "int write_ini(const Config& config)");
+    assertSourceDoesNotContain("src/IniFiles.h", "void configure_ini_persistence");
+    assertSourceDoesNotContain("src/IniFiles.h", "int write_ini();");
     assertSourceDoesNotContain("src/IniFiles.h", "getini");
     assertSourceDoesNotContain("src/IniFiles.h", "putini");
     assertSourceContains("src/IniFiles.cc",
         "int write_ini(const Config& config)");
+    assertSourceDoesNotContain("src/IniFiles.cc", "int write_ini()");
+    assertSourceDoesNotContain("src/IniFiles.cc", "persisted_startup_config");
+    assertSourceDoesNotContain("src/IniFiles.cc", "has_persisted_startup_config");
     assertSourceContains("src/IniFiles.cc",
         "int write_continuation_ini(const ContinuationIniConfig& config)");
     assertSourceContains("src/IniFiles.cc",
@@ -316,11 +319,34 @@ static void testIniPersistenceUsesStartupConfigSnapshot() {
     assertSourceContains("src/IniFiles.cc",
         "write_effect_policy_ini(config.effectPolicy)");
     assertSourceContains("src/Application.cc",
-        "configure_ini_persistence(startupConfigValue)");
-    assertSourceContains("src/Application.cc", "write_ini(startupConfigValue)");
+        "RuntimeConfigRegistry(startupConfigValue)");
+    assertSourceContains("src/Application.cc",
+        "new IniRuntimePersistence(*runtimeConfigRegistryValue)");
+    assertSourceContains("src/Application.cc",
+        "runtimePersistenceValue->writeCurrentConfig()");
+    assertSourceDoesNotContain("src/Application.cc", "configure_ini_persistence");
+    assertSourceDoesNotContain("src/Application.cc", "write_ini(startupConfigValue)");
+    assertSourceDoesNotContain("src/Application.cc",
+        "write_ini(runtimeConfigRegistryValue->currentConfig())");
+    assertSourceContains("src/RuntimeChangeMediator.h",
+        "RuntimePersistence& runtimePersistence_");
+    assertSourceContains("src/RuntimeChangeMediator.h",
+        "RuntimeShutdown& runtimeShutdown_");
+    assertSourceContains("src/RuntimeChangeMediator.cc",
+        "runtimePersistence.writeCurrentConfig()");
+    assertSourceDoesNotContain("src/RuntimeChangeMediator.cc", "IniFiles.h");
+    assertSourceDoesNotContain("src/RuntimeChangeMediator.cc", "RuntimeConfigRegistry.h");
+    assertSourceDoesNotContain("src/RuntimeChangeMediator.cc", "write_ini()");
+    assertSourceDoesNotContain("src/RuntimeChangeMediator.cc", "write_ini(");
     assertSourceContains("src/keymap.cc",
         "RuntimeCommand::stopAndContinue");
     assertSourceContains("src/RuntimeChangeMediator.cc",
+        "runtimePersistence.writeContinuation(command.continuation)");
+    assertSourceDoesNotContain("src/RuntimeChangeMediator.cc",
+        "write_continuation_ini(");
+    assertSourceContains("src/RuntimePersistence.cc",
+        "write_ini(runtimeConfigRegistry.currentConfig())");
+    assertSourceContains("src/RuntimePersistence.cc",
         "write_continuation_ini(");
     assertSourceDoesNotContain("src/AutoChanger.cc", "write_ini");
     assertSourceDoesNotContain("src/AutoChanger.cc", "options_save");
@@ -354,6 +380,11 @@ static void testRuntimeLifecycleRequestsUseMediator() {
     assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc", "cthugha_close++");
     assertSourceDoesNotContain("src/InterfaceCredits.cc", "cthugha_close++");
     assertSourceDoesNotContain("src/AudioRuntime.cc", "cthugha_close++");
+    assertSourceContains("src/Application.cc", "new CthughaRuntimeShutdown()");
+    assertSourceContains("src/RuntimeChangeMediator.cc",
+        "runtimeShutdown.requestClose()");
+    assertSourceDoesNotContain("src/RuntimeChangeMediator.cc", "cthugha_close++");
+    assertSourceContains("src/RuntimeShutdown.cc", "cthugha_close++");
 }
 
 static void testX11PanelInputsUseRuntimeCommands() {
@@ -363,6 +394,21 @@ static void testX11PanelInputsUseRuntimeCommands() {
         "RuntimeCommand::revertPaletteMetadata");
     assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc",
         "d->opt->setValue");
+}
+
+static void testSelectionDisplaysUseRuntimeConfigRegistry() {
+    assertSourceContains("src/Interface.cc",
+        "registry->currentConfig()");
+    assertSourceContains("src/Interface.cc",
+        "runtimeConfigSelectionTextOrFallback");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "runtimeConfigRegistry.currentConfig()");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "updatePanelSelectionLabels()");
+    assertSourceContains("src/Application.cc",
+        "Interface::setRuntimeConfigRegistry(runtimeConfigRegistryValue.get())");
+    assertSourceContains("src/Application.cc",
+        "*runtimeConfigRegistryValue,\n        startupConfigValue.display");
 }
 
 static void testInterfaceInputsDoNotUseLegacyFallbacks() {
@@ -412,9 +458,10 @@ int main() {
     testApplicationProvidesStartupConfigSlices();
     testInputStartupUsesInputConfig();
     testSceneStartupUsesSceneConfig();
-    testIniPersistenceUsesStartupConfigSnapshot();
+    testIniPersistenceUsesRuntimePersistenceAdapter();
     testRuntimeLifecycleRequestsUseMediator();
     testX11PanelInputsUseRuntimeCommands();
+    testSelectionDisplaysUseRuntimeConfigRegistry();
     testInterfaceInputsDoNotUseLegacyFallbacks();
     testConfigDefaultsAreNotConsumedAsLegacyDefaults();
     return 0;

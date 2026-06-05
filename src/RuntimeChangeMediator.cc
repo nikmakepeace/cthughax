@@ -1,38 +1,25 @@
+/** @file
+ * Concrete runtime command mediator.
+ */
+
 #include "RuntimeChangeMediator.h"
 
-#include "cthugha.h"
 #include "AudioFrame.h"
 #include "AudioProcessor.h"
 #include "AutoChanger.h"
 #include "CthughaDisplay.h"
 #include "EffectControl.h"
-#include "IniFiles.h"
 #include "Option.h"
+#include "RuntimePersistence.h"
+#include "RuntimeShutdown.h"
 #include "Scene.h"
 #include "Screen.h"
 
-static ContinuationIniConfig continuationIniConfigFromRuntimeState(
-    const RuntimeContinuationState& state) {
-    ContinuationIniConfig config;
-    config.scene.flame = state.flame;
-    config.scene.generalFlame = state.generalFlame;
-    config.scene.wave = state.wave;
-    config.scene.waveScale = state.waveScale;
-    config.scene.object = state.object;
-    config.scene.translation = state.translation;
-    config.scene.palette = state.palette;
-    config.scene.border = state.border;
-    config.scene.flashlight = state.flashlight;
-    config.scene.table = state.table;
-    config.scene.image = state.image;
-    config.scene.presentation = state.presentation;
-    config.scene.audioProcessing = state.audioProcessing;
-    config.showFpsEnabled = state.showFpsEnabled;
-    return config;
-}
-
-RuntimeChangeMediator::RuntimeChangeMediator(SceneCommands& sceneCommands_)
-    : sceneCommands(sceneCommands_) { }
+RuntimeChangeMediator::RuntimeChangeMediator(SceneCommands& sceneCommands_,
+    RuntimePersistence& runtimePersistence_, RuntimeShutdown& runtimeShutdown_)
+    : sceneCommands(sceneCommands_)
+    , runtimePersistence(runtimePersistence_)
+    , runtimeShutdown(runtimeShutdown_) { }
 
 RuntimeChangeSet RuntimeChangeMediator::applySceneBy(RuntimeSceneTarget target, int by) {
     RuntimeChangeSet changes;
@@ -126,7 +113,7 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
 
     switch (command.type) {
     case RuntimeCommandRequestClose:
-        cthugha_close++;
+        runtimeShutdown.requestClose();
         changes.closeRequested = 1;
         break;
     case RuntimeCommandChangeSceneBy:
@@ -166,15 +153,13 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
         changes.audioResetRequested = 1;
         break;
     case RuntimeCommandWriteIni:
-        write_ini();
+        runtimePersistence.writeCurrentConfig();
         changes.persistenceRequested = 1;
         break;
     case RuntimeCommandStopAndContinue:
         changes.persistenceRequested = 1;
-        if (write_continuation_ini(
-                continuationIniConfigFromRuntimeState(command.continuation))
-            == 0) {
-            cthugha_close++;
+        if (runtimePersistence.writeContinuation(command.continuation) == 0) {
+            runtimeShutdown.requestClose();
             changes.closeRequested = 1;
         }
         break;

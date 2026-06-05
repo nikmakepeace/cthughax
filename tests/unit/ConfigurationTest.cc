@@ -245,6 +245,18 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "buffer.preset") == "2");
 }
 
+static void iniTextSourceWarnsAndIgnoresUnsupportedWildcards() {
+    DeferredLogBuffer diagnostics;
+    IniTextConfigSource source("memory",
+        "cthugha.flame.?: no\n");
+    ConfigPatch patch = source.acquire(diagnostics);
+
+    assert(diagnostics.diagnostics().size() == 1);
+    assert(diagnostics.diagnostics()[0].severity == ConfigDiagnosticWarning);
+    assert(diagnostics.diagnostics()[0].key == "flame.?");
+    assert(patch.entriesFor("effect.allowed_choice") == NULL);
+}
+
 static void sourcePrecedenceIsDefaultsIniEnvironmentCommandLine() {
     std::map<std::string, std::string> environment;
     environment["CTH_VERBOSE"] = "5";
@@ -715,6 +727,7 @@ int main() {
     assert(configArgumentsFromArgv(0, NULL).empty());
     defaultsProduceTypedConfig();
     iniTextSourceProducesPatchWithoutGlobals();
+    iniTextSourceWarnsAndIgnoresUnsupportedWildcards();
     sourcePrecedenceIsDefaultsIniEnvironmentCommandLine();
     commandLineSourceBuildsAppConfig();
     commandLineSourceBuildsInputConfig();

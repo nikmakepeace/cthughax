@@ -1,3 +1,7 @@
+/** @file
+ * Runtime ini persistence and continuation ini adapters.
+ */
+
 #include "IniFiles.h"
 
 #include "cthugha.h"
@@ -7,8 +11,6 @@
 #include <unistd.h>
 
 static FILE* ini_file = NULL;
-static Config persisted_startup_config;
-static int has_persisted_startup_config = 0;
 
 static const char* home_ini_file_name(const char* fileName) {
     static std::string fname;
@@ -243,11 +245,6 @@ static void write_effect_policy_ini(const EffectPolicy& policy) {
     }
 }
 
-void configure_ini_persistence(const Config& config) {
-    persisted_startup_config = config;
-    has_persisted_startup_config = 1;
-}
-
 int write_ini(const Config& config) {
     const char* fname = automatic_ini_file_name();
     std::string tmpName;
@@ -274,15 +271,6 @@ int write_ini(const Config& config) {
 
     CTH_INFO("Saved startup configuration to `%s'.\n", fname);
     return 0;
-}
-
-int write_ini() {
-    if (!has_persisted_startup_config) {
-        CTH_ERROR("Can not write automatic ini before startup config exists.\n");
-        return 1;
-    }
-
-    return write_ini(persisted_startup_config);
 }
 
 int write_continuation_ini(const ContinuationIniConfig& config) {

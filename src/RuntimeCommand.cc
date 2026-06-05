@@ -1,3 +1,7 @@
+/** @file
+ * Runtime command value and change-set helpers.
+ */
+
 #include "RuntimeCommandSink.h"
 
 RuntimeContinuationState::RuntimeContinuationState()

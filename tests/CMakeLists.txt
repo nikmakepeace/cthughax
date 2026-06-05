@@ -461,6 +461,22 @@ target_link_libraries(configuration_test PRIVATE m)
 
 add_test(NAME configuration_test COMMAND configuration_test)
 
+add_executable(startup_configuration_test
+    unit/StartupConfigurationTest.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/StartupConfiguration.cc
+)
+
+target_include_directories(startup_configuration_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(startup_configuration_test PRIVATE m)
+
+add_test(NAME startup_configuration_test COMMAND startup_configuration_test)
+
 if(CTH_BUILD_X11)
     add_executable(x11_configuration_test
         unit/X11ConfigurationTest.cc
@@ -554,6 +570,41 @@ target_include_directories(runtime_command_test PRIVATE
 target_link_libraries(runtime_command_test PRIVATE m)
 
 add_test(NAME runtime_command_test COMMAND runtime_command_test)
+
+add_executable(runtime_config_selection_test
+    unit/RuntimeConfigSelectionTest.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeConfigSelection.cc
+)
+
+target_include_directories(runtime_config_selection_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(runtime_config_selection_test PRIVATE m)
+
+add_test(NAME runtime_config_selection_test
+    COMMAND runtime_config_selection_test)
+
+add_executable(runtime_persistence_test
+    unit/RuntimePersistenceTest.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeConfigRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimePersistence.cc
+)
+
+target_include_directories(runtime_persistence_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(runtime_persistence_test PRIVATE m)
+
+add_test(NAME runtime_persistence_test COMMAND runtime_persistence_test)
 
 add_executable(runtime_change_mediator_test
     unit/RuntimeChangeMediatorTest.cc

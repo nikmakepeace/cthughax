@@ -1,4 +1,6 @@
-// Startup-time composition helpers.
+/** @file
+ * Startup-time runtime composition helpers.
+ */
 
 #ifndef __RUNTIME_FACTORY_H
 #define __RUNTIME_FACTORY_H
@@ -12,8 +14,14 @@ public:
     int ossOutputAvailable;
     int pulseOutputAvailable;
 
+    /** Creates an environment with no detected backend availability. */
     Environment();
 
+    /**
+     * Detects audio backend availability for this process.
+     *
+     * @return Environment describing available input/output backends.
+     */
     static Environment detect();
 };
 

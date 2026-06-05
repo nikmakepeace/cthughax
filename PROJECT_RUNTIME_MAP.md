@@ -468,8 +468,9 @@ Keymap, generic interface mutation actions, X11 panel selection/quit/palette
 metadata callbacks, credits key handling, playback completion, and AutoChanger
 now issue `RuntimeCommand` values through a `RuntimeCommandSink`.
 `RuntimeChangeMediator` implements that sink, delegates to existing
-scene/audio/display/lifecycle/panel owners, handles save-and-continue and
-palette metadata persistence, and reports a `RuntimeChangeSet`. This is a
+scene/audio/display/panel owners, delegates ini persistence to
+`RuntimePersistence`, delegates close requests to `RuntimeShutdown`, handles
+palette metadata commands, and reports a `RuntimeChangeSet`. This is a
 coordination boundary, not full deglobalisation yet.
 
 ## Configuration Flow
@@ -500,6 +501,5 @@ cthugha.feature.buffer: value
 cthugha.feature.buffer.entry: on/off
 ```
 
-The ini reader supports `?` wildcards in entry names. Pressing `a` at runtime
-can write `~/.cthugha.auto` from the startup config snapshot when saving is
-enabled.
+The ini reader rejects `?` wildcard entries with a warning. Pressing `a` at
+runtime writes `~/.cthugha.auto` from the registered current runtime config.

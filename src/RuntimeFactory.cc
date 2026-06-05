@@ -1,3 +1,7 @@
+/** @file
+ * Startup-time runtime composition helpers.
+ */
+
 #include "cthugha.h"
 #include "RuntimeFactory.h"
 #include "AudioOptions.h"
