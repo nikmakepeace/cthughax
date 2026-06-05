@@ -9,6 +9,7 @@
 
 class AutoChangerStatusProvider;
 class AutoChangeControls;
+class AudioProcessingSelector;
 class RuntimeConfigRegistry;
 
 class InterfaceElement {
@@ -28,6 +29,7 @@ class Interface {
     static RuntimeConfigRegistry* runtimeConfigRegistryValue;
     static const AutoChangerStatusProvider* autoChangerStatusProviderValue;
     static AutoChangeControls* autoChangeControlsValue;
+    static AudioProcessingSelector* audioProcessingSelectorValue;
 
 public:
     static int saveToPreset;
@@ -95,6 +97,20 @@ public:
      * @return Installed controls, or NULL before runtime setup.
      */
     static AutoChangeControls* autoChangeControls();
+
+    /**
+     * Installs the selector used for the audio-processing option panel row.
+     *
+     * @param selector Selector to read and mutate; NULL disables the row.
+     */
+    static void setAudioProcessingSelector(AudioProcessingSelector* selector);
+
+    /**
+     * Returns the selector used for the audio-processing option panel row.
+     *
+     * @return Installed selector, or NULL before runtime setup.
+     */
+    static AudioProcessingSelector* audioProcessingSelector();
 
     static void set(const char* n);
 

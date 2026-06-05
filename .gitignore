@@ -123,11 +123,9 @@ core.*
 CVS/
 
 # Test files
-*.mp3
-*.wav
-!tests/fixtures/
-!tests/fixtures/audio/
-!tests/fixtures/audio/*.wav
+/*.mp3
+/*.wav
+
 
 __pycache__/
 

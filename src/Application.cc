@@ -11,6 +11,7 @@
 #include "AudioIngest.h"
 #include "AudioSystem.h"
 #include "AudioAnalyzer.h"
+#include "AudioProcessing.h"
 #include "AudioProcessor.h"
 #include "AudioVisualBridge.h"
 #include "AutoChangeControls.h"
@@ -157,39 +158,49 @@ void Application::initSceneRuntime() {
     sceneCommandsValue.reset(new SceneCommands(*sceneValue, CthughaBuffer::buffer,
         videoDirector().imageOption()));
     runtimeConfigRegistryValue.reset(new RuntimeConfigRegistry(startupConfigValue));
+    audioProcessorValue.reset(new AudioProcessor());
+    audioProcessingStateValue.reset(new AudioProcessingState());
+    audioProcessingSelectorValue.reset(
+        new AudioProcessingSelector(*audioProcessingStateValue,
+            *audioProcessorValue));
     autoChangeSettingsValue.reset(
         new OwnedAutoChangeSettings(startupConfigValue.autoChange));
     autoChangeControlsValue.reset(
         new AutoChangeControls(*autoChangeSettingsValue));
     runtimeConfigContributorValue.reset(
         new LegacyRuntimeConfigContributor(*sceneCommandsValue,
-            *autoChangeSettingsValue));
+            *autoChangeSettingsValue, *audioProcessingStateValue));
     runtimeConfigRegistryValue->addContributor(*runtimeConfigContributorValue);
     runtimePersistenceValue.reset(
         new IniRuntimePersistence(*runtimeConfigRegistryValue));
     runtimeShutdownValue.reset(new RuntimeCloseState());
     runtimeDisplayControlsValue.reset(new DefaultRuntimeDisplayControls());
-    runtimeAudioControlsValue.reset(new DefaultRuntimeAudioControls());
+    runtimeAudioControlsValue.reset(
+        new DefaultRuntimeAudioControls(*audioProcessingSelectorValue));
     runtimeAutoChangeControlsValue.reset(
         new DefaultRuntimeAutoChangeControls(*autoChangeControlsValue));
     runtimeEffectControlsValue.reset(
         new DefaultRuntimeEffectControls());
     Interface::setRuntimeConfigRegistry(runtimeConfigRegistryValue.get());
+    Interface::setAudioProcessingSelector(audioProcessingSelectorValue.get());
     runtimeChangeMediatorValue.reset(new RuntimeChangeMediator(
         *sceneCommandsValue, *runtimePersistenceValue,
         *runtimeShutdownValue, *runtimeDisplayControlsValue,
         *runtimeAudioControlsValue, *runtimeAutoChangeControlsValue,
         *runtimeEffectControlsValue));
     Keymap::setRuntimeCommandSink(runtimeChangeMediatorValue.get());
+    Keymap::setAudioProcessingState(audioProcessingStateValue.get());
     Interface::setAutoChangeControls(autoChangeControlsValue.get());
     bindSceneCommandsForLegacyCallbacks(sceneCommandsValue.get());
 }
 
 void Application::shutdownSceneRuntime() {
     Keymap::setRuntimeCommandSink(NULL);
+    Keymap::setAudioProcessingState(NULL);
     bindSceneCommandsForLegacyCallbacks(NULL);
     Interface::setAutoChangeControls(NULL);
     videoDirector().unbindScene();
+    Interface::setAudioProcessingSelector(NULL);
     Interface::setRuntimeConfigRegistry(NULL);
     runtimeChangeMediatorValue.reset();
     runtimeEffectControlsValue.reset();
@@ -202,6 +213,9 @@ void Application::shutdownSceneRuntime() {
     runtimeConfigContributorValue.reset();
     autoChangeControlsValue.reset();
     autoChangeSettingsValue.reset();
+    audioProcessingSelectorValue.reset();
+    audioProcessingStateValue.reset();
+    audioProcessorValue.reset();
     sceneCommandsValue.reset();
     sceneValue.reset();
 }
@@ -246,6 +260,7 @@ void Application::shutdownAudioIngest() {
 void Application::initAudioVisualBridge() {
     if (audioVisualBridge.get() == NULL) {
         audioVisualBridge.reset(new AudioVisualBridge(acousticContextValue,
+            *audioProcessingSelectorValue, *audioProcessorValue,
             startupConfigValue.audioAnalysis.minNoise,
             runtimeChangeMediatorValue.get(), autoChangeSettingsValue.get()));
         Interface::setAutoChangerStatusProvider(audioVisualBridge.get());
@@ -387,7 +402,7 @@ int Application::initialize() {
 
     CTH_INFO("Setting initial effect controls...\n");
     sceneCommands().applyStartupConfig(startupConfigValue.scene);
-    configureAudioProcessing(startupConfigValue.scene);
+    audioProcessingSelectorValue->configureStartup(startupConfigValue.scene);
 
     // Interface/keymaps are available before display creation so early display
     // events and option panels can route input immediately.

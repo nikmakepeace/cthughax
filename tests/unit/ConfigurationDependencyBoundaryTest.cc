@@ -99,10 +99,43 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/AudioFrame.h", "AudioMetrics metrics");
     assertSourceContains("src/AudioProcessor.cc",
         "AudioProcessor::analyze(const char2* frame, int minNoise)");
+    assertSourceContains("src/AudioProcessing.h", "class AudioProcessingState");
+    assertSourceContains("src/AudioProcessing.h", "class AudioProcessingSelector");
+    assertSourceContains("src/AudioFftProcessor.h", "class AudioFftProcessor");
+    assertSourceContains("src/AudioFftProcessor.h",
+        "class FixedPointAudioFftProcessor");
+    assertSourceContains("src/AudioFftProcessor.cc",
+        "static FixedPointAudioFftProcessor processor");
+    assertSourceContains("src/Audio.h",
+        "explicit AudioProcessor(AudioFftProcessor& fftProcessor)");
+    assertSourceContains("src/AudioProcessor.cc",
+        "fftProcessorValue->transform(raw, processedWaveData)");
+    assertSourceContains("tests/unit/AudioFrameProcessorTest.cc",
+        "testAudioProcessorDelegatesFftToInjectedProcessor");
+    assertSourceContains("tests/unit/AudioFrameProcessorTest.cc",
+        "testFixedPointFftProducesCharacterizedOutput");
+    assertSourceContains("tests/benchmarks/AudioPipelineBench.cc",
+        "prism-2s-48000-stereo-s16le.raw");
+    assertSourceContains("tests/benchmarks/AudioPipelineBench.cc",
+        "BM_AudioFft_FixedPoint_PrismPcm");
+    assertSourceContains("tests/benchmarks/CMakeLists.txt", "CTH_DISABLE_MINIMP3");
+    assertSourceDoesNotContain("src/AudioFftProcessor.h",
+        "LookupTableAudioFftProcessor");
+    assertSourceDoesNotContain("tests/benchmarks/AudioPipelineBench.cc",
+        "LookupTableAudioFftProcessor");
+    assertSourceContains("tests/CMakeLists.txt", "AudioFftProcessor.cc");
+    assertSourceDoesNotContain("src/AudioProcessor.cc", "audioProcessorWp");
+    assertSourceDoesNotContain("src/AudioProcessor.cc", "audioProcessorR");
+    assertSourceDoesNotContain("src/AudioProcessor.cc", "audioProcessorFftInit");
+    assertSourceDoesNotContain("src/AudioProcessor.cc", "initAudioProcessorFft");
     assertSourceContains("src/AudioVisualBridge.cc",
-        "audioProcessing.process(frame)");
+        "audioProcessingSelectorValue.process(frame)");
     assertSourceContains("src/AudioVisualBridge.cc",
-        "processor.analyze(frame, minNoiseValue)");
+        "audioProcessorValue.analyze(frame, minNoiseValue)");
+    assertSourceDoesNotContain("src/AudioVisualBridge.cc",
+        "static AudioProcessor");
+    assertSourceDoesNotContain("src/AudioProcessor.cc",
+        "static AudioProcessor");
     assertSourceContains("src/AudioVisualBridge.cc",
         "acousticContextValue.update(frame.metrics)");
     assertSourceContains("src/Application.h",
@@ -424,7 +457,8 @@ static void testApplicationProvidesStartupConfigSlices() {
     assertSourceContains("src/Application.cc", "configureTranslationOptions(startupConfigValue.effectPolicy)");
     assertSourceContains("src/Application.cc", "configureWaveOptions(startupConfigValue.effectPolicy)");
     assertSourceContains("src/Application.cc", "configurePaletteOptions(startupConfigValue.effectPolicy)");
-    assertSourceContains("src/Application.cc", "configureAudioProcessing(startupConfigValue.scene)");
+    assertSourceContains("src/Application.cc",
+        "audioProcessingSelectorValue->configureStartup(startupConfigValue.scene)");
     assertSourceContains("src/Application.cc",
         "videoDirector().configureTransitions(startupConfigValue.sceneTransition)");
     assertSourceContains("src/Application.cc",
@@ -539,6 +573,14 @@ static void testIniPersistenceUsesRuntimePersistenceAdapter() {
         "write_ini(runtimeConfigRegistry.currentConfig())");
     assertSourceContains("src/RuntimePersistence.cc",
         "write_continuation_ini(");
+    assertSourceContains("src/LegacyRuntimeConfigContributor.cc",
+        "audioProcessingState.text()");
+    assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc",
+        "audioProcessing.text()");
+    assertSourceContains("src/keymap.cc",
+        "Keymap::audioProcessingState()");
+    assertSourceDoesNotContain("src/keymap.cc",
+        "audioProcessing.text()");
     assertSourceDoesNotContain("src/AutoChanger.cc", "write_ini");
     assertSourceDoesNotContain("src/AutoChanger.cc", "options_save");
     assertSourceDoesNotExist("src/EffectControlIni.cc");
@@ -586,7 +628,7 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
     assertSourceContains("src/Application.cc",
         "new DefaultRuntimeDisplayControls()");
     assertSourceContains("src/Application.cc",
-        "new DefaultRuntimeAudioControls()");
+        "new DefaultRuntimeAudioControls(*audioProcessingSelectorValue)");
     assertSourceContains("src/Application.cc",
         "new DefaultRuntimeAutoChangeControls(*autoChangeControlsValue)");
     assertSourceContains("src/Application.cc",
@@ -652,7 +694,9 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
     assertSourceDoesNotContain("src/RuntimeAudioControls.cc",
         "sound_minnoise");
     assertSourceContains("src/RuntimeAudioControls.cc",
-        "audioProcessing.change");
+        "audioProcessingSelector.changeBy");
+    assertSourceContains("src/RuntimeAudioControls.cc",
+        "audioProcessingSelector.changeTo");
     assertSourceDoesNotContain("src/RuntimeChangeMediator.cc",
         "#include \"AudioFrame.h\"");
     assertSourceDoesNotContain("src/RuntimeChangeMediator.cc",

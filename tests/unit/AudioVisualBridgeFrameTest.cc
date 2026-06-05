@@ -5,6 +5,7 @@
 #include "AudioVisualBridge.h"
 #include "AudioAnalyzer.h"
 #include "AudioFrame.h"
+#include "AudioProcessing.h"
 #include "AudioProcessor.h"
 
 #include <assert.h>
@@ -29,9 +30,12 @@ static void fillConstant(AudioFrame& frame, int left, int right) {
 static void testBridgeProcessesSuppliedFrame() {
     AudioFrame frame;
     AcousticContext acousticContext;
-    AudioVisualBridge bridge(acousticContext, 4);
+    AudioProcessor processor;
+    AudioProcessingState processingState;
+    AudioProcessingSelector processingSelector(processingState, processor);
+    AudioVisualBridge bridge(acousticContext, processingSelector, processor, 4);
 
-    audioProcessing.change("none");
+    processingSelector.changeTo("none");
     fillConstant(frame, 3, 4);
 
     bridge.runFrame(frame);

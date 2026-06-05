@@ -16,6 +16,9 @@
 class AudioVisualBridge;
 class AudioFrame;
 class AudioIngest;
+class AudioProcessingSelector;
+class AudioProcessingState;
+class AudioProcessor;
 class AutoChangeControls;
 class AutoChangeSettings;
 class CthughaDisplay;
@@ -52,6 +55,9 @@ class Application {
     std::unique_ptr<VideoFilterchain> videoFilterchain;
     VideoFilterchainSequence videoFilterchainSequence;
     AcousticContext acousticContextValue;
+    std::unique_ptr<AudioProcessor> audioProcessorValue;
+    std::unique_ptr<AudioProcessingState> audioProcessingStateValue;
+    std::unique_ptr<AudioProcessingSelector> audioProcessingSelectorValue;
     std::unique_ptr<AudioIngest> audioIngestValue;
     std::unique_ptr<AudioVisualBridge> audioVisualBridge;
     std::unique_ptr<AutoChangeSettings> autoChangeSettingsValue;

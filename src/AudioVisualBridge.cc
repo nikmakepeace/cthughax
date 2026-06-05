@@ -6,7 +6,7 @@
 #include "AudioVisualBridge.h"
 #include "Audio.h"
 #include "AudioAnalyzer.h"
-#include "AudioProcessor.h"
+#include "AudioProcessing.h"
 #include "AudioFrame.h"
 #include "AutoChangeSettings.h"
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
@@ -14,10 +14,13 @@
 #endif
 
 AudioVisualBridge::AudioVisualBridge(AcousticContext& acousticContext_,
-    int minNoise_, RuntimeCommandSink* runtimeCommands_,
-    const AutoChangeSettings* autoChangeSettings_)
+    AudioProcessingSelector& audioProcessingSelector_,
+    AudioProcessor& audioProcessor_, int minNoise_,
+    RuntimeCommandSink* runtimeCommands_, const AutoChangeSettings* autoChangeSettings_)
     : filterchainRefreshRequestedValue(0)
     , acousticContextValue(acousticContext_)
+    , audioProcessingSelectorValue(audioProcessingSelector_)
+    , audioProcessorValue(audioProcessor_)
     , minNoiseValue(minNoise_) {
     CTH_DEBUG("audio visual bridge: creating bridge\n");
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
@@ -34,22 +37,21 @@ AudioVisualBridge::~AudioVisualBridge() {
 void AudioVisualBridge::runFrame(AudioFrame& frame) {
     double start = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
     static int debugReports = 0;
-    static AudioProcessor processor;
 
-    audioProcessing.process(frame);
+    audioProcessingSelectorValue.process(frame);
     double processed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
-        AudioMetrics processedMetrics = processor.analyze(
+        AudioMetrics processedMetrics = audioProcessorValue.analyze(
             frame.processedWaveData, minNoiseValue);
         debugReports++;
         CTH_DEBUG("processed wave audio: mode=%s amplitude=%d left=%d right=%d noisy=%d\n",
-            audioProcessing.text(), processedMetrics.amplitude,
+            audioProcessingSelectorValue.text(), processedMetrics.amplitude,
             processedMetrics.amplitudeLeft, processedMetrics.amplitudeRight,
             processedMetrics.noisy);
     }
 
-    processor.analyze(frame, minNoiseValue);
+    audioProcessorValue.analyze(frame, minNoiseValue);
     acousticContextValue.update(frame.metrics);
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {

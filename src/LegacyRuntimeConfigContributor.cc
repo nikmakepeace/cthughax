@@ -1,11 +1,11 @@
 /** @file
- * Legacy/global-backed runtime configuration contributor.
+ * Transitional runtime configuration contributor.
  */
 
 #include "RuntimeConfigRegistry.h"
 
 #include "AutoChangeSettings.h"
-#include "AudioProcessor.h"
+#include "AudioProcessing.h"
 #include "CthughaDisplay.h"
 #include "Image.h"
 #include "Scene.h"
@@ -29,9 +29,11 @@ static std::string persistedName(const char* name) {
 
 LegacyRuntimeConfigContributor::LegacyRuntimeConfigContributor(
     SceneCommands& sceneCommands_,
-    const AutoChangeSettings& autoChangeSettings_)
+    const AutoChangeSettings& autoChangeSettings_,
+    const AudioProcessingState& audioProcessingState_)
     : sceneCommands(sceneCommands_)
-    , autoChangeSettings(autoChangeSettings_) { }
+    , autoChangeSettings(autoChangeSettings_)
+    , audioProcessingState(audioProcessingState_) { }
 
 void LegacyRuntimeConfigContributor::contribute(Config& config) const {
     const SceneSettings& settings = sceneCommands.sceneState().settings();
@@ -48,7 +50,7 @@ void LegacyRuntimeConfigContributor::contribute(Config& config) const {
     config.scene.table = persistedName(settings.tableName);
     config.scene.image = persistedName(sceneCommands.imageOption().currentName());
     config.scene.presentation = persistedName(screen.currentName());
-    config.scene.audioProcessing = persistedName(audioProcessing.text());
+    config.scene.audioProcessing = persistedName(audioProcessingState.text());
 
     config.display.maxFramesPerSecond = int(maxFramesPerSecond);
     config.display.showFpsEnabled = int(showFPS);

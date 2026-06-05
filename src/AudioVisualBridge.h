@@ -13,6 +13,8 @@
 
 class RuntimeCommandSink;
 class AudioFrame;
+class AudioProcessingSelector;
+class AudioProcessor;
 class AcousticContext;
 class AutoChangeSettings;
 class AutoChanger;
@@ -27,6 +29,8 @@ class AutoChanger;
 class AudioVisualBridge : public AutoChangerStatusProvider {
     int filterchainRefreshRequestedValue;
     AcousticContext& acousticContextValue;
+    AudioProcessingSelector& audioProcessingSelectorValue;
+    AudioProcessor& audioProcessorValue;
     int minNoiseValue;
 
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
@@ -39,6 +43,10 @@ public:
      *
      * @param acousticContext_ Rolling acoustic context to update from analyzed
      *        frame metrics. The referenced object must outlive the bridge.
+     * @param audioProcessingSelector_ Selector used to process frame audio.
+     *        The referenced object must outlive the bridge.
+     * @param audioProcessor_ Processor used for frame analysis. The referenced
+     *        object must outlive the bridge.
      * @param minNoise_ Noise-floor threshold used for AudioMetrics::noisy.
      * @param runtimeCommands_ Optional runtime command sink used by AutoChanger.
      *        When NULL, audio processing and analysis still run.
@@ -46,7 +54,9 @@ public:
      *        NULL, automatic scene changes are disabled.
      */
     AudioVisualBridge(AcousticContext& acousticContext_,
-        int minNoise_, RuntimeCommandSink* runtimeCommands_ = 0,
+        AudioProcessingSelector& audioProcessingSelector_,
+        AudioProcessor& audioProcessor_, int minNoise_,
+        RuntimeCommandSink* runtimeCommands_ = 0,
         const AutoChangeSettings* autoChangeSettings_ = 0);
 
     /** Releases bridge-owned automatic scene-change policy. */

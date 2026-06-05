@@ -7,6 +7,7 @@
 
 #include "RuntimeCommandSink.h"
 
+class AudioProcessingSelector;
 class Option;
 
 /** Controls runtime audio-processing commands. */
@@ -52,14 +53,20 @@ public:
         Option& option, const char* to, RuntimeChangeSet& changes) = 0;
 };
 
-/**
- * RuntimeAudioControls implementation backed by the current audio globals.
- *
- * This adapter isolates the command router from the global audio-processing
- * option until that subsystem gains an owned runtime instance.
- */
+/** RuntimeAudioControls implementation backed by owned audio-processing state. */
 class DefaultRuntimeAudioControls : public RuntimeAudioControls {
+    AudioProcessingSelector& audioProcessingSelector;
+
 public:
+    /**
+     * Creates audio controls over an owned audio-processing selector.
+     *
+     * @param audioProcessingSelector_ Selector to mutate. The referenced object
+     *        must outlive these controls.
+     */
+    explicit DefaultRuntimeAudioControls(
+        AudioProcessingSelector& audioProcessingSelector_);
+
     /**
      * Changes sound processing by relative offset.
      *

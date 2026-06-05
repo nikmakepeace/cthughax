@@ -94,7 +94,10 @@ set(CTHUGHA_COMMON_SOURCES
     waves.cc
     sound_tables.cc
     TranslationOptions.cc
+    AudioProcessingState.cc
+    AudioProcessingSelector.cc
     AudioProcessor.cc
+    AudioFftProcessor.cc
     CthughaBuffer.cc
     Application.cc
     main.cc

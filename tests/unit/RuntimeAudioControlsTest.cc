@@ -1,61 +1,15 @@
 /** @file
- * Unit coverage for the default runtime audio control adapter.
+ * Unit coverage for runtime audio controls over owned processing state.
  */
 
 #include "RuntimeAudioControls.h"
+#include "AudioProcessing.h"
 #include "AudioProcessor.h"
 
 #include <assert.h>
-#include <string>
+#include <string.h>
 
 Option::~Option() { }
-
-static EffectChoiceList audioProcessingEntries;
-static int audioProcessingByCalls = 0;
-static int audioProcessingLastBy = 0;
-static int audioProcessingToCalls = 0;
-static std::string audioProcessingLastTo;
-
-AudioProcessingOption audioProcessing(
-    "sound-processing", audioProcessingEntries);
-
-AudioProcessingOption::AudioProcessingOption(
-    const char* name, EffectChoiceList& entries_)
-    : Option(name)
-    , entries(entries_)
-    , initialEntry() { }
-
-int AudioProcessingOption::entryCount() const {
-    return 1;
-}
-
-int AudioProcessingOption::optNr(const char*) const {
-    return 0;
-}
-
-void AudioProcessingOption::setInitialEntry(const char* entry) {
-    initialEntry = (entry != 0) ? entry : "";
-}
-
-void AudioProcessingOption::changeToInitial() {
-    change(initialEntry.c_str());
-}
-
-void AudioProcessingOption::change(int by) {
-    audioProcessingByCalls++;
-    audioProcessingLastBy = by;
-    value += by;
-}
-
-void AudioProcessingOption::change(const char* to) {
-    audioProcessingToCalls++;
-    audioProcessingLastTo = (to != 0) ? to : "";
-    value = 0;
-}
-
-const char* AudioProcessingOption::text() const {
-    return "test-processing";
-}
 
 class RecordingOption : public Option {
 public:
@@ -80,43 +34,36 @@ public:
     }
 };
 
-static void resetAudioProcessingCalls() {
-    audioProcessingByCalls = 0;
-    audioProcessingLastBy = 0;
-    audioProcessingToCalls = 0;
-    audioProcessingLastTo = "";
-}
-
 static void testDirectCommandsChangeOnlyAudioProcessing() {
-    DefaultRuntimeAudioControls controls;
-    resetAudioProcessingCalls();
+    AudioProcessor processor;
+    AudioProcessingState state;
+    AudioProcessingSelector selector(state, processor);
+    DefaultRuntimeAudioControls controls(selector);
 
     controls.changeSoundProcessingBy(3);
-    assert(audioProcessingByCalls == 1);
-    assert(audioProcessingLastBy == 3);
+    assert(strcmp(selector.text(), "FFT") == 0);
 
-    controls.changeSoundProcessingTo("fft");
-    assert(audioProcessingToCalls == 1);
-    assert(audioProcessingLastTo == "fft");
+    controls.changeSoundProcessingTo("filter1");
+    assert(strcmp(selector.text(), "Filter1") == 0);
 }
 
 static void testGenericOptionRoutingClaimsOnlyAudioProcessing() {
-    DefaultRuntimeAudioControls controls;
-    resetAudioProcessingCalls();
+    AudioProcessor processor;
+    AudioProcessingState state;
+    AudioProcessingSelector selector(state, processor);
+    DefaultRuntimeAudioControls controls(selector);
 
     RuntimeChangeSet byChanges;
-    int handled = controls.changeAudioOptionBy(audioProcessing, 2, byChanges);
+    int handled = controls.changeAudioOptionBy(selector.option(), 2, byChanges);
     assert(handled == 1);
     assert(byChanges.audioProcessingChanged == 1);
-    assert(audioProcessingByCalls == 1);
-    assert(audioProcessingLastBy == 2);
+    assert(strcmp(selector.text(), "Filter2") == 0);
 
     RuntimeChangeSet toChanges;
-    handled = controls.changeAudioOptionTo(audioProcessing, "filter1", toChanges);
+    handled = controls.changeAudioOptionTo(selector.option(), "filter1", toChanges);
     assert(handled == 1);
     assert(toChanges.audioProcessingChanged == 1);
-    assert(audioProcessingToCalls == 1);
-    assert(audioProcessingLastTo == "filter1");
+    assert(strcmp(selector.text(), "Filter1") == 0);
 
     RecordingOption unrelated;
     RuntimeChangeSet unrelatedChanges;

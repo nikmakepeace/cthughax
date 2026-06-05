@@ -6,6 +6,7 @@
 #include "AutoChangeSettings.h"
 #include "AudioAnalyzer.h"
 #include "AudioFrame.h"
+#include "AudioProcessing.h"
 #include "AudioProcessor.h"
 #include "RuntimeCommandSink.h"
 #include "VideoDirector.h"
@@ -73,9 +74,13 @@ static void testBridgeRoutesAutoChangerCommandsThroughSink() {
     OwnedAutoChangeSettings settings(autoChangeConfigWithLittleChanges());
     RecordingSink sink;
     AcousticContext acousticContext;
-    AudioVisualBridge bridge(acousticContext, 4, &sink, &settings);
+    AudioProcessor processor;
+    AudioProcessingState processingState;
+    AudioProcessingSelector processingSelector(processingState, processor);
+    AudioVisualBridge bridge(acousticContext, processingSelector, processor,
+        4, &sink, &settings);
 
-    audioProcessing.change("none");
+    processingSelector.changeTo("none");
     AudioFrame frame;
     fillConstant(frame, 8, 8);
 
@@ -89,7 +94,10 @@ static void testBridgeRoutesAutoChangerCommandsThroughSink() {
 
 static void testBridgeWithoutSinkHasNoAutoChangerStatus() {
     AcousticContext acousticContext;
-    AudioVisualBridge bridge(acousticContext, 4);
+    AudioProcessor processor;
+    AudioProcessingState processingState;
+    AudioProcessingSelector processingSelector(processingState, processor);
+    AudioVisualBridge bridge(acousticContext, processingSelector, processor, 4);
 
     assert(strcmp(bridge.autoChangerStatus(), "") == 0);
 }

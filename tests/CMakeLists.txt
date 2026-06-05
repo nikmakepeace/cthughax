@@ -641,6 +641,9 @@ add_executable(audio_visual_bridge_frame_test
     unit/AudioVisualBridgeFrameTest.cc
     ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFftProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingSelector.cc
     ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/AudioVisualBridge.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
@@ -667,6 +670,9 @@ add_executable(audio_visual_bridge_auto_changer_test
     unit/AudioVisualBridgeAutoChangerTest.cc
     ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFftProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingSelector.cc
     ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/AudioVisualBridge.cc
     ${CMAKE_SOURCE_DIR}/src/AutoChangeSettings.cc
@@ -693,6 +699,7 @@ add_test(NAME audio_visual_bridge_auto_changer_test
 add_executable(audio_frame_processor_test
     unit/AudioFrameProcessorTest.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFftProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
@@ -739,6 +746,10 @@ add_test(NAME runtime_auto_change_controls_test
 
 add_executable(runtime_audio_controls_test
     unit/RuntimeAudioControlsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFftProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/RuntimeAudioControls.cc
     ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
 )

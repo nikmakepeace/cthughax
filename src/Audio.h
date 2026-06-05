@@ -476,8 +476,23 @@ public:
     virtual void rewind();
 };
 
+class AudioFftProcessor;
+
 class AudioProcessor {
+    AudioFftProcessor* fftProcessorValue;
+
 public:
+    /** Creates an audio processor using the default FFT implementation. */
+    AudioProcessor();
+
+    /**
+     * Creates an audio processor with an injected FFT implementation.
+     *
+     * @param fftProcessor FFT processor used by fft() calls. The referenced
+     *        object must outlive this AudioProcessor.
+     */
+    explicit AudioProcessor(AudioFftProcessor& fftProcessor);
+
     /**
      * Measures one signed 8-bit stereo audio frame.
      *

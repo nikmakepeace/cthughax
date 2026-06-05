@@ -11,6 +11,7 @@
 
 class SceneCommands;
 class AutoChangeSettings;
+class AudioProcessingState;
 
 /**
  * Adds one runtime owner's current state to a Config snapshot.
@@ -65,22 +66,23 @@ public:
     Config currentConfig() const;
 };
 
-/**
- * Legacy-backed contributor for the runtime values still stored in globals.
- */
+/** Transitional contributor for runtime values not yet split by subsystem. */
 class LegacyRuntimeConfigContributor : public RuntimeConfigContributor {
     SceneCommands& sceneCommands;
     const AutoChangeSettings& autoChangeSettings;
+    const AudioProcessingState& audioProcessingState;
 
 public:
     /**
-     * Creates a contributor backed by SceneCommands plus transitional globals.
+     * Creates a contributor backed by current runtime owners.
      *
      * @param sceneCommands_ Scene command facade used to read live scene state.
      * @param autoChangeSettings_ Runtime-owned automatic scene-change settings.
+     * @param audioProcessingState_ Runtime-owned audio processing state.
      */
     LegacyRuntimeConfigContributor(SceneCommands& sceneCommands_,
-        const AutoChangeSettings& autoChangeSettings_);
+        const AutoChangeSettings& autoChangeSettings_,
+        const AudioProcessingState& audioProcessingState_);
 
     /**
      * Overlays the current scene, display, auto-change, and policy values.

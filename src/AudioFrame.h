@@ -36,7 +36,7 @@ public:
     /** Signed 8-bit stereo samples used by visualization and analysis. */
     char2 raw[1024];
 
-    /** Signed 8-bit stereo samples after the selected AudioProcessingOption. */
+    /** Signed 8-bit stereo samples after the selected audio-processing mode. */
     char2 processedWaveData[1024];
 
     /** Metrics measured from raw for this visual frame. */

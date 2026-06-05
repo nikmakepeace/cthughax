@@ -4,32 +4,36 @@
 
 #include "RuntimeAudioControls.h"
 
-#include "AudioProcessor.h"
+#include "AudioProcessing.h"
+
+DefaultRuntimeAudioControls::DefaultRuntimeAudioControls(
+    AudioProcessingSelector& audioProcessingSelector_)
+    : audioProcessingSelector(audioProcessingSelector_) { }
 
 void DefaultRuntimeAudioControls::changeSoundProcessingBy(int by) {
-    audioProcessing.change(by);
+    audioProcessingSelector.changeBy(by);
 }
 
 void DefaultRuntimeAudioControls::changeSoundProcessingTo(const char* to) {
-    audioProcessing.change(to);
+    audioProcessingSelector.changeTo(to);
 }
 
 int DefaultRuntimeAudioControls::changeAudioOptionBy(
     Option& option, int by, RuntimeChangeSet& changes) {
-    if (&option != &audioProcessing)
+    if (&option != &audioProcessingSelector.option())
         return 0;
 
-    option.change(by);
+    audioProcessingSelector.changeBy(by);
     changes.audioProcessingChanged = 1;
     return 1;
 }
 
 int DefaultRuntimeAudioControls::changeAudioOptionTo(
     Option& option, const char* to, RuntimeChangeSet& changes) {
-    if (&option != &audioProcessing)
+    if (&option != &audioProcessingSelector.option())
         return 0;
 
-    option.change(to);
+    audioProcessingSelector.changeTo(to);
     changes.audioProcessingChanged = 1;
     return 1;
 }

@@ -1,6 +1,8 @@
 #include "Audio.h"
 #include "AudioAnalyzer.h"
+#include "AudioFftProcessor.h"
 #include "AudioFrame.h"
+#include "AudioProcessing.h"
 #include "AudioProcessor.h"
 #include "AudioTypes.h"
 #include "AudioVisualBridge.h"
@@ -10,6 +12,7 @@
 
 #include <limits.h>
 #include <stddef.h>
+#include <stdio.h>
 #include <string>
 #include <vector>
 
@@ -104,6 +107,11 @@ const char* primaryFixturePath() {
     return path.c_str();
 }
 
+const char* prismPcmFixturePath() {
+    static std::string path = fixturePath("prism-2s-48000-stereo-s16le.raw");
+    return path.c_str();
+}
+
 void applyFormat(const PcmFormat& format) {
     audioSetPcmFormat(format);
 }
@@ -146,6 +154,92 @@ struct PcmFixture {
 const PcmFixture& pcmFixture() {
     static PcmFixture fixture;
     return fixture;
+}
+
+struct PrismPcmFrameFixture {
+    int valid;
+    std::string error;
+    PcmFormat format;
+    AudioFrame frame;
+
+    PrismPcmFrameFixture()
+        : valid(0)
+        , error()
+        , format()
+        , frame() {
+        FILE* file = fopen(prismPcmFixturePath(), "rb");
+        if (!file) {
+            error = std::string("could not open prism PCM fixture: ")
+                + prismPcmFixturePath();
+            return;
+        }
+
+        format.sampleRate = 48000;
+        format.channels = 2;
+        format.sampleFormat = SF_s16_le;
+
+        if (fseek(file, 0, SEEK_END) != 0) {
+            fclose(file);
+            error = std::string("could not size prism PCM fixture: ")
+                + prismPcmFixturePath();
+            return;
+        }
+        long byteCount = ftell(file);
+        if (byteCount < 0) {
+            fclose(file);
+            error = std::string("could not tell prism PCM fixture size: ")
+                + prismPcmFixturePath();
+            return;
+        }
+        rewind(file);
+
+        int bytesPerSample = format.bytesPerSample();
+        if ((byteCount <= 0) || ((byteCount % bytesPerSample) != 0)) {
+            fclose(file);
+            error = std::string("prism PCM fixture has unexpected byte count: ")
+                + prismPcmFixturePath();
+            return;
+        }
+
+        std::vector<char> pcm((size_t)byteCount);
+        size_t bytesRead = fread(pcm.data(), 1, pcm.size(), file);
+        fclose(file);
+        if (bytesRead != pcm.size()) {
+            error = std::string("short read from prism PCM fixture: ")
+                + prismPcmFixturePath();
+            return;
+        }
+
+        applyFormat(format);
+        int samplesRead = (int)pcm.size() / bytesPerSample;
+        if (samplesRead < kVideoFrameSamples) {
+            error = std::string("prism PCM fixture too short for one visual frame: ")
+                + prismPcmFixturePath();
+            return;
+        }
+
+        DecodedAudioHistory history(samplesRead, format.bytesPerSample(),
+            kVideoFrameSamples);
+        AudioFrameBuilder builder;
+        history.appendDecodedPcm(pcm.data(), samplesRead);
+        frame.clear();
+        builder.build(frame, history, samplesRead / 2);
+        valid = 1;
+    }
+};
+
+const PrismPcmFrameFixture& prismPcmFrameFixture() {
+    static PrismPcmFrameFixture fixture;
+    return fixture;
+}
+
+static int requirePrismPcmFrameFixture(benchmark::State& state) {
+    const PrismPcmFrameFixture& fixture = prismPcmFrameFixture();
+    if (!fixture.valid) {
+        state.SkipWithError(fixture.error.c_str());
+        return 0;
+    }
+    return 1;
 }
 
 void fillFrameFromFixture(AudioFrame& frame) {
@@ -407,6 +501,21 @@ static void BM_AudioProcessor_FFT(benchmark::State& state) {
     }
 }
 
+static void BM_AudioFft_FixedPoint_PrismPcm(benchmark::State& state) {
+    if (!requirePrismPcmFrameFixture(state))
+        return;
+
+    const PrismPcmFrameFixture& fixture = prismPcmFrameFixture();
+    FixedPointAudioFftProcessor processor;
+    AudioFrame frame = fixture.frame;
+
+    for (auto _ : state) {
+        processor.transform(frame.raw, frame.processedWaveData);
+        benchmark::DoNotOptimize(frame.processedWaveData);
+        benchmark::ClobberMemory();
+    }
+}
+
 static void BM_AudioProcessor_Analyze1024(benchmark::State& state) {
     AudioProcessor processor;
     AudioFrame frame;
@@ -436,11 +545,14 @@ static void BM_AcousticContext_Update(benchmark::State& state) {
 static void BM_AudioVisualBridge_RunFrameNone(benchmark::State& state) {
     AudioFrame frame;
     AcousticContext acousticContext;
+    AudioProcessor processor;
+    AudioProcessingState processingState;
+    AudioProcessingSelector processingSelector(processingState, processor);
     fillFrameFromFixture(frame);
-    AudioVisualBridge bridge(acousticContext,
+    AudioVisualBridge bridge(acousticContext, processingSelector, processor,
         AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
 
-    audioProcessing.change("none");
+    processingSelector.changeTo("none");
 
     for (auto _ : state) {
         bridge.runFrame(frame);
@@ -462,13 +574,16 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
     AudioFrameBuilder builder;
     AudioFrame frame;
     AcousticContext acousticContext;
-    AudioVisualBridge bridge(acousticContext,
+    AudioProcessor processor;
+    AudioProcessingState processingState;
+    AudioProcessingSelector processingSelector(processingState, processor);
+    AudioVisualBridge bridge(acousticContext, processingSelector, processor,
         AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
     std::vector<char> inputChunk(fixture.format.bytesForSamples(fixture.sliceSamples));
     std::vector<char> outputChunk(fixture.format.bytesForSamples(fixture.sliceSamples));
     long long totalSamples = 0;
 
-    audioProcessing.change("none");
+    processingSelector.changeTo("none");
     output.configureTiming(fixture.format.sampleRate, fixture.bytesPerSample(),
         fixture.sliceSamples);
 
@@ -512,6 +627,7 @@ BENCHMARK(BM_AudioProcessor_None);
 BENCHMARK(BM_AudioProcessor_Filter1);
 BENCHMARK(BM_AudioProcessor_Filter2);
 BENCHMARK(BM_AudioProcessor_FFT);
+BENCHMARK(BM_AudioFft_FixedPoint_PrismPcm);
 BENCHMARK(BM_AudioProcessor_Analyze1024);
 BENCHMARK(BM_AcousticContext_Update);
 BENCHMARK(BM_AudioVisualBridge_RunFrameNone);

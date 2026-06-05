@@ -4,6 +4,11 @@
 #include "Audio.h"
 #include "imath.h"
 
+#ifdef CTH_DISABLE_MINIMP3
+#undef WITH_MINIMP3
+#define WITH_MINIMP3 0
+#endif
+
 #ifndef WITH_MINIMP3
 #define WITH_MINIMP3 1
 #endif

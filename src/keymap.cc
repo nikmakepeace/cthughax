@@ -5,7 +5,7 @@
 #include "keys.h"
 #include "display.h"
 #include "disp-sys.h"
-#include "AudioProcessor.h"
+#include "AudioProcessing.h"
 #include "Border.h"
 #include "CthughaBuffer.h"
 #include "Flashlight.h"
@@ -210,6 +210,7 @@ Action* Action::head = NULL;
 Keymap* Keymap::first = NULL;
 Keymap* Keymap::current = NULL;
 static RuntimeCommandSink* keymapRuntimeCommandSink = NULL;
+static const AudioProcessingState* keymapAudioProcessingState = NULL;
 
 Keymap::Keymap(const char* n)
     : next(first)
@@ -490,6 +491,14 @@ RuntimeCommandSink* Keymap::runtimeCommandSink() {
     return keymapRuntimeCommandSink;
 }
 
+void Keymap::setAudioProcessingState(const AudioProcessingState* state) {
+    keymapAudioProcessingState = state;
+}
+
+const AudioProcessingState* Keymap::audioProcessingState() {
+    return keymapAudioProcessingState;
+}
+
 //
 // intializiation of the default keymaps
 //
@@ -543,7 +552,9 @@ static RuntimeContinuationState current_continuation_state() {
     }
 
     state.presentation = continuation_name(screen.currentName());
-    state.audioProcessing = continuation_name(audioProcessing.text());
+    const AudioProcessingState* audioState = Keymap::audioProcessingState();
+    state.audioProcessing = continuation_name(
+        audioState != NULL ? audioState->text() : "");
     state.showFpsEnabled = int(showFPS);
     return state;
 }

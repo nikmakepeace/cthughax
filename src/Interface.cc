@@ -7,7 +7,7 @@
 #include "CthughaBuffer.h"
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
-#include "AudioProcessor.h"
+#include "AudioProcessing.h"
 #include "Border.h"
 #include "Flashlight.h"
 #include "RuntimeConfigRegistry.h"
@@ -33,6 +33,7 @@ Interface* Interface::head = NULL;
 RuntimeConfigRegistry* Interface::runtimeConfigRegistryValue = NULL;
 const AutoChangerStatusProvider* Interface::autoChangerStatusProviderValue = NULL;
 AutoChangeControls* Interface::autoChangeControlsValue = NULL;
+AudioProcessingSelector* Interface::audioProcessingSelectorValue = NULL;
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -93,6 +94,14 @@ void Interface::setAutoChangeControls(AutoChangeControls* controls) {
 
 AutoChangeControls* Interface::autoChangeControls() {
     return autoChangeControlsValue;
+}
+
+void Interface::setAudioProcessingSelector(AudioProcessingSelector* selector) {
+    audioProcessingSelectorValue = selector;
+}
+
+AudioProcessingSelector* Interface::audioProcessingSelector() {
+    return audioProcessingSelectorValue;
 }
 
 void Interface::set(const char* n) {
@@ -400,6 +409,31 @@ public:
     }
 };
 
+class InterfaceElementAudioProcessingOption
+    : public InterfaceElementRuntimeConfigOption {
+    void updateOption() {
+        AudioProcessingSelector* selector = Interface::audioProcessingSelector();
+        opt = (selector != NULL)
+            ? static_cast<Option*>(&selector->option())
+            : static_cast<Option*>(&optionDummy);
+    }
+
+public:
+    InterfaceElementAudioProcessingOption(const char* t,
+        RuntimeConfigSelectionField field_)
+        : InterfaceElementRuntimeConfigOption(t, &optionDummy, field_) { }
+
+    virtual const char* text(int selected) {
+        updateOption();
+        return InterfaceElementRuntimeConfigOption::text(selected);
+    }
+
+    virtual int doKey(int key) {
+        updateOption();
+        return InterfaceElementOption::doKey(key);
+    }
+};
+
 class InterfaceElementAutoChangeOption : public InterfaceElementOption {
     AutoChangeControlField field;
 
@@ -535,8 +569,8 @@ public:
                 "Wave (w)              : %s", &wave,
                 RuntimeConfigSelectionWave);
             elements[6]
-                = new InterfaceElementRuntimeConfigOption(
-                    "Sound Processing (m,M): %s", &audioProcessing,
+                = new InterfaceElementAudioProcessingOption(
+                    "Sound Processing (m,M): %s",
                     RuntimeConfigSelectionAudioProcessing);
             elements[7] = new InterfaceElementRuntimeConfigEffectControl(
                 "Table (b,B)           : %s", &table,

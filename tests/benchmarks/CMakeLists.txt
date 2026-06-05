@@ -9,6 +9,9 @@ add_executable(audio_pipeline_bench
     ${CMAKE_SOURCE_DIR}/src/DspPcmSource.cc
     ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFftProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingSelector.cc
     ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/AudioVisualBridge.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
@@ -23,6 +26,7 @@ target_compile_definitions(audio_pipeline_bench PRIVATE
     CTH_AUDIO_FRAME_NO_RUNTIME
     CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
     CTH_LIBDIR="${CTH_DATA_DIR}"
+    CTH_DISABLE_MINIMP3
 )
 
 target_include_directories(audio_pipeline_bench PRIVATE
