@@ -1,5 +1,6 @@
 #include "cthugha.h"
 #include "Interface.h"
+#include "AutoChangerStatusProvider.h"
 #include "keys.h"
 #include "imath.h"
 #include "CthughaBuffer.h"
@@ -30,6 +31,7 @@ Interface* Interface::current = NULL;
 Interface* Interface::head = NULL;
 
 RuntimeConfigRegistry* Interface::runtimeConfigRegistryValue = NULL;
+const AutoChangerStatusProvider* Interface::autoChangerStatusProviderValue = NULL;
 
 ////////////////////////////////////////////////////////////////////////////
 
@@ -73,6 +75,15 @@ void Interface::setRuntimeConfigRegistry(RuntimeConfigRegistry* registry) {
 
 const RuntimeConfigRegistry* Interface::runtimeConfigRegistry() {
     return runtimeConfigRegistryValue;
+}
+
+void Interface::setAutoChangerStatusProvider(
+    const AutoChangerStatusProvider* provider) {
+    autoChangerStatusProviderValue = provider;
+}
+
+const AutoChangerStatusProvider* Interface::autoChangerStatusProvider() {
+    return autoChangerStatusProviderValue;
 }
 
 void Interface::set(const char* n) {
@@ -228,8 +239,11 @@ void Interface::display() {
 
     if (showStatus) {
         static char str[512];
+        const char* autoChangeStatus = autoChangerStatusProviderValue != NULL
+            ? autoChangerStatusProviderValue->autoChangerStatus()
+            : "";
         snprintf(str, sizeof(str), "%s%s", (cthughaDisplay != NULL) ? cthughaDisplay->status() : "",
-            (autoChanger != NULL) ? autoChanger->status() : "");
+            autoChangeStatus);
 
         displayDevice->print(str, text_size.y - 1, 'l', TEXT_COLOR_NORMAL, 1);
     }

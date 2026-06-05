@@ -233,13 +233,16 @@ void Application::shutdownAudioIngest() {
 }
 
 void Application::initAudioVisualBridge() {
-    if (audioVisualBridge.get() == NULL)
+    if (audioVisualBridge.get() == NULL) {
         audioVisualBridge.reset(new AudioVisualBridge(acousticContextValue,
             startupConfigValue.audioAnalysis.minNoise,
             runtimeChangeMediatorValue.get()));
+        Interface::setAutoChangerStatusProvider(audioVisualBridge.get());
+    }
 }
 
 void Application::shutdownAudioVisualBridge() {
+    Interface::setAutoChangerStatusProvider(NULL);
     audioVisualBridge.reset();
 }
 

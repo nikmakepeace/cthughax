@@ -127,8 +127,18 @@ static void testAudioFrameOwnsPerFrameMetrics() {
         "void AutoChanger::operator()(const AudioMetrics& metrics)");
     assertSourceContains("src/AutoChanger.h",
         "AcousticContext& acousticContext_");
+    assertSourceContains("src/AudioVisualBridge.h",
+        "std::unique_ptr<AutoChanger> autoChangerValue");
+    assertSourceContains("src/AudioVisualBridge.cc",
+        "autoChangerValue.reset(new AutoChanger");
+    assertSourceContains("src/Interface.cc",
+        "autoChangerStatusProviderValue->autoChangerStatus()");
+    assertSourceContains("src/Application.cc",
+        "Interface::setAutoChangerStatusProvider(audioVisualBridge.get())");
     assertSourceContains("tests/CMakeLists.txt",
         "audio_frame_processor_test");
+    assertSourceContains("tests/CMakeLists.txt",
+        "audio_visual_bridge_auto_changer_test");
     assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameSetCurrent");
     assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameCurrent");
     assertSourceDoesNotContain("src/AudioFrame.h", "audioFrameRawData");
@@ -157,6 +167,10 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc", "sound_minnoise");
     assertSourceDoesNotContain("src/AudioVisualBridge.cc", "audioAnalyzer");
     assertSourceDoesNotContain("src/AutoChanger.cc", "audioMetrics.");
+    assertSourceDoesNotContain("src/AutoChanger.h", "extern AutoChanger* autoChanger");
+    assertSourceDoesNotContain("src/AutoChanger.cc", "AutoChanger* autoChanger");
+    assertSourceDoesNotContain("src/AudioVisualBridge.cc", "autoChanger =");
+    assertSourceDoesNotContain("src/Interface.cc", "autoChanger->");
     assertSourceDoesNotContain("src/display.cc", "audioMetrics.");
 }
 

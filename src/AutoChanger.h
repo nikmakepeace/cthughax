@@ -1,13 +1,11 @@
-// -*- c++ -*-
+/** @file
+ * Automatic scene-change policy driven by audio metrics and acoustic context.
+ */
 
 #ifndef __AUTO_CHANGER_H
 #define __AUTO_CHANGER_H
 
 #include "Option.h"
-
-//
-// automatically change the display, based on timeouts and noise
-//
 
 extern OptionTime changeQuiet; /* change after quiet-pause (1.5 sec) */
 extern OptionTime changeWaitMin; /* min time between change (3 sec) */
@@ -40,6 +38,8 @@ public:
      */
     AutoChanger(RuntimeCommandSink& runtimeCommands_,
         AcousticContext& acousticContext_);
+
+    /** Releases automatic scene-change policy state. */
     ~AutoChanger();
 
     /**
@@ -62,10 +62,15 @@ public:
      * @return Pointer to static status text for the interface. The text is
      *         overwritten on the next status() call.
      */
-    const char* status();
+    const char* status() const;
 };
-extern AutoChanger* autoChanger;
 
+/**
+ * Applies startup automatic scene-change configuration to legacy options.
+ *
+ * @param config Startup configuration values parsed before Application creates
+ *        the bridge-owned AutoChanger instance.
+ */
 void configureAutoChanger(const AutoChangeConfig& config);
 
 #endif

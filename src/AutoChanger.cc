@@ -1,3 +1,7 @@
+/** @file
+ * Automatic scene-change policy implementation.
+ */
+
 #include "cthugha.h"
 #include "imath.h"
 #include "AutoChanger.h"
@@ -20,7 +24,6 @@ OptionInt changeCumulativeFireLevel("cumulative-fire-level", 0);
 OptionOnOff lock("lock", 0); /* change automatically */
 OptionOnOff change_little("little", 0); /* only change one options */
 
-AutoChanger* autoChanger = NULL;
 static int changeWaitRandomMinimumMs = 1;
 
 void configureAutoChanger(const AutoChangeConfig& config) {
@@ -105,7 +108,7 @@ void AutoChanger::change() {
     }
 }
 
-const char* AutoChanger::status() {
+const char* AutoChanger::status() const {
     static char txt[512];
 
     if (lock) {

@@ -663,6 +663,31 @@ target_link_libraries(audio_visual_bridge_frame_test PRIVATE m)
 
 add_test(NAME audio_visual_bridge_frame_test COMMAND audio_visual_bridge_frame_test)
 
+add_executable(audio_visual_bridge_auto_changer_test
+    unit/AudioVisualBridgeAutoChangerTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioVisualBridge.cc
+    ${CMAKE_SOURCE_DIR}/src/AutoChanger.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(audio_visual_bridge_auto_changer_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(audio_visual_bridge_auto_changer_test PRIVATE m)
+
+add_test(NAME audio_visual_bridge_auto_changer_test
+    COMMAND audio_visual_bridge_auto_changer_test)
+
 add_executable(audio_frame_processor_test
     unit/AudioFrameProcessorTest.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc

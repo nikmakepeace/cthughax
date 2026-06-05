@@ -7,6 +7,7 @@
 #include "EffectControl.h"
 #include "keymap.h"
 
+class AutoChangerStatusProvider;
 class RuntimeConfigRegistry;
 
 class InterfaceElement {
@@ -24,6 +25,7 @@ public:
 
 class Interface {
     static RuntimeConfigRegistry* runtimeConfigRegistryValue;
+    static const AutoChangerStatusProvider* autoChangerStatusProviderValue;
 
 public:
     static int saveToPreset;
@@ -62,6 +64,21 @@ public:
      * @return Installed registry, or NULL when not yet available.
      */
     static const RuntimeConfigRegistry* runtimeConfigRegistry();
+
+    /**
+     * Installs the provider used for automatic scene-change status text.
+     *
+     * @param provider Provider to read; NULL hides auto-change status.
+     */
+    static void setAutoChangerStatusProvider(
+        const AutoChangerStatusProvider* provider);
+
+    /**
+     * Returns the provider used for automatic scene-change status text.
+     *
+     * @return Installed provider, or NULL when AutoChanger is unavailable.
+     */
+    static const AutoChangerStatusProvider* autoChangerStatusProvider();
 
     static void set(const char* n);
 

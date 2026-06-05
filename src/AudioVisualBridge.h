@@ -1,20 +1,36 @@
-// Audio-to-visual bridge.
-//
-// This layer consumes the current audio frame, updates acoustic context, and
-// runs option-changing policy before visual buffer mutation begins.
+/** @file
+ * Audio-to-visual bridge and automatic scene-change ownership.
+ */
 
 #ifndef __AUDIO_VISUAL_BRIDGE_H
 #define __AUDIO_VISUAL_BRIDGE_H
 
+#include "AutoChangerStatusProvider.h"
+
+#ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
+#include <memory>
+#endif
+
 class RuntimeCommandSink;
 class AudioFrame;
 class AcousticContext;
+class AutoChanger;
 
-class AudioVisualBridge {
+/**
+ * Processes frame audio before visual rendering and owns audio-driven policy.
+ *
+ * The bridge is the Application-owned boundary between acquired AudioFrame data
+ * and visual runtime mutation. It analyzes supplied frames, updates the rolling
+ * acoustic context, and runs AutoChanger when runtime commands are available.
+ */
+class AudioVisualBridge : public AutoChangerStatusProvider {
     int filterchainRefreshRequestedValue;
     AcousticContext& acousticContextValue;
     int minNoiseValue;
-    RuntimeCommandSink* runtimeCommands;
+
+#ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
+    std::unique_ptr<AutoChanger> autoChangerValue;
+#endif
 
 public:
     /**
@@ -29,6 +45,8 @@ public:
      */
     AudioVisualBridge(AcousticContext& acousticContext_,
         int minNoise_, RuntimeCommandSink* runtimeCommands_ = 0);
+
+    /** Releases bridge-owned automatic scene-change policy. */
     ~AudioVisualBridge();
 
     /**
@@ -40,6 +58,14 @@ public:
      * @param frame Current visual audio frame to process and analyze.
      */
     void runFrame(AudioFrame& frame);
+
+    /**
+     * Returns current automatic scene-change status text.
+     *
+     * @return Empty string when AutoChanger is disabled or unavailable;
+     *         otherwise provider-owned text valid until the next status call.
+     */
+    virtual const char* autoChangerStatus() const;
 
     /**
      * @return Nonzero when audio-side option changes require rebuilding the

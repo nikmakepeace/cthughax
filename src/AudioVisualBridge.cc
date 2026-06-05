@@ -1,3 +1,7 @@
+/** @file
+ * Audio frame processing, analysis, and audio-driven scene policy.
+ */
+
 #include "cthugha.h"
 #include "AudioVisualBridge.h"
 #include "Audio.h"
@@ -12,21 +16,16 @@ AudioVisualBridge::AudioVisualBridge(AcousticContext& acousticContext_,
     int minNoise_, RuntimeCommandSink* runtimeCommands_)
     : filterchainRefreshRequestedValue(0)
     , acousticContextValue(acousticContext_)
-    , minNoiseValue(minNoise_)
-    , runtimeCommands(runtimeCommands_) {
+    , minNoiseValue(minNoise_) {
     CTH_DEBUG("audio visual bridge: creating bridge\n");
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
-    if (runtimeCommands != 0)
-        autoChanger = new AutoChanger(*runtimeCommands, acousticContextValue);
+    if (runtimeCommands_ != 0)
+        autoChangerValue.reset(new AutoChanger(*runtimeCommands_, acousticContextValue));
 #endif
 }
 
 AudioVisualBridge::~AudioVisualBridge() {
     CTH_DEBUG("audio visual bridge: destroying bridge\n");
-#ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
-    delete autoChanger;
-    autoChanger = 0;
-#endif
 }
 
 void AudioVisualBridge::runFrame(AudioFrame& frame) {
@@ -60,8 +59,8 @@ void AudioVisualBridge::runFrame(AudioFrame& frame) {
     double analyzed = CTH_LOG_ENABLED(CTH_LOG_TRACE) ? getTime() : 0.0;
 
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
-    if (autoChanger != 0)
-        (*autoChanger)(frame.metrics);
+    if (autoChangerValue.get() != 0)
+        (*autoChangerValue)(frame.metrics);
 #endif
 
     if (CTH_LOG_ENABLED(CTH_LOG_TRACE)) {
@@ -74,4 +73,12 @@ void AudioVisualBridge::runFrame(AudioFrame& frame) {
             (done - analyzed) * 1000.0,
             filterchainRefreshRequestedValue);
     }
+}
+
+const char* AudioVisualBridge::autoChangerStatus() const {
+#ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
+    if (autoChangerValue.get() != 0)
+        return autoChangerValue->status();
+#endif
+    return "";
 }
