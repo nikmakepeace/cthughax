@@ -4,7 +4,6 @@
 
 #include "RuntimeConfigRegistry.h"
 
-#include "AudioAnalyzer.h"
 #include "AudioProcessor.h"
 #include "AutoChanger.h"
 #include "CthughaDisplay.h"
@@ -59,7 +58,6 @@ void LegacyRuntimeConfigContributor::contribute(Config& config) const {
     config.autoChange.cumulativeFireLevel = int(changeCumulativeFireLevel);
     config.autoChange.locked = int(lock);
     config.autoChange.changeLittle = int(change_little);
-    config.autoChange.minNoise = int(sound_minnoise);
 
     config.messages.quietMessageMs = int(changeMsgTime);
 

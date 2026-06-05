@@ -9,9 +9,10 @@
 #endif
 
 AudioVisualBridge::AudioVisualBridge(AcousticContext& acousticContext_,
-    RuntimeCommandSink* runtimeCommands_)
+    int minNoise_, RuntimeCommandSink* runtimeCommands_)
     : filterchainRefreshRequestedValue(0)
     , acousticContextValue(acousticContext_)
+    , minNoiseValue(minNoise_)
     , runtimeCommands(runtimeCommands_) {
     CTH_DEBUG("audio visual bridge: creating bridge\n");
 #ifndef CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
@@ -38,7 +39,7 @@ void AudioVisualBridge::runFrame(AudioFrame& frame) {
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
         AudioMetrics processedMetrics = processor.analyze(
-            frame.processedWaveData, int(sound_minnoise));
+            frame.processedWaveData, minNoiseValue);
         debugReports++;
         CTH_DEBUG("processed wave audio: mode=%s amplitude=%d left=%d right=%d noisy=%d\n",
             audioProcessing.text(), processedMetrics.amplitude,
@@ -46,7 +47,7 @@ void AudioVisualBridge::runFrame(AudioFrame& frame) {
             processedMetrics.noisy);
     }
 
-    processor.analyze(frame, int(sound_minnoise));
+    processor.analyze(frame, minNoiseValue);
     acousticContextValue.update(frame.metrics);
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {

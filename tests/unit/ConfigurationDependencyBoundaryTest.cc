@@ -102,13 +102,15 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/AudioVisualBridge.cc",
         "audioProcessing.process(frame)");
     assertSourceContains("src/AudioVisualBridge.cc",
-        "processor.analyze(frame, int(sound_minnoise))");
+        "processor.analyze(frame, minNoiseValue)");
     assertSourceContains("src/AudioVisualBridge.cc",
         "acousticContextValue.update(frame.metrics)");
     assertSourceContains("src/Application.h",
         "AcousticContext acousticContextValue");
     assertSourceContains("src/Application.cc",
         "new AudioVisualBridge(acousticContextValue");
+    assertSourceContains("src/Application.cc",
+        "startupConfigValue.audioAnalysis.minNoise");
     assertSourceContains("src/Application.cc",
         "context.audioMetrics = &frame.metrics");
     assertSourceContains("src/Application.cc",
@@ -148,6 +150,11 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AudioAnalyzer::");
     assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AudioMetrics audioMetrics");
     assertSourceDoesNotContain("src/AudioAnalyzer.cc", "AcousticContext acousticContext");
+    assertSourceDoesNotContain("src/AudioAnalyzer.h", "sound_minnoise");
+    assertSourceDoesNotContain("src/AudioAnalyzer.cc", "sound_minnoise");
+    assertSourceDoesNotContain("src/AudioVisualBridge.cc", "sound_minnoise");
+    assertSourceDoesNotContain("src/Interface.cc", "sound_minnoise");
+    assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc", "sound_minnoise");
     assertSourceDoesNotContain("src/AudioVisualBridge.cc", "audioAnalyzer");
     assertSourceDoesNotContain("src/AutoChanger.cc", "audioMetrics.");
     assertSourceDoesNotContain("src/display.cc", "audioMetrics.");
@@ -323,7 +330,10 @@ static void testApplicationProvidesStartupConfigSlices() {
     assertSourceContains("src/Application.cc", "configureCthughaDisplay(startupConfigValue.display)");
     assertSourceContains("src/Application.cc", "configureAutoChanger(startupConfigValue.autoChange)");
     assertSourceContains("src/Application.cc",
-        "configureAudioAnalyzer(startupConfigValue.autoChange)");
+        "startupConfigValue.audioAnalysis.minNoise");
+    assertSourceContains("src/Configuration.h", "struct AudioAnalysisConfig");
+    assertSourceContains("src/Configuration.h", "AudioAnalysisConfig audioAnalysis");
+    assertSourceDoesNotContain("src/Application.cc", "configureAudioAnalyzer");
     assertSourceContains("src/Application.cc", "configureEffectPolicy(startupConfigValue.effectPolicy)");
     assertSourceContains("src/Application.cc", "configureTranslationOptions(startupConfigValue.effectPolicy)");
     assertSourceContains("src/Application.cc", "configureWaveOptions(startupConfigValue.effectPolicy)");
@@ -407,6 +417,8 @@ static void testIniPersistenceUsesRuntimePersistenceAdapter() {
         "int write_continuation_ini(const ContinuationIniConfig& config)");
     assertSourceContains("src/IniFiles.cc",
         "write_scene_config_ini(config.scene)");
+    assertSourceContains("src/IniFiles.cc",
+        "write_audio_analysis_config_ini(config.audioAnalysis)");
     assertSourceContains("src/IniFiles.cc",
         "write_auto_change_config_ini(config.autoChange)");
     assertSourceContains("src/IniFiles.cc",

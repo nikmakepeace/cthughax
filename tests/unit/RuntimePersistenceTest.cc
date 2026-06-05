@@ -37,6 +37,7 @@ static void testWriteCurrentConfigUsesRegistrySnapshot() {
     Config baseline;
     baseline.scene.wave = "startup-wave";
     baseline.display.showFpsEnabled = 0;
+    baseline.audioAnalysis.minNoise = 123;
     RuntimeConfigRegistry registry(baseline);
     RuntimeWaveContributor contributor;
     registry.addContributor(contributor);
@@ -48,6 +49,7 @@ static void testWriteCurrentConfigUsesRegistrySnapshot() {
     assert(iniWrites == 1);
     assert(lastConfig.scene.wave == "runtime-wave");
     assert(lastConfig.display.showFpsEnabled == 1);
+    assert(lastConfig.audioAnalysis.minNoise == 123);
 }
 
 static void testWriteContinuationMapsRuntimeContinuationState() {

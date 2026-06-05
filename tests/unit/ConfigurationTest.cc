@@ -81,7 +81,7 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.autoChange.cumulativeFireLevel == AUTO_CHANGE_CONFIG_DEFAULT_CUMULATIVE_FIRE_LEVEL);
     assert(result.config.autoChange.locked == AUTO_CHANGE_CONFIG_DEFAULT_LOCKED);
     assert(result.config.autoChange.changeLittle == AUTO_CHANGE_CONFIG_DEFAULT_CHANGE_LITTLE);
-    assert(result.config.autoChange.minNoise == AUTO_CHANGE_CONFIG_DEFAULT_MIN_NOISE);
+    assert(result.config.audioAnalysis.minNoise == AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
     assert(result.config.effectPolicy.imageFilesEnabled == EFFECT_POLICY_DEFAULT_IMAGE_FILES_ENABLED);
     assert(result.config.effectPolicy.paletteSetFilterText == EFFECT_POLICY_DEFAULT_PALETTE_SET_FILTER_TEXT);
     assert(result.config.effectPolicy.useTranslatesEnabled == EFFECT_POLICY_DEFAULT_USE_TRANSLATES_ENABLED);
@@ -224,7 +224,7 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "audio.dsp_fragment_size") == "10");
     assert(*patchValue(patch, "audio.dsp_sync") == "1");
     assert(*patchValue(patch, "audio.silent") == "1");
-    assert(*patchValue(patch, "auto_change.min_noise") == "12");
+    assert(*patchValue(patch, "audio_analysis.min_noise") == "12");
     assert(*patchValue(patch, "audio.pulse_latency_ms") == "150");
     assert(*patchValue(patch, "audio.pulse_server") == "local");
     assert(*patchValue(patch, "audio.output_dump_path") == "dump.raw");
@@ -507,7 +507,7 @@ static void commandLineSourceBuildsAutoChangeConfig() {
     assert(result.config.autoChange.waitRandomMs == 3400);
     assert(result.config.autoChange.quietMs == 5600);
     assert(result.config.autoChange.cumulativeFireLevel == 78);
-    assert(result.config.autoChange.minNoise == 255);
+    assert(result.config.audioAnalysis.minNoise == 255);
     assert(result.diagnostics.size() == 1);
     assert(result.diagnostics[0].severity == ConfigDiagnosticWarning);
 }

@@ -235,6 +235,7 @@ void Application::shutdownAudioIngest() {
 void Application::initAudioVisualBridge() {
     if (audioVisualBridge.get() == NULL)
         audioVisualBridge.reset(new AudioVisualBridge(acousticContextValue,
+            startupConfigValue.audioAnalysis.minNoise,
             runtimeChangeMediatorValue.get()));
 }
 
@@ -335,7 +336,6 @@ int Application::initialize() {
     configureDisplayDeviceX11(startupConfigValue.x11);
 #endif
     configureAutoChanger(startupConfigValue.autoChange);
-    configureAudioAnalyzer(startupConfigValue.autoChange);
     configureEffectPolicy(startupConfigValue.effectPolicy);
     configureTranslationOptions(startupConfigValue.effectPolicy);
     configureWaveOptions(startupConfigValue.effectPolicy);

@@ -170,6 +170,14 @@ static void write_transition_policy_ini(const SceneTransitionPolicy& policy) {
     putini_int("palette-smooth-seconds", policy.paletteSmoothSeconds);
 }
 
+static void write_audio_analysis_config_ini(const AudioAnalysisConfig& audioAnalysis) {
+    fprintf(ini_file,
+        "#\n"
+        "# Audio Analysis\n"
+        "#\n");
+    putini_int("min-noise", audioAnalysis.minNoise);
+}
+
 static void write_auto_change_config_ini(const AutoChangeConfig& autoChange) {
     fprintf(ini_file,
         "#\n"
@@ -179,7 +187,6 @@ static void write_auto_change_config_ini(const AutoChangeConfig& autoChange) {
     putini_int("random-time", autoChange.waitRandomMs);
     putini_int("quiet-change", autoChange.quietMs);
     putini_int("cumulative-fire-level", autoChange.cumulativeFireLevel);
-    putini_int("min-noise", autoChange.minNoise);
     putini_bool("lock", autoChange.locked);
     putini_bool("little", autoChange.changeLittle);
 }
@@ -261,6 +268,7 @@ int write_ini(const Config& config) {
 
     write_scene_config_ini(config.scene);
     write_transition_policy_ini(config.sceneTransition);
+    write_audio_analysis_config_ini(config.audioAnalysis);
     write_auto_change_config_ini(config.autoChange);
     write_messages_config_ini(config.messages);
     write_display_config_ini(config.display);

@@ -7,19 +7,6 @@
 
 #include "cthugha.h"
 #include "AudioFrame.h"
-#include "Option.h"
-
-struct AutoChangeConfig;
-
-/** Configured noise floor used when AudioProcessor analyzes frame metrics. */
-extern OptionInt sound_minnoise; /* quiet is below this */
-
-/**
- * Applies startup auto-change audio-analysis configuration.
- *
- * @param config Startup auto-change configuration containing minNoise.
- */
-void configureAudioAnalyzer(const AutoChangeConfig& config);
 
 /** Rolling acoustic state derived from consecutive AudioFrame metrics. */
 class AcousticContext {

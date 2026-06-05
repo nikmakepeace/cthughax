@@ -1,12 +1,5 @@
 #include "cthugha.h"
 #include "AudioAnalyzer.h"
-#include "Configuration.h"
-
-OptionInt sound_minnoise("minnoise", 0, SOUND_MINNOISE_MAX_EXCLUSIVE); /* quiet is below this */
-
-void configureAudioAnalyzer(const AutoChangeConfig& config) {
-    sound_minnoise.setValue(config.minNoise);
-}
 
 AcousticContext::AcousticContext()
     : intensityValue(0.0)

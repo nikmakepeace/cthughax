@@ -4,6 +4,7 @@
 #include "AudioProcessor.h"
 #include "AudioTypes.h"
 #include "AudioVisualBridge.h"
+#include "configuration_defaults.h"
 
 #include <benchmark/benchmark.h>
 
@@ -412,7 +413,8 @@ static void BM_AudioProcessor_Analyze1024(benchmark::State& state) {
     fillFrameFromFixture(frame);
 
     for (auto _ : state) {
-        AudioMetrics metrics = processor.analyze(frame.raw, int(sound_minnoise));
+        AudioMetrics metrics = processor.analyze(frame.raw,
+            AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
         benchmark::DoNotOptimize(metrics.amplitude);
     }
 }
@@ -422,7 +424,8 @@ static void BM_AcousticContext_Update(benchmark::State& state) {
     AudioFrame frame;
     AcousticContext acousticContext;
     fillFrameFromFixture(frame);
-    AudioMetrics metrics = processor.analyze(frame.raw, int(sound_minnoise));
+    AudioMetrics metrics = processor.analyze(frame.raw,
+        AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
 
     for (auto _ : state) {
         acousticContext.update(metrics);
@@ -434,7 +437,8 @@ static void BM_AudioVisualBridge_RunFrameNone(benchmark::State& state) {
     AudioFrame frame;
     AcousticContext acousticContext;
     fillFrameFromFixture(frame);
-    AudioVisualBridge bridge(acousticContext);
+    AudioVisualBridge bridge(acousticContext,
+        AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
 
     audioProcessing.change("none");
 
@@ -458,7 +462,8 @@ static void BM_EndToEnd_Process10msWavToNullOutputToBridgeNone(benchmark::State&
     AudioFrameBuilder builder;
     AudioFrame frame;
     AcousticContext acousticContext;
-    AudioVisualBridge bridge(acousticContext);
+    AudioVisualBridge bridge(acousticContext,
+        AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
     std::vector<char> inputChunk(fixture.format.bytesForSamples(fixture.sliceSamples));
     std::vector<char> outputChunk(fixture.format.bytesForSamples(fixture.sliceSamples));
     long long totalSamples = 0;

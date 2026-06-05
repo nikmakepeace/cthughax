@@ -6,7 +6,6 @@
 #include "DisplayDevice.h"
 #include "AutoChanger.h"
 #include "CthughaBuffer.h"
-#include "AudioAnalyzer.h"
 #include "VideoDirector.h"
 #include "QotdMessagesProvider.h"
 #include "TranslationOptions.h"
@@ -128,7 +127,7 @@ void usage() {
     PH(" --qotd-server SERVER  Quote of the Day server", QotdMessagesProvider::defaultServer());
     PH(" --qotd-port PORT    Default Quote of the Day port", MESSAGES_CONFIG_DEFAULT_QOTD_PORT_TEXT);
     PH(" --qotd-prefetch-timeout-ms N  QOTD fetch timeout", qotdPrefetchTimeoutDefault);
-    PH(" --min-noise N       Set level for quiet sound", sound_minnoise.text());
+    PH(" --min-noise N       Set level for quiet sound");
     PH(" --cumulative-fire-level N      Set cumulative fire threshold to N", changeCumulativeFireLevel.text());
     PH("");
 

@@ -6,7 +6,6 @@
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
 #include "AutoChanger.h"
-#include "AudioAnalyzer.h"
 #include "AudioProcessor.h"
 #include "Border.h"
 #include "Flashlight.h"
@@ -549,7 +548,6 @@ InterfaceElement* elementsOption[] = {
     new InterfaceElementOption("Extra random time        : %10s", &changeWaitRandom, 100, 500, 1000),
     new InterfaceElementOption("Quiet change time        : %10s", &changeQuiet, 100, 500, 1000),
     new InterfaceElementOption("Time before silence Msg. : %10s", &changeMsgTime, 100, 500, 1000),
-    new InterfaceElementOption("Minimal noise level      : %10s", &sound_minnoise, 1, 10, 255),
     new InterfaceElementOption("Cumulative fire level    : %10s", &changeCumulativeFireLevel, 10, 50, 100),
     new InterfaceElementOption("Little changes only      : %10s", &change_little),
     new InterfaceElementOption("Lock                     : %10s", &lock),

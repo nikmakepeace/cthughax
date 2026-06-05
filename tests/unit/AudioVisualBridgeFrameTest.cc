@@ -29,9 +29,8 @@ static void fillConstant(AudioFrame& frame, int left, int right) {
 static void testBridgeProcessesSuppliedFrame() {
     AudioFrame frame;
     AcousticContext acousticContext;
-    AudioVisualBridge bridge(acousticContext);
+    AudioVisualBridge bridge(acousticContext, 4);
 
-    sound_minnoise.setValue(4);
     audioProcessing.change("none");
     fillConstant(frame, 3, 4);
 

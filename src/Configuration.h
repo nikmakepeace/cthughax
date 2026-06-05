@@ -284,6 +284,15 @@ struct AudioConfig {
     AudioConfig();
 };
 
+/** Startup audio-analysis configuration. */
+struct AudioAnalysisConfig {
+    /** Noise floor used to decide whether a frame is noisy. */
+    int minNoise;
+
+    /** Creates audio-analysis configuration with default values. */
+    AudioAnalysisConfig();
+};
+
 struct DisplayConfig {
     int displayMode;
     bool hasCustomDisplaySize;
@@ -329,7 +338,6 @@ struct AutoChangeConfig {
     int cumulativeFireLevel;
     int locked;
     int changeLittle;
-    int minNoise;
 
     /** Creates automatic scene-change configuration with default values. */
     AutoChangeConfig();
@@ -411,6 +419,7 @@ struct Config {
     PathConfig paths;
     SceneConfig scene;
     AudioConfig audio;
+    AudioAnalysisConfig audioAnalysis;
     DisplayConfig display;
 #ifdef CTH_XWIN
     X11Config x11;

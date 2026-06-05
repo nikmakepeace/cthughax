@@ -13,6 +13,7 @@ class AcousticContext;
 class AudioVisualBridge {
     int filterchainRefreshRequestedValue;
     AcousticContext& acousticContextValue;
+    int minNoiseValue;
     RuntimeCommandSink* runtimeCommands;
 
 public:
@@ -21,12 +22,13 @@ public:
      *
      * @param acousticContext_ Rolling acoustic context to update from analyzed
      *        frame metrics. The referenced object must outlive the bridge.
+     * @param minNoise_ Noise-floor threshold used for AudioMetrics::noisy.
      * @param runtimeCommands_ Optional runtime command sink used by AutoChanger.
      *        When NULL, audio processing and analysis still run, but automatic
      *        scene changes are disabled.
      */
     AudioVisualBridge(AcousticContext& acousticContext_,
-        RuntimeCommandSink* runtimeCommands_ = 0);
+        int minNoise_, RuntimeCommandSink* runtimeCommands_ = 0);
     ~AudioVisualBridge();
 
     /**
