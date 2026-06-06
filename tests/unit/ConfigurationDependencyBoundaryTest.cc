@@ -1395,12 +1395,18 @@ static void testSelectionDisplaysUseRuntimeConfigRegistry() {
 
 static void testX11PanelUpdatesOnlyWhenStateChanges() {
     assertSourceContains("src/DisplayDeviceX11.cc",
-        "panelPendingTextSignature == panelCommittedTextSignature");
+        "panelPendingTextSignature != panelCommittedTextSignature");
     assertSourceContains("src/DisplayDeviceX11.cc", "panelTextDirty");
+    assertSourceContains("src/DisplayDeviceX11.cc", "markPanelTextCopyRect");
+    assertSourceContains("src/DisplayDeviceX11.cc", "panelTextCopyWidth");
     assertSourceContains("src/DisplayDeviceX11-Panel.cc",
         "strcmp(panelMenuLabels[i], nextLabel) == 0");
     assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "panelSelectionSignature");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
         "palettePreviewFingerprintValid");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "drawPalettePreviewRect");
     assertSourceContains("src/DisplayDeviceX11-Panel.cc", "panelTextExpose");
 }
 

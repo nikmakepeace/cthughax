@@ -51,13 +51,15 @@ protected:
 public:
     int bytesWritten;
     int maxBytesPerWrite;
+    int queuedTargetValue;
 
     RecordingOutput(SecondsClock& clock, LogSink& log, int realtime = 0,
         int maxBytes = 0)
         : AudioOutput(0, NULL, clock, log)
         , realtimeValue(realtime)
         , bytesWritten(0)
-        , maxBytesPerWrite(maxBytes) { }
+        , maxBytesPerWrite(maxBytes)
+        , queuedTargetValue(0) { }
 
     virtual int write(const void*, int size) {
         int accepted = size;
@@ -69,6 +71,11 @@ public:
 
     virtual int isOpen() const { return 1; }
     virtual int isRealtime() const { return realtimeValue; }
+
+    virtual int queuedTargetSamples() const {
+        return queuedTargetValue > 0 ? queuedTargetValue
+                                     : AudioOutput::queuedTargetSamples();
+    }
 };
 
 static void testPassthroughAdvancesOnlyItsCursor() {
@@ -131,9 +138,23 @@ static void testPresentationClockSubtractsTargetDelay() {
     assert(passthrough.presentationSamplePosition() == 0);
 }
 
+static void testPassthroughReportsAdaptiveQueueTarget() {
+    FakeLogSink log;
+    DecodedAudioHistory history(16, signed8MonoFormat(), 8, log);
+    std::atomic<int> inputFinished(0);
+    FakeSecondsClock clock;
+    RecordingOutput* output = new RecordingOutput(clock, log, 1);
+    output->queuedTargetValue = 9;
+    AudioPassthrough passthrough(output, history, inputFinished, log);
+
+    assert(passthrough.start(1000, 1, 4, 0) == 0);
+    assert(passthrough.targetDelaySamples() == 9);
+}
+
 int main() {
     testPassthroughAdvancesOnlyItsCursor();
     testPassthroughResyncsWhenHistoryMovedOn();
     testPresentationClockSubtractsTargetDelay();
+    testPassthroughReportsAdaptiveQueueTarget();
     return 0;
 }

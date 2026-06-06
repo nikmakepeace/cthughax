@@ -110,6 +110,7 @@ AudioPulseOutput::AudioPulseOutput(const PcmFormat& format, SecondsClock& clock_
     , callbackDrainActive(0)
     , bytesPerSecondValue(0)
     , pulsePresentationDelaySamples(0)
+    , adaptiveQueueTargetSamples(0)
     , underflowCountValue(0)
     , lastReportedUnderflows(0) {
     if (autoOpen)
@@ -164,6 +165,7 @@ void AudioPulseOutput::closePulse() {
     }
 
     bytesPerSecondValue = 0;
+    adaptiveQueueTargetSamples.store(0);
     lastReportedUnderflows.store(underflowCountValue.load());
     delete[] callbackScratch;
     callbackScratch = NULL;
@@ -425,6 +427,66 @@ int AudioPulseOutput::write(const void* buffer, int size) {
 int AudioPulseOutput::isOpen() const { return stream != NULL; }
 int AudioPulseOutput::isRealtime() const { return 1; }
 
+int AudioPulseOutput::adaptiveQueueBumpSamples() const {
+    int sampleRate = samplesPerSecond();
+    if (sampleRate <= 0)
+        sampleRate = pcmFormatValue.sampleRate;
+    int samples = sampleRate / 20;
+    if (samples < 1)
+        samples = 1;
+    return samples;
+}
+
+int AudioPulseOutput::adaptiveQueueCapSamples() const {
+    int sampleRate = samplesPerSecond();
+    if (sampleRate <= 0)
+        sampleRate = pcmFormatValue.sampleRate;
+    int samples = sampleRate;
+    if (samples < queuedTargetSamples())
+        samples = queuedTargetSamples();
+    return samples;
+}
+
+int AudioPulseOutput::queuedTargetSamples() const {
+    int target = AudioOutput::queuedTargetSamples();
+    int presentationTarget = pulsePresentationDelaySamples.load();
+    int adaptiveTarget = adaptiveQueueTargetSamples.load();
+
+    if (target < presentationTarget)
+        target = presentationTarget;
+    if (target < adaptiveTarget)
+        target = adaptiveTarget;
+
+    return target;
+}
+
+void AudioPulseOutput::growAdaptiveQueueTarget(int observedQueuedSamples,
+    const char* reason) {
+    int current = queuedTargetSamples();
+    int next = current + adaptiveQueueBumpSamples();
+    int cap = adaptiveQueueCapSamples();
+
+    if (next > cap)
+        next = cap;
+    if (next <= current)
+        return;
+
+    adaptiveQueueTargetSamples.store(next);
+    int sampleRate = samplesPerSecond();
+    int nextMs = sampleRate > 0 ? (next * 1000) / sampleRate : 0;
+    logSink().debug("audio runtime: pulse adaptive queue target increased reason=%s queued-samples=%d target-samples=%d target-ms=%d\n",
+        reason ? reason : "unknown", observedQueuedSamples, next, nextMs);
+}
+
+void AudioPulseOutput::observeCallbackQueue(int queuedSamples) {
+    if (queuedSamples <= 0)
+        return;
+
+    int target = queuedTargetSamples();
+    if ((target > 0) && (queuedSamples < (target / 2)))
+        growAdaptiveQueueTarget(queuedSamples, "low-water");
+}
+
 int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
     if (!callbackDrainActive.load() || (callbackStream == NULL) || (callbackScratch == NULL)
         || (callbackScratchSamples <= 0) || (stream == NULL))
@@ -497,15 +559,17 @@ int AudioPulseOutput::drainUnlocked(size_t requestedBytes) {
 
         dumpSubmittedPcm(callbackStream->format(), callbackScratch,
             committedBytes);
+        int queuedAfter = callbackStream->queuedForOutputSamples();
+        observeCallbackQueue(queuedAfter);
         reportSubmittedPcm(callbackStream->format(), callbackScratch,
             committedSamples, committedBytes, written,
-            callbackStream->queuedForOutputSamples(),
+            queuedAfter,
             callbackStream->submittedEndPosition());
         logSink().trace("audio runtime",
             "pulse callback drained samples=%d bytes=%d written=%d committed-samples=%d committed-bytes=%d writable-bytes=%lu requested-bytes=%lu queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld input-finished=%d\n",
             samples, bytes, written, committedSamples, committedBytes,
             (unsigned long)streamWritableBytes,
-            (unsigned long)requestedBytes, callbackStream->queuedForOutputSamples(),
+            (unsigned long)requestedBytes, queuedAfter,
             startSample, callbackStream->submittedEndPosition(),
             callbackInputFinished ? callbackInputFinished->load() : 0);
 
@@ -551,7 +615,7 @@ void AudioPulseOutput::startCallbackDrain(AudioOutputStream& outputStream,
     delete[] oldScratch;
 
     logSink().debug("audio runtime: pulse callback drain started scratch-samples=%d target-buffer-samples=%d queued-samples=%d input-finished=%d\n",
-        samples, targetDelaySamples(), outputStream.queuedForOutputSamples(),
+        samples, queuedTargetSamples(), outputStream.queuedForOutputSamples(),
         inputFinished ? inputFinished->load() : 0);
 }
 
@@ -610,6 +674,7 @@ void AudioPulseOutput::pulseUnderflow() {
     int underflows = underflowCountValue.fetch_add(1) + 1;
     int previous = lastReportedUnderflows.exchange(underflows);
 
+    growAdaptiveQueueTarget(0, "underflow");
     drainUnlocked((size_t)-1);
     if (mainloop != NULL)
         pa_threaded_mainloop_signal((pa_threaded_mainloop*)mainloop, 0);
@@ -753,6 +818,7 @@ AudioPulseOutput::AudioPulseOutput(const PcmFormat& format, SecondsClock& clock_
     , callbackDrainActive(0)
     , bytesPerSecondValue(0)
     , pulsePresentationDelaySamples(0)
+    , adaptiveQueueTargetSamples(0)
     , underflowCountValue(0)
     , lastReportedUnderflows(0) {
     logSink().debug("    audio output strategy: Pulse unavailable because support is not compiled in\n");
@@ -777,5 +843,6 @@ const char* AudioPulseOutput::serverName() const { return outputConfigValue.puls
 const char* AudioPulseOutput::serverDisplayName() const { return outputConfigValue.pulseServerDisplayName(); }
 int AudioPulseOutput::pulseLatencyMs() const { return outputConfigValue.pulseLatencyMs; }
 int AudioPulseOutput::presentationDelaySamples() const { return AudioOutput::presentationDelaySamples(); }
+int AudioPulseOutput::queuedTargetSamples() const { return AudioOutput::queuedTargetSamples(); }
 
 #endif

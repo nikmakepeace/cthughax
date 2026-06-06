@@ -484,9 +484,15 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
     , palettePreviewTargetFingerprint(0)
     , panelMenuLabels()
     , panelPendingTextCommands()
+    , panelCommittedTextCommands()
     , panelPendingTextSignature()
     , panelCommittedTextSignature()
+    , panelSelectionSignature()
     , panelTextDirty(1)
+    , panelTextCopyX(0)
+    , panelTextCopyY(0)
+    , panelTextCopyWidth(0)
+    , panelTextCopyHeight(0)
     , shmAttached(0)
     , shmMarkedForRemoval(0)
     , pixmap(None)
@@ -546,7 +552,8 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
             CTH_ERROR("Can not create the text pixmap.\n");
             return;
         }
-        copyText = 2;
+        markPanelTextCopyRect(0, 0, text_size.x * fontSize.x,
+            text_size.y * fontSize.y, 2);
     } else {
         copyText = 0;
     }
@@ -645,6 +652,92 @@ static void appendPanelTextSignature(
     signature.push_back('\n');
 }
 
+int DisplayDeviceX11::samePanelTextCommand(const PanelTextCommand& a,
+    const PanelTextCommand& b) {
+    return (a.x == b.x) && (a.y == b.y) && (a.color == b.color)
+        && (a.noDarken == b.noDarken) && (a.text == b.text);
+}
+
+void DisplayDeviceX11::panelTextCommandBounds(
+    const PanelTextCommand& command,
+    int* x, int* y, int* width, int* height) {
+    *x = command.x;
+    *y = command.y;
+    *width = int(command.text.size()) * fontSize.x;
+    if (*width < 1)
+        *width = 1;
+    *height = fontSize.y + 1;
+}
+
+static int rectIntersects(int ax, int ay, int aw, int ah,
+    int bx, int by, int bw, int bh) {
+    return (aw > 0) && (ah > 0) && (bw > 0) && (bh > 0)
+        && (ax < bx + bw) && (bx < ax + aw)
+        && (ay < by + bh) && (by < ay + ah);
+}
+
+static void includeRect(int* x, int* y, int* width, int* height,
+    int nextX, int nextY, int nextWidth, int nextHeight) {
+    if ((nextWidth <= 0) || (nextHeight <= 0))
+        return;
+
+    if ((*width <= 0) || (*height <= 0)) {
+        *x = nextX;
+        *y = nextY;
+        *width = nextWidth;
+        *height = nextHeight;
+        return;
+    }
+
+    int right = *x + *width;
+    int bottom = *y + *height;
+    int nextRight = nextX + nextWidth;
+    int nextBottom = nextY + nextHeight;
+
+    if (nextX < *x)
+        *x = nextX;
+    if (nextY < *y)
+        *y = nextY;
+    if (nextRight > right)
+        right = nextRight;
+    if (nextBottom > bottom)
+        bottom = nextBottom;
+
+    *width = right - *x;
+    *height = bottom - *y;
+}
+
+void DisplayDeviceX11::markPanelTextCopyRect(
+    int x, int y, int width, int height, int copyCount) {
+    if (!panelTextWidget || !textPixmap)
+        return;
+
+    int panelWidth = text_size.x * fontSize.x;
+    int panelHeight = text_size.y * fontSize.y;
+    if ((panelWidth <= 0) || (panelHeight <= 0))
+        return;
+
+    if (x < 0) {
+        width += x;
+        x = 0;
+    }
+    if (y < 0) {
+        height += y;
+        y = 0;
+    }
+    if (x + width > panelWidth)
+        width = panelWidth - x;
+    if (y + height > panelHeight)
+        height = panelHeight - y;
+    if ((width <= 0) || (height <= 0))
+        return;
+
+    includeRect(&panelTextCopyX, &panelTextCopyY, &panelTextCopyWidth,
+        &panelTextCopyHeight, x, y, width, height);
+    if (copyText < copyCount)
+        copyText = copyCount;
+}
+
 void DisplayDeviceX11::printString(
     int x, int y, const char* text, int color, int len, int noDarken) {
 
@@ -681,25 +774,86 @@ void DisplayDeviceX11::postPrint() {
     if (!panelTextWidget || !textPixmap)
         return;
 
-    if (!panelTextDirty
-        && (panelPendingTextSignature == panelCommittedTextSignature))
+    int textChanged = panelPendingTextSignature != panelCommittedTextSignature;
+    if (!panelTextDirty && !textChanged)
         return;
 
+    int dirtyX = 0;
+    int dirtyY = 0;
+    int dirtyWidth = 0;
+    int dirtyHeight = 0;
+    int panelWidth = text_size.x * fontSize.x;
+    int panelHeight = text_size.y * fontSize.y;
+
+    if (panelTextDirty) {
+        dirtyWidth = panelWidth;
+        dirtyHeight = panelHeight;
+    } else {
+        size_t count = panelPendingTextCommands.size();
+        if (panelCommittedTextCommands.size() > count)
+            count = panelCommittedTextCommands.size();
+
+        for (size_t i = 0; i < count; i++) {
+            const PanelTextCommand* pending
+                = (i < panelPendingTextCommands.size())
+                ? &panelPendingTextCommands[i] : NULL;
+            const PanelTextCommand* committed
+                = (i < panelCommittedTextCommands.size())
+                ? &panelCommittedTextCommands[i] : NULL;
+            if ((pending != NULL) && (committed != NULL)
+                && samePanelTextCommand(*pending, *committed))
+                continue;
+
+            int x;
+            int y;
+            int width;
+            int height;
+            if (committed != NULL) {
+                panelTextCommandBounds(*committed, &x, &y, &width, &height);
+                includeRect(&dirtyX, &dirtyY, &dirtyWidth, &dirtyHeight,
+                    x, y, width, height);
+            }
+            if (pending != NULL) {
+                panelTextCommandBounds(*pending, &x, &y, &width, &height);
+                includeRect(&dirtyX, &dirtyY, &dirtyWidth, &dirtyHeight,
+                    x, y, width, height);
+            }
+        }
+    }
+
+    if ((dirtyWidth <= 0) || (dirtyHeight <= 0)) {
+        panelCommittedTextCommands = panelPendingTextCommands;
+        panelCommittedTextSignature = panelPendingTextSignature;
+        panelTextDirty = 0;
+        return;
+    }
+
     XSetForeground(xcth_display, gc, 0);
-    XFillRectangle(xcth_display, textPixmap, gc, 0, 0,
-        text_size.x * fontSize.x, text_size.y * fontSize.y);
+    XFillRectangle(xcth_display, textPixmap, gc, dirtyX, dirtyY,
+        dirtyWidth, dirtyHeight);
 
     for (size_t i = 0; i < panelPendingTextCommands.size(); i++) {
         const PanelTextCommand& command = panelPendingTextCommands[i];
+        int commandX;
+        int commandY;
+        int commandWidth;
+        int commandHeight;
+        panelTextCommandBounds(command, &commandX, &commandY, &commandWidth,
+            &commandHeight);
+        if (!rectIntersects(dirtyX, dirtyY, dirtyWidth, dirtyHeight,
+                commandX, commandY, commandWidth, commandHeight))
+            continue;
+
         XSetForeground(xcth_display, gc, textColor[command.color]);
         XDrawString(xcth_display, textPixmap, gc, command.x,
             command.y + fontSize.y, command.text.c_str(),
             int(command.text.size()));
     }
 
+    panelCommittedTextCommands = panelPendingTextCommands;
     panelCommittedTextSignature = panelPendingTextSignature;
     panelTextDirty = 0;
-    copyText = 2;
+    markPanelTextCopyRect(dirtyX, dirtyY, dirtyWidth, dirtyHeight, 2);
 }
 
 int DisplayDeviceX11::allocImage() {
@@ -1010,6 +1164,7 @@ void DisplayDeviceX11::postDraw() {
     double paletteMs = 0.0;
     double dumpMs = 0.0;
     double previewMs = 0.0;
+    double labelMs = 0.0;
     double putMs = 0.0;
     double copyMs = 0.0;
     int fullCopy = needsFullCopy;
@@ -1035,21 +1190,34 @@ void DisplayDeviceX11::postDraw() {
         stepStart = clock.nowSeconds();
     if (palettePreviewWidget)
         updatePalettePreview();
+    if (traceDisplayTiming)
+        previewMs = (clock.nowSeconds() - stepStart) * 1000.0;
+    if (traceDisplayTiming)
+        stepStart = clock.nowSeconds();
     if (panelTextWidget)
         updatePanelSelectionLabels();
     if (traceDisplayTiming)
-        previewMs = (clock.nowSeconds() - stepStart) * 1000.0;
+        labelMs = (clock.nowSeconds() - stepStart) * 1000.0;
 
     if (copyText) {
 
         if (panelTextWidget) {
+            if ((panelTextCopyWidth > 0) && (panelTextCopyHeight > 0)) {
+                if (traceDisplayTiming)
+                    stepStart = clock.nowSeconds();
+                XCopyArea(xcth_display, textPixmap, XtWindow(panelTextWidget), gc,
+                    panelTextCopyX, panelTextCopyY, panelTextCopyWidth,
+                    panelTextCopyHeight, panelTextCopyX, panelTextCopyY);
+                if (traceDisplayTiming)
+                    copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
+            }
             copyText--;
-            if (traceDisplayTiming)
-                stepStart = clock.nowSeconds();
-            XCopyArea(xcth_display, textPixmap, XtWindow(panelTextWidget), gc, 0, 0,
-                text_size.x * fontSize.x, text_size.y * fontSize.y, 0, 0);
-            if (traceDisplayTiming)
-                copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
+            if (copyText <= 0) {
+                panelTextCopyX = 0;
+                panelTextCopyY = 0;
+                panelTextCopyWidth = 0;
+                panelTextCopyHeight = 0;
+            }
         } else {
             switch (shmLevel) {
             case shmPixmap:
@@ -1076,9 +1244,9 @@ void DisplayDeviceX11::postDraw() {
                 double flushStart = clock.nowSeconds();
                 XFlush(xcth_display);
                 double flushMs = (clock.nowSeconds() - flushStart) * 1000.0;
-                CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=1 full-copy=%d shm-level=%d draw=%dx%d\n",
+                CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f label-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=1 full-copy=%d shm-level=%d draw=%dx%d\n",
                     "display timing", (clock.nowSeconds() - postStart) * 1000.0,
-                    paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs,
+                    paletteMs, dumpMs, previewMs, labelMs, putMs, copyMs, flushMs,
                     fullCopy, shmLevel, viewport.drawSize.width,
                     viewport.drawSize.height);
             }
@@ -1163,9 +1331,9 @@ void DisplayDeviceX11::postDraw() {
     double flushStart = clock.nowSeconds();
     XFlush(xcth_display);
     double flushMs = (clock.nowSeconds() - flushStart) * 1000.0;
-    CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=%d full-copy=%d shm-level=%d draw=%dx%d\n",
+    CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f label-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=%d full-copy=%d shm-level=%d draw=%dx%d\n",
         "display timing", (clock.nowSeconds() - postStart) * 1000.0,
-        paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs, copyTextFrame,
+        paletteMs, dumpMs, previewMs, labelMs, putMs, copyMs, flushMs, copyTextFrame,
         fullCopy, shmLevel, viewport.drawSize.width, viewport.drawSize.height);
     needsFullCopy = 0;
 }

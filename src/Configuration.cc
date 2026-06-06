@@ -594,6 +594,9 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
         setIniBooleanOption(patch, diagnostics, source, key,
             KEY_EFFECT_IMAGE_FILES_ENABLED, cleanedValue, 1, 1);
     } else if (key == "palette-smoothing") {
+        int enabled = 0;
+        if (parseBoolean(cleanedValue, &enabled))
+            cleanedValue = booleanText(enabled);
         patch.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE,
             cleanedValue, source);
     } else if (key == "no-palette-smoothing") {

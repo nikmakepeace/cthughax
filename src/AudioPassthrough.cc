@@ -59,9 +59,9 @@ int AudioPassthrough::start(int samplesPerSecond, int bytesPerSample,
         outputThreadStarted = 1;
     }
 
-    log.debug("audio passthrough: started realtime=%d scratch-samples=%d target-delay-samples=%d callback-drain=%d worker-thread=%d\n",
+    log.debug("audio passthrough: started realtime=%d scratch-samples=%d target-queue-samples=%d callback-drain=%d worker-thread=%d\n",
         outputValue->isRealtime(), scratchSamplesValue,
-        outputValue->targetDelaySamples(), callbackDrainStarted.load(),
+        outputValue->queuedTargetSamples(), callbackDrainStarted.load(),
         outputThreadStarted);
     return 0;
 }
@@ -134,13 +134,13 @@ int AudioPassthrough::queuedSamples() const {
 }
 
 int AudioPassthrough::targetDelaySamples() const {
-    return enabled() ? outputValue->targetDelaySamples() : 0;
+    return enabled() ? outputValue->queuedTargetSamples() : 0;
 }
 
 void AudioPassthrough::outputThreadMain() {
     int primed = 0;
 
-    log.debug("audio passthrough: output thread started scratch-samples=%d target-delay-samples=%d\n",
+    log.debug("audio passthrough: output thread started scratch-samples=%d target-queue-samples=%d\n",
         scratchSamplesValue, targetDelaySamples());
 
     while (!stopRequested.load() && !completeValue.load()) {

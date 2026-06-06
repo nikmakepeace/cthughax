@@ -120,10 +120,20 @@ public:
         int noDarken;
         std::string text;
     };
+    static int samePanelTextCommand(const PanelTextCommand& a,
+        const PanelTextCommand& b);
+    static void panelTextCommandBounds(const PanelTextCommand& command,
+        int* x, int* y, int* width, int* height);
     std::vector<PanelTextCommand> panelPendingTextCommands;
+    std::vector<PanelTextCommand> panelCommittedTextCommands;
     std::string panelPendingTextSignature;
     std::string panelCommittedTextSignature;
+    std::string panelSelectionSignature;
     int panelTextDirty;
+    int panelTextCopyX;
+    int panelTextCopyY;
+    int panelTextCopyWidth;
+    int panelTextCopyHeight;
 
     enum { shmNone, shmImage, shmPixmap } shmLevel;
     XShmSegmentInfo shminfo;
@@ -166,9 +176,11 @@ protected:
     static void panelTextExpose(Widget item, XtPointer data, XEvent* event, Boolean* cont);
     Widget add_menu(const char* name, EffectControl* what, Widget parent, Widget under, Widget right);
     void updatePanelSelectionLabels();
+    void markPanelTextCopyRect(int x, int y, int width, int height, int copyCount);
     unsigned long palettePreviewPixel(unsigned char r, unsigned char g, unsigned char b);
     void updatePalettePreview();
     void drawPalettePreview();
+    void drawPalettePreviewRect(int x, int y, int width, int height);
     void updatePaletteMetadataEditor();
     void setPaletteMetadataStatus(const char* status);
     virtual int savePaletteMetadata();

@@ -91,7 +91,7 @@ public:
     /** @return Number of sample frames queued for this passthrough cursor. */
     int queuedSamples() const;
 
-    /** @return Output target delay in sample frames. */
+    /** @return Desired queued output lead in sample frames. */
     int targetDelaySamples() const;
 
     /** @return Cursor used by output backends. */

@@ -154,7 +154,7 @@ public:
     }
 
     /** @return Desired queued output amount before playback is considered full. */
-    int queuedTargetSamples() const;
+    virtual int queuedTargetSamples() const;
 
     /**
      * Determines whether finite passthrough has drained.
@@ -231,12 +231,17 @@ class AudioPulseOutput : public AudioOutput {
     std::atomic<int> callbackDrainActive;
     int bytesPerSecondValue;
     std::atomic<int> pulsePresentationDelaySamples;
+    std::atomic<int> adaptiveQueueTargetSamples;
     std::atomic<int> underflowCountValue;
     std::atomic<int> lastReportedUnderflows;
 
     void closePulse();
     int writeUnlocked(const void* buffer, int size, int waitForWritable);
     int drainUnlocked(size_t requestedBytes);
+    int adaptiveQueueBumpSamples() const;
+    int adaptiveQueueCapSamples() const;
+    void growAdaptiveQueueTarget(int observedQueuedSamples, const char* reason);
+    void observeCallbackQueue(int queuedSamples);
 
 protected:
     virtual int defaultTargetLatencyMs() const;
@@ -310,6 +315,9 @@ public:
 
     /** @return PulseAudio stream delay used by the visual presentation clock. */
     virtual int presentationDelaySamples() const;
+
+    /** @return Adaptive decoded-audio lead target for Pulse callback drain. */
+    virtual int queuedTargetSamples() const;
 };
 
 class AudioDSPOutput : public AudioOutput {

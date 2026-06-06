@@ -171,6 +171,10 @@ static int write_metadata_line(FILE* file, const char* key, const char* value) {
 }
 
 void DisplayDeviceX11::drawPalettePreview() {
+    drawPalettePreviewRect(0, 0, palettePreviewWidth, palettePreviewHeight);
+}
+
+void DisplayDeviceX11::drawPalettePreviewRect(int x, int y, int width, int height) {
     if ((palettePreviewWidget == NULL) || (palettePreviewPixmap == None)
         || (palettePreviewWidth <= 0) || (palettePreviewHeight <= 0))
         return;
@@ -179,8 +183,23 @@ void DisplayDeviceX11::drawPalettePreview() {
     if (previewWindow == 0)
         return;
 
-    XCopyArea(xcth_display, palettePreviewPixmap, previewWindow, gc, 0, 0,
-        palettePreviewWidth, palettePreviewHeight, 0, 0);
+    if (x < 0) {
+        width += x;
+        x = 0;
+    }
+    if (y < 0) {
+        height += y;
+        y = 0;
+    }
+    if (x + width > palettePreviewWidth)
+        width = palettePreviewWidth - x;
+    if (y + height > palettePreviewHeight)
+        height = palettePreviewHeight - y;
+    if ((width <= 0) || (height <= 0))
+        return;
+
+    XCopyArea(xcth_display, palettePreviewPixmap, previewWindow, gc, x, y,
+        width, height, x, y);
 }
 
 static unsigned long palettePreviewFingerprint(const Palette& palette) {
@@ -203,15 +222,8 @@ void DisplayDeviceX11::updatePalettePreview() {
     if (previewWindow == 0)
         return;
 
-    XWindowAttributes attrs;
-    if (!XGetWindowAttributes(xcth_display, previewWindow, &attrs))
-        return;
-    if ((attrs.width <= 0) || (attrs.height <= 0))
-        return;
-
     int current_palette = scene.settings().paletteIndex;
     int palette_changed = current_palette != palettePreviewPalette;
-    int size_changed = (attrs.width != palettePreviewWidth) || (attrs.height != palettePreviewHeight);
     if (palette_changed) {
         palettePreviewPalette = current_palette;
         updatePaletteMetadataEditor();
@@ -227,6 +239,24 @@ void DisplayDeviceX11::updatePalettePreview() {
     if ((currentPalette == NULL) || (targetPalette == NULL))
         return;
 
+    unsigned long currentFingerprint = palettePreviewFingerprint(currentPalette->raw());
+    unsigned long targetFingerprint = palettePreviewFingerprint(targetPalette->raw());
+    int currentChanged = !palettePreviewFingerprintValid
+        || (currentFingerprint != palettePreviewCurrentFingerprint);
+    int targetChanged = !palettePreviewFingerprintValid
+        || (targetFingerprint != palettePreviewTargetFingerprint);
+
+    if ((palettePreviewPixmap != None) && palettePreviewFingerprintValid
+        && !currentChanged && !targetChanged)
+        return;
+
+    XWindowAttributes attrs;
+    if (!XGetWindowAttributes(xcth_display, previewWindow, &attrs))
+        return;
+    if ((attrs.width <= 0) || (attrs.height <= 0))
+        return;
+
+    int size_changed = (attrs.width != palettePreviewWidth) || (attrs.height != palettePreviewHeight);
     if (size_changed || (palettePreviewPixmap == None)) {
         if (palettePreviewPixmap != None) {
             XFreePixmap(xcth_display, palettePreviewPixmap);
@@ -241,19 +271,31 @@ void DisplayDeviceX11::updatePalettePreview() {
     if (palettePreviewPixmap == None)
         return;
 
-    unsigned long currentFingerprint = palettePreviewFingerprint(currentPalette->raw());
-    unsigned long targetFingerprint = palettePreviewFingerprint(targetPalette->raw());
-    if (palettePreviewFingerprintValid
-        && (currentFingerprint == palettePreviewCurrentFingerprint)
-        && (targetFingerprint == palettePreviewTargetFingerprint))
+    int targetStartY = palettePreviewHeight / 2;
+    int dirtyY = 0;
+    int dirtyHeight = palettePreviewHeight;
+    if (!size_changed && palettePreviewFingerprintValid) {
+        if (currentChanged && !targetChanged) {
+            dirtyY = 0;
+            dirtyHeight = targetStartY;
+        } else if (!currentChanged && targetChanged) {
+            dirtyY = targetStartY;
+            dirtyHeight = palettePreviewHeight - targetStartY;
+        }
+    }
+    if (dirtyHeight <= 0) {
+        palettePreviewCurrentFingerprint = currentFingerprint;
+        palettePreviewTargetFingerprint = targetFingerprint;
+        palettePreviewFingerprintValid = 1;
         return;
+    }
 
     XImage* preview = XCreateImage(xcth_display, visual, planes, ZPixmap, 0, NULL,
-        palettePreviewWidth, palettePreviewHeight, XBitmapPad(xcth_display), 0);
+        palettePreviewWidth, dirtyHeight, XBitmapPad(xcth_display), 0);
     if (preview == NULL)
         return;
 
-    preview->data = (char*)malloc(preview->bytes_per_line * palettePreviewHeight);
+    preview->data = (char*)malloc(preview->bytes_per_line * dirtyHeight);
     if (preview->data == NULL) {
         XDestroyImage(preview);
         return;
@@ -261,10 +303,10 @@ void DisplayDeviceX11::updatePalettePreview() {
 
     const Palette& currentRaw = currentPalette->raw();
     const Palette& targetRaw = targetPalette->raw();
-    int targetStartY = palettePreviewHeight / 2;
 
-    for (int y = 0; y < palettePreviewHeight; y++) {
-        const Palette& rowPalette = (y < targetStartY) ? currentRaw : targetRaw;
+    for (int y = 0; y < dirtyHeight; y++) {
+        int previewY = dirtyY + y;
+        const Palette& rowPalette = (previewY < targetStartY) ? currentRaw : targetRaw;
         for (int x = 0; x < palettePreviewWidth; x++) {
             int paletteIndex = (x * 256) / palettePreviewWidth;
             const unsigned char* color = rowPalette[paletteIndex];
@@ -272,14 +314,14 @@ void DisplayDeviceX11::updatePalettePreview() {
         }
     }
 
-    XPutImage(xcth_display, palettePreviewPixmap, gc, preview, 0, 0, 0, 0,
-        palettePreviewWidth, palettePreviewHeight);
+    XPutImage(xcth_display, palettePreviewPixmap, gc, preview, 0, 0, 0, dirtyY,
+        palettePreviewWidth, dirtyHeight);
 
     XDestroyImage(preview);
     palettePreviewCurrentFingerprint = currentFingerprint;
     palettePreviewTargetFingerprint = targetFingerprint;
     palettePreviewFingerprintValid = 1;
-    drawPalettePreview();
+    drawPalettePreviewRect(0, dirtyY, palettePreviewWidth, dirtyHeight);
 }
 
 void DisplayDeviceX11::setPaletteMetadataStatus(const char* status) {
@@ -470,9 +512,11 @@ void DisplayDeviceX11::palettePreviewExpose(
         return;
 
     if (event->type == ConfigureNotify) {
+        device->palettePreviewFingerprintValid = 0;
         device->updatePalettePreview();
     } else if (event->type == Expose) {
-        device->drawPalettePreview();
+        device->drawPalettePreviewRect(event->xexpose.x, event->xexpose.y,
+            event->xexpose.width, event->xexpose.height);
     }
 }
 
@@ -484,10 +528,11 @@ void DisplayDeviceX11::panelTextExpose(
 
     if (event->type == ConfigureNotify) {
         device->panelTextDirty = 1;
-        device->copyText = 2;
+        device->markPanelTextCopyRect(0, 0, text_size.x * fontSize.x,
+            text_size.y * fontSize.y, 2);
     } else if (event->type == Expose) {
-        if (device->copyText < 1)
-            device->copyText = 1;
+        device->markPanelTextCopyRect(event->xexpose.x, event->xexpose.y,
+            event->xexpose.width, event->xexpose.height, 1);
     }
 }
 
@@ -500,7 +545,6 @@ void DisplayDeviceX11::updatePanelSelectionLabels() {
     if (panelMenuButtons[0] == NULL)
         return;
 
-    Config config = runtimeConfigRegistry.currentConfig();
     struct PanelSelection {
         const char* name;
         RuntimeConfigSelectionField field;
@@ -520,6 +564,16 @@ void DisplayDeviceX11::updatePanelSelectionLabels() {
         { "Objects", RuntimeConfigSelectionObject, currentNameOrEmpty(object) },
     };
 
+    std::string signature;
+    for (int i = 0; i < 8; i++) {
+        signature += selections[i].fallback ? selections[i].fallback : "";
+        signature.push_back('\n');
+    }
+    if (signature == panelSelectionSignature)
+        return;
+    panelSelectionSignature = signature;
+
+    Config config = runtimeConfigRegistry.currentConfig();
     Arg wargs[1];
     for (int i = 0; i < 8; i++) {
         if (panelMenuButtons[i] == NULL)

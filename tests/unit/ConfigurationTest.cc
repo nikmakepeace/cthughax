@@ -245,6 +245,26 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "buffer.preset") == "2");
 }
 
+static void iniPaletteSmoothingAcceptsBooleanValues() {
+    ConfigurationBuilder disabledBuilder;
+    ConfigBuildResult result = disabledBuilder.addDefaults()
+        .addIniText("memory", "cthugha.palette-smoothing: no\n")
+        .build();
+
+    assert(result.ok());
+    assert(result.config.sceneTransition.paletteSmoothingChance == 0.0);
+    assert(result.diagnostics.empty());
+
+    ConfigurationBuilder enabledBuilder;
+    result = enabledBuilder.addDefaults()
+        .addIniText("memory", "cthugha.palette-smoothing: on\n")
+        .build();
+
+    assert(result.ok());
+    assert(result.config.sceneTransition.paletteSmoothingChance == 1.0);
+    assert(result.diagnostics.empty());
+}
+
 static void iniTextSourceWarnsAndIgnoresUnsupportedWildcards() {
     DeferredLogBuffer diagnostics;
     IniTextConfigSource source("memory",
@@ -727,6 +747,7 @@ int main() {
     assert(configArgumentsFromArgv(0, NULL).empty());
     defaultsProduceTypedConfig();
     iniTextSourceProducesPatchWithoutGlobals();
+    iniPaletteSmoothingAcceptsBooleanValues();
     iniTextSourceWarnsAndIgnoresUnsupportedWildcards();
     sourcePrecedenceIsDefaultsIniEnvironmentCommandLine();
     commandLineSourceBuildsAppConfig();

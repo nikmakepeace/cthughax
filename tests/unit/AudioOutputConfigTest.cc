@@ -69,6 +69,11 @@ static void testPulseOutputReceivesServerAndLatencyWithoutOpening() {
     assert(output.targetLatencyMs() == 23);
     output.configureTiming(1000, stereo16Format().bytesPerSample(), 1);
     assert(output.targetDelaySamples() == 23);
+    assert(output.queuedTargetSamples() == 23);
+
+    output.pulseUnderflow();
+    assert(output.underflowCount() == 1);
+    assert(output.queuedTargetSamples() == 73);
 }
 
 static void testPulseUnderflowCountIsInstanceLocal() {

@@ -195,7 +195,7 @@ int AudioIngest::initializeRuntimeObjects(AudioOutput* output,
     if ((outputHolder.get() != NULL) && !silentPassthrough) {
         outputHolder->configureTiming(samplesPerSecondValue, bytesPerSampleValue,
             inputChunkSamplesValue);
-        passthroughDelaySamples = outputHolder->targetDelaySamples();
+        passthroughDelaySamples = outputHolder->queuedTargetSamples();
         decodeAheadSamplesValue += passthroughDelaySamples;
     }
 
