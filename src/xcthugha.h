@@ -6,6 +6,8 @@
 #include "cthugha.h"
 #include <X11/Intrinsic.h>
 #include <X11/extensions/XShm.h>
+#include <string>
+#include <vector>
 
 extern Display* xcth_display;
 
@@ -91,6 +93,7 @@ public:
 
     // text output stuff
     virtual void prePrint();
+    virtual void postPrint();
     void writeCharacter(int x, int y, int text, int color);
     void printString(int x, int y, const char* text, int color, int len, int noDarken);
 
@@ -106,7 +109,21 @@ public:
     int palettePreviewPalette;
     int palettePreviewWidth;
     int palettePreviewHeight;
+    int palettePreviewFingerprintValid;
+    unsigned long palettePreviewCurrentFingerprint;
+    unsigned long palettePreviewTargetFingerprint;
     char panelMenuLabels[8][128];
+    struct PanelTextCommand {
+        int x;
+        int y;
+        int color;
+        int noDarken;
+        std::string text;
+    };
+    std::vector<PanelTextCommand> panelPendingTextCommands;
+    std::string panelPendingTextSignature;
+    std::string panelCommittedTextSignature;
+    int panelTextDirty;
 
     enum { shmNone, shmImage, shmPixmap } shmLevel;
     XShmSegmentInfo shminfo;
@@ -146,6 +163,7 @@ protected:
     static void revertPaletteMetadataCB(Widget item, XtPointer data, XtPointer data2);
     static void nextUntaggedPaletteCB(Widget item, XtPointer data, XtPointer data2);
     static void palettePreviewExpose(Widget item, XtPointer data, XEvent* event, Boolean* cont);
+    static void panelTextExpose(Widget item, XtPointer data, XEvent* event, Boolean* cont);
     Widget add_menu(const char* name, EffectControl* what, Widget parent, Widget under, Widget right);
     void updatePanelSelectionLabels();
     unsigned long palettePreviewPixel(unsigned char r, unsigned char g, unsigned char b);

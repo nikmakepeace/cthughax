@@ -71,15 +71,17 @@ public:
     static int lastRandomPos;
 
     /**
-     * Adds a new randomly generated palette.
+     * Adds a new randomly generated palette using max(random.N) + 1 and saves
+     * it under resources/map.
      *
      * @param randomSource Random source used for palette generation.
      */
     static void addRandom(RandomSource& randomSource);
 
     /**
-     * Re-randomizes the most recently generated palette, or adds one if none
-     * exists yet.
+     * Re-randomizes the currently selected random.N palette and saves that
+     * map. If the current selection is not random.N, re-randomizes this
+     * process's most recently generated palette, or adds one if none exists.
      *
      * @param randomSource Random source used for palette generation.
      */

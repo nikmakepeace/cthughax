@@ -10,6 +10,21 @@
 #include <algorithm>
 #include <ctype.h>
 
+#if HAVE_DIRENT_H
+#include <dirent.h>
+#else
+#define dirent direct
+#if HAVE_SYS_NDIR_H
+#include <sys/ndir.h>
+#endif
+#if HAVE_SYS_DIR_H
+#include <sys/dir.h>
+#endif
+#if HAVE_NDIR_H
+#include <ndir.h>
+#endif
+#endif
+
 EffectChoiceList paletteEntries;
 PaletteOption palette;
 
@@ -513,12 +528,120 @@ int PaletteEntry::lastRandom = -1;
 int PaletteEntry::lastRandomPos = -1; // index of the last random palette
 char PaletteEntry::randomName[PATH_MAX] = "random";
 
+static const char* randomPaletteOutputDirectory = "resources/map";
+
+static void randomPaletteNameForIndex(int index, char* name, size_t nameSize) {
+    snprintf(name, nameSize, "%s.%d", PaletteEntry::randomName, index);
+}
+
+static void randomPaletteFileNameForIndex(
+    int index, char* fileName, size_t fileNameSize) {
+    char name[PATH_MAX];
+
+    randomPaletteNameForIndex(index, name, sizeof(name));
+    snprintf(fileName, fileNameSize, "%s/%s.map", randomPaletteOutputDirectory,
+        name);
+}
+
+static int randomPaletteIndexFromName(const char* name, int* index) {
+    size_t prefixLen = strlen(PaletteEntry::randomName);
+    char* end = NULL;
+    long value;
+
+    if (strncasecmp(name, PaletteEntry::randomName, prefixLen) != 0)
+        return 0;
+    if (name[prefixLen] != '.')
+        return 0;
+    if (name[prefixLen + 1] == '\0')
+        return 0;
+
+    errno = 0;
+    value = strtol(name + prefixLen + 1, &end, 10);
+    if ((errno != 0) || (end == name + prefixLen + 1) || (*end != '\0')
+        || (value < 0) || (value > INT_MAX))
+        return 0;
+
+    *index = int(value);
+    return 1;
+}
+
+static int randomPaletteIndexFromMapFileName(const char* fileName, int* index) {
+    char name[PATH_MAX];
+    size_t len = strlen(fileName);
+    static const char extension[] = ".map";
+    size_t extensionLen = sizeof(extension) - 1;
+
+    if ((len <= extensionLen)
+        || (strcasecmp(fileName + len - extensionLen, extension) != 0))
+        return 0;
+    if (len - extensionLen >= sizeof(name))
+        return 0;
+
+    memcpy(name, fileName, len - extensionLen);
+    name[len - extensionLen] = '\0';
+    return randomPaletteIndexFromName(name, index);
+}
+
+static int maxLoadedRandomPaletteIndex() {
+    int maxIndex = -1;
+
+    for (int i = 0; i < palette.getNEntries(); i++) {
+        int index;
+        EffectChoice* entry = palette[i];
+        if ((entry != NULL) && randomPaletteIndexFromName(entry->Name(), &index))
+            maxIndex = std::max(maxIndex, index);
+    }
+
+    return maxIndex;
+}
+
+static int maxPersistedRandomPaletteIndex() {
+    DIR* directory = opendir(randomPaletteOutputDirectory);
+    int maxIndex = -1;
+
+    if (directory == NULL)
+        return -1;
+
+    while (struct dirent* entry = readdir(directory)) {
+        int index;
+        if (randomPaletteIndexFromMapFileName(entry->d_name, &index))
+            maxIndex = std::max(maxIndex, index);
+    }
+    closedir(directory);
+
+    return maxIndex;
+}
+
+static int nextRandomPaletteIndex() {
+    int maxIndex = std::max(maxLoadedRandomPaletteIndex(),
+        maxPersistedRandomPaletteIndex());
+    maxIndex = std::max(maxIndex, PaletteEntry::lastRandom);
+
+    return maxIndex + 1;
+}
+
+static void randomPaletteOutputPathForEntry(
+    const PaletteEntry& entry, int index, char* fileName, size_t fileNameSize) {
+    if (entry.sourcePath[0] != '\0') {
+        strncpy(fileName, entry.sourcePath, fileNameSize);
+        fileName[fileNameSize - 1] = '\0';
+        return;
+    }
+
+    randomPaletteFileNameForIndex(index, fileName, fileNameSize);
+}
+
 void PaletteEntry::random(RandomSource& randomSource) {
+    int index = lastRandom;
+    if ((index < 0) && !randomPaletteIndexFromName(Name(), &index))
+        index = nextRandomPaletteIndex();
+    lastRandom = index;
+
     generateRandomPalette(colors(), randomSource);
 
-    char str[512];
+    char str[PATH_MAX];
     delete[] name;
-    snprintf(str, sizeof(str), "%s.%d", randomName, lastRandom);
+    randomPaletteNameForIndex(lastRandom, str, sizeof(str));
     name = new char[strlen(str) + 1];
     strcpy(name, str);
 
@@ -527,7 +650,7 @@ void PaletteEntry::random(RandomSource& randomSource) {
     //
     FILE* f;
     char fname[PATH_MAX];
-    snprintf(fname, sizeof(fname), "%s.map", name);
+    randomPaletteOutputPathForEntry(*this, lastRandom, fname, sizeof(fname));
 
     CTH_DEBUG("  saving '%s'.\n", fname);
 
@@ -541,10 +664,12 @@ void PaletteEntry::random(RandomSource& randomSource) {
         fprintf(f, "%d %d %d\n",
             colors().component(i, 0), colors().component(i, 1), colors().component(i, 2));
     fclose(f);
+    strncpy(sourcePath, fname, sizeof(sourcePath));
+    sourcePath[sizeof(sourcePath) - 1] = '\0';
 }
 
 void PaletteEntry::addRandom(RandomSource& randomSource) {
-    lastRandom++;
+    lastRandom = nextRandomPaletteIndex();
 
     PaletteEntry* new_pal = new PaletteEntry("", "random");
     new_pal->random(randomSource);
@@ -555,7 +680,15 @@ void PaletteEntry::addRandom(RandomSource& randomSource) {
 }
 
 void PaletteEntry::randomizeLast(RandomSource& randomSource) {
-    if (lastRandomPos == -1)
+    PaletteEntry* currentEntry = palette.currentPaletteEntry();
+    int currentRandomIndex;
+
+    if ((currentEntry != NULL)
+        && randomPaletteIndexFromName(currentEntry->Name(), &currentRandomIndex)) {
+        lastRandom = currentRandomIndex;
+        lastRandomPos = palette.currentN();
+        currentEntry->random(randomSource);
+    } else if (lastRandomPos == -1)
         addRandom(randomSource);
     else {
         ((PaletteEntry*)palette[lastRandomPos])->random(randomSource);

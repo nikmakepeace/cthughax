@@ -40,6 +40,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdio.h>
 #include <utility>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -478,7 +479,14 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_,
     , palettePreviewPalette(-1)
     , palettePreviewWidth(0)
     , palettePreviewHeight(0)
+    , palettePreviewFingerprintValid(0)
+    , palettePreviewCurrentFingerprint(0)
+    , palettePreviewTargetFingerprint(0)
     , panelMenuLabels()
+    , panelPendingTextCommands()
+    , panelPendingTextSignature()
+    , panelCommittedTextSignature()
+    , panelTextDirty(1)
     , shmAttached(0)
     , shmMarkedForRemoval(0)
     , pixmap(None)
@@ -597,17 +605,17 @@ DisplayEventStats DisplayDeviceX11::processEvents() {
 }
 
 void DisplayDeviceX11::prePrint() {
+    if (panelTextWidget) {
+        panelPendingTextCommands.clear();
+        panelPendingTextSignature.clear();
+    }
 
     // Text is composited through textPixmap when the frame buffer cannot be
     // drawn to directly. For panel text, the pixmap starts empty; for overlay
     // text, it starts as a copy of the current frame so strings can be drawn
     // over it before one final XCopyArea to the window.
     if (copyText && textPixmap) {
-        if (panelTextWidget) {
-            XSetForeground(xcth_display, gc, 0);
-            XFillRectangle(xcth_display, textPixmap, gc, 0, 0, text_size.x * fontSize.x,
-                text_size.y * fontSize.y);
-        } else {
+        if (!panelTextWidget) {
             switch (shmLevel) {
             case shmPixmap:
                 break;
@@ -626,8 +634,32 @@ void DisplayDeviceX11::prePrint() {
     darkenPalette = 0;
 }
 
+static void appendPanelTextSignature(
+    std::string& signature, int x, int y, int color, int noDarken,
+    const char* text, int len) {
+    char header[96];
+    snprintf(header, sizeof(header), "%d,%d,%d,%d,%d:", x, y, color,
+        noDarken, len);
+    signature.append(header);
+    signature.append(text, len);
+    signature.push_back('\n');
+}
+
 void DisplayDeviceX11::printString(
     int x, int y, const char* text, int color, int len, int noDarken) {
+
+    if (panelTextWidget) {
+        PanelTextCommand command;
+        command.x = x;
+        command.y = y;
+        command.color = color;
+        command.noDarken = noDarken;
+        command.text.assign(text, len);
+        panelPendingTextCommands.push_back(command);
+        appendPanelTextSignature(panelPendingTextSignature, x, y, color,
+            noDarken, text, len);
+        return;
+    }
 
     XSetForeground(xcth_display, gc, textColor[color]);
 
@@ -643,6 +675,31 @@ void DisplayDeviceX11::printString(
         if (!noDarken)
             darkenPalette = 1;
     }
+}
+
+void DisplayDeviceX11::postPrint() {
+    if (!panelTextWidget || !textPixmap)
+        return;
+
+    if (!panelTextDirty
+        && (panelPendingTextSignature == panelCommittedTextSignature))
+        return;
+
+    XSetForeground(xcth_display, gc, 0);
+    XFillRectangle(xcth_display, textPixmap, gc, 0, 0,
+        text_size.x * fontSize.x, text_size.y * fontSize.y);
+
+    for (size_t i = 0; i < panelPendingTextCommands.size(); i++) {
+        const PanelTextCommand& command = panelPendingTextCommands[i];
+        XSetForeground(xcth_display, gc, textColor[command.color]);
+        XDrawString(xcth_display, textPixmap, gc, command.x,
+            command.y + fontSize.y, command.text.c_str(),
+            int(command.text.size()));
+    }
+
+    panelCommittedTextSignature = panelPendingTextSignature;
+    panelTextDirty = 0;
+    copyText = 2;
 }
 
 int DisplayDeviceX11::allocImage() {

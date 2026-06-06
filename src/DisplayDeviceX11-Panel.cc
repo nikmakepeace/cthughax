@@ -183,6 +183,18 @@ void DisplayDeviceX11::drawPalettePreview() {
         palettePreviewWidth, palettePreviewHeight, 0, 0);
 }
 
+static unsigned long palettePreviewFingerprint(const Palette& palette) {
+    unsigned long hash = 2166136261UL;
+    const unsigned char* bytes = &palette[0][0];
+
+    for (int i = 0; i < 256 * 3; i++) {
+        hash ^= bytes[i];
+        hash *= 16777619UL;
+    }
+
+    return hash;
+}
+
 void DisplayDeviceX11::updatePalettePreview() {
     if (palettePreviewWidget == NULL)
         return;
@@ -224,8 +236,16 @@ void DisplayDeviceX11::updatePalettePreview() {
         palettePreviewHeight = attrs.height;
         palettePreviewPixmap
             = XCreatePixmap(xcth_display, previewWindow, attrs.width, attrs.height, planes);
+        palettePreviewFingerprintValid = 0;
     }
     if (palettePreviewPixmap == None)
+        return;
+
+    unsigned long currentFingerprint = palettePreviewFingerprint(currentPalette->raw());
+    unsigned long targetFingerprint = palettePreviewFingerprint(targetPalette->raw());
+    if (palettePreviewFingerprintValid
+        && (currentFingerprint == palettePreviewCurrentFingerprint)
+        && (targetFingerprint == palettePreviewTargetFingerprint))
         return;
 
     XImage* preview = XCreateImage(xcth_display, visual, planes, ZPixmap, 0, NULL,
@@ -256,6 +276,9 @@ void DisplayDeviceX11::updatePalettePreview() {
         palettePreviewWidth, palettePreviewHeight);
 
     XDestroyImage(preview);
+    palettePreviewCurrentFingerprint = currentFingerprint;
+    palettePreviewTargetFingerprint = targetFingerprint;
+    palettePreviewFingerprintValid = 1;
     drawPalettePreview();
 }
 
@@ -453,6 +476,21 @@ void DisplayDeviceX11::palettePreviewExpose(
     }
 }
 
+void DisplayDeviceX11::panelTextExpose(
+    Widget /*item*/, XtPointer data, XEvent* event, Boolean* /*cont*/) {
+    DisplayDeviceX11* device = (DisplayDeviceX11*)data;
+    if (device == NULL)
+        return;
+
+    if (event->type == ConfigureNotify) {
+        device->panelTextDirty = 1;
+        device->copyText = 2;
+    } else if (event->type == Expose) {
+        if (device->copyText < 1)
+            device->copyText = 1;
+    }
+}
+
 static const char* currentNameOrEmpty(EffectControl& control) {
     const char* name = control.currentName();
     return (name != NULL && strcmp(name, "unknown") != 0) ? name : "";
@@ -489,8 +527,14 @@ void DisplayDeviceX11::updatePanelSelectionLabels() {
 
         std::string selected = runtimeConfigSelectionTextOrFallback(config,
             selections[i].field, selections[i].fallback);
-        snprintf(panelMenuLabels[i], sizeof(panelMenuLabels[i]), "%s: %s",
+        char nextLabel[sizeof(panelMenuLabels[i])];
+        snprintf(nextLabel, sizeof(nextLabel), "%s: %s",
             selections[i].name, selected.c_str());
+        if (strcmp(panelMenuLabels[i], nextLabel) == 0)
+            continue;
+
+        strncpy(panelMenuLabels[i], nextLabel, sizeof(panelMenuLabels[i]));
+        panelMenuLabels[i][sizeof(panelMenuLabels[i]) - 1] = '\0';
         xawSetArg(wargs[0], XtNlabel, panelMenuLabels[i]);
         XtSetValues(panelMenuButtons[i], wargs, 1);
     }
@@ -597,6 +641,8 @@ void DisplayDeviceX11::xcth_create_panel() {
     xawSetArg(wargs[1], XtNwidth, fontSize.x * text_size.x);
     xawSetArg(wargs[2], XtNheight, 40);
     panelTextWidget = XtCreateManagedWidget("panelText", labelWidgetClass, panel, wargs, 3);
+    XtAddEventHandler(
+        panelTextWidget, ExposureMask | StructureNotifyMask, False, panelTextExpose, this);
 
     xawSetArg(wargs[0], XtNfromVert, panelTextWidget);
     xawSetArg(wargs[1], XtNwidth, fontSize.x * text_size.x);

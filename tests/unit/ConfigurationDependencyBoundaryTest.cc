@@ -1393,6 +1393,17 @@ static void testSelectionDisplaysUseRuntimeConfigRegistry() {
         "*runtimeConfigRegistryValue,\n        startupConfigValue.display");
 }
 
+static void testX11PanelUpdatesOnlyWhenStateChanges() {
+    assertSourceContains("src/DisplayDeviceX11.cc",
+        "panelPendingTextSignature == panelCommittedTextSignature");
+    assertSourceContains("src/DisplayDeviceX11.cc", "panelTextDirty");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "strcmp(panelMenuLabels[i], nextLabel) == 0");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "palettePreviewFingerprintValid");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc", "panelTextExpose");
+}
+
 static void testInterfaceInputsDoNotUseLegacyFallbacks() {
     assertSourceDoesNotContain("src/Interface.cc",
         "currentEffectControl->change");
@@ -1497,8 +1508,14 @@ static void testPaletteGenerationUsesInjectedRandomSource() {
         "static void addRandom(RandomSource& randomSource)");
     assertSourceContains("src/display.h",
         "static void randomizeLast(RandomSource& randomSource)");
+    assertSourceContains("src/display.h",
+        "Re-randomizes the currently selected random.N palette");
     assertSourceContains("src/palettes.cc",
         "generateRandomPalette(colors(), randomSource)");
+    assertSourceContains("src/palettes.cc", "maxLoadedRandomPaletteIndex()");
+    assertSourceContains("src/palettes.cc", "maxPersistedRandomPaletteIndex()");
+    assertSourceContains("src/palettes.cc", "randomPaletteOutputDirectory");
+    assertSourceContains("src/palettes.cc", "palette.currentPaletteEntry()");
     assertSourceDoesNotContain("src/palettes.cc", "#include \"imath.h\"");
     assertSourceDoesNotContain("src/palettes.cc", "::Random(3)");
     assertSourceDoesNotContain("src/palettes.cc", "::Random(256)");
@@ -1510,6 +1527,9 @@ static void testPaletteGenerationUsesInjectedRandomSource() {
     assertSourceContains("tests/unit/PaletteRandomGeneratorTest.cc",
         "testRandomPaletteUsesInjectedRandomSource");
     assertSourceContains("tests/CMakeLists.txt", "palette_random_generator_test");
+    assertSourceContains("tests/CMakeLists.txt", "random_palette_persistence_test");
+    assertSourceContains("tests/unit/RandomPalettePersistenceTest.cc",
+        "testRandomPaletteNamesContinueAfterPersistedFilesAndLoadedEntries");
 }
 
 static void testWavesUseInjectedRandomSource() {
@@ -1665,6 +1685,7 @@ int main() {
     testRuntimeCommandsUseSubsystemControlPorts();
     testX11PanelInputsUseRuntimeCommands();
     testSelectionDisplaysUseRuntimeConfigRegistry();
+    testX11PanelUpdatesOnlyWhenStateChanges();
     testInterfaceInputsDoNotUseLegacyFallbacks();
     testRemainingSharedRuntimeStateWasRemoved();
     testTranslationGenerationUsesApplicationRandomSource();
