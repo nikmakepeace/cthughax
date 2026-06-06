@@ -4,7 +4,9 @@
 
 #include "Audio.h"
 #include "AudioSettings.h"
+#include "PcmSourceFactory.h"
 #include "ProcessServices.h"
+#include "config.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -97,6 +99,28 @@ static void testMp3SourcePublishesDecoderFormatWhenAvailable() {
         return;
 
     assertFormatEquals(source.format(), formatFor(48000, 2, SF_s16_le));
+}
+
+static void testMp3FactoryFollowsConfiguredMinimp3Availability() {
+    AudioSettings settings;
+    settings.audioInputMode = AIM_File;
+    strncpy(settings.fileName, fixturePath("prism.mp3").c_str(), PATH_MAX);
+    settings.fileName[PATH_MAX - 1] = '\0';
+
+    FakeLogSink log;
+    FakeRandomSource randomSource;
+    PcmSourceFactory factory(log);
+    PcmSource* source = factory.create(settings, 256, randomSource);
+
+#if WITH_MINIMP3 == 1
+    assert(source != NULL);
+    assert(!source->hasError());
+    assertFormatEquals(source->format(), formatFor(48000, 2, SF_s16_le));
+#else
+    assert(source == NULL);
+#endif
+
+    delete source;
 }
 
 static void testRawSourceUsesExplicitFormat() {
@@ -193,6 +217,7 @@ static void testDspOutputNegotiatesWithoutGlobalSetters() {
 int main() {
     testWavSourcePublishesHeaderFormat();
     testMp3SourcePublishesDecoderFormatWhenAvailable();
+    testMp3FactoryFollowsConfiguredMinimp3Availability();
     testRawSourceUsesExplicitFormat();
     testRandomNoiseKeepsSessionRateAndOwnSampleShape();
     testRandomNoiseUsesInjectedRandomSource();

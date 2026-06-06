@@ -189,6 +189,7 @@ static void testAudioDeviceSettingsAreStartupOnly() {
         "new RandomNoisePcmSource(settings.pcmFormat, randomSource, log)");
     assertSourceContains("src/PcmSourceFactory.cc",
         "new WavPcmSource(settings.fileName, log)");
+    assertSourceContains("src/PcmSourceFactory.cc", "#include \"config.h\"");
     assertSourceContains("src/PcmSourceFactory.cc",
         "new Minimp3PcmSource(settings.fileName, log)");
     assertSourceContains("src/PcmSourceFactory.cc",

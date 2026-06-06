@@ -852,6 +852,7 @@ add_executable(audio_device_negotiation_test
     ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
     ${CMAKE_SOURCE_DIR}/src/DspPcmSource.cc
     ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
+    ${CMAKE_SOURCE_DIR}/src/PcmSourceFactory.cc
     ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
     ${CMAKE_SOURCE_DIR}/src/imath.cc
 )

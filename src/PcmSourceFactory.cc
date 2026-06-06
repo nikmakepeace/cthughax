@@ -1,3 +1,4 @@
+#include "config.h"
 #include "PcmSourceFactory.h"
 #include "ProcessServices.h"
 #include "RuntimeFactory.h"
