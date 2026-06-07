@@ -74,6 +74,7 @@ enum option_nr {
     opt_qotd,
     opt_no_qotd,
     opt_qotd_server,
+    opt_version,
 };
 
 struct option long_options[] = {
@@ -164,7 +165,8 @@ struct option long_options[] = {
     { "prt-file", 1, 0, opt_prt_file },
     { "esc", 0, &key_esc, 1 },
     { "no-esc", 0, &key_esc, 0 }, { "verbose", 2, 0, opt_verbose },
-    { "no-verbose", 1, &cthugha_verbose.value, 0 }, { "help", 0, 0, '?' },
+    { "no-verbose", 1, &cthugha_verbose.value, 0 }, { "version", 0, 0, opt_version },
+    { "help", 0, 0, '?' },
 
     { 0, 0, 0, 0 }
 };
@@ -361,6 +363,9 @@ int do_param(int c, int value, char* str) {
         videoDirector().silenceMessages().setQotdServer(str);
         break;
 
+    case opt_version:
+        break;
+
     case opt_images:
         videoDirector().setImageLoadingEnabled(1);
         break;
@@ -543,6 +548,15 @@ int get_pre_params(int argc, char* argv[]) {
 int params_request_help(int argc, char* argv[]) {
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--help") == 0 || strcmp(argv[i], "-?") == 0)
+            return 1;
+    }
+
+    return 0;
+}
+
+int params_request_version(int argc, char* argv[]) {
+    for (int i = 1; i < argc; i++) {
+        if (strcmp(argv[i], "--version") == 0)
             return 1;
     }
 

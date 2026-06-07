@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.16)
 
-project(CthughaNix VERSION 1.5 LANGUAGES C CXX)
+project("Cthugha X" VERSION 0.9 LANGUAGES C CXX)
 
 include(CheckFunctionExists)
 include(CheckIncludeFile)
@@ -97,7 +97,9 @@ else()
 endif()
 
 set(USE_XPM 0)
+set(WITH_X11 0)
 if(CTH_BUILD_X11)
+    set(WITH_X11 1)
     find_package(X11 REQUIRED)
     find_package(ZLIB REQUIRED)
 
@@ -144,7 +146,7 @@ install(DIRECTORY resources/obj/ DESTINATION ${CTH_DATA_DIR}/obj
 
 message(STATUS "")
 message(STATUS "CthughaNix modern CMake summary")
-message(STATUS "  X11 frontend       : ${CTH_BUILD_X11}")
+message(STATUS "  X11 frontend       : ${WITH_X11}")
 message(STATUS "  Pulse output       : ${WITH_PULSE}")
 message(STATUS "  OSS DSP input/output: ${WITH_DSP} (${CTH_DEV_DSP})")
 message(STATUS "  OSS mixer          : ${WITH_MIXER} (${CTH_DEV_MIXER})")

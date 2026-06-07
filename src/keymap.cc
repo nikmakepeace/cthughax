@@ -46,6 +46,10 @@ static int keymapFeatureValue(const char* name, int& known) {
     if (strcasecmp(name, "WITH_PULSE") == 0)
         return WITH_PULSE;
 #endif
+#ifdef WITH_X11
+    if (strcasecmp(name, "WITH_X11") == 0)
+        return WITH_X11;
+#endif
 #ifdef WITH_MINIMP3
     if (strcasecmp(name, "WITH_MINIMP3") == 0)
         return WITH_MINIMP3;

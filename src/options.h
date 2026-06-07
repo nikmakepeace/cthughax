@@ -26,6 +26,7 @@ extern char ini_file_override[];
 int get_params(int argc, char* argv[]);
 int get_pre_params(int argc, char* argv[]);
 int params_request_help(int argc, char* argv[]);
+int params_request_version(int argc, char* argv[]);
 int do_param(int c, int value, char* str);
 
 extern struct option long_options[];

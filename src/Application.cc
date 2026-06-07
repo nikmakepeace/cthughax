@@ -207,13 +207,19 @@ int Application::initialize() {
         return 0;
     }
 
+    // Version exits successfully without opening terminal, audio, or display state.
+    if (params_request_version(argcValue, argvValue)) {
+        version();
+        exitStatusValue = 0;
+        return 0;
+    }
+
     initSceneRuntime();
 
     // Full parameter parsing can select initial scene/audio/display options.
     if (get_params(argcValue, argvValue))
         return 0;
 
-    title();
     videoDirector().silenceMessages().initialize();
 
     init_imath();

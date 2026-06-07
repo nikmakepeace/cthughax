@@ -7,4 +7,5 @@
 */
 
 void title();
+void version();
 void usage();
