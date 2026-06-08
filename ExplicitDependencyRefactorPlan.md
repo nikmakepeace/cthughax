@@ -1022,6 +1022,10 @@ from this plan.
      visual `EffectControl` fallbacks or the legacy visual option headers;
      display-only `EffectControl` list support remains scoped to the display
      option list.
+   - X11 panel Scene menus are registered from native `RuntimeSceneTarget`
+     selections only. Panel display menus still use display-owned
+     `EffectControl` state, while Scene menu choices and activation route
+     through native Scene selections and runtime Scene commands.
 
 6. **Delete legacy visual startup and catalog bridges. Status: remaining.**
    Native object, image, and palette Scene catalog loaders are in place.
@@ -1034,10 +1038,9 @@ from this plan.
    - Retire any remaining non-Scene UI fallback that still displays Scene
      visual choices through legacy `EffectControl` lists. F2/list interfaces
      now consume native Scene selections without visual option fallbacks. This
-     is complete when X11 menus, keymap actions, and runtime config display
-     code all consume native Scene selections after construction, with any
-     remaining display-only legacy control path scoped to non-Scene display
-     options.
+     is complete when keymap actions and runtime config display code all
+     consume native Scene selections after construction, with any remaining
+     display-only legacy control path scoped to non-Scene display options.
    - Delete the remaining bridge sources and test allowances. This is complete
      when no production command, config, startup, save/restore, preset,
      serialization, UI, or Frame Generator path names `LegacyScene*` for visual

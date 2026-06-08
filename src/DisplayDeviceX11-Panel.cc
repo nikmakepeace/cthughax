@@ -7,9 +7,7 @@
 #include "xcthugha.h"
 #include "InputQueue.h"
 #include "Interface.h"
-#include "Image.h"
 #include "FramePalette.h"
-#include "FlameOptions.h"
 #include "RuntimeConfigRegistry.h"
 #include "RuntimeConfigSelection.h"
 #include "RuntimeCommandSink.h"
@@ -18,8 +16,6 @@
 #include "SceneVisualSelections.h"
 #include "cth_buffer.h"
 #include "Scene.h"
-#include "TranslationOption.h"
-#include "WaveOptions.h"
 
 #include <unistd.h>
 #include <X11/Shell.h>
@@ -560,8 +556,10 @@ static const char* sceneNameOrEmpty(SceneOptionSelection* selection) {
 
 static int panelChoiceCount(
     SceneOptionSelection* selection, EffectControl* control) {
-    return (selection != NULL) ? selection->entryCount()
-                               : control->getNEntries();
+    if (selection != NULL)
+        return selection->entryCount();
+
+    return (control != NULL) ? control->getNEntries() : 0;
 }
 
 static const char* panelChoiceName(
@@ -571,13 +569,16 @@ static const char* panelChoiceName(
         return (choice != NULL) ? choice->name() : "unknown";
     }
 
-    return (*control)[index]->Name();
+    return (control != NULL) ? (*control)[index]->Name() : "unknown";
 }
 
 static const char* panelChoiceLabel(
     SceneOptionSelection* selection, EffectControl* control, int index) {
     if (selection != NULL)
         return panelChoiceName(selection, control, index);
+
+    if (control == NULL)
+        return "unknown";
 
     return (*control)[index]->Desc()[0] ? (*control)[index]->Desc()
                                         : (*control)[index]->Name();
@@ -681,10 +682,10 @@ Widget DisplayDeviceX11::add_menu(
         right);
 }
 
-Widget DisplayDeviceX11::add_scene_menu(const char* name, EffectControl* what,
+Widget DisplayDeviceX11::add_scene_menu(const char* name,
     RuntimeSceneTarget sceneTarget, Widget parent, Widget under,
     Widget right) {
-    return add_menu_target(name, what, sceneTarget, 1, parent, under, right);
+    return add_menu_target(name, NULL, sceneTarget, 1, parent, under, right);
 }
 
 Widget DisplayDeviceX11::add_menu_target(const char* name, EffectControl* what,
@@ -771,19 +772,19 @@ void DisplayDeviceX11::xcth_create_panel() {
 
     /* create the menus */
     panelMenuButtons[0] = add_menu("Display", &::screen, panel, quit_button, NULL);
-    panelMenuButtons[1] = add_scene_menu("Wave", &wave, RuntimeSceneWave,
+    panelMenuButtons[1] = add_scene_menu("Wave", RuntimeSceneWave,
         panel, quit_button, panelMenuButtons[0]);
-    panelMenuButtons[2] = add_scene_menu("Flame", &flame, RuntimeSceneFlame,
+    panelMenuButtons[2] = add_scene_menu("Flame", RuntimeSceneFlame,
         panel, quit_button, panelMenuButtons[1]);
-    panelMenuButtons[3] = add_scene_menu("Translation", &translation,
+    panelMenuButtons[3] = add_scene_menu("Translation",
         RuntimeSceneTranslation, panel, quit_button, panelMenuButtons[2]);
-    panelMenuButtons[4] = add_scene_menu("Palette", &palette,
+    panelMenuButtons[4] = add_scene_menu("Palette",
         RuntimeScenePalette, panel, quit_button, panelMenuButtons[3]);
-    panelMenuButtons[5] = add_scene_menu("Table", &table, RuntimeSceneTable,
+    panelMenuButtons[5] = add_scene_menu("Table", RuntimeSceneTable,
         panel, quit_button, panelMenuButtons[4]);
-    panelMenuButtons[6] = add_scene_menu("Image", &images, RuntimeSceneImage,
+    panelMenuButtons[6] = add_scene_menu("Image", RuntimeSceneImage,
         panel, quit_button, panelMenuButtons[5]);
-    panelMenuButtons[7] = add_scene_menu("Objects", &object,
+    panelMenuButtons[7] = add_scene_menu("Objects",
         RuntimeSceneObject, panel, quit_button, panelMenuButtons[6]);
     updatePanelSelectionLabels();
 
