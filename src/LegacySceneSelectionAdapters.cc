@@ -72,39 +72,64 @@ public:
     virtual void syncControlsFromSelections();
 };
 
-static void addLegacyChoiceAliases(
-    SceneChoiceListEntry& entry, EffectChoice& choice) {
-    if (choice.sameName("yes"))
-        entry.addAlias("yes");
-    if (choice.sameName("no"))
-        entry.addAlias("no");
-    if (choice.sameName("1"))
-        entry.addAlias("1");
-    if (choice.sameName("0"))
-        entry.addAlias("0");
+static int legacyChoiceInUse(EffectControl& option, int index, int defaultUse) {
+    EffectChoice* choice = option[index];
+    return (choice != 0) ? choice->inUse() : defaultUse;
 }
 
-static SceneChoiceCatalog* createOwnedSceneChoiceCatalog(
+static SceneChoiceListCatalog* createSceneChoiceListCatalog(
     EffectControl& option) {
-    SceneChoiceListCatalog* catalog = new SceneChoiceListCatalog(
+    return new SceneChoiceListCatalog(
         option.name(), new LegacySceneChoiceLock(option.lock));
+}
 
-    int nEntries = option.getNEntries();
-    for (int i = 0; i < nEntries; i++) {
-        EffectChoice* choice = option[i];
-        if (choice != 0) {
-            SceneChoiceListEntry& entry
-                = catalog->addChoice(choice->Name(), choice->inUse());
-            addLegacyChoiceAliases(entry, *choice);
-        }
+static SceneChoiceCatalog* createWaveScaleChoiceCatalog(
+    EffectControl& option) {
+    static const char* names[] = { "scale0", "scale1", "scale2" };
+    SceneChoiceListCatalog* catalog = createSceneChoiceListCatalog(option);
+
+    for (unsigned int i = 0; i < sizeof(names) / sizeof(names[0]); i++)
+        catalog->addChoice(names[i], legacyChoiceInUse(option, int(i), 1));
+
+    return catalog;
+}
+
+static SceneChoiceCatalog* createTableChoiceCatalog(EffectControl& option) {
+    SceneChoiceListCatalog* catalog = createSceneChoiceListCatalog(option);
+
+    for (int i = 0; i < 10; i++) {
+        char name[16];
+        snprintf(name, sizeof(name), "table%d", i);
+        catalog->addChoice(name, legacyChoiceInUse(option, i, 1));
     }
 
     return catalog;
 }
 
-static int legacyChoiceInUse(EffectControl& option, int index, int defaultUse) {
-    EffectChoice* choice = option[index];
-    return (choice != 0) ? choice->inUse() : defaultUse;
+static SceneChoiceCatalog* createBorderChoiceCatalog(EffectControl& option) {
+    SceneChoiceListCatalog* catalog = createSceneChoiceListCatalog(option);
+
+    for (int i = 0; i < 4; i++) {
+        char name[16];
+        snprintf(name, sizeof(name), "border%d", i);
+        catalog->addChoice(name, legacyChoiceInUse(option, i, 1));
+    }
+
+    return catalog;
+}
+
+static SceneChoiceCatalog* createFlashlightChoiceCatalog(
+    EffectControl& option) {
+    SceneChoiceListCatalog* catalog = createSceneChoiceListCatalog(option);
+    SceneChoiceListEntry& off = catalog->addChoice(
+        "off", legacyChoiceInUse(option, 0, 1));
+    off.addAlias("no");
+    off.addAlias("0");
+    SceneChoiceListEntry& on = catalog->addChoice(
+        "on", legacyChoiceInUse(option, 1, 1));
+    on.addAlias("yes");
+    on.addAlias("1");
+    return catalog;
 }
 
 static SceneChoiceCatalog* createSceneFlameChoiceCatalog(
@@ -219,15 +244,14 @@ LegacySceneSelectionAdapters::LegacySceneSelectionAdapters(EffectControl& flame_
     , generalFlameValue(generalFlame_.name(),
           new LegacySceneChoiceLock(generalFlame_.lock), int(generalFlame_))
     , waveValue(createSceneWaveChoiceCatalog(wave_), int(wave_))
-    , waveScaleValue(createOwnedSceneChoiceCatalog(waveScale_),
-          int(waveScale_))
-    , tableValue(createOwnedSceneChoiceCatalog(table_), int(table_))
+    , waveScaleValue(createWaveScaleChoiceCatalog(waveScale_), int(waveScale_))
+    , tableValue(createTableChoiceCatalog(table_), int(table_))
     , objectValue(createSceneWaveObjectChoiceCatalog(object_), int(object_))
     , translationValue(createSceneTranslationChoiceCatalog(translation_),
           int(translation_))
     , paletteValue(createScenePaletteChoiceCatalog(palette_), int(palette_))
-    , borderValue(createOwnedSceneChoiceCatalog(border_), int(border_))
-    , flashlightValue(createOwnedSceneChoiceCatalog(flashlight_),
+    , borderValue(createBorderChoiceCatalog(border_), int(border_))
+    , flashlightValue(createFlashlightChoiceCatalog(flashlight_),
           int(flashlight_))
     , imagesValue(createSceneImageChoiceCatalog(images_), int(images_)) { }
 
