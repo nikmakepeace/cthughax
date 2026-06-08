@@ -21,9 +21,13 @@ public:
      * Randomizes the most recent random palette slot.
      *
      * @param randomSource Random source used for palette generation.
+     * @param currentPaletteIndex Current Scene palette index. Legacy-backed
+     *        implementations use this to update temporary global palette
+     *        current state internally instead of relying on a wider mirror.
      * @return Mutated palette entry index, or a negative value on failure.
      */
-    virtual int randomizeLast(RandomSource& randomSource) = 0;
+    virtual int randomizeLast(
+        RandomSource& randomSource, int currentPaletteIndex) = 0;
 
     /**
      * Adds a new random palette slot.

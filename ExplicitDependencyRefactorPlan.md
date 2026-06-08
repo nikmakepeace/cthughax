@@ -1078,6 +1078,10 @@ from this plan.
      native `SceneVisualSelections`; the panel still keeps legacy
      `EffectControl*` only for display-menu compatibility, pre-startup
      fallback, and palette metadata migration work.
+   - The random-palette port receives the current native Scene palette index
+     explicitly, so the legacy randomizer quarantines the required global
+     `palette` current-value update instead of depending on a broad prior
+     selection mirror.
    - `RuntimeEffectControlOwner`, `LegacySceneEffectControlTarget`,
      `LegacySceneEffectControlBindings`, and
      `LegacySceneEffectControlCatalog` are deleted.

@@ -8,7 +8,11 @@ namespace {
 
 class LegacyScenePaletteRandomizer : public ScenePaletteRandomizer {
 public:
-    virtual int randomizeLast(RandomSource& randomSource) {
+    virtual int randomizeLast(
+        RandomSource& randomSource, int currentPaletteIndex) {
+        if ((currentPaletteIndex >= 0)
+            && (currentPaletteIndex < palette.getNEntries()))
+            palette.setValue(currentPaletteIndex);
         PaletteEntry::randomizeLast(randomSource);
         return PaletteEntry::lastRandomPos;
     }

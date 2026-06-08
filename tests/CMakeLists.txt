@@ -93,6 +93,36 @@ target_link_libraries(random_palette_persistence_test PRIVATE m)
 
 add_test(NAME random_palette_persistence_test COMMAND random_palette_persistence_test)
 
+add_executable(legacy_scene_palette_randomizer_test
+    unit/LegacyScenePaletteRandomizerTest.cc
+    ${CMAKE_SOURCE_DIR}/src/LegacyScenePaletteRandomizer.cc
+    ${CMAKE_SOURCE_DIR}/src/palettes.cc
+    ${CMAKE_SOURCE_DIR}/src/PaletteRandomGenerator.cc
+    ${CMAKE_SOURCE_DIR}/src/ColorPalette.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoiceLoader.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+)
+
+target_compile_definitions(legacy_scene_palette_randomizer_test PRIVATE
+    CTH_LIBDIR="${CTH_DATA_DIR}"
+)
+
+target_include_directories(legacy_scene_palette_randomizer_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(legacy_scene_palette_randomizer_test PRIVATE m)
+
+add_test(NAME legacy_scene_palette_randomizer_test COMMAND legacy_scene_palette_randomizer_test)
+
 add_executable(image_placement_test
     unit/ImagePlacementTest.cc
     ${CMAKE_SOURCE_DIR}/src/Image.cc

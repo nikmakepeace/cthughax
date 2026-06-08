@@ -258,7 +258,8 @@ void SceneVisualCatalogService::toggleChoiceUse(
 
 unsigned int SceneVisualCatalogService::randomPalette(
     RandomSource& randomSource) {
-    int index = paletteRandomizer.randomizeLast(randomSource);
+    int index = paletteRandomizer.randomizeLast(randomSource,
+        selections.palette().currentValue());
     refreshOwnedPaletteEntry(selections, paletteRandomizer, index);
     selections.palette().setValue(index);
     return ScenePaletteChanged;

@@ -1801,6 +1801,8 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceContains("src/ScenePaletteRandomizer.h",
         "class ScenePaletteRandomizer");
     assertSourceContains("src/ScenePaletteRandomizer.h",
+        "RandomSource& randomSource, int currentPaletteIndex");
+    assertSourceContains("src/ScenePaletteRandomizer.h",
         "virtual PaletteEntry* paletteEntry(int index) = 0");
     assertSourceDoesNotContain("src/LegacyScenePaletteRandomizer.h",
         "createLegacySceneWaveObjectSource");
@@ -2853,6 +2855,11 @@ static void testPaletteGenerationUsesInjectedRandomSource() {
     assertSourceDoesNotContain("src/palettes.cc", "::Random(3)");
     assertSourceDoesNotContain("src/palettes.cc", "::Random(256)");
     assertSourceDoesNotContain("src/PaletteEntry.h", "static void Random()");
+    assertSourceContains("src/SceneVisualCatalogService.cc",
+        "paletteRandomizer.randomizeLast(randomSource,\n"
+        "        selections.palette().currentValue())");
+    assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
+        "palette.setValue(currentPaletteIndex)");
     assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
         "PaletteEntry::randomizeLast(randomSource)");
     assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
@@ -2865,6 +2872,12 @@ static void testPaletteGenerationUsesInjectedRandomSource() {
         "#include \"PaletteOption.h\"");
     assertSourceDoesNotContain("tests/unit/RandomPalettePersistenceTest.cc",
         "#include \"display.h\"");
+    assertSourceContains("tests/unit/LegacyScenePaletteRandomizerTest.cc",
+        "testRandomizerUsesExplicitCurrentPaletteIndex");
+    assertSourceContains("tests/unit/LegacyScenePaletteRandomizerTest.cc",
+        "randomizer->randomizeLast(randomSource, 1)");
+    assertSourceContains("tests/CMakeLists.txt",
+        "legacy_scene_palette_randomizer_test");
     assertSourceDoesNotContain("src/SceneVisualCatalogService.cc",
         "PaletteEntry::randomizeLast(randomSource)");
     assertSourceDoesNotContain("src/SceneVisualCatalogService.cc",
