@@ -40,6 +40,23 @@ static void testRuntimeCommandFactoriesCaptureIntent() {
     assert(sceneTo.sceneTarget == RuntimeScenePalette);
     assert(strcmp(sceneTo.text, "blue") == 0);
 
+    RuntimeCommand activateScene
+        = RuntimeCommand::activateScene(RuntimeSceneImage, 4);
+    assert(activateScene.type == RuntimeCommandActivateScene);
+    assert(activateScene.sceneTarget == RuntimeSceneImage);
+    assert(activateScene.value == 4);
+
+    RuntimeCommand sceneLock
+        = RuntimeCommand::toggleSceneLock(RuntimeSceneWave);
+    assert(sceneLock.type == RuntimeCommandToggleSceneLock);
+    assert(sceneLock.sceneTarget == RuntimeSceneWave);
+
+    RuntimeCommand sceneChoiceUse
+        = RuntimeCommand::toggleSceneChoiceUse(RuntimeScenePalette, 2);
+    assert(sceneChoiceUse.type == RuntimeCommandToggleSceneChoiceUse);
+    assert(sceneChoiceUse.sceneTarget == RuntimeScenePalette);
+    assert(sceneChoiceUse.value == 2);
+
     RuntimeCommand save = RuntimeCommand::savePreset(7);
     assert(save.type == RuntimeCommandSavePreset);
     assert(save.value == 7);

@@ -35,6 +35,9 @@ public:
         SceneSelectionTarget target, int by, RandomSource& randomSource);
     virtual unsigned int change(SceneSelectionTarget target, const char* to,
         RandomSource& randomSource);
+    virtual unsigned int activate(SceneSelectionTarget target, int index);
+    virtual void toggleLock(SceneSelectionTarget target);
+    virtual void toggleChoiceUse(SceneSelectionTarget target, int index);
     virtual unsigned int randomPalette(RandomSource& randomSource);
     virtual unsigned int addRandomPalette(RandomSource& randomSource);
 };

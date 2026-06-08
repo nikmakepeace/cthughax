@@ -150,12 +150,30 @@ public:
     int stateValue;
     int currentSettingsCalls;
     int currentImageCalls;
+    int activateCalls;
+    SceneSelectionTarget activatedTarget;
+    int activatedIndex;
+    int toggleLockCalls;
+    SceneSelectionTarget lockedTarget;
+    int toggleChoiceUseCalls;
+    SceneSelectionTarget choiceUseTarget;
+    int choiceUseIndex;
+    unsigned int activateResponse;
 
     RecordingVisualCatalogs()
         : settingsValue()
         , stateValue(0)
         , currentSettingsCalls(0)
-        , currentImageCalls(0) { }
+        , currentImageCalls(0)
+        , activateCalls(0)
+        , activatedTarget(SceneSelectionFlame)
+        , activatedIndex(-1)
+        , toggleLockCalls(0)
+        , lockedTarget(SceneSelectionFlame)
+        , toggleChoiceUseCalls(0)
+        , choiceUseTarget(SceneSelectionFlame)
+        , choiceUseIndex(-1)
+        , activateResponse(SceneNoChange) { }
 
     virtual const SceneSettings& currentSettings(SceneGeometry&) {
         currentSettingsCalls++;
@@ -179,6 +197,24 @@ public:
     virtual unsigned int change(
         SceneSelectionTarget, const char*, RandomSource&) {
         return SceneNoChange;
+    }
+
+    virtual unsigned int activate(SceneSelectionTarget target, int index) {
+        activateCalls++;
+        activatedTarget = target;
+        activatedIndex = index;
+        return activateResponse;
+    }
+
+    virtual void toggleLock(SceneSelectionTarget target) {
+        toggleLockCalls++;
+        lockedTarget = target;
+    }
+
+    virtual void toggleChoiceUse(SceneSelectionTarget target, int index) {
+        toggleChoiceUseCalls++;
+        choiceUseTarget = target;
+        choiceUseIndex = index;
     }
 
     virtual unsigned int randomPalette(RandomSource&) {
@@ -367,6 +403,36 @@ static void testChangeOneUsesSyncReturnedImageChangeForCue() {
     assert(visualCatalogs.currentImageCalls == 1);
 }
 
+static void testSceneCommandsExposeNativeSelectionActions() {
+    Scene scene;
+    DummySceneGeometry geometry;
+    RecordingVisualCatalogs visualCatalogs;
+    SyncingEffectControlCatalog effectControls(visualCatalogs);
+    RecordingEffectRegistry effectRegistry;
+    RecordingPresetCatalog presets;
+    DummyRandomSource randomSource;
+
+    SceneCommandDependencies dependencies(
+        visualCatalogs, effectControls, effectRegistry, presets);
+    SceneCommands commands(scene, geometry, dependencies, randomSource);
+
+    commands.activate(SceneSelectionImage, 4);
+
+    assert(visualCatalogs.activateCalls == 1);
+    assert(visualCatalogs.activatedTarget == SceneSelectionImage);
+    assert(visualCatalogs.activatedIndex == 4);
+    assert(visualCatalogs.currentImageCalls == 1);
+
+    commands.toggleLock(SceneSelectionPalette);
+    commands.toggleChoiceUse(SceneSelectionWave, 3);
+
+    assert(visualCatalogs.toggleLockCalls == 1);
+    assert(visualCatalogs.lockedTarget == SceneSelectionPalette);
+    assert(visualCatalogs.toggleChoiceUseCalls == 1);
+    assert(visualCatalogs.choiceUseTarget == SceneSelectionWave);
+    assert(visualCatalogs.choiceUseIndex == 3);
+}
+
 static void testSceneSelectionRegistryOwnsSelectionHistoryAndRandomChanges() {
     SceneSelectionRegistry registry;
     RecordingSceneOptionSelection first;
@@ -477,6 +543,7 @@ int main() {
     testRestorePushesSceneSelectionsBeforeReadingSceneSettings();
     testEffectControlSaveUsesExplicitRegistryBeforeCatalogChange();
     testChangeOneUsesSyncReturnedImageChangeForCue();
+    testSceneCommandsExposeNativeSelectionActions();
     testSceneSelectionRegistryOwnsSelectionHistoryAndRandomChanges();
     testSceneSelectionPresetCatalogOwnsSelectionSnapshots();
     testSceneSelectionPolicyApplierUsesSceneSelections();

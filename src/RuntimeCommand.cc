@@ -31,6 +31,28 @@ RuntimeCommand RuntimeCommand::changeSceneTo(RuntimeSceneTarget target, const ch
     return command;
 }
 
+RuntimeCommand RuntimeCommand::activateScene(
+    RuntimeSceneTarget target, int index) {
+    RuntimeCommand command(RuntimeCommandActivateScene);
+    command.sceneTarget = target;
+    command.value = index;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::toggleSceneLock(RuntimeSceneTarget target) {
+    RuntimeCommand command(RuntimeCommandToggleSceneLock);
+    command.sceneTarget = target;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::toggleSceneChoiceUse(
+    RuntimeSceneTarget target, int index) {
+    RuntimeCommand command(RuntimeCommandToggleSceneChoiceUse);
+    command.sceneTarget = target;
+    command.value = index;
+    return command;
+}
+
 RuntimeCommand RuntimeCommand::changeScreenBy(int by) {
     RuntimeCommand command(RuntimeCommandChangeScreenBy);
     command.value = by;

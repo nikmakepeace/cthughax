@@ -519,6 +519,12 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/Scene.h", "enum SceneSelectionTarget");
     assertSourceContains("src/Scene.h",
         "void change(SceneSelectionTarget target, int by)");
+    assertSourceContains("src/Scene.h",
+        "void activate(SceneSelectionTarget target, int index)");
+    assertSourceContains("src/Scene.h",
+        "void toggleLock(SceneSelectionTarget target)");
+    assertSourceContains("src/Scene.h",
+        "void toggleChoiceUse(SceneSelectionTarget target, int index)");
     assertSourceContains("src/RuntimeChangeMediator.h",
         "SceneCommandTarget& sceneCommands");
     assertSourceDoesNotContain("src/RuntimeChangeMediator.h",
@@ -529,6 +535,18 @@ static void testAudioFrameOwnsPerFrameMetrics() {
         "sceneCommands.change(sceneSelectionTargetFromRuntime(target), by)");
     assertSourceContains("src/RuntimeChangeMediator.cc",
         "sceneCommands.change(sceneSelectionTargetFromRuntime(target), to)");
+    assertSourceContains("src/RuntimeCommand.h",
+        "RuntimeCommandActivateScene");
+    assertSourceContains("src/RuntimeCommand.h",
+        "RuntimeCommandToggleSceneLock");
+    assertSourceContains("src/RuntimeCommand.h",
+        "RuntimeCommandToggleSceneChoiceUse");
+    assertSourceContains("src/RuntimeChangeMediator.cc",
+        "sceneCommands.activate(");
+    assertSourceContains("src/RuntimeChangeMediator.cc",
+        "sceneCommands.toggleLock(");
+    assertSourceContains("src/RuntimeChangeMediator.cc",
+        "sceneCommands.toggleChoiceUse(");
     assertSourceContains("src/Scene.h",
         "class SceneCommandsTarget : public SceneCommandTarget");
     assertSourceContains("src/LegacySceneEffectControlTarget.h",

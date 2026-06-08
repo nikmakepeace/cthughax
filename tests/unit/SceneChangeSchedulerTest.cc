@@ -74,6 +74,9 @@ public:
     virtual void addRandomPalette() { }
     virtual void change(SceneSelectionTarget, int) { }
     virtual void change(SceneSelectionTarget, const char*) { }
+    virtual void activate(SceneSelectionTarget, int) { }
+    virtual void toggleLock(SceneSelectionTarget) { }
+    virtual void toggleChoiceUse(SceneSelectionTarget, int) { }
 };
 
 class RecordingQuietObserver : public AutoChangeQuietObserver {

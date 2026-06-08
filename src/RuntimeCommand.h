@@ -29,6 +29,9 @@ enum RuntimeCommandType {
     RuntimeCommandRequestClose,
     RuntimeCommandChangeSceneBy,
     RuntimeCommandChangeSceneTo,
+    RuntimeCommandActivateScene,
+    RuntimeCommandToggleSceneLock,
+    RuntimeCommandToggleSceneChoiceUse,
     RuntimeCommandChangeScreenBy,
     RuntimeCommandChangeScreenTo,
     RuntimeCommandChangeZoomBy,
@@ -115,6 +118,33 @@ struct RuntimeCommand {
      * @return Runtime command.
      */
     static RuntimeCommand changeSceneTo(RuntimeSceneTarget target, const char* to);
+
+    /**
+     * Creates an indexed scene-choice activation command.
+     *
+     * @param target Scene target containing the choice.
+     * @param index Choice index to activate.
+     * @return Runtime command.
+     */
+    static RuntimeCommand activateScene(RuntimeSceneTarget target, int index);
+
+    /**
+     * Creates a scene-selection lock toggle command.
+     *
+     * @param target Scene target whose lock should toggle.
+     * @return Runtime command.
+     */
+    static RuntimeCommand toggleSceneLock(RuntimeSceneTarget target);
+
+    /**
+     * Creates a scene-choice use toggle command.
+     *
+     * @param target Scene target containing the choice.
+     * @param index Choice index whose use flag should toggle.
+     * @return Runtime command.
+     */
+    static RuntimeCommand toggleSceneChoiceUse(
+        RuntimeSceneTarget target, int index);
 
     /**
      * Creates a relative screen/presentation change command.

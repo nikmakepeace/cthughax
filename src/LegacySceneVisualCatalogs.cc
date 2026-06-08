@@ -18,6 +18,47 @@ static WObject* currentSceneWaveObject(SceneOptionSelection& selection) {
     return (objectSelection != 0) ? objectSelection->currentObject() : 0;
 }
 
+static SceneOptionSelection& sceneSelectionForTarget(
+    SceneVisualSelections& selections, SceneSelectionTarget target) {
+    switch (target) {
+    case SceneSelectionFlame:
+        return selections.flame();
+    case SceneSelectionGeneralFlame:
+        return selections.generalFlame();
+    case SceneSelectionWave:
+        return selections.wave();
+    case SceneSelectionWaveScale:
+        return selections.waveScale();
+    case SceneSelectionObject:
+        return selections.object();
+    case SceneSelectionTranslation:
+        return selections.translation();
+    case SceneSelectionBorder:
+        return selections.border();
+    case SceneSelectionFlashlight:
+        return selections.flashlight();
+    case SceneSelectionPalette:
+        return selections.palette();
+    case SceneSelectionTable:
+        return selections.table();
+    case SceneSelectionImage:
+        return selections.images();
+    }
+
+    return selections.flame();
+}
+
+static unsigned int forcedChangeForSelection(SceneSelectionTarget target) {
+    switch (target) {
+    case SceneSelectionGeneralFlame:
+        return SceneFlameChanged;
+    case SceneSelectionImage:
+        return SceneImageChanged;
+    default:
+        return SceneNoChange;
+    }
+}
+
 static void refreshOwnedPaletteEntry(SceneVisualSelections& selections,
     ScenePaletteRandomizer& paletteRandomizer, int index) {
     if (index < 0)
@@ -223,6 +264,22 @@ unsigned int LegacySceneVisualCatalogs::change(SceneSelectionTarget target,
     }
 
     return syncLegacyControlsAndReturn(selections, result);
+}
+
+unsigned int LegacySceneVisualCatalogs::activate(
+    SceneSelectionTarget target, int index) {
+    sceneSelectionForTarget(selections, target).activate(index);
+    return syncLegacyControlsAndReturn(selections,
+        forcedChangeForSelection(target));
+}
+
+void LegacySceneVisualCatalogs::toggleLock(SceneSelectionTarget target) {
+    sceneSelectionForTarget(selections, target).toggleLock();
+}
+
+void LegacySceneVisualCatalogs::toggleChoiceUse(
+    SceneSelectionTarget target, int index) {
+    sceneSelectionForTarget(selections, target).toggleChoiceUse(index);
 }
 
 unsigned int LegacySceneVisualCatalogs::randomPalette(RandomSource& randomSource) {

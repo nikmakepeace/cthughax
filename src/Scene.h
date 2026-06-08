@@ -195,6 +195,15 @@ public:
 
     /** Changes one named scene selection by value text. */
     virtual void change(SceneSelectionTarget target, const char* to) = 0;
+
+    /** Activates one indexed choice on a named scene selection. */
+    virtual void activate(SceneSelectionTarget target, int index) = 0;
+
+    /** Toggles the lock state for a named scene selection. */
+    virtual void toggleLock(SceneSelectionTarget target) = 0;
+
+    /** Toggles choice-use state for a named scene selection choice. */
+    virtual void toggleChoiceUse(SceneSelectionTarget target, int index) = 0;
 };
 
 class SceneCommands {
@@ -231,6 +240,9 @@ public:
 
     void change(SceneSelectionTarget target, int by);
     void change(SceneSelectionTarget target, const char* to);
+    void activate(SceneSelectionTarget target, int index);
+    void toggleLock(SceneSelectionTarget target);
+    void toggleChoiceUse(SceneSelectionTarget target, int index);
 
     void randomPalette();
     void addRandomPalette();
@@ -257,6 +269,9 @@ public:
     virtual void addRandomPalette();
     virtual void change(SceneSelectionTarget target, int by);
     virtual void change(SceneSelectionTarget target, const char* to);
+    virtual void activate(SceneSelectionTarget target, int index);
+    virtual void toggleLock(SceneSelectionTarget target);
+    virtual void toggleChoiceUse(SceneSelectionTarget target, int index);
 };
 
 #endif

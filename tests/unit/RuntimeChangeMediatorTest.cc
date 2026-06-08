@@ -41,17 +41,21 @@ struct SceneCommandRecord {
     int value;
     const char* text;
     EffectControl* option;
+    SceneSelectionTarget target;
 };
 
-static SceneCommandRecord sceneRecord = { "", 0, 0, 0 };
+static SceneCommandRecord sceneRecord = { "", 0, 0, 0, SceneSelectionFlame };
 static const EffectControl* currentSceneOption = 0;
 
 static void recordSceneCommand(
-    const char* name, int value = 0, const char* text = 0, EffectControl* option = 0) {
+    const char* name, int value = 0, const char* text = 0,
+    EffectControl* option = 0,
+    SceneSelectionTarget target = SceneSelectionFlame) {
     sceneRecord.name = name;
     sceneRecord.value = value;
     sceneRecord.text = text;
     sceneRecord.option = option;
+    sceneRecord.target = target;
 }
 
 static void resetSceneRecord() {
@@ -151,6 +155,15 @@ public:
     }
     virtual void change(SceneSelectionTarget target, const char* to) {
         recordSceneSelectionTo(target, to);
+    }
+    virtual void activate(SceneSelectionTarget target, int index) {
+        recordSceneCommand("activate-scene", index, 0, 0, target);
+    }
+    virtual void toggleLock(SceneSelectionTarget target) {
+        recordSceneCommand("toggle-scene-lock", 0, 0, 0, target);
+    }
+    virtual void toggleChoiceUse(SceneSelectionTarget target, int index) {
+        recordSceneCommand("toggle-scene-choice-use", index, 0, 0, target);
     }
 };
 
@@ -668,6 +681,29 @@ static void testRoutesSceneCommandsThroughSceneCommands() {
     assert(restorePreset.sceneChanges == 1);
     assert(strcmp(sceneRecord.name, "restore-preset") == 0);
     assert(sceneRecord.value == 4);
+
+    RuntimeChangeSet activateScene
+        = harness.mediator.apply(
+            RuntimeCommand::activateScene(RuntimeSceneImage, 5));
+    assert(activateScene.sceneChanges == 1);
+    assert(strcmp(sceneRecord.name, "activate-scene") == 0);
+    assert(sceneRecord.target == SceneSelectionImage);
+    assert(sceneRecord.value == 5);
+
+    RuntimeChangeSet toggleLock
+        = harness.mediator.apply(
+            RuntimeCommand::toggleSceneLock(RuntimeScenePalette));
+    assert(toggleLock.uiChanged == 1);
+    assert(strcmp(sceneRecord.name, "toggle-scene-lock") == 0);
+    assert(sceneRecord.target == SceneSelectionPalette);
+
+    RuntimeChangeSet toggleChoiceUse
+        = harness.mediator.apply(
+            RuntimeCommand::toggleSceneChoiceUse(RuntimeSceneWave, 3));
+    assert(toggleChoiceUse.uiChanged == 1);
+    assert(strcmp(sceneRecord.name, "toggle-scene-choice-use") == 0);
+    assert(sceneRecord.target == SceneSelectionWave);
+    assert(sceneRecord.value == 3);
 }
 
 static void testRoutesDisplayCommandsThroughDisplayControls() {

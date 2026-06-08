@@ -89,6 +89,23 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
         return applySceneBy(command.sceneTarget, command.value);
     case RuntimeCommandChangeSceneTo:
         return applySceneTo(command.sceneTarget, command.text);
+    case RuntimeCommandActivateScene:
+        sceneCommands.activate(
+            sceneSelectionTargetFromRuntime(command.sceneTarget),
+            command.value);
+        changes.sceneChanges = 1;
+        break;
+    case RuntimeCommandToggleSceneLock:
+        sceneCommands.toggleLock(
+            sceneSelectionTargetFromRuntime(command.sceneTarget));
+        changes.uiChanged = 1;
+        break;
+    case RuntimeCommandToggleSceneChoiceUse:
+        sceneCommands.toggleChoiceUse(
+            sceneSelectionTargetFromRuntime(command.sceneTarget),
+            command.value);
+        changes.uiChanged = 1;
+        break;
     case RuntimeCommandChangeScreenBy:
         displayControls.changePresentationBy(command.value);
         changes.displayChanged = 1;

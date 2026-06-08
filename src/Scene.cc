@@ -254,6 +254,22 @@ void SceneCommands::change(SceneSelectionTarget target, const char* to) {
         emitImageCue();
 }
 
+void SceneCommands::activate(SceneSelectionTarget target, int index) {
+    unsigned int forcedChanges
+        = dependencies.visualCatalogs.activate(target, index);
+    syncFromOptions(forcedChanges);
+    if (target == SceneSelectionImage)
+        emitImageCue();
+}
+
+void SceneCommands::toggleLock(SceneSelectionTarget target) {
+    dependencies.visualCatalogs.toggleLock(target);
+}
+
+void SceneCommands::toggleChoiceUse(SceneSelectionTarget target, int index) {
+    dependencies.visualCatalogs.toggleChoiceUse(target, index);
+}
+
 void SceneCommands::randomPalette() {
     syncFromOptions(dependencies.visualCatalogs.randomPalette(randomSource));
 }
@@ -330,4 +346,17 @@ void SceneCommandsTarget::change(SceneSelectionTarget target, int by) {
 
 void SceneCommandsTarget::change(SceneSelectionTarget target, const char* to) {
     sceneCommands.change(target, to);
+}
+
+void SceneCommandsTarget::activate(SceneSelectionTarget target, int index) {
+    sceneCommands.activate(target, index);
+}
+
+void SceneCommandsTarget::toggleLock(SceneSelectionTarget target) {
+    sceneCommands.toggleLock(target);
+}
+
+void SceneCommandsTarget::toggleChoiceUse(
+    SceneSelectionTarget target, int index) {
+    sceneCommands.toggleChoiceUse(target, index);
 }

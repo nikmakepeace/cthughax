@@ -83,6 +83,20 @@ public:
         SceneSelectionTarget target, int by, RandomSource& randomSource) = 0;
     virtual unsigned int change(SceneSelectionTarget target, const char* to,
         RandomSource& randomSource) = 0;
+
+    /**
+     * Activates one indexed choice for a Scene visual selection.
+     *
+     * @return SceneChange flags forced by the activation.
+     */
+    virtual unsigned int activate(SceneSelectionTarget target, int index) = 0;
+
+    /** Toggles the lock for a Scene visual selection. */
+    virtual void toggleLock(SceneSelectionTarget target) = 0;
+
+    /** Toggles use for one indexed choice on a Scene visual selection. */
+    virtual void toggleChoiceUse(SceneSelectionTarget target, int index) = 0;
+
     virtual unsigned int randomPalette(RandomSource& randomSource) = 0;
     virtual unsigned int addRandomPalette(RandomSource& randomSource) = 0;
 };

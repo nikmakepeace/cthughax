@@ -986,7 +986,10 @@ concrete changes needed before the surface can disappear.
    edge lookup; catalog change, activate, lock, and choice-use operations run on
    the resolved native `SceneOptionSelection&`. The duplicate
    `isSceneOption(...)` catalog check has been removed, leaving
-   `selectionFor(...)` as the single legacy identity lookup.
+   `selectionFor(...)` as the single legacy identity lookup. `SceneCommands`,
+   `SceneCommandTarget`, and `RuntimeCommand` now expose typed Scene activation,
+   lock, and choice-use commands so UI/keymap callers can move off visual
+   `EffectControl&` routing.
 
    Concrete work still required:
    - Replace `LegacySceneEffectControlBindings::selectionFor(EffectControl&)`
