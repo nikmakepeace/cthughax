@@ -127,6 +127,53 @@ static void testWaveSelectionReturnsTypedWave() {
     assert(catalog->lock().enabled() == 1);
 }
 
+static void testWaveObjectCatalogCopiesObjectData() {
+    WObject source[] = {
+        { { 0, 1, 2 }, { 3, 4, 5 } },
+        { { -1, -1, -1 }, { -1, -1, -1 } }
+    };
+
+    SceneWaveObjectChoiceCatalog catalog("object", new RecordingLock());
+    SceneWaveObjectChoice& choice = catalog.addChoice("shape", source, 1);
+    source[0][0][0] = 99;
+
+    assert(std::strcmp(catalog.optionName(), "object") == 0);
+    assert(catalog.entryCount() == 1);
+    assert(catalog.choiceAt(0)->sameName("SHAPE trailing") != 0);
+
+    WObject* copied = choice.object();
+    assert(copied != source);
+    assert(copied[0][0][0] == 0);
+    assert(copied[0][1][2] == 5);
+    assert(copied[1][0][0] == -1);
+    assert(copied[1][1][2] == -1);
+}
+
+static void testWaveObjectSelectionReturnsOwnedObject() {
+    WObject first[] = {
+        { { 1, 0, 0 }, { 2, 0, 0 } },
+        { { -1, -1, -1 }, { -1, -1, -1 } }
+    };
+    WObject second[] = {
+        { { 0, 1, 0 }, { 0, 2, 0 } },
+        { { -1, -1, -1 }, { -1, -1, -1 } }
+    };
+    SceneWaveObjectChoiceCatalog* catalog
+        = new SceneWaveObjectChoiceCatalog("object", new RecordingLock());
+    catalog->addChoice("first", first, 1);
+    catalog->addChoice("second", second, 1);
+    SceneWaveObjectChoiceSelection selection(catalog, 0);
+    FixedRandomSource randomSource;
+
+    assert(selection.currentObject()[0][0][0] == 1);
+    selection.change("second", randomSource);
+    WObject* selected = selection.currentObject();
+    assert(selection.currentValue() == 1);
+    assert(selected != second);
+    assert(selected[0][0][1] == 1);
+    assert(selected[0][1][1] == 2);
+}
+
 static void testTranslationCatalogCopiesTableData() {
     int sourceData[] = { 0, 1, 2, 3 };
     SceneTranslationChoiceCatalog catalog("translate", new RecordingLock());
@@ -280,6 +327,8 @@ int main() {
     testFlameSelectionReturnsTypedFlame();
     testWaveCatalogOwnsTypedChoices();
     testWaveSelectionReturnsTypedWave();
+    testWaveObjectCatalogCopiesObjectData();
+    testWaveObjectSelectionReturnsOwnedObject();
     testTranslationCatalogCopiesTableData();
     testTranslationSelectionReturnsOwnedTable();
     testPaletteCatalogCopiesEntry();

@@ -11,6 +11,7 @@
 #include "SceneGeneralFlameSelectionValue.h"
 #include "SceneTypedVisualCatalogs.h"
 #include "TranslationOptions.h"
+#include "WaveObject.h"
 #include "display.h"
 #include "flames.h"
 #include "waves.h"
@@ -47,7 +48,7 @@ class LegacySceneSelectionAdapters : public SceneVisualSelections,
     SceneWaveChoiceSelection waveValue;
     SceneChoiceSelection waveScaleValue;
     SceneChoiceSelection tableValue;
-    SceneChoiceSelection objectValue;
+    SceneWaveObjectChoiceSelection objectValue;
     SceneTranslationChoiceSelection translationValue;
     ScenePaletteChoiceSelection paletteValue;
     SceneChoiceSelection borderValue;
@@ -146,6 +147,21 @@ static SceneChoiceCatalog* createSceneWaveChoiceCatalog(
     return catalog;
 }
 
+static SceneChoiceCatalog* createSceneWaveObjectChoiceCatalog(
+    EffectControl& option) {
+    SceneWaveObjectChoiceCatalog* catalog = new SceneWaveObjectChoiceCatalog(
+        option.name(), new SceneEffectChoiceLock(option.lock));
+
+    for (int i = 0; i < option.getNEntries(); i++) {
+        EffectChoice* choice = option[i];
+        if (choice != 0)
+            catalog->addChoice(choice->Name(), waveObjectEntryObject(choice),
+                choice->inUse());
+    }
+
+    return catalog;
+}
+
 static SceneChoiceCatalog* createSceneTranslationChoiceCatalog(
     EffectControl& option) {
     SceneTranslationChoiceCatalog* catalog = new SceneTranslationChoiceCatalog(
@@ -233,7 +249,7 @@ LegacySceneSelectionAdapters::LegacySceneSelectionAdapters(EffectControl& flame_
     , waveScaleValue(createOwnedSceneChoiceCatalog(waveScale_),
           int(waveScale_))
     , tableValue(createOwnedSceneChoiceCatalog(table_), int(table_))
-    , objectValue(createOwnedSceneChoiceCatalog(object_), int(object_))
+    , objectValue(createSceneWaveObjectChoiceCatalog(object_), int(object_))
     , translationValue(createSceneTranslationChoiceCatalog(translation_),
           int(translation_))
     , paletteValue(createScenePaletteChoiceCatalog(palette_), int(palette_))

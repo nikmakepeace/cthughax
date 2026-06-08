@@ -21,13 +21,17 @@
 static void syncLegacyControlsFromSelections(
     SceneVisualSelections& selections);
 
+static WObject* currentSceneWaveObject(SceneOptionSelection& selection) {
+    SceneWaveObjectSelection* objectSelection
+        = dynamic_cast<SceneWaveObjectSelection*>(&selection);
+    return (objectSelection != 0) ? objectSelection->currentObject() : 0;
+}
+
 LegacySceneVisualCatalogs::LegacySceneVisualCatalogs(
     SceneSelectionState& selectionState_, SceneVisualSelections& selections_,
-    SceneWaveObjectSource& waveObjects_,
     ScenePaletteRandomizer& paletteRandomizer_)
     : selectionState(selectionState_)
     , selections(selections_)
-    , waveObjects(waveObjects_)
     , paletteRandomizer(paletteRandomizer_) { }
 
 Wave* LegacySceneVisualCatalogs::selectRunnableWave(const WaveConfig& config) {
@@ -54,7 +58,8 @@ const SceneSettings& LegacySceneVisualCatalogs::currentSettings(
     settings.generalFlameName = selections.generalFlame().selectionText();
 
     settings.waveConfig = WaveConfig(selections.waveScale().currentValue(),
-        selections.table().currentValue(), waveObjects.currentObject(),
+        selections.table().currentValue(),
+        currentSceneWaveObject(selections.object()),
         geometry.width(), geometry.height());
     settings.wave = selectRunnableWave(settings.waveConfig);
     syncLegacyControlsFromSelections(selections);
@@ -224,21 +229,19 @@ LegacySceneVisualCatalogFactory::LegacySceneVisualCatalogFactory(
     SceneVisualSelections& selections_)
     : ownedSelections()
     , selections(selections_)
-    , waveObjects(createLegacySceneWaveObjectSource())
     , paletteRandomizer(createLegacyScenePaletteRandomizer()) { }
 
 LegacySceneVisualCatalogFactory::LegacySceneVisualCatalogFactory(
     std::unique_ptr<SceneVisualSelections> ownedSelections_)
     : ownedSelections(std::move(ownedSelections_))
     , selections(*ownedSelections)
-    , waveObjects(createLegacySceneWaveObjectSource())
     , paletteRandomizer(createLegacyScenePaletteRandomizer()) { }
 
 SceneVisualCatalogFactoryResult LegacySceneVisualCatalogFactory::create(
     SceneSelectionState& selectionState) {
     std::unique_ptr<SceneVisualCatalogs> visualCatalogs(
         new LegacySceneVisualCatalogs(
-            selectionState, selections, *waveObjects, *paletteRandomizer));
+            selectionState, selections, *paletteRandomizer));
     std::unique_ptr<SceneRuntimeControlBridge> controlBridge
         = createLegacySceneEffectControlCatalog(selections);
     return SceneVisualCatalogFactoryResult(std::move(visualCatalogs),

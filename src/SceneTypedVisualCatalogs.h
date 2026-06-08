@@ -201,6 +201,104 @@ public:
 };
 
 /**
+ * Owned SceneChoice entry that stores a copied wave object payload.
+ */
+class SceneWaveObjectChoice : public SceneChoice {
+    std::unique_ptr<WObject[]> objectValue;
+    std::string nameValue;
+    int inUseValue;
+
+public:
+    /**
+     * Creates one wave-object choice.
+     *
+     * @param name_ Stable choice name.
+     * @param object_ Optional terminated line list copied into the choice.
+     * @param inUse_ Nonzero when selectable by default.
+     */
+    SceneWaveObjectChoice(const char* name_, WObject* object_, int inUse_);
+
+    /** @return Mutable owned terminated line list, or NULL. */
+    WObject* object() const;
+
+    /** @return Stable choice name. */
+    virtual const char* name() const;
+
+    /** Returns nonzero when text names this choice. */
+    virtual int sameName(const char* other) const;
+
+    /** @return Nonzero when this choice may be selected randomly/cyclically. */
+    virtual int inUse() const;
+
+    /** Sets whether this choice may be selected randomly/cyclically. */
+    virtual void setUse(int inUse);
+};
+
+/**
+ * Owned SceneChoiceCatalog for wave-object choices.
+ */
+class SceneWaveObjectChoiceCatalog : public SceneChoiceCatalog {
+    std::string optionNameValue;
+    std::unique_ptr<SceneChoiceLock> lockValue;
+    std::vector<std::unique_ptr<SceneWaveObjectChoice> > choices;
+
+public:
+    /**
+     * Creates an empty wave-object choice catalog.
+     *
+     * @param optionName_ Stable catalog/option name.
+     * @param lock_ Owned lock state for this selection.
+     */
+    SceneWaveObjectChoiceCatalog(
+        const char* optionName_, SceneChoiceLock* lock_);
+
+    /**
+     * Adds one copied wave-object choice.
+     *
+     * @param name Stable choice name.
+     * @param object Optional terminated line list copied into this catalog.
+     * @param inUse Nonzero when selectable by default.
+     * @return Mutable choice entry.
+     */
+    SceneWaveObjectChoice& addChoice(
+        const char* name, WObject* object, int inUse);
+
+    /** @return Number of owned choices. */
+    virtual int entryCount() const;
+
+    /** @return Choice at index, or NULL when out of range. */
+    virtual SceneChoice* choiceAt(int index) const;
+
+    /** @return Mutable lock for the selection using this catalog. */
+    virtual SceneChoiceLock& lock();
+
+    /** @return Immutable lock for the selection using this catalog. */
+    virtual const SceneChoiceLock& lock() const;
+
+    /** @return Stable catalog/option name. */
+    virtual const char* optionName() const;
+};
+
+/**
+ * Catalog-backed object selection that returns an owned WObject line list.
+ */
+class SceneWaveObjectChoiceSelection : public SceneChoiceSelection,
+    public SceneWaveObjectSelection {
+public:
+    /**
+     * Creates a wave-object selection over an owned catalog.
+     *
+     * @param catalog Owned wave-object catalog.
+     * @param selectedValue Initial selected index.
+     */
+    SceneWaveObjectChoiceSelection(
+        SceneChoiceCatalog* catalog, int selectedValue);
+
+    /** @return Selected owned object line list, or NULL. */
+    virtual WObject* currentObject();
+};
+
+/**
  * Owned SceneChoice entry that stores one TranslationTable payload.
  */
 class SceneTranslationChoice : public SceneChoice {

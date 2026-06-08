@@ -61,6 +61,15 @@ public:
     virtual Wave* currentWave() = 0;
 };
 
+/**
+ * Selection that exposes the typed object payload used by object-capable waves.
+ */
+class SceneWaveObjectSelection : public virtual SceneOptionSelection {
+public:
+    /** @return Selected 3D object line list, or NULL. */
+    virtual WObject* currentObject() = 0;
+};
+
 class SceneTranslationSelection : public virtual SceneOptionSelection {
 public:
     virtual TranslationTable currentTranslationTable() = 0;

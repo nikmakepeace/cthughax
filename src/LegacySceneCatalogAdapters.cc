@@ -3,16 +3,8 @@
 #include "LegacySceneCatalogAdapters.h"
 
 #include "display.h"
-#include "waves.h"
 
 namespace {
-
-class LegacySceneWaveObjectSource : public SceneWaveObjectSource {
-public:
-    virtual WObject* currentObject() {
-        return currentWaveObject();
-    }
-};
 
 class LegacyScenePaletteRandomizer : public ScenePaletteRandomizer {
 public:
@@ -29,14 +21,7 @@ public:
 
 }
 
-SceneWaveObjectSource::~SceneWaveObjectSource() { }
-
 ScenePaletteRandomizer::~ScenePaletteRandomizer() { }
-
-std::unique_ptr<SceneWaveObjectSource> createLegacySceneWaveObjectSource() {
-    return std::unique_ptr<SceneWaveObjectSource>(
-        new LegacySceneWaveObjectSource());
-}
 
 std::unique_ptr<ScenePaletteRandomizer> createLegacyScenePaletteRandomizer() {
     return std::unique_ptr<ScenePaletteRandomizer>(

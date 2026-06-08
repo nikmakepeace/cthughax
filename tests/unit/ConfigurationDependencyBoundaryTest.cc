@@ -1405,14 +1405,24 @@ static void testSceneStartupUsesSceneConfig() {
         "class LegacySceneFlameSelection");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.h",
         "class LegacySceneImageSelection");
-    assertSourceContains("src/LegacySceneCatalogAdapters.cc",
-        "class LegacySceneWaveObjectSource : public SceneWaveObjectSource");
+    assertSourceDoesNotContain("src/LegacySceneCatalogAdapters.cc",
+        "class LegacySceneWaveObjectSource");
     assertSourceContains("src/LegacySceneCatalogAdapters.cc",
         "class LegacyScenePaletteRandomizer : public ScenePaletteRandomizer");
-    assertSourceContains("src/LegacySceneCatalogAdapters.h",
+    assertSourceDoesNotContain("src/LegacySceneCatalogAdapters.h",
         "class SceneWaveObjectSource");
     assertSourceContains("src/LegacySceneCatalogAdapters.h",
         "class ScenePaletteRandomizer");
+    assertSourceDoesNotContain("src/LegacySceneCatalogAdapters.h",
+        "createLegacySceneWaveObjectSource");
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
+        "std::unique_ptr<SceneWaveObjectSource> waveObjects");
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+        "createLegacySceneWaveObjectSource");
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+        "currentWaveObject()");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "currentSceneWaveObject(selections.object())");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
         "class LegacySceneWaveObjectSource");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
@@ -2584,6 +2594,14 @@ static void testEffectControlUsesInjectedRandomSource() {
         "class SceneWaveChoiceCatalog : public SceneChoiceCatalog");
     assertSourceContains("src/SceneTypedVisualCatalogs.h",
         "class SceneWaveChoiceSelection : public SceneChoiceSelection");
+    assertSourceContains("src/SceneVisualSelections.h",
+        "class SceneWaveObjectSelection : public virtual SceneOptionSelection");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "class SceneWaveObjectChoice : public SceneChoice");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "class SceneWaveObjectChoiceCatalog : public SceneChoiceCatalog");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "class SceneWaveObjectChoiceSelection : public SceneChoiceSelection");
     assertSourceContains("src/SceneTypedVisualCatalogs.h",
         "class SceneTranslationChoice : public SceneChoice");
     assertSourceContains("src/SceneTypedVisualCatalogs.h",
@@ -2631,7 +2649,7 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "SceneChoiceSelection tableValue;");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "SceneChoiceSelection objectValue;");
+        "SceneWaveObjectChoiceSelection objectValue;");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "SceneTranslationChoiceSelection translationValue;");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
@@ -2651,7 +2669,7 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "tableValue(createOwnedSceneChoiceCatalog(table_)");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "objectValue(createOwnedSceneChoiceCatalog(object_)");
+        "objectValue(createSceneWaveObjectChoiceCatalog(object_)");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "translationValue(createSceneTranslationChoiceCatalog(translation_)");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
@@ -2732,6 +2750,8 @@ static void testEffectControlUsesInjectedRandomSource() {
         "dynamic_cast<SceneFlameChoice*>(currentChoice())");
     assertSourceContains("src/SceneTypedVisualCatalogs.cc",
         "dynamic_cast<SceneWaveChoice*>(currentChoice())");
+    assertSourceContains("src/SceneTypedVisualCatalogs.cc",
+        "dynamic_cast<SceneWaveObjectChoice*>(currentChoice())");
     assertSourceContains("src/SceneTypedVisualCatalogs.cc",
         "dynamic_cast<SceneTranslationChoice*>(currentChoice())");
     assertSourceContains("src/SceneTypedVisualCatalogs.cc",

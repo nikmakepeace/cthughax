@@ -17,7 +17,6 @@ class ImageOption;
 class LegacySceneVisualCatalogs : public SceneVisualCatalogs {
     SceneSelectionState& selectionState;
     SceneVisualSelections& selections;
-    SceneWaveObjectSource& waveObjects;
     ScenePaletteRandomizer& paletteRandomizer;
 
     Wave* selectRunnableWave(const WaveConfig& config);
@@ -25,7 +24,6 @@ class LegacySceneVisualCatalogs : public SceneVisualCatalogs {
 public:
     LegacySceneVisualCatalogs(SceneSelectionState& selectionState_,
         SceneVisualSelections& selections_,
-        SceneWaveObjectSource& waveObjects_,
         ScenePaletteRandomizer& paletteRandomizer_);
 
     virtual const SceneSettings& currentSettings(SceneGeometry& geometry);
@@ -44,7 +42,6 @@ public:
 class LegacySceneVisualCatalogFactory : public SceneVisualCatalogFactory {
     std::unique_ptr<SceneVisualSelections> ownedSelections;
     SceneVisualSelections& selections;
-    std::unique_ptr<SceneWaveObjectSource> waveObjects;
     std::unique_ptr<ScenePaletteRandomizer> paletteRandomizer;
 
 public:

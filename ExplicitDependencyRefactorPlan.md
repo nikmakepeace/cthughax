@@ -904,17 +904,17 @@ changes needed before the surface can disappear.
    instead of resolving the current palette through the legacy effect-choice
    bridge. Image selection now uses copied `IndexedImage` payloads owned by
    `SceneTypedVisualCatalogs` instead of resolving the current image through
-   `ImageEntry`. Wave-scale, table, object, border, and flashlight selections
-   now use owned `SceneChoiceListCatalog` choice entries instead of borrowing
-   legacy `EffectChoiceList` entries. The legacy adapter still syncs those
-   values to the old controls until the native visual owner replaces the
-   remaining legacy factory. Object current-entry lookup still goes through the
-   legacy `SceneWaveObjectSource` adapter.
+   `ImageEntry`. Object selection now uses copied `WObject` payloads owned by
+   `SceneTypedVisualCatalogs` instead of resolving the current object through
+   `currentWaveObject()` and `LegacySceneWaveObjectSource`. Wave-scale, table,
+   border, and flashlight selections now use owned `SceneChoiceListCatalog`
+   choice entries instead of borrowing legacy `EffectChoiceList` entries. The
+   legacy adapter still syncs those values to the old controls until the native
+   visual owner replaces the remaining legacy factory.
 
    Concrete changes required:
    - Move catalog loading, generated entries, allowed-choice metadata, and
-     current-entry lookup into those owners, including native object lookup for
-     object-capable waves.
+     current-entry lookup into those owners.
    - Give those owners the small typed APIs needed by `SceneVisualCatalogs`,
      `SceneVisualSelections`, `FrameGeneratorSceneBinding`, and runtime
      commands.

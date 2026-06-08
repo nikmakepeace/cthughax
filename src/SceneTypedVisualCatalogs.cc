@@ -94,6 +94,32 @@ static IndexedImage* copyIndexedImage(const IndexedImage* image) {
     return copy;
 }
 
+static int waveObjectLineIsTerminator(const WObject& line) {
+    for (int endpoint = 0; endpoint < 2; endpoint++) {
+        for (int axis = 0; axis < 3; axis++) {
+            if (line[endpoint][axis] != -1)
+                return 0;
+        }
+    }
+
+    return 1;
+}
+
+static WObject* copyWaveObject(WObject* object) {
+    if (object == 0)
+        return 0;
+
+    int lineCount = 0;
+    while (!waveObjectLineIsTerminator(object[lineCount]))
+        lineCount++;
+
+    WObject* copy = new WObject[lineCount + 1];
+    for (int i = 0; i <= lineCount; i++)
+        std::memcpy(copy[i], object[i], sizeof(WObject));
+
+    return copy;
+}
+
 }
 
 SceneFlameChoice::SceneFlameChoice(
@@ -234,6 +260,77 @@ SceneWaveChoiceSelection::SceneWaveChoiceSelection(
 Wave* SceneWaveChoiceSelection::currentWave() {
     SceneWaveChoice* choice = dynamic_cast<SceneWaveChoice*>(currentChoice());
     return (choice != 0) ? choice->wave() : 0;
+}
+
+SceneWaveObjectChoice::SceneWaveObjectChoice(
+    const char* name_, WObject* object_, int inUse_)
+    : objectValue(copyWaveObject(object_))
+    , nameValue((name_ != 0) ? name_ : "")
+    , inUseValue(inUse_) { }
+
+WObject* SceneWaveObjectChoice::object() const {
+    return objectValue.get();
+}
+
+const char* SceneWaveObjectChoice::name() const {
+    return nameValue.c_str();
+}
+
+int SceneWaveObjectChoice::sameName(const char* other) const {
+    return sameChoiceName(nameValue, other);
+}
+
+int SceneWaveObjectChoice::inUse() const {
+    return inUseValue;
+}
+
+void SceneWaveObjectChoice::setUse(int inUse_) {
+    inUseValue = inUse_;
+}
+
+SceneWaveObjectChoiceCatalog::SceneWaveObjectChoiceCatalog(
+    const char* optionName_, SceneChoiceLock* lock_)
+    : optionNameValue((optionName_ != 0) ? optionName_ : "")
+    , lockValue(lock_)
+    , choices() { }
+
+SceneWaveObjectChoice& SceneWaveObjectChoiceCatalog::addChoice(
+    const char* name, WObject* object, int inUse) {
+    choices.push_back(std::unique_ptr<SceneWaveObjectChoice>(
+        new SceneWaveObjectChoice(name, object, inUse)));
+    return *choices.back();
+}
+
+int SceneWaveObjectChoiceCatalog::entryCount() const {
+    return int(choices.size());
+}
+
+SceneChoice* SceneWaveObjectChoiceCatalog::choiceAt(int index) const {
+    if ((index < 0) || (index >= int(choices.size())))
+        return 0;
+    return choices[index].get();
+}
+
+SceneChoiceLock& SceneWaveObjectChoiceCatalog::lock() {
+    return *lockValue;
+}
+
+const SceneChoiceLock& SceneWaveObjectChoiceCatalog::lock() const {
+    return *lockValue;
+}
+
+const char* SceneWaveObjectChoiceCatalog::optionName() const {
+    return optionNameValue.c_str();
+}
+
+SceneWaveObjectChoiceSelection::SceneWaveObjectChoiceSelection(
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : SceneChoiceSelection(catalog, selectedValue) { }
+
+WObject* SceneWaveObjectChoiceSelection::currentObject() {
+    SceneWaveObjectChoice* choice
+        = dynamic_cast<SceneWaveObjectChoice*>(currentChoice());
+    return (choice != 0) ? choice->object() : 0;
 }
 
 SceneTranslationChoice::SceneTranslationChoice(
