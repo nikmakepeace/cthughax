@@ -3,7 +3,7 @@
 #ifndef CTHUGHA_FRAME_GENERATOR_RUNTIME_H
 #define CTHUGHA_FRAME_GENERATOR_RUNTIME_H
 
-#include "FrameFilterchainPipeline.h"
+#include "FrameGeneratorPipeline.h"
 #include "FrameGeneratorSceneBinding.h"
 #include "FrameStore.h"
 
@@ -35,7 +35,7 @@ class FrameGeneratorRuntime {
     FrameStore frameStoreValue;
     FrameTransitionController transitionControllerValue;
     FrameGeneratorSceneBinding sceneBindingValue;
-    FrameFilterchainPipeline pipelineValue;
+    FrameGeneratorPipeline pipelineValue;
 
 public:
     /**

@@ -102,7 +102,7 @@ public:
     /**
      * Applies pending scene changes and cues to a filterchain.
      *
-     * @param filterchain_ Filterchain owned by FrameFilterchainPipeline.
+     * @param filterchain_ Filterchain owned by FrameGeneratorPipeline.
      * @param context Explicit per-frame generator context.
      */
     void configureFilterchain(VideoFilterchain& filterchain_,

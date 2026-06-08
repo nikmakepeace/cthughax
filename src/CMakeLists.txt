@@ -84,7 +84,7 @@ set(CTHUGHA_COMMON_SOURCES
     DosVga9x14Font.cc
     FrameClock.cc
     FrameCompletion.cc
-    FrameFilterchainPipeline.cc
+    FrameGeneratorPipeline.cc
     FrameGeneratorContext.cc
     FrameGeneratorRuntime.cc
     FrameGeneratorSceneBinding.cc

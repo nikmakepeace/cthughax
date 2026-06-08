@@ -100,8 +100,8 @@ static void testDisplayNeverReadsGeneratorCurrentStorage() {
 
 static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
     static const char* const files[] = {
-        "src/FrameFilterchainPipeline.h",
-        "src/FrameFilterchainPipeline.cc",
+        "src/FrameGeneratorPipeline.h",
+        "src/FrameGeneratorPipeline.cc",
         "src/FrameGeneratorContext.h",
         "src/FrameGeneratorContext.cc",
         "src/FrameGeneratorRuntime.h",

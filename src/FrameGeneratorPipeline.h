@@ -17,17 +17,17 @@ class VideoFilterchainSequence;
 /**
  * Owns the concrete video filterchain used by FrameGeneratorRuntime.
  */
-class FrameFilterchainPipeline {
+class FrameGeneratorPipeline {
     VideoFilterchainFactory factoryValue;
     std::unique_ptr<VideoFilterchain> filterchainValue;
     VideoFilterchainSequence sequenceValue;
 
 public:
     /** Creates an empty pipeline. */
-    FrameFilterchainPipeline();
+    FrameGeneratorPipeline();
 
     /** Destroys owned filters before returning. */
-    ~FrameFilterchainPipeline();
+    ~FrameGeneratorPipeline();
 
     /**
      * Ensures the pipeline has been created from the provided sequence.

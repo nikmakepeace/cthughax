@@ -1,6 +1,6 @@
 // Frame Generator filterchain ownership.
 
-#include "FrameFilterchainPipeline.h"
+#include "FrameGeneratorPipeline.h"
 
 #include "FramePalette.h"
 #include "IndexedFrame.h"
@@ -8,14 +8,14 @@
 #include "VideoFilterchainSequence.h"
 #include "VideoFilters.h"
 
-FrameFilterchainPipeline::FrameFilterchainPipeline()
+FrameGeneratorPipeline::FrameGeneratorPipeline()
     : factoryValue()
     , filterchainValue()
     , sequenceValue() { }
 
-FrameFilterchainPipeline::~FrameFilterchainPipeline() { }
+FrameGeneratorPipeline::~FrameGeneratorPipeline() { }
 
-void FrameFilterchainPipeline::initialize(
+void FrameGeneratorPipeline::initialize(
     const VideoFilterchainSequence& sequence) {
     if (filterchainValue.get() != 0)
         return;
@@ -24,23 +24,23 @@ void FrameFilterchainPipeline::initialize(
     filterchainValue.reset(factoryValue.create(sequenceValue));
 }
 
-void FrameFilterchainPipeline::reset() {
+void FrameGeneratorPipeline::reset() {
     filterchainValue.reset();
     sequenceValue = VideoFilterchainSequence();
 }
 
-VideoFilterchain& FrameFilterchainPipeline::filterchain() {
+VideoFilterchain& FrameGeneratorPipeline::filterchain() {
     return *filterchainValue;
 }
 
-FramePalette* FrameFilterchainPipeline::framePalette() const {
+FramePalette* FrameGeneratorPipeline::framePalette() const {
     if (filterchainValue.get() == 0)
         return 0;
 
     return framePaletteFromFilterchain(*filterchainValue);
 }
 
-const IndexedFrame& FrameFilterchainPipeline::render(CthughaBuffer& buffer,
+const IndexedFrame& FrameGeneratorPipeline::render(CthughaBuffer& buffer,
     const VideoFrameContext& context) {
     filterchainValue->run(buffer, context);
     return filterchainValue->indexedFrame();
