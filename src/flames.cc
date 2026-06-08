@@ -223,15 +223,39 @@ static FlameOffsets general_offsets(int generalFlame, int width) {
     return offsets;
 }
 
+static unsigned char activeLinearPixel(FrameRenderTarget& buffer, int offset) {
+    return buffer.activePixels()[buffer.visibleLinearOffset(offset)];
+}
+
+static unsigned char passiveLinearPixel(FrameRenderTarget& buffer, int offset) {
+    return buffer.passivePixels()[buffer.visibleLinearOffset(offset)];
+}
+
+static int passiveSignedLinearPixel(FrameRenderTarget& buffer, int offset) {
+    return int((char)passiveLinearPixel(buffer, offset));
+}
+
+static void setActiveLinearPixel(FrameRenderTarget& buffer, int offset,
+    unsigned char value) {
+    buffer.activePixels()[buffer.visibleLinearOffset(offset)] = value;
+}
+
+static void clearActiveVisiblePixels(FrameRenderTarget& buffer) {
+    for (int y = 0; y < buffer.height(); y++)
+        memset(buffer.activeRow(y), 0, buffer.width());
+}
+
 /*
  * UI: Clear (Blank the buffer)
  * Does: clears every visible buffer pixel to palette index 0 before translate
  * and wave drawing.
- * How: direct memset of buffer.activePixels(); it does not read buffer.passivePixels() or the
- * border rows.
+ * How: clears each visible row through the render-target pitch; it does not
+ * read buffer.passivePixels() or the border rows.
  * Sound/border: ignores sound and border input.
  */
-void flame_clear(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) { memset(buffer.activePixels(), 0, buffer.size()); }
+void flame_clear(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+    clearActiveVisiblePixels(buffer);
+}
 
 /*****************************************************************************
  *  FLAME-UP
@@ -252,15 +276,18 @@ void flame_upslow(FrameRenderTarget& buffer, const VideoFrameContext& context, F
     unsigned int tmp;
     unsigned int tmp2;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + buffer.width();
+    int ptr = buffer.width();
 
     ptr++;
-    tmp = (unsigned int)(*(ptr - 2 - 1)) + (unsigned int)(*(ptr - 1 - 1))
-        + (unsigned int)(*(ptr - 1));
+    tmp = (unsigned int)activeLinearPixel(buffer, ptr - 2 - 1)
+        + (unsigned int)activeLinearPixel(buffer, ptr - 1 - 1)
+        + (unsigned int)activeLinearPixel(buffer, ptr - 1);
     for (i = buffer.size(); i != 0; i--) {
-        tmp = tmp - (unsigned int)(*(ptr - 2 - 1)) + (unsigned int)(*(ptr + 1 - 1));
-        tmp2 = tmp + (unsigned int)(*(ptr + buffer.width() - 1));
-        *(ptr - buffer.width() - 1) = runtime.lookupTables.divsub[tmp2];
+        tmp = tmp - (unsigned int)activeLinearPixel(buffer, ptr - 2 - 1)
+            + (unsigned int)activeLinearPixel(buffer, ptr + 1 - 1);
+        tmp2 = tmp + (unsigned int)activeLinearPixel(buffer, ptr + buffer.width() - 1);
+        setActiveLinearPixel(buffer, ptr - buffer.width() - 1,
+            runtime.lookupTables.divsub[tmp2]);
         ptr++;
     }
 }
@@ -291,12 +318,14 @@ void flame_upfast(FrameRenderTarget& buffer, const VideoFrameContext& context, F
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + buffer.size();
+    int ptr = buffer.size();
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)(*ptr) + (int)(*(ptr + buffer.width() - 1)) + (int)(*(ptr + buffer.width() + 1))
-            + (int)(*(ptr + buffer.width()));
-        *ptr = runtime.lookupTables.divsub[tmp];
+        tmp = (int)activeLinearPixel(buffer, ptr)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width() - 1)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width() + 1)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width());
+        setActiveLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
         ptr--;
     }
 }
@@ -317,12 +346,15 @@ void flame_leftslow(FrameRenderTarget& buffer, const VideoFrameContext& context,
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + buffer.width();
+    int ptr = buffer.width();
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)(*(ptr - buffer.width() + 1)) + (int)(*ptr) + (int)(*(ptr + 1))
-            + (int)(*(ptr + buffer.width()));
-        *(ptr - buffer.width()) = runtime.lookupTables.divsub[tmp];
+        tmp = (int)activeLinearPixel(buffer, ptr - buffer.width() + 1)
+            + (int)activeLinearPixel(buffer, ptr)
+            + (int)activeLinearPixel(buffer, ptr + 1)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width());
+        setActiveLinearPixel(buffer, ptr - buffer.width(),
+            runtime.lookupTables.divsub[tmp]);
         ptr++;
     }
 }
@@ -353,12 +385,14 @@ void flame_leftfast(FrameRenderTarget& buffer, const VideoFrameContext& context,
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + buffer.size();
+    int ptr = buffer.size();
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)(*ptr) + (int)(*(ptr + buffer.width() + 1)) + (int)(*(ptr + buffer.width() + 1))
-            + (int)(*(ptr + buffer.width()));
-        *ptr = runtime.lookupTables.divsub[tmp];
+        tmp = (int)activeLinearPixel(buffer, ptr)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width() + 1)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width() + 1)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width());
+        setActiveLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
         ptr--;
     }
 }
@@ -378,13 +412,15 @@ void flame_leftfast(FrameRenderTarget& buffer, const VideoFrameContext& context,
 void flame_rightslow(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
-    unsigned char* src = buffer.passivePixels() + buffer.width() + 1;
-    unsigned char* dst = buffer.activePixels() + 1;
+    int src = buffer.width() + 1;
+    int dst = 1;
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)(*(src - buffer.width() - 1)) + (int)(*src) + (int)(*(src - 1))
-            + (int)(*(src + buffer.width()));
-        *dst = runtime.lookupTables.divsub[tmp];
+        tmp = (int)passiveLinearPixel(buffer, src - buffer.width() - 1)
+            + (int)passiveLinearPixel(buffer, src)
+            + (int)passiveLinearPixel(buffer, src - 1)
+            + (int)passiveLinearPixel(buffer, src + buffer.width());
+        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -416,12 +452,14 @@ void flame_rightfast(FrameRenderTarget& buffer, const VideoFrameContext& context
     int i;
     int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + buffer.size();
+    int ptr = buffer.size();
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)(*ptr) + (int)(*(ptr + buffer.width() - 1)) + (int)(*(ptr + buffer.width() - 1))
-            + (int)(*(ptr + buffer.width()));
-        *ptr = runtime.lookupTables.divsub[tmp];
+        tmp = (int)activeLinearPixel(buffer, ptr)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width() - 1)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width() - 1)
+            + (int)activeLinearPixel(buffer, ptr + buffer.width());
+        setActiveLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
         ptr--;
     }
 }
@@ -442,22 +480,27 @@ void flame_rightfast(FrameRenderTarget& buffer, const VideoFrameContext& context
 void flame_water(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
-    unsigned char* src = buffer.passivePixels() + buffer.width();
-    unsigned char* dst = buffer.activePixels();
+    int src = buffer.width();
+    int dst = 0;
 
     for (i = buffer.size() / 2 + buffer.width(); i != 0; i--) {
-        tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + buffer.width()));
-        *dst = runtime.lookupTables.divsub[tmp];
+        tmp = (int)passiveLinearPixel(buffer, src - 1)
+            + (int)passiveLinearPixel(buffer, src)
+            + (int)passiveLinearPixel(buffer, src + 1)
+            + (int)passiveLinearPixel(buffer, src + buffer.width());
+        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
 
-    src = buffer.passivePixels() + buffer.width() * (buffer.height() - 1);
-    dst = buffer.activePixels() + buffer.width() * (buffer.height() - 0);
+    src = buffer.width() * (buffer.height() - 1);
+    dst = buffer.width() * (buffer.height() - 0);
     for (i = buffer.size() / 2; i != 0; i--) {
-        tmp = (int)(*(src - buffer.width() + 1)) + (int)(*src) + (int)(*(src + 1))
-            + (int)(*(src - buffer.width()));
-        *dst = runtime.lookupTables.divsub[tmp];
+        tmp = (int)passiveLinearPixel(buffer, src - buffer.width() + 1)
+            + (int)passiveLinearPixel(buffer, src)
+            + (int)passiveLinearPixel(buffer, src + 1)
+            + (int)passiveLinearPixel(buffer, src - buffer.width());
+        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst--;
         src--;
     }
@@ -473,22 +516,27 @@ void flame_water(FrameRenderTarget& buffer, const VideoFrameContext& context, Fl
 void flame_watersubtle(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
-    char* src = (char*)(buffer.passivePixels() + buffer.width());
-    char* dst = (char*)buffer.activePixels();
+    int src = buffer.width();
+    int dst = 0;
 
     for (i = buffer.size() / 2 + buffer.width(); i != 0; i--) {
-        tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src + buffer.width()));
-        *dst = runtime.lookupTables.divsub[tmp];
+        tmp = (unsigned char)(passiveSignedLinearPixel(buffer, src - 1)
+            + passiveSignedLinearPixel(buffer, src)
+            + passiveSignedLinearPixel(buffer, src + 1)
+            + passiveSignedLinearPixel(buffer, src + buffer.width()));
+        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
 
-    src = (char*)buffer.passivePixels() + buffer.width() * (buffer.height() - 1);
-    dst = (char*)buffer.activePixels() + buffer.width() * (buffer.height() - 0);
+    src = buffer.width() * (buffer.height() - 1);
+    dst = buffer.width() * (buffer.height() - 0);
     for (i = buffer.size() / 2; i != 0; i--) {
-        tmp = (int)(*(src - buffer.width() + 1)) + (int)(*src) + (int)(*(src + 1))
-            + (int)(*(src - buffer.width()));
-        *dst = runtime.lookupTables.divsub[tmp];
+        tmp = (unsigned char)(passiveSignedLinearPixel(buffer, src - buffer.width() + 1)
+            + passiveSignedLinearPixel(buffer, src)
+            + passiveSignedLinearPixel(buffer, src + 1)
+            + passiveSignedLinearPixel(buffer, src - buffer.width()));
+        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst--;
         src--;
     }
@@ -508,12 +556,15 @@ void flame_watersubtle(FrameRenderTarget& buffer, const VideoFrameContext& conte
 void flame_skyline(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
-    unsigned char* src = buffer.passivePixels() + buffer.width() + 1;
-    unsigned char* dst = buffer.activePixels();
+    int src = buffer.width() + 1;
+    int dst = 0;
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)(*(src - 1)) + (int)(*src) + (int)(*(src + 1)) + (int)(*(src));
-        *dst = runtime.lookupTables.divsub[tmp];
+        tmp = (int)passiveLinearPixel(buffer, src - 1)
+            + (int)passiveLinearPixel(buffer, src)
+            + (int)passiveLinearPixel(buffer, src + 1)
+            + (int)passiveLinearPixel(buffer, src);
+        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -530,12 +581,15 @@ void flame_skyline(FrameRenderTarget& buffer, const VideoFrameContext& context, 
 void flame_weird(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
-    char* src = (char*)buffer.passivePixels() + buffer.width() + 1;
-    char* dst = (char*)buffer.activePixels() + 1;
+    int src = buffer.width() + 1;
+    int dst = 1;
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (*(src - 1)) | (*src) | (*(src + 1)) | (*(src + buffer.width()));
-        *dst = runtime.lookupTables.divsub[tmp];
+        tmp = (unsigned char)(passiveSignedLinearPixel(buffer, src - 1)
+            | passiveSignedLinearPixel(buffer, src)
+            | passiveSignedLinearPixel(buffer, src + 1)
+            | passiveSignedLinearPixel(buffer, src + buffer.width()));
+        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -556,11 +610,13 @@ void flame_zzz(FrameRenderTarget& buffer, const VideoFrameContext& context, Flam
     int i;
     unsigned char tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels() + buffer.width();
+    int ptr = buffer.width();
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (*(ptr - 1)) + (*(ptr + buffer.width()));
-        *(ptr - buffer.width()) = runtime.lookupTables.divsub2[tmp];
+        tmp = activeLinearPixel(buffer, ptr - 1)
+            + activeLinearPixel(buffer, ptr + buffer.width());
+        setActiveLinearPixel(buffer, ptr - buffer.width(),
+            runtime.lookupTables.divsub2[tmp]);
         ptr++;
     }
 }
@@ -574,15 +630,18 @@ void flame_zzz(FrameRenderTarget& buffer, const VideoFrameContext& context, Flam
  */
 void flame_fade(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
     int i;
-    unsigned int tmp;
     buffer.swapBuffers();
-    unsigned char* ptr = buffer.activePixels();
 
     for (i = buffer.size() / 4; i != 0; i--) {
-        tmp = (*(unsigned int*)ptr);
-        *(unsigned int*)ptr = runtime.lookupTables.divsub4[(tmp) & 0xff] + (runtime.lookupTables.divsub4[(tmp >> 8) & 0xff] << 8)
-            + (runtime.lookupTables.divsub4[(tmp >> 16) & 0xff] << 16) + (runtime.lookupTables.divsub4[(tmp >> 24) & 0xff] << 24);
-        ptr += 4;
+        int offset = (buffer.size() / 4 - i) * 4;
+        setActiveLinearPixel(buffer, offset,
+            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset)]);
+        setActiveLinearPixel(buffer, offset + 1,
+            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset + 1)]);
+        setActiveLinearPixel(buffer, offset + 2,
+            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset + 2)]);
+        setActiveLinearPixel(buffer, offset + 3,
+            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset + 3)]);
     }
 }
 
@@ -621,37 +680,13 @@ void flame_general_subtle_filter(FrameRenderTarget& buffer,
     const FlameLookupTables& tables, const FlameOffsets& offsets) {
     int i;
     unsigned char tmp;
-    unsigned char* ptr = buffer.activePixels();
-    int offset1, offset2, offset3, offset4;
-    unsigned int t2;
 
-    /* initialize offsets
-     *
-     *  ptr          -> destination (buffer.activePixels())
-     *  ptr + offset -> source (buffer.passivePixels())
-     */
-    offset1 = offsets.value[0] + (buffer.passivePixels() - buffer.activePixels());
-    offset2 = offsets.value[1] + (buffer.passivePixels() - buffer.activePixels());
-    offset3 = offsets.value[2] + (buffer.passivePixels() - buffer.activePixels());
-    offset4 = offsets.value[3] + (buffer.passivePixels() - buffer.activePixels());
-
-    for (i = buffer.size() / 4; i != 0; i--) {
-        tmp = (*(ptr + offset1)) + (*(ptr + offset2)) + (*(ptr + offset3)) + (*(ptr + offset4));
-        t2 = tables.divsub_s0[tmp];
-        tmp = (*(ptr + offset1 + 1)) + (*(ptr + offset2 + 1)) + (*(ptr + offset3 + 1))
-            + (*(ptr + offset4 + 1));
-        t2 |= tables.divsub_s1[tmp];
-
-        tmp = (*(ptr + offset1 + 2)) + (*(ptr + offset2 + 2)) + (*(ptr + offset3 + 2))
-            + (*(ptr + offset4 + 2));
-        t2 |= tables.divsub_s2[tmp];
-
-        tmp = (*(ptr + offset1 + 3)) + (*(ptr + offset2 + 3)) + (*(ptr + offset3 + 3))
-            + (*(ptr + offset4 + 3));
-        t2 |= tables.divsub_s3[tmp];
-
-        *(unsigned int*)ptr = t2;
-        ptr += 4;
+    for (i = 0; i < buffer.size(); i++) {
+        tmp = passiveLinearPixel(buffer, i + offsets.value[0])
+            + passiveLinearPixel(buffer, i + offsets.value[1])
+            + passiveLinearPixel(buffer, i + offsets.value[2])
+            + passiveLinearPixel(buffer, i + offsets.value[3]);
+        setActiveLinearPixel(buffer, i, tables.divsub[tmp]);
     }
 }
 
@@ -687,24 +722,13 @@ void flame_general_slow_filter(FrameRenderTarget& buffer,
     const FlameLookupTables& tables, const FlameOffsets& offsets) {
     int i;
     int tmp;
-    unsigned char* ptr = buffer.activePixels();
-    int offset1, offset2, offset3, offset4;
 
-    /* initialize offsets
-     *
-     *  ptr          -> destination (buffer.activePixels())
-     *  ptr + offset -> source (buffer.passivePixels())
-     */
-    offset1 = offsets.value[0] + (buffer.passivePixels() - buffer.activePixels());
-    offset2 = offsets.value[1] + (buffer.passivePixels() - buffer.activePixels());
-    offset3 = offsets.value[2] + (buffer.passivePixels() - buffer.activePixels());
-    offset4 = offsets.value[3] + (buffer.passivePixels() - buffer.activePixels());
-
-    for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)(*(ptr + offset1)) + (int)(*(ptr + offset2)) + (int)(*(ptr + offset3))
-            + (int)(*(ptr + offset4));
-        *ptr = tables.divsub[tmp];
-        ptr++;
+    for (i = 0; i < buffer.size(); i++) {
+        tmp = (int)passiveLinearPixel(buffer, i + offsets.value[0])
+            + (int)passiveLinearPixel(buffer, i + offsets.value[1])
+            + (int)passiveLinearPixel(buffer, i + offsets.value[2])
+            + (int)passiveLinearPixel(buffer, i + offsets.value[3]);
+        setActiveLinearPixel(buffer, i, tables.divsub[tmp]);
     }
 }
 
@@ -717,13 +741,10 @@ void flame_general_slow_filter(FrameRenderTarget& buffer,
  * border mode has a direct visible effect here.
  */
 void flame_down(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
-    int i;
-    unsigned char* src = buffer.passivePixels() - buffer.width();
-    unsigned char* dst = buffer.activePixels();
-
-    for (i = buffer.height(); i != 0; i--) {
-        memcpy(dst, src, buffer.width());
-        src += buffer.width();
-        dst += buffer.width();
+    for (int y = 0; y < buffer.height(); y++) {
+        unsigned char* dst = buffer.activeRow(y);
+        int src = -buffer.width() + y * buffer.width();
+        for (int x = 0; x < buffer.width(); x++)
+            dst[x] = passiveLinearPixel(buffer, src + x);
     }
 }

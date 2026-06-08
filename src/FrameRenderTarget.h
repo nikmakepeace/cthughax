@@ -135,6 +135,14 @@ public:
      */
     int visibleOffset(int x, int y) const;
 
+    /**
+     * Maps a packed visible-stream offset to a pitched storage offset.
+     *
+     * @param linearOffset Offset in a width-packed visible/hidden row stream.
+     * @return Storage offset from activePixels()/passivePixels().
+     */
+    int visibleLinearOffset(int linearOffset) const;
+
 private:
     FrameRenderTarget(const FrameRenderTarget&) = delete;
     FrameRenderTarget& operator=(const FrameRenderTarget&) = delete;

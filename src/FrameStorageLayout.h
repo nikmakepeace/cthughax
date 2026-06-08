@@ -109,6 +109,26 @@ public:
      * @return Storage offset from the visible image start.
      */
     int visibleOffset(int x, int y) const { return y * pitch() + x; }
+
+    /**
+     * Maps a packed visible-stream offset to pitched storage.
+     *
+     * Offsets may be negative or beyond the visible pixel count when a renderer
+     * intentionally samples hidden rows. Row padding is skipped; only visible
+     * bytes within each row participate in the packed stream.
+     *
+     * @param linearOffset Offset in a width-packed visible/hidden row stream.
+     * @return Storage offset from the visible image start.
+     */
+    int visibleLinearOffset(int linearOffset) const {
+        int row = linearOffset / width();
+        int x = linearOffset % width();
+        if (x < 0) {
+            x += width();
+            row--;
+        }
+        return visibleOffset(x, row);
+    }
 };
 
 #endif

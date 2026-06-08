@@ -471,8 +471,8 @@ void initializeVideoBenchmarks() {
         return;
 
     initialized = 1;
-    benchmarkStore().resize(FrameGeometry(PixelSize(config().width,
-        config().height), kHiddenRows));
+    benchmarkStore().resize(FrameStorageLayout(PixelSize(config().width,
+        config().height), config().width, kHiddenRows));
 
     srand(0);
     init_flames();

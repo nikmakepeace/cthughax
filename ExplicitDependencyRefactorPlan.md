@@ -696,37 +696,34 @@ filters. The filterchain can publish an `IndexedFrame` for
 `CthughaDisplay::present(...)`, and filter-local state such as
 `FlameLookupTables`, `WaveState`, and `WaveLookupTables` is already object-owned.
 
-The remaining implicit dependencies are:
+The remaining compatibility surfaces are:
 
-- `CthughaBuffer::buffer` and `CthughaBuffer::current` are static aliases rather
-  than owned frame storage supplied by `Application`.
-- `Application` configures dimensions, visual catalogs, audio ingest sizing, and
-  filterchain execution through `CthughaBuffer::buffer`.
-- `VideoDirector` mixes scene observation, quiet-message policy, image cue
-  placement, palette-transition policy, filterchain configuration, frame-budget
-  calculation, and target-buffer access.
-- `VideoDirector.cc` keeps palette and quiet-message settings in file-scope
-  statics, and reads `cthughaDisplay` to estimate frame budgets.
-- `CthughaDisplay` and X11 display fallback paths still read
-  `CthughaBuffer::current` when no explicit `IndexedFrame` is supplied.
-- `VideoFilters.cc` has frame-commit diagnostic throttling in a function-local
-  static.
-- `imath.cc` publishes mutable sine tables initialized by `Application`, and
-  wave renderers read those tables through process globals.
-- `display.cc` keeps presentation renderer state in file-scope/function-local
-  statics. That state belongs to Display, not Frame Generator, because it runs
-  after a source `IndexedFrame` already exists.
+- legacy `VideoFilterchain`, `VideoFilters`, and `VideoFrameContext` names,
+  which are now internal Frame Generator mechanics rather than cross-module
+  ports;
+- generator-side `CTH_*` logging macro call sites, which still rely on the
+  process-level logging bridge instead of an injected diagnostics port;
+- the `VideoFrameContext`/`AcousticContext` input bundle, which still carries
+  raw audio pointers, analysis state, scene snapshot, timing, and frame budget
+  as one legacy frame context;
+- `LegacyScene*` visual catalog adapters, which still bridge explicit Scene
+  selections to global `EffectControl` catalog objects;
+- Display compatibility aliases and `display.cc` renderer statics, which are
+  tracked as Display follow-up because generated frames are already handed to
+  Display explicitly.
 
 #### Services Needed
 
 - `FrameGeneratorRuntime`: Application-owned module root. Owns frame storage,
   filterchain/pipeline state, scene binding, frame-generation settings, and
   generator diagnostics.
-- `FrameGeometry`: stable logical frame dimensions and derived values
-  (`width`, `height`, hidden border rows, hidden border bytes,
-  `maxDimension`). It implements or adapts to `SceneGeometry` but is not a
-  buffer.
-- `FrameStore`: owned indexed active/passive storage, hidden border storage,
+- `FrameGeometry`: stable logical visible frame dimensions and derived values
+  (`width`, `height`, `maxDimension`). It implements or adapts to
+  `SceneGeometry` but is not a buffer and does not describe row storage.
+- `FrameStorageLayout`: FrameStore-owned storage policy for visible size, row
+  pitch/stride, top/bottom hidden rows, allocation size, and visible-start
+  offsets.
+- `FrameStore`: owned indexed active/passive storage, storage layout,
   active/passive selection, clear, resize, and swap operations.
 - `FrameGeneratorContext`: per-frame borrowed inputs: `SceneSnapshot`,
   `AudioFrame`, future `AudioAnalysisSnapshot` or current `AcousticContext`
@@ -754,15 +751,28 @@ public:
   PixelSize size() const;
   int width() const;
   int height() const;
-  int hiddenBorderRows() const;
-  int hiddenBorderByteCount() const;
   int maxDimension() const;
+};
+
+class FrameStorageLayout {
+public:
+  PixelSize visibleSize() const;
+  int width() const;
+  int height() const;
+  int pitch() const;
+  int topHiddenRows() const;
+  int bottomHiddenRows() const;
+  int allocationByteCount() const;
+  int visibleOffset(int x, int y) const;
+  int visibleLinearOffset(int linearOffset) const;
 };
 
 class FrameStore {
 public:
   void resize(const FrameGeometry& geometry);
+  void resize(const FrameStorageLayout& layout);
   const FrameGeometry& geometry() const;
+  const FrameStorageLayout& layout() const;
   FrameBufferView active();
   FrameBufferView passive();
   void swapActivePassive();
@@ -800,33 +810,7 @@ reach-through from the generation path.
 The remaining Frame Generator work is compatibility cleanup and boundary
 hardening:
 
-1. **Make stride, padding, and hidden-border ownership coherent in
-   `FrameStore`.**
-   Current compatibility surface: `FrameBufferView` already has `pitch()`, but
-   it is always set to visible width. Hidden-border rows are represented in
-   `FrameGeometry`, while the actual allocation still inherits a hardcoded
-   hidden-row count from the compatibility buffer.
-
-   Concrete changes required:
-   - Introduce an explicit storage-layout value owned by `FrameStore`, such as
-     `FrameStorageLayout`, containing visible size, row pitch/stride, top/bottom
-     hidden rows, total allocation bytes, and visible-start offsets.
-   - Decide whether hidden rows are storage policy only or part of logical
-     frame geometry. Keep `FrameGeometry` limited to the dimensions needed by
-     Scene, Audio, catalogs, and image placement.
-   - Allocate active/passive memory from `FrameStorageLayout` and make
-     `FrameBufferView::pitch()` the actual row distance.
-   - Port every row-walking loop in filters, translation, waves, border, image,
-     text, and commit/export code to advance by pitch instead of assuming
-     `row + y * width`.
-   - Make hidden rows available as pitched views or typed ranges, not raw
-     pointer offsets derived from visible width.
-
-   Completion gate: tests construct a store with pitch greater than width and a
-   non-default hidden-row count, then prove filters/render-target helpers use
-   pitch and hidden-row layout correctly.
-
-2. **Rename or port legacy `VideoFilterchain`, `VideoFilters`, and
+1. **Rename or port legacy `VideoFilterchain`, `VideoFilters`, and
    `VideoFrameContext` APIs.**
    Current compatibility surface: these APIs keep the old video/filterchain
    vocabulary alive so existing filters can be moved under
@@ -854,7 +838,7 @@ hardening:
    `FrameGenerator*` or neutral names; any remaining `Video*` names are private
    implementation files with explicit removal tests.
 
-3. **Replace remaining generator-side legacy logging macros with explicit
+2. **Replace remaining generator-side legacy logging macros with explicit
    `LogSink&`.**
    Current compatibility surface: generator-adjacent code still uses `CTH_*`
    macros because many legacy filters and catalog loaders were written before
@@ -877,7 +861,7 @@ hardening:
    bridge includes in the Frame Generator path, and generator tests can inject
    a fake or silent log sink.
 
-4. **Replace the `VideoFrameContext`/`AcousticContext` compatibility input with
+3. **Replace the `VideoFrameContext`/`AcousticContext` compatibility input with
    a typed audio analysis snapshot.**
    Current compatibility surface: `FrameGeneratorContext` wraps
    `VideoFrameContext`, which carries raw audio pointers, processed wave data,
@@ -905,7 +889,7 @@ hardening:
    inputs are borrowed only for one frame and can be supplied by a small test
    fixture.
 
-5. **Move visual catalogs and selections off global `EffectControl` objects.**
+4. **Move visual catalogs and selections off global `EffectControl` objects.**
    Current compatibility surface: `LegacyScene*` adapters translate Scene
    selections to global `EffectControl` and `EffectChoiceList` objects for
    flames, waves, translations, palettes, images, border, and flashlight. This

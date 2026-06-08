@@ -11,13 +11,12 @@ struct DisplayConfig;
 /**
  * Logical indexed-frame geometry owned by the Frame Generator module.
  *
- * FrameGeometry deliberately describes dimensions and derived storage sizes
- * only. Pixel memory lives in FrameStore, and Scene receives this object only
- * through the narrower SceneGeometry interface.
+ * FrameGeometry deliberately describes only visible dimensions and values
+ * derived from those dimensions. Pixel memory, row pitch, padding, and hidden
+ * border rows live in FrameStore/FrameStorageLayout.
  */
 class FrameGeometry : public SceneGeometry {
     PixelSize sizeValue;
-    int hiddenBorderRowsValue;
 
 public:
     /** Creates the historical default 160x100 frame geometry. */
@@ -27,9 +26,8 @@ public:
      * Creates explicit frame geometry.
      *
      * @param size Visible indexed-frame dimensions.
-     * @param hiddenBorderRows Hidden rows stored above and below the frame.
      */
-    explicit FrameGeometry(const PixelSize& size, int hiddenBorderRows = 3);
+    explicit FrameGeometry(const PixelSize& size);
 
     /**
      * Creates geometry from startup display configuration.
@@ -47,12 +45,6 @@ public:
 
     /** @return Visible frame height in pixels. */
     virtual int height() const;
-
-    /** @return Hidden border height on each vertical side, in pixel rows. */
-    int hiddenBorderRows() const;
-
-    /** @return Hidden border storage on each vertical side, in bytes. */
-    int hiddenBorderByteCount() const;
 
     /** @return Larger of width() and height(). */
     int maxDimension() const;

@@ -2,6 +2,8 @@
 
 #include "FrameStore.h"
 
+static const int defaultHiddenBorderRows = 3;
+
 FrameBufferView::FrameBufferView()
     : pixelsValue(0)
     , sizeValue()
@@ -40,17 +42,17 @@ int FrameBufferView::valid() const {
 FrameStore::FrameStore()
     : geometryValue()
     , layoutValue(geometryValue.size(), geometryValue.width(),
-          geometryValue.hiddenBorderRows())
+          defaultHiddenBorderRows)
     , bufferValue() { }
 
 void FrameStore::resize(const FrameGeometry& geometry) {
     resize(FrameStorageLayout(geometry.size(), geometry.width(),
-        geometry.hiddenBorderRows()));
+        defaultHiddenBorderRows));
 }
 
 void FrameStore::resize(const FrameStorageLayout& layout) {
     layoutValue = layout;
-    geometryValue = FrameGeometry(layout.visibleSize(), layout.topHiddenRows());
+    geometryValue = FrameGeometry(layout.visibleSize());
     bufferValue.setLayout(layoutValue);
     bufferValue.allocatePixels();
 }

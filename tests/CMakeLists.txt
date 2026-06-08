@@ -151,6 +151,60 @@ target_link_libraries(general_flame_option_test PRIVATE m)
 
 add_test(NAME general_flame_option_test COMMAND general_flame_option_test)
 
+add_executable(flame_storage_layout_test
+    unit/FlameStorageLayoutTest.cc
+    ${CMAKE_SOURCE_DIR}/src/flames.cc
+    ${CMAKE_SOURCE_DIR}/src/Flame.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderTarget.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/VideoFilterchain.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_compile_definitions(flame_storage_layout_test PRIVATE
+    CTH_LIBDIR="${CTH_DATA_DIR}"
+)
+
+target_include_directories(flame_storage_layout_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(flame_storage_layout_test PRIVATE m)
+
+add_test(NAME flame_storage_layout_test COMMAND flame_storage_layout_test)
+
+add_executable(translate_storage_layout_test
+    unit/TranslateStorageLayoutTest.cc
+    ${CMAKE_SOURCE_DIR}/src/Translate.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderTarget.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/VideoFilterchain.cc
+)
+
+target_include_directories(translate_storage_layout_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(translate_storage_layout_test PRIVATE m)
+
+add_test(NAME translate_storage_layout_test COMMAND translate_storage_layout_test)
+
 add_executable(effect_control_random_test
     unit/EffectControlRandomTest.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc

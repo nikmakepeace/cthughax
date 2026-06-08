@@ -6,12 +6,10 @@
 #include "imath.h"
 
 FrameGeometry::FrameGeometry()
-    : sizeValue(160, 100)
-    , hiddenBorderRowsValue(3) { }
+    : sizeValue(160, 100) { }
 
-FrameGeometry::FrameGeometry(const PixelSize& size, int hiddenBorderRows)
-    : sizeValue(size)
-    , hiddenBorderRowsValue(hiddenBorderRows < 0 ? 0 : hiddenBorderRows) { }
+FrameGeometry::FrameGeometry(const PixelSize& size)
+    : sizeValue(size) { }
 
 FrameGeometry FrameGeometry::fromDisplayConfig(const DisplayConfig& config) {
     return FrameGeometry(PixelSize(config.bufferWidth, config.bufferHeight));
@@ -27,14 +25,6 @@ int FrameGeometry::width() const {
 
 int FrameGeometry::height() const {
     return sizeValue.height;
-}
-
-int FrameGeometry::hiddenBorderRows() const {
-    return hiddenBorderRowsValue;
-}
-
-int FrameGeometry::hiddenBorderByteCount() const {
-    return hiddenBorderRows() * width();
 }
 
 int FrameGeometry::maxDimension() const {

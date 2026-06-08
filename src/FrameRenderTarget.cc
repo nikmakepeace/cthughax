@@ -147,3 +147,7 @@ int FrameRenderTarget::visibleRowsArePacked() const {
 int FrameRenderTarget::visibleOffset(int x, int y) const {
     return layoutValue.visibleOffset(x, y);
 }
+
+int FrameRenderTarget::visibleLinearOffset(int linearOffset) const {
+    return layoutValue.visibleLinearOffset(linearOffset);
+}

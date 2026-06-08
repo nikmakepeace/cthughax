@@ -91,6 +91,10 @@ static void testFrameStoreOwnsStorageLayout() {
     assertSourceContains("src/FrameStore.cc", "bufferValue.setLayout(layoutValue)");
     assertSourceContains("src/FrameRenderTarget.h", "int pitch() const");
     assertSourceContains("src/FrameRenderTarget.h", "int visibleOffset(int x, int y) const");
+    assertSourceContains("src/FrameStorageLayout.h", "int visibleLinearOffset");
+    assertSourceDoesNotContain("src/FrameGeometry.h", "hiddenBorder");
+    assertSourceDoesNotContain("src/FrameGeometry.h", "int pitch");
+    assertSourceDoesNotContain("src/FrameGeometry.h", "pitchValue");
     assertSourceDoesNotContain("src/FrameStore.cc",
         "geometryValue.width());");
 }

@@ -4,20 +4,18 @@
 #include <string.h>
 
 static void testFrameGeometryReportsDerivedValues() {
-    FrameGeometry geometry(PixelSize(8, 5), 4);
+    FrameGeometry geometry(PixelSize(8, 5));
 
     assert(geometry.valid());
     assert(geometry.size() == PixelSize(8, 5));
     assert(geometry.width() == 8);
     assert(geometry.height() == 5);
-    assert(geometry.hiddenBorderRows() == 4);
-    assert(geometry.hiddenBorderByteCount() == 32);
     assert(geometry.maxDimension() == 8);
 }
 
 static void testFrameStoreResizesAndExposesBufferViews() {
     FrameStore store;
-    FrameGeometry geometry(PixelSize(7, 3), 3);
+    FrameGeometry geometry(PixelSize(7, 3));
 
     store.resize(geometry);
 
@@ -30,7 +28,7 @@ static void testFrameStoreResizesAndExposesBufferViews() {
     assert(active.pitch() == 7);
     assert(passive.width() == 7);
     assert(passive.height() == 3);
-    assert(store.geometry().hiddenBorderByteCount() == 21);
+    assert(store.layout().topHiddenByteCount() == 21);
     assert(store.activeTopHiddenRows() == active.pixels() - 21);
     assert(store.activeBottomHiddenRows() == active.pixels() + 21);
 }
@@ -67,6 +65,9 @@ static void testFrameStoreOwnsPaddedStorageLayout() {
     assert(target.activeRow(2) == active.pixels() + 16);
     assert(target.passiveRow(1) == passive.pixels() + 8);
     assert(target.visibleOffset(4, 2) == 20);
+    assert(target.visibleLinearOffset(-1) == -4);
+    assert(target.visibleLinearOffset(-5) == -8);
+    assert(target.visibleLinearOffset(15) == 24);
 }
 
 static void testFrameStoreSwapsActiveAndPassiveBuffers() {
