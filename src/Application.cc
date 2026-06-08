@@ -159,11 +159,6 @@ Application::Application(int argc, char* argv[])
     , startupInitialized(0)
     , shutdownComplete(0) {
     cthugha_install_logging_runtime(loggingRuntimeValue);
-    sceneVisualCatalogFactoryValue
-        = createLegacySceneVisualCatalogFactory(
-            frameGeneratorValue.imageOption());
-    sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
-        *sceneVisualCatalogFactoryValue, randomSourceValue));
     interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));
     errorMessagesValue.reset(new ErrorMessages());
     registerDefaultInterfaces(*interfaceRuntimeValue,
@@ -188,11 +183,6 @@ Application::Application(int argc, char* argv[],
     , startupInitialized(0)
     , shutdownComplete(0) {
     cthugha_install_logging_runtime(loggingRuntimeValue);
-    sceneVisualCatalogFactoryValue
-        = createLegacySceneVisualCatalogFactory(
-            frameGeneratorValue.imageOption());
-    sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
-        *sceneVisualCatalogFactoryValue, randomSourceValue));
     interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));
     errorMessagesValue.reset(new ErrorMessages());
     registerDefaultInterfaces(*interfaceRuntimeValue,
@@ -230,6 +220,14 @@ bool Application::closeRequested() const {
 void Application::initSceneRuntime() {
     if (runtimeConfigRegistryValue.get() != NULL)
         return;
+
+    if (sceneVisualCatalogFactoryValue.get() == NULL)
+        sceneVisualCatalogFactoryValue
+            = createLegacySceneVisualCatalogFactory(
+                frameGeneratorValue.imageOption());
+    if (sceneRuntimeValue.get() == NULL)
+        sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
+            *sceneVisualCatalogFactoryValue, randomSourceValue));
 
     frameGeneratorValue.bindScene(sceneRuntimeValue->scene());
     runtimeConfigRegistryValue.reset(new RuntimeConfigRegistry(startupConfigValue));
@@ -290,6 +288,8 @@ void Application::shutdownSceneRuntime() {
     runtimeShutdownValue.reset();
     runtimeConfigContributorValue.reset();
     runtimeConfigRegistryValue.reset();
+    sceneRuntimeValue.reset();
+    sceneVisualCatalogFactoryValue.reset();
     autoChangeControlsValue.reset();
     autoChangeSettingsValue.reset();
     audioProcessingSelectorValue.reset();
@@ -495,8 +495,6 @@ int Application::initialize() {
     if (initMixerRuntime())
         return 0;
 
-    initSceneRuntime();
-
     frameGeneratorValue.silenceMessages().initialize();
 
     logSinkValue.info("Initializing the sound device...\n");
@@ -517,6 +515,8 @@ int Application::initialize() {
     }
     init_border();
     init_flashlight();
+
+    initSceneRuntime();
     sceneRuntimeValue->configureEffectPolicy(startupConfigValue.effectPolicy);
 
     logSinkValue.info("Setting initial effect controls...\n");

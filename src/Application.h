@@ -214,8 +214,9 @@ public:
     /**
      * Initializes scene state and command ports.
      *
-     * Must run before option parsing that can route changes through legacy
-     * callbacks into Scene runtime command targets.
+     * Must run after visual catalog loading so Scene selections copy complete
+     * catalog entries, and before startup scene config or runtime commands are
+     * applied.
      */
     void initSceneRuntime();
 

@@ -956,6 +956,10 @@ surface can disappear, and whether that work is already complete.
    - Wave-scale, table, border, and flashlight choice metadata is built by
      `SceneBuiltInChoiceCatalogs` instead of borrowed from
      `EffectChoiceList`.
+   - `Application` now creates the temporary visual factory and `SceneRuntime`
+     after built-in/file-backed visual catalog loading, so copied Scene
+     catalogs see the loaded object, translation, palette, and image entries
+     instead of constructor-time partial catalogs.
    - Global visual headers are quarantined in legacy construction files, and
      Frame Generator files use Scene ports plus narrow border/flashlight
      renderer ports instead of including global visual option headers.

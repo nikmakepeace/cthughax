@@ -1087,7 +1087,16 @@ static void testApplicationProvidesStartupConfigSlices() {
         "sceneRuntimeValue->configureEffectPolicy(startupConfigValue.effectPolicy)");
     assertSourceContains("src/Application.cc",
         "init_flashlight();\n"
+        "\n"
+        "    initSceneRuntime();\n"
         "    sceneRuntimeValue->configureEffectPolicy(startupConfigValue.effectPolicy)");
+    assertSourceDoesNotContain("src/Application.cc",
+        "if (initMixerRuntime())\n"
+        "        return 0;\n"
+        "\n"
+        "    initSceneRuntime();\n"
+        "\n"
+        "    frameGeneratorValue.silenceMessages().initialize();");
     assertSourceContains("src/Application.cc", "configureTranslationOptions(startupConfigValue.effectPolicy)");
     assertSourceContains("src/Application.cc", "configureWaveOptions(startupConfigValue.effectPolicy)");
     assertSourceContains("src/Application.cc", "configurePaletteOptions(startupConfigValue.effectPolicy)");
@@ -1283,7 +1292,18 @@ static void testSceneStartupUsesSceneConfig() {
         "sceneGeometryValue");
     assertSourceContains("src/Application.cc",
         "createLegacySceneVisualCatalogFactory(\n"
-        "            frameGeneratorValue.imageOption())");
+        "                frameGeneratorValue.imageOption())");
+    assertSourceDoesNotContain("src/Application.cc",
+        "cthugha_install_logging_runtime(loggingRuntimeValue);\n"
+        "    sceneVisualCatalogFactoryValue");
+    assertSourceContains("src/Application.cc",
+        "if (sceneVisualCatalogFactoryValue.get() == NULL)\n"
+        "        sceneVisualCatalogFactoryValue\n"
+        "            = createLegacySceneVisualCatalogFactory(");
+    assertSourceContains("src/Application.cc",
+        "if (sceneRuntimeValue.get() == NULL)\n"
+        "        sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),\n"
+        "            *sceneVisualCatalogFactoryValue, randomSourceValue))");
     assertSourceDoesNotContain("src/Application.cc",
         "createLegacySceneVisualCatalogFactory(flame");
     assertSourceDoesNotContain("src/Application.cc",
@@ -1295,7 +1315,7 @@ static void testSceneStartupUsesSceneConfig() {
         "            waveScale, table, object");
     assertSourceContains("src/Application.cc",
         "sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),\n"
-        "        *sceneVisualCatalogFactoryValue, randomSourceValue))");
+        "            *sceneVisualCatalogFactoryValue, randomSourceValue))");
     assertSourceDoesNotContain("src/Application.cc",
         "new LegacySceneVisualCatalogFactory(*sceneVisualSelectionsValue)");
     assertSourceContains("src/Application.cc",
@@ -2462,7 +2482,10 @@ static void testGeneralFlameUsesInjectedRandomSource() {
         "flashlight, frameGeneratorValue.imageOption());");
     assertSourceContains("src/Application.cc",
         "createLegacySceneVisualCatalogFactory(\n"
-        "            frameGeneratorValue.imageOption())");
+        "                frameGeneratorValue.imageOption())");
+    assertSourceDoesNotContain("src/Application.cc",
+        "cthugha_install_logging_runtime(loggingRuntimeValue);\n"
+        "    sceneVisualCatalogFactoryValue");
     assertSourceContains("src/Application.cc",
         "*sceneVisualCatalogFactoryValue, randomSourceValue)");
     assertSourceContains("src/SceneRuntime.cc",
