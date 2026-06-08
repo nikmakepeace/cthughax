@@ -10,9 +10,9 @@ class SceneWaveObjectCatalog;
 /**
  * Loads built-in and file-backed wave objects into a Scene catalog.
  *
- * This is the native Scene wave-object startup path. The compatibility object
- * EffectControl list may still exist for non-Scene UI, but Scene construction
- * does not need to copy from it.
+ * This is the native Scene wave-object startup path. The legacy object-option
+ * list may still exist for non-Scene UI, but Scene construction does not need
+ * to copy from it.
  *
  * @param catalog Native catalog to replace with loaded entries.
  * @param pathConfig Startup path configuration.

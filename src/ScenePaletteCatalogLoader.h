@@ -1,21 +1,27 @@
-// Scene palette catalog loader compatibility helpers.
+// Scene palette catalog loading.
 
 #ifndef CTHUGHA_SCENE_PALETTE_CATALOG_LOADER_H
 #define CTHUGHA_SCENE_PALETTE_CATALOG_LOADER_H
 
-class EffectControl;
+class LogSink;
 class ScenePaletteCatalog;
+struct PathConfig;
 
 /**
- * Copies palette option entries into a native Scene palette catalog.
+ * Loads built-in and file-backed palettes into a Scene catalog.
  *
- * This quarantines the remaining palette option loader outside Scene runtime
- * construction while palette file loading is still compatibility backed.
+ * This is the native Scene palette startup path. Legacy palette-option loading
+ * may still exist for non-Scene UI, but Scene construction does not copy from
+ * it.
  *
- * @param paletteOption Palette EffectControl populated by load_palettes().
- * @param catalog Native catalog to replace with copied entries.
+ * @param catalog Native catalog to replace with loaded entries.
+ * @param pathConfig Startup path configuration.
+ * @param paletteSetFilterText Optional explicit palette set filter text.
+ * @param log Diagnostics sink for loader progress.
+ * @return Zero after scanning configured paths.
  */
-void copyScenePaletteCatalogFromEffectControl(
-    EffectControl& paletteOption, ScenePaletteCatalog& catalog);
+int loadScenePaletteCatalog(ScenePaletteCatalog& catalog,
+    const PathConfig& pathConfig, const char* paletteSetFilterText,
+    LogSink& log);
 
 #endif

@@ -1035,6 +1035,8 @@ static void testCatalogLoadingUsesPathConfig() {
         "pathConfig.extraLibraryPath");
     assertSourceContains("src/SceneImageCatalogLoader.cc",
         "pathConfig.extraLibraryPath");
+    assertSourceContains("src/ScenePaletteCatalogLoader.cc",
+        "pathConfig.extraLibraryPath");
 }
 
 static void testCatalogLoadingSkipsDuplicateNamesWithoutCompressedAssetShellOut() {
@@ -3073,13 +3075,24 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceDoesNotExist("src/LegacyScenePaletteCatalogAdapter.h");
     assertSourceDoesNotExist("src/LegacyScenePaletteCatalogAdapter.cc");
     assertSourceContains("src/ScenePaletteCatalogLoader.cc",
-        "copyScenePaletteCatalogFromEffectControl(");
+        "loadScenePaletteCatalog(");
     assertSourceContains("src/ScenePaletteCatalogLoader.cc",
-        "dynamic_cast<PaletteEntry*>(paletteOption[i])");
+        "read_palette_entry(file, featureName.c_str()");
+    assertSourceContains("src/ScenePaletteCatalogLoader.cc",
+        "paletteSetFilterText");
+    assertSourceDoesNotContain("src/ScenePaletteCatalogLoader.h",
+        "EffectControl");
+    assertSourceDoesNotContain("src/ScenePaletteCatalogLoader.cc",
+        "copyScenePaletteCatalogFromEffectControl");
+    assertSourceDoesNotContain("src/ScenePaletteCatalogLoader.cc",
+        "dynamic_cast<PaletteEntry*>");
     assertSourceContains("src/Application.h",
         "std::unique_ptr<ScenePaletteCatalog> scenePaletteCatalogValue");
     assertSourceContains("src/Application.cc",
-        "copyScenePaletteCatalogFromEffectControl(palette, palettes)");
+        "loadScenePaletteCatalog(palettes, pathConfig,\n"
+        "        effectPolicy.paletteSetFilterText.c_str(), log)");
+    assertSourceDoesNotContain("src/Application.cc",
+        "copyScenePaletteCatalogFromEffectControl(");
     assertSourceContains("src/CMakeLists.txt", "ScenePaletteCatalog.cc");
     assertSourceContains("src/CMakeLists.txt",
         "ScenePaletteCatalogLoader.cc");
@@ -3094,7 +3107,7 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceDoesNotContain("src/LegacySceneSelectionFactory.cc",
         "entry->inUse()");
     assertSourceContains("tests/unit/SceneCatalogLoaderTest.cc",
-        "testCopiesPalettesFromEffectControl");
+        "testLoadsPalettesFromPathConfig");
     assertSourceDoesNotContain("src/LegacySceneSelectionFactory.cc",
         "palettes.entryCount()");
     assertSourceDoesNotContain("src/LegacySceneSelectionFactory.cc",

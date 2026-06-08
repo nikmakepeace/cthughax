@@ -35,7 +35,8 @@ unsigned long bitmap_colors1[256]; /* "compiled" palette */
 unsigned long bitmap_colors2[256]; /* "compiled" palette */
 unsigned long bitmap_colors3[256]; /* "compiled" palette */
 
-EffectChoice* read_palette(FILE* file, const char* name, const char* dir, const char*);
+EffectChoice* read_palette(FILE* file, const char* name, const char* dir,
+    const char* total_name);
 static const char* palette_path[] = { "./", "./resources/map/", CTH_LIBDIR "/map/", "" };
 static int paletteSetFilterCount = 0;
 static char paletteSetFilter[PALETTE_METADATA_MAX_VALUES][PALETTE_METADATA_VALUE_SIZE];
@@ -447,7 +448,7 @@ int load_palettes(const PathConfig& pathConfig) {
  * palettes are 256 entries of 8 bit rgb. Shorter palettes are filled up with black.
  * longer palettes are truncated.
  */
-EffectChoice* read_palette(
+PaletteEntry* read_palette_entry(
     FILE* file, const char* name, const char* /*dir*/, const char* total_name) {
     char line[256];
     int i = 0;
@@ -522,6 +523,11 @@ EffectChoice* read_palette(
     }
 
     return new_pal;
+}
+
+EffectChoice* read_palette(
+    FILE* file, const char* name, const char* dir, const char* total_name) {
+    return read_palette_entry(file, name, dir, total_name);
 }
 
 int PaletteEntry::lastRandom = -1;
