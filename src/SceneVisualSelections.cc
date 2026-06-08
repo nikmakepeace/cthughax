@@ -43,4 +43,13 @@ int SceneOptionSelection::resolveValue(const char* text, int* selection) const {
     return 1;
 }
 
+void SceneOptionSelection::activate(int index) {
+    if ((index >= 0) && (index < entryCount()))
+        setValue(index);
+}
+
+void SceneOptionSelection::toggleLock() { }
+
+void SceneOptionSelection::toggleChoiceUse(int) { }
+
 SceneVisualSelections::~SceneVisualSelections() { }

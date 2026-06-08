@@ -69,6 +69,8 @@ public:
     virtual void change(const char* to, RandomSource& randomSource);
     virtual int changeRandom(RandomSource& randomSource);
     virtual void activate(int index);
+    virtual void toggleLock();
+    virtual void toggleChoiceUse(int index);
     virtual void setValue(int index);
 };
 

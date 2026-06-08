@@ -46,8 +46,31 @@ static void testCatalogAdaptsLock() {
     assert(catalog.lock().enabled() == 1);
 }
 
+static void testChoiceSelectionExposesSceneOwnedToggles() {
+    EffectChoice first("alpha", "Alpha");
+    EffectChoice second("beta", "Beta");
+    EffectChoice* entries[] = { &first, &second };
+    EffectChoiceList choices(entries, 2);
+    OptionOnOff lock("catalog-lock", 0);
+    SceneChoiceSelection selection(
+        new SceneEffectChoiceCatalog("visual", choices, lock), 0);
+
+    selection.activate(1);
+    assert(selection.currentValue() == 1);
+    assert(std::strcmp(selection.currentName(), "beta") == 0);
+
+    selection.toggleChoiceUse(1);
+    assert(second.inUse() == 0);
+
+    selection.toggleLock();
+    assert(int(lock) == 1);
+    selection.toggleLock();
+    assert(int(lock) == 0);
+}
+
 int main() {
     testCatalogAdaptsEffectChoices();
     testCatalogAdaptsLock();
+    testChoiceSelectionExposesSceneOwnedToggles();
     return 0;
 }

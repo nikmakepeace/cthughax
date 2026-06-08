@@ -27,6 +27,21 @@ public:
     virtual void change(
         const char* to, RandomSource& randomSource) = 0;
     virtual int changeRandom(RandomSource& randomSource) = 0;
+
+    /**
+     * Activates a choice by index.
+     *
+     * The default implementation sets the selection value when the index is
+     * within entryCount().
+     */
+    virtual void activate(int index);
+
+    /** Toggles the selection lock when the concrete selection has one. */
+    virtual void toggleLock();
+
+    /** Toggles choice availability when choices are exposed. */
+    virtual void toggleChoiceUse(int index);
+
     virtual void setValue(int index) = 0;
 };
 

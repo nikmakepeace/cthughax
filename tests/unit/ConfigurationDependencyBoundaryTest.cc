@@ -1299,7 +1299,14 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceContains("src/SceneVisualSelections.h", "class SceneVisualSelections");
     assertSourceContains("src/SceneVisualSelections.h",
         "const char* to, RandomSource& randomSource) = 0;\n"
-        "    virtual int changeRandom(RandomSource& randomSource) = 0;\n"
+        "    virtual int changeRandom(RandomSource& randomSource) = 0;");
+    assertSourceContains("src/SceneVisualSelections.h",
+        "virtual void activate(int index);");
+    assertSourceContains("src/SceneVisualSelections.h",
+        "virtual void toggleLock();");
+    assertSourceContains("src/SceneVisualSelections.h",
+        "virtual void toggleChoiceUse(int index);");
+    assertSourceContains("src/SceneVisualSelections.h",
         "    virtual void setValue(int index) = 0;");
     assertSourceContains("src/CMakeLists.txt", "SceneVisualSelections.cc");
     assertSourceDoesNotContain("src/SceneDependencies.h",
@@ -2488,6 +2495,18 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceContains("src/SceneChoiceSelection.h", "class SceneChoiceLock");
     assertSourceContains("src/SceneChoiceSelection.h",
         "class SceneChoiceSelection : public virtual SceneOptionSelection");
+    assertSourceContains("src/SceneChoiceSelection.h",
+        "virtual void toggleLock();");
+    assertSourceContains("src/SceneChoiceSelection.h",
+        "virtual void toggleChoiceUse(int index);");
+    assertSourceContains("src/LegacySceneEffectControlCatalog.cc",
+        "selection->toggleLock()");
+    assertSourceContains("src/LegacySceneEffectControlCatalog.cc",
+        "selection->toggleChoiceUse(index)");
+    assertSourceDoesNotContain("src/LegacySceneEffectControlCatalog.cc",
+        "option.lock.change");
+    assertSourceDoesNotContain("src/LegacySceneEffectControlCatalog.cc",
+        "option[index]->setUse");
     assertSourceDoesNotContain("src/SceneChoiceSelection.h",
         "#include \"EffectControl.h\"");
     assertSourceDoesNotContain("src/SceneChoiceSelection.h", "EffectControl&");

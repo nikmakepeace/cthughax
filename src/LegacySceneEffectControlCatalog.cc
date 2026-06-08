@@ -130,17 +130,15 @@ public:
     }
 
     virtual void toggleLock(EffectControl& option) {
-        if (selectionFor(option) != 0)
-            option.lock.change(+1);
+        SceneEffectControlSelection* selection = selectionFor(option);
+        if (selection != 0)
+            selection->toggleLock();
     }
 
     virtual void toggleChoiceUse(EffectControl& option, int index) {
-        if (selectionFor(option) == 0)
-            return;
-        if ((index < 0) || (index >= option.getNEntries()))
-            return;
-
-        option[index]->setUse(!option[index]->inUse());
+        SceneEffectControlSelection* selection = selectionFor(option);
+        if (selection != 0)
+            selection->toggleChoiceUse(index);
     }
 };
 
