@@ -57,7 +57,7 @@
 #include <unistd.h>
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
-    const PathConfig& pathConfig, RandomSource& randomSource);
+    const PathConfig& pathConfig, RandomSource& randomSource, LogSink& log);
 static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
     const PathConfig& pathConfig, const FrameGeometry& geometry,
     ImageOption& images, LogSink& log);
@@ -506,7 +506,7 @@ int Application::initialize() {
     // before startup scene config can be matched to concrete catalog entries.
     logSinkValue.info("Initializing Frame Generator storage...\n");
     if (initializeVisualCatalogs(frameGeneratorValue.geometry(),
-            startupConfigValue.paths, randomSourceValue))
+            startupConfigValue.paths, randomSourceValue, logSinkValue))
         return 0;
     if (loadEffectPolicyImages(startupConfigValue.effectPolicy,
             startupConfigValue.paths, frameGeneratorValue.geometry(),
@@ -721,7 +721,7 @@ void Application::runFrame(int doDisplay) {
 }
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
-    const PathConfig& pathConfig, RandomSource& randomSource) {
+    const PathConfig& pathConfig, RandomSource& randomSource, LogSink& log) {
     // Built-in visual choices and file-backed catalogs are application startup
     // state, not pixel-buffer state. They live here because option parsing can
     // change buffer dimensions and stage initial option names before startup.
@@ -733,7 +733,7 @@ static int initializeVisualCatalogs(const FrameGeometry& geometry,
     if (init_translate(geometry, randomSource))
         return 1;
 
-    if (init_wave(pathConfig))
+    if (init_wave(pathConfig, log))
         return 1;
 
     if (load_palettes(pathConfig))

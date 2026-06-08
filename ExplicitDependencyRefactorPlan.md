@@ -698,8 +698,6 @@ filters. The filterchain can publish an `IndexedFrame` for
 
 The remaining compatibility surfaces are:
 
-- generator-side `CTH_*` logging macro call sites, which still rely on the
-  process-level logging bridge instead of an injected diagnostics port;
 - the `FrameRenderContext`/`AcousticContext` input bundle, which still carries
   raw audio pointers, analysis state, scene snapshot, timing, and frame budget
   as one legacy frame context;
@@ -806,44 +804,15 @@ reach-through from the generation path.
 
 The old `VideoFilterchain`, `VideoFilters`, `VideoFrameContext`, and
 `VideoFrameBudget` naming compatibility item is complete and is not listed as
-remaining work. The compatibility surface existed only so legacy filter code
-could move under `FrameGeneratorRuntime` before every public type was renamed.
-It is no longer needed once public generator headers, CMake targets, unit tests,
-and benchmarks use `Frame*` names, and any old `Video*` names are gone or
-quarantined behind private adapters named by a boundary test.
+remaining work. The generator-side logging compatibility item is also complete:
+`FrameGeneratorRuntime` supplies an explicit `LogSink&` to scene binding,
+pipeline, filterchain, filter execution, and wave runtime code.
 
 The remaining Frame Generator work is compatibility cleanup and boundary
 hardening. Each item below names what the temporary surface is for, what must
 change so it can disappear, and the completion gate:
 
-1. **Replace remaining generator-side legacy logging macros with explicit
-   `LogSink&`.**
-   This compatibility surface is for old generator-adjacent code that still
-   calls `CTH_*` macros. Those macros route through the process-level logging
-   bridge, so callers can emit diagnostics without receiving a diagnostics
-   collaborator.
-
-   There is no need for the compatibility surface once generator code receives
-   a diagnostics port explicitly. That can be a direct `LogSink&` or a small
-   `FrameGeneratorDiagnostics` wrapper passed through `FrameGeneratorRuntime`,
-   `FrameGeneratorPipeline`, filter constructors, and catalog-loading helpers.
-
-   Concrete changes required:
-   - Choose the diagnostics entry point for the module.
-   - Thread that diagnostics port into filters and helper functions that log
-     during configure/render/catalog work.
-   - Replace `CTH_DEBUG`, `CTH_INFO`, `CTH_WARN`, `CTH_ERROR`, and
-     `CTH_TRACE` uses in Frame Generator sources with explicit `LogSink` calls.
-   - Remove `cthugha.h` includes from Frame Generator sources that only needed
-     legacy logging macros.
-   - Keep any process-level macro bridge in Application/legacy modules, not in
-     Frame Generator.
-
-   Completion gate: source-boundary tests fail on `CTH_*` macros and logging
-   bridge includes in the Frame Generator path, and generator tests can inject
-   a fake or silent log sink.
-
-2. **Replace the `FrameRenderContext`/`AcousticContext` compatibility input with
+1. **Replace the `FrameRenderContext`/`AcousticContext` compatibility input with
    a typed audio analysis snapshot.**
    This compatibility surface is for keeping old filters working while Audio
    still exposes analysis through `AcousticContext` and the frame path still
@@ -876,7 +845,7 @@ change so it can disappear, and the completion gate:
    inputs are borrowed only for one frame and can be supplied by a small test
    fixture.
 
-3. **Move visual catalogs and selections off global `EffectControl` objects.**
+2. **Move visual catalogs and selections off global `EffectControl` objects.**
    This compatibility surface is for making explicit Scene selections coexist
    with legacy visual catalogs. `LegacyScene*` adapters translate Scene choices
    to global `EffectControl` and `EffectChoiceList` objects for flames, waves,

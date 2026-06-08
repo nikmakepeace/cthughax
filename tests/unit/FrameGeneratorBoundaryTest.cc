@@ -182,6 +182,44 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
 }
 
 static void testGeneratorDiagnosticsAndMathTablesAreOwned() {
+    static const char* const files[] = {
+        "src/FrameGeneratorPipeline.h",
+        "src/FrameGeneratorPipeline.cc",
+        "src/FrameGeneratorRuntime.h",
+        "src/FrameGeneratorRuntime.cc",
+        "src/FrameGeneratorSceneBinding.h",
+        "src/FrameGeneratorSceneBinding.cc",
+        "src/FrameFilterchain.h",
+        "src/FrameFilterchain.cc",
+        "src/FrameFilterchainFactory.h",
+        "src/FrameFilterchainFactory.cc",
+        "src/FrameFilters.h",
+        "src/FrameFilters.cc",
+        "src/FrameRenderTarget.h",
+        "src/FrameRenderTarget.cc",
+        "src/Wave.h",
+        "src/Wave.cc",
+        "src/waves.cc"
+    };
+    static const int fileCount = sizeof(files) / sizeof(files[0]);
+
+    assertSourceContains("src/FrameGeneratorRuntime.h", "LogSink& logValue");
+    assertSourceContains("src/FrameGeneratorPipeline.h",
+        "explicit FrameGeneratorPipeline(LogSink& log)");
+    assertSourceContains("src/FrameFilterchain.h",
+        "explicit FrameFilterchain(LogSink& log)");
+    assertSourceContains("src/FrameFilterchainFactory.h",
+        "explicit FrameFilterchainFactory(LogSink& log)");
+    assertSourceContains("src/FrameFilterchain.h", "LogSink& log() const");
+    assertSourceContains("src/Wave.h", "LogSink& log() const");
+
+    assertFilesDoNotContain(files, fileCount, "CTH_DEBUG");
+    assertFilesDoNotContain(files, fileCount, "CTH_INFO");
+    assertFilesDoNotContain(files, fileCount, "CTH_WARN");
+    assertFilesDoNotContain(files, fileCount, "CTH_ERROR");
+    assertFilesDoNotContain(files, fileCount, "CTH_TRACE");
+    assertFilesDoNotContain(files, fileCount, "CTH_LOG_ENABLED");
+    assertFilesDoNotContain(files, fileCount, "#include \"cthugha.h\"");
     assertSourceDoesNotContain("src/FrameFilters.cc",
         "static int debugReports");
     assertSourceDoesNotContain("src/waves.cc", "isin(");

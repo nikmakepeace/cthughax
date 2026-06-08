@@ -3,7 +3,6 @@
 #ifndef __FRAME_RENDER_TARGET_H
 #define __FRAME_RENDER_TARGET_H
 
-#include "cthugha.h"
 #include "FrameStorageLayout.h"
 
 /**

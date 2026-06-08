@@ -10,6 +10,7 @@
 
 class FrameRenderTarget;
 class FramePalette;
+class LogSink;
 
 /**
  * Mutable frame object passed through one filterchain execution.
@@ -22,6 +23,7 @@ class FrameFilterFrame {
     const FrameRenderContext* contextValue;
     FramePalette* framePaletteValue;
     IndexedFrame* indexedFrameValue;
+    LogSink* logValue;
 
 public:
     /**
@@ -31,9 +33,10 @@ public:
      * @param context_ Borrowed per-frame audio/time context.
      * @param framePalette_ Palette state to update or read, or NULL.
      * @param indexedFrame_ Destination for final display frame publication.
+     * @param log_ Diagnostics sink for this filterchain run.
      */
     FrameFilterFrame(FrameRenderTarget& buffer_, const FrameRenderContext& context_,
-        FramePalette* framePalette_, IndexedFrame* indexedFrame_);
+        FramePalette* framePalette_, IndexedFrame* indexedFrame_, LogSink& log_);
 
     /** @return Active/passive indexed pixel buffer for this frame. */
     FrameRenderTarget& buffer();
@@ -56,6 +59,9 @@ public:
 
     /** @return Last IndexedFrame published during this filterchain run. */
     const IndexedFrame& indexedFrame() const;
+
+    /** @return Diagnostics sink supplied by the owning FrameFilterchain. */
+    LogSink& log() const;
 };
 
 /**
@@ -112,9 +118,15 @@ class FrameFilterchain {
     std::vector<unsigned int> sequence;
     FramePalette* framePaletteValue;
     IndexedFrame indexedFrameValue;
+    LogSink* logValue;
 
 public:
-    FrameFilterchain();
+    /**
+     * Creates an empty filterchain with an explicit diagnostics sink.
+     *
+     * @param log Diagnostics sink used by filterchain bookkeeping and filters.
+     */
+    explicit FrameFilterchain(LogSink& log);
     ~FrameFilterchain();
 
     /** Deletes owned filters and clears stage order, palette, and published frame. */

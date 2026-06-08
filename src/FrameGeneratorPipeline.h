@@ -13,6 +13,7 @@ class IndexedFrame;
 class FrameRenderContext;
 class FrameFilterchain;
 class FrameFilterchainSequence;
+class LogSink;
 
 /**
  * Owns the concrete frame filterchain used by FrameGeneratorRuntime.
@@ -23,8 +24,12 @@ class FrameGeneratorPipeline {
     FrameFilterchainSequence sequenceValue;
 
 public:
-    /** Creates an empty pipeline. */
-    FrameGeneratorPipeline();
+    /**
+     * Creates an empty pipeline with explicit diagnostics for owned filters.
+     *
+     * @param log Diagnostics sink supplied by FrameGeneratorRuntime.
+     */
+    explicit FrameGeneratorPipeline(LogSink& log);
 
     /** Destroys owned filters before returning. */
     ~FrameGeneratorPipeline();

@@ -30,8 +30,9 @@ EffectChoiceList paletteEntries;
 EffectChoiceList pcxEntries;
 
 struct PathConfig;
+class LogSink;
 
-int init_wave(const PathConfig&) { return 0; }
+int init_wave(const PathConfig&, LogSink&) { return 0; }
 int load_palettes(const PathConfig&) { return 0; }
 int init_pcx() { return 0; }
 

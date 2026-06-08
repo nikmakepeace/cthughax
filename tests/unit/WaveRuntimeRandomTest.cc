@@ -77,6 +77,16 @@ public:
     }
 };
 
+class NullLogSink : public LogSink {
+public:
+    virtual int enabled(int) const {
+        return 0;
+    }
+
+protected:
+    virtual void write(int, const char*, int, const char*, va_list) { }
+};
+
 static void testWaveRuntimeRandomUsesInjectedSource() {
     std::vector<int> values;
     values.push_back(7);
@@ -86,7 +96,8 @@ static void testWaveRuntimeRandomUsesInjectedSource() {
     WaveConfig config;
     WaveState state;
     WaveLookupTables lookupTables;
-    WaveRuntime runtime(config, 0, state, lookupTables, randomSource, 0);
+    NullLogSink log;
+    WaveRuntime runtime(config, 0, state, lookupTables, randomSource, log, 0);
 
     assert(runtime.randomInt(10) == 7);
     assert(runtime.randomCenteredInt(4) == -1);

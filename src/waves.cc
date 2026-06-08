@@ -1,11 +1,12 @@
 // Wave option setup, object loading, color tables, and wave renderers.
 
-#include "cthugha.h"
+#include "config.h"
 #include "Configuration.h"
 #include "EffectChoiceLoader.h"
 #include "Interface.h"
 #include "information.h"
 #include "imath.h"
+#include "ProcessServices.h"
 #include "waves.h"
 #include "disp-sys.h"
 #include "cth_buffer.h"
@@ -380,7 +381,7 @@ WObject* currentWaveObject() {
 /*
  * initialize, load objects
  */
-int init_wave(const PathConfig& pathConfig) {
+int init_wave(const PathConfig& pathConfig, LogSink& log) {
 
     init_wave_options();
     init_tables();
@@ -388,10 +389,10 @@ int init_wave(const PathConfig& pathConfig) {
     /* load objects from File  */
     if (int(use_objects)) {
 
-        CTH_INFO("  loading 3-D objects...");
+        log.info("  loading 3-D objects...");
         loadEffectChoices(object, pathConfig, object_path, "/obj/", ".obj",
             read_object);
-        CTH_INFO("\n  number of 3-D objects: %d\n", object.getNEntries());
+        log.info("\n  number of 3-D objects: %d\n", object.getNEntries());
     }
 
     return 0;
@@ -2010,7 +2011,7 @@ private:
 
         for (int i = 0; i < nobj; i++) {
             init_wire2_copy(runtime, state.loc[i], state.psi[i], state.rate[i], state.col[i]);
-            CTH_DEBUG("model %d: rate %d, psi %d, col %d\n",
+            runtime.log().debug("model %d: rate %d, psi %d, col %d\n",
                 i, state.rate[i], state.psi[i], state.col[i]);
 
             if (modelRotation == PerCopyAxis)

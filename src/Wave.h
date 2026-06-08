@@ -6,6 +6,7 @@
 class FrameRenderTarget;
 class RandomSource;
 class FrameRenderContext;
+class LogSink;
 
 /**
  * 3D wire object used by object-based wave renderers.
@@ -154,6 +155,7 @@ class WaveRuntime {
     WaveState& stateValue;
     WaveLookupTables& lookupTables;
     RandomSource& randomSource;
+    LogSink& logValue;
     int fireBudgetValue;
 
 public:
@@ -172,10 +174,12 @@ public:
      * @param state_ Persistent state storage owned by WaveFilter.
      * @param lookupTables_ Shared wave lookup-table cache.
      * @param randomSource_ Random source owned by the application lifecycle.
+     * @param log Diagnostics sink for this frame render.
      * @param fireBudget Acoustic fire amount for this visual frame.
      */
     WaveRuntime(const WaveConfig& config, int needsConfiguration_, WaveState& state_,
-        WaveLookupTables& lookupTables_, RandomSource& randomSource_, int fireBudget);
+        WaveLookupTables& lookupTables_, RandomSource& randomSource_,
+        LogSink& log, int fireBudget);
 
     /** @return Nonzero when renderer should rebuild configuration-dependent state. */
     int needsConfiguration() const;
@@ -242,6 +246,9 @@ public:
 
     /** @return Random floating-point value in [0.0, 1.0]. */
     double randomUnit();
+
+    /** @return Diagnostics sink for this wave render. */
+    LogSink& log() const;
 
     /**
      * Gets or lazily creates wave-specific persistent state.
@@ -318,10 +325,12 @@ public:
      * @param state Persistent state storage for this wave.
      * @param lookupTables Shared lookup-table cache.
      * @param randomSource Random source used by renderer effects.
+     * @param log Diagnostics sink for this frame render.
      */
     void execute(FrameRenderTarget& buffer, const FrameRenderContext& context,
         const WaveConfig& config, int needsConfiguration, WaveState& state,
-        WaveLookupTables& lookupTables, RandomSource& randomSource) const;
+        WaveLookupTables& lookupTables, RandomSource& randomSource,
+        LogSink& log) const;
 };
 
 /** Built-in wave renderer catalog used by WaveOption. */

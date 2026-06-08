@@ -16,6 +16,7 @@
 class CountdownTimerFactory;
 class RandomSource;
 class FrameFilterchain;
+class LogSink;
 
 /**
  * Observes Scene changes and applies queued generator work to a filterchain.
@@ -29,6 +30,7 @@ class FrameGeneratorSceneBinding : public SceneObserver {
     ImageOption images;
     RandomLegalImagePlacementStrategy imagePlacementStrategy;
     RandomSource& randomSourceValue;
+    LogSink& logValue;
     SilenceMessage silenceMessage;
     Scene* scene;
     FrameFilterchain* filterchain;
@@ -57,10 +59,12 @@ public:
      * @param transitionController Runtime transition policy.
      * @param randomSource Random source used for cue placement/palette policy.
      * @param timerFactory Timer factory used by quiet-message providers.
+     * @param log Diagnostics sink owned by the application lifecycle.
      */
     FrameGeneratorSceneBinding(const FrameGeometry& geometry,
         FrameTransitionController& transitionController,
-        RandomSource& randomSource, CountdownTimerFactory& timerFactory);
+        RandomSource& randomSource, CountdownTimerFactory& timerFactory,
+        LogSink& log);
 
     /** Stops observing any bound scene. */
     ~FrameGeneratorSceneBinding();

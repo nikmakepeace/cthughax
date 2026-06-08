@@ -132,11 +132,12 @@ double WaveLookupTables::cosineDegrees(int degrees) {
 
 WaveRuntime::WaveRuntime(const WaveConfig& config, int needsConfiguration_,
     WaveState& state_, WaveLookupTables& lookupTables_, RandomSource& randomSource_,
-    int fireBudget)
+    LogSink& log, int fireBudget)
     : needsConfigurationValue(needsConfiguration_)
     , stateValue(state_)
     , lookupTables(lookupTables_)
     , randomSource(randomSource_)
+    , logValue(log)
     , fireBudgetValue(fireBudget)
     , waveScale(config.waveScale)
     , table(config.table)
@@ -190,6 +191,10 @@ double WaveRuntime::randomUnit() {
     return double(randomInt(scale)) / double(scale - 1);
 }
 
+LogSink& WaveRuntime::log() const {
+    return logValue;
+}
+
 Wave::Wave(Function function, const char* name, const char* description,
     CanRunFunction canRunFunction)
     : functionValue(function)
@@ -211,11 +216,12 @@ int Wave::canRun(const WaveConfig& config) const {
 
 void Wave::execute(FrameRenderTarget& buffer, const FrameRenderContext& context,
     const WaveConfig& config, int needsConfiguration, WaveState& state,
-    WaveLookupTables& lookupTables, RandomSource& randomSource) const {
+    WaveLookupTables& lookupTables, RandomSource& randomSource,
+    LogSink& log) const {
     if (functionValue != 0) {
         int fireBudget = (context.acousticContext != 0) ? context.acousticContext->fire() : 0;
         WaveRuntime runtime(config, needsConfiguration, state,
-            lookupTables, randomSource, fireBudget);
+            lookupTables, randomSource, log, fireBudget);
         (*functionValue)(buffer, context, runtime);
     }
 }

@@ -1,12 +1,14 @@
-#include "cthugha.h"
 #include "FrameFilters.h"
 #include "FrameFilterchain.h"
 #include "FrameFilterchainFactory.h"
 
-FrameFilterchainFactory::FrameFilterchainFactory() { }
+#include "ProcessServices.h"
+
+FrameFilterchainFactory::FrameFilterchainFactory(LogSink& log)
+    : logValue(log) { }
 
 FrameFilterchain* FrameFilterchainFactory::create(const FrameFilterchainSequence& sequence) const {
-    FrameFilterchain* filterchain = new FrameFilterchain();
+    FrameFilterchain* filterchain = new FrameFilterchain(logValue);
     PaletteFilter* paletteFilter = 0;
 
     filterchain->setStageSequence(sequence.sequence());
@@ -35,14 +37,14 @@ FrameFilterchain* FrameFilterchainFactory::create(const FrameFilterchainSequence
     if (sequence.includes(FrameFilterchainSequence::IndexedFrameStage))
         filterchain->add(FrameFilterchainSequence::IndexedFrameStage, new IndexedFrameFilter(), 1);
 
-    CTH_DEBUG("frame filterchain factory: created filterchain=%p stages=%d filters=%d\n",
+    logValue.debug("frame filterchain factory: created filterchain=%p stages=%d filters=%d\n",
         filterchain, int(sequence.sequence().size()), filterchain->size());
     return filterchain;
 }
 
 void FrameFilterchainFactory::refresh(FrameFilterchain& filterchain,
     const FrameFilterchainSequence& sequence) const {
-    CTH_DEBUG("frame filterchain factory: refreshing filterchain=%p stages=%d filters=%d\n",
+    logValue.debug("frame filterchain factory: refreshing filterchain=%p stages=%d filters=%d\n",
         &filterchain, int(sequence.sequence().size()), filterchain.size());
     filterchain.refresh();
 }

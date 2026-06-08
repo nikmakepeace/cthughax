@@ -16,8 +16,8 @@ FrameGeneratorRuntime::FrameGeneratorRuntime(RandomSource& randomSource,
     , frameStoreValue()
     , transitionControllerValue()
     , sceneBindingValue(geometryValue, transitionControllerValue,
-          randomSourceValue, timerFactory)
-    , pipelineValue() { }
+          randomSourceValue, timerFactory, logValue)
+    , pipelineValue(logValue) { }
 
 FrameGeneratorRuntime::~FrameGeneratorRuntime() {
     unbindScene();

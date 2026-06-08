@@ -62,8 +62,9 @@ int init_tables();
  */
 struct PathConfig;
 struct EffectPolicy;
+class LogSink;
 
-int init_wave(const PathConfig& pathConfig);
+int init_wave(const PathConfig& pathConfig, LogSink& log);
 
 /** @return Currently selected 3D object line list, or NULL. */
 WObject* currentWaveObject();

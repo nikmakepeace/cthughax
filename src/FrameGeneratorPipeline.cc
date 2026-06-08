@@ -8,8 +8,8 @@
 #include "FrameFilterchainSequence.h"
 #include "FrameFilters.h"
 
-FrameGeneratorPipeline::FrameGeneratorPipeline()
-    : factoryValue()
+FrameGeneratorPipeline::FrameGeneratorPipeline(LogSink& log)
+    : factoryValue(log)
     , filterchainValue()
     , sequenceValue() { }
 

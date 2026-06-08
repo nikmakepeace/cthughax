@@ -4,13 +4,21 @@
 #include "FrameFilterchainSequence.h"
 
 class FrameFilterchain;
+class LogSink;
 
 /**
  * Builds concrete frame filterchains from stage sequences.
  */
 class FrameFilterchainFactory {
+    LogSink& logValue;
+
 public:
-    FrameFilterchainFactory();
+    /**
+     * Creates a factory with explicit diagnostics.
+     *
+     * @param log Diagnostics sink used while creating or refreshing chains.
+     */
+    explicit FrameFilterchainFactory(LogSink& log);
 
     /**
      * Allocates and populates a filterchain for a sequence.

@@ -1,4 +1,3 @@
-#include "cthugha.h"
 #include "Border.h"
 #include "FrameRenderTarget.h"
 #include "Flame.h"
@@ -8,10 +7,10 @@
 #include "Image.h"
 #include "ProcessServices.h"
 #include "FrameFilters.h"
-#include "cth_buffer.h"
 #include "PaletteEntry.h"
 #include "Wave.h"
 
+#include <string.h>
 #include <vector>
 
 ImageFilter::ImageFilter()
@@ -32,7 +31,7 @@ void ImageFilter::setOverlayPassiveBuffer(int enabled) {
 }
 
 void ImageFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing image stage\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "executing image stage\n");
     if (image == 0 || !placement.visible())
         return;
 
@@ -75,7 +74,7 @@ void FlameFilter::setGeneralFlame(int generalFlame_) {
 }
 
 void FlameFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing flame stage\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "executing flame stage\n");
 
     if (flame != 0)
         flame->execute(frame.buffer(), frame.context(), generalFlame, lookupTables);
@@ -89,7 +88,7 @@ void TranslateFilter::setTranslate(const TranslationTable& table) {
 }
 
 void TranslateFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing translate stage\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "executing translate stage\n");
     translate.execute(frame.buffer(), frame.context());
 }
 
@@ -120,10 +119,11 @@ void WaveFilter::setRandomSource(RandomSource& randomSource) {
 }
 
 void WaveFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing wave stage\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "executing wave stage\n");
     if (wave != NULL && randomSourceValue != 0) {
         wave->execute(frame.buffer(), frame.context(), config,
-            needsConfiguration, state, lookupTables, *randomSourceValue);
+            needsConfiguration, state, lookupTables, *randomSourceValue,
+            frame.log());
         needsConfiguration = 0;
     }
 }
@@ -315,7 +315,8 @@ static void textInjectionDrawLine(FrameRenderTarget& buffer, const BitmapFont& f
 }
 
 void TextInjectionFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing text stage frames-remaining=%d\n", "frame filterchain",
+    frame.log().trace("frame filterchain",
+        "executing text stage frames-remaining=%d\n",
         framesRemaining);
 
     if (framesRemaining <= 0 || message.empty())
@@ -338,9 +339,8 @@ void TextInjectionFilter::execute(FrameFilterFrame& frame) {
     std::vector<std::string> lines;
     if (rectWidth <= 0 || rectHeight <= 0 || maxColumns <= 0 || maxLines <= 0
         || !textInjectionWrapWords(message, maxColumns, maxLines, lines)) {
-        printf("Warning: text injection rejected: message does not fit %dx%d buffer.\n",
+        frame.log().warn("text injection rejected: message does not fit %dx%d buffer.\n",
             buffer.width(), buffer.height());
-        fflush(stdout);
         framesRemaining = 0;
         return;
     }
@@ -375,10 +375,10 @@ void FrameCommitFilter::setSceneNames(const char* flameName_, const char* waveNa
 }
 
 void FrameCommitFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("committing indexed buffer frame\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "committing indexed buffer frame\n");
     FrameRenderTarget& buffer = frame.buffer();
 
-    if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
+    if (frame.log().debugEnabled() && (debugReports < 16)) {
         int nonzero = 0;
         int peak = 0;
         for (int y = 0; y < buffer.height(); y++) {
@@ -392,7 +392,7 @@ void FrameCommitFilter::execute(FrameFilterFrame& frame) {
             }
         }
         debugReports++;
-        CTH_DEBUG("visual buffer: wave=%s wave-scale=%s flame=%s table=%s nonzero-pixels=%d peak-pixel=%d size=%d\n",
+        frame.log().debug("visual buffer: wave=%s wave-scale=%s flame=%s table=%s nonzero-pixels=%d peak-pixel=%d size=%d\n",
             waveName,
             waveScaleName,
             flameName,
@@ -406,7 +406,7 @@ void FrameCommitFilter::execute(FrameFilterFrame& frame) {
 FlashlightFilter::FlashlightFilter() { }
 
 void FlashlightFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing flashlight stage\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "executing flashlight stage\n");
     FramePalette* framePalette = frame.framePalette();
     if (framePalette != 0)
         apply_flashlight(*framePalette, frame.context());
@@ -420,7 +420,8 @@ void BorderFilter::setBorderMode(int borderMode_) {
 }
 
 void BorderFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing border stage mode=%d\n", "frame filterchain", borderMode);
+    frame.log().trace("frame filterchain",
+        "executing border stage mode=%d\n", borderMode);
     apply_border(frame.buffer(), frame.context(), borderMode);
 }
 
@@ -457,7 +458,7 @@ void PaletteFilter::snapThenTransitionPalette(const ColorPalette& immediatePalet
 }
 
 void PaletteFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("executing palette stage\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "executing palette stage\n");
     FramePalette* framePalette = frame.framePalette();
     transition.execute((framePalette != 0) ? *framePalette : framePaletteValue);
 }
@@ -465,7 +466,7 @@ void PaletteFilter::execute(FrameFilterFrame& frame) {
 IndexedFrameFilter::IndexedFrameFilter() { }
 
 void IndexedFrameFilter::execute(FrameFilterFrame& frame) {
-    CTH_TRACE("publishing indexed frame\n", "frame filterchain");
+    frame.log().trace("frame filterchain", "publishing indexed frame\n");
     FrameRenderTarget& buffer = frame.buffer();
     frame.publishIndexedFrame(IndexedFrame(buffer.passivePixels(),
         buffer.width(), buffer.height(), buffer.pitch(), frame.framePalette()));

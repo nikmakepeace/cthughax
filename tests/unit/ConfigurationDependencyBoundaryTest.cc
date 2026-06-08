@@ -2175,7 +2175,7 @@ static void testRemainingSharedRuntimeStateWasRemoved() {
 static void testTranslationGenerationUsesApplicationRandomSource() {
     assertSourceContains("src/Application.cc",
         "initializeVisualCatalogs(frameGeneratorValue.geometry(),\n"
-        "            startupConfigValue.paths, randomSourceValue)");
+        "            startupConfigValue.paths, randomSourceValue, logSinkValue)");
     assertSourceContains("src/Application.cc", "init_translate(geometry, randomSource)");
     assertSourceContains("src/TranslationOptions.h",
         "int init_translate(const SceneGeometry& geometry, RandomSource& randomSource)");
@@ -2253,12 +2253,13 @@ static void testWavesUseInjectedRandomSource() {
     assertSourceContains("src/Wave.h", "int randomCenteredInt(int magnitude)");
     assertSourceContains("src/Wave.h", "double randomUnit()");
     assertSourceContains("src/Wave.cc",
-        "lookupTables, randomSource, fireBudget)");
+        "lookupTables, randomSource, log, fireBudget)");
     assertSourceContains("src/FrameFilters.h",
         "void setRandomSource(RandomSource& randomSource)");
     assertSourceContains("src/FrameFilters.cc",
         "wave->execute(frame.buffer(), frame.context(), config,\n"
-        "            needsConfiguration, state, lookupTables, *randomSourceValue)");
+        "            needsConfiguration, state, lookupTables, *randomSourceValue,\n"
+        "            frame.log())");
     assertSourceContains("src/FrameGeneratorSceneBinding.cc",
         "waveFilter->setRandomSource(randomSourceValue)");
     assertSourceContains("src/waves.cc", "runtime.randomInt(256)");
@@ -2578,7 +2579,8 @@ static void testQotdTimingUsesApplicationCountdownTimers() {
         "frameGeneratorValue(randomSourceValue, countdownTimerFactoryValue,\n"
         "          logSinkValue)");
     assertSourceContains("src/FrameGeneratorSceneBinding.h",
-        "RandomSource& randomSource, CountdownTimerFactory& timerFactory)");
+        "RandomSource& randomSource, CountdownTimerFactory& timerFactory,\n"
+        "        LogSink& log)");
     assertSourceContains("src/SilenceMessage.h",
         "void setTimerFactory(CountdownTimerFactory& timerFactory)");
     assertSourceContains("src/QotdMessagesProvider.h",

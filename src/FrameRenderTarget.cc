@@ -1,6 +1,7 @@
-#include "cthugha.h"
 #include "FrameRenderTarget.h"
 #include "imath.h"
+
+#include <string.h>
 
 static const int hiddenBorderRowsPerSide = 3; // Unit: rows; used above and below visible pixels by BorderFilter and flame feedback.
 

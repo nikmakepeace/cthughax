@@ -23,12 +23,14 @@ static const ColorPalette* scenePaletteColors(const SceneSettings& settings) {
 
 FrameGeneratorSceneBinding::FrameGeneratorSceneBinding(
     const FrameGeometry& geometry, FrameTransitionController& transitionController_,
-    RandomSource& randomSource, CountdownTimerFactory& timerFactory)
+    RandomSource& randomSource, CountdownTimerFactory& timerFactory,
+    LogSink& log)
     : geometryValue(geometry)
     , transitionController(transitionController_)
     , images(0, "image")
     , imagePlacementStrategy()
     , randomSourceValue(randomSource)
+    , logValue(log)
     , silenceMessage()
     , scene(0)
     , filterchain(0)
@@ -116,7 +118,7 @@ FrameFilterchainSequence FrameGeneratorSceneBinding::defaultFilterchainSequence(
     sequence.append(FrameFilterchainSequence::FlashlightStage);
     sequence.append(FrameFilterchainSequence::IndexedFrameStage);
 
-    CTH_DEBUG("frame generator: default stage sequence stages=%d\n",
+    logValue.debug("frame generator: default stage sequence stages=%d\n",
         int(sequence.sequence().size()));
     return sequence;
 }

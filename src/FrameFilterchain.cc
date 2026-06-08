@@ -1,14 +1,16 @@
-#include "cthugha.h"
 #include "FrameFilterchain.h"
+
+#include "ProcessServices.h"
 
 FrameFilter::~FrameFilter() { }
 
 FrameFilterFrame::FrameFilterFrame(FrameRenderTarget& buffer_, const FrameRenderContext& context_,
-    FramePalette* framePalette_, IndexedFrame* indexedFrame_)
+    FramePalette* framePalette_, IndexedFrame* indexedFrame_, LogSink& log_)
     : bufferValue(&buffer_)
     , contextValue(&context_)
     , framePaletteValue(framePalette_)
-    , indexedFrameValue(indexedFrame_) { }
+    , indexedFrameValue(indexedFrame_)
+    , logValue(&log_) { }
 
 FrameRenderTarget& FrameFilterFrame::buffer() {
     return *bufferValue;
@@ -35,6 +37,10 @@ const IndexedFrame& FrameFilterFrame::indexedFrame() const {
     return *indexedFrameValue;
 }
 
+LogSink& FrameFilterFrame::log() const {
+    return *logValue;
+}
+
 static int findStageIndex(const std::vector<unsigned int>& sequence, unsigned int stage) {
     for (unsigned int i = 0; i < sequence.size(); i++) {
         if (sequence[i] == stage)
@@ -44,8 +50,9 @@ static int findStageIndex(const std::vector<unsigned int>& sequence, unsigned in
     return -1;
 }
 
-FrameFilterchain::FrameFilterchain()
-    : framePaletteValue(0) { }
+FrameFilterchain::FrameFilterchain(LogSink& log)
+    : framePaletteValue(0)
+    , logValue(&log) { }
 
 FrameFilterchain::~FrameFilterchain() {
     clear();
@@ -66,13 +73,13 @@ void FrameFilterchain::add(unsigned int stage, FrameFilter* filter, int takeOwne
     if (filter == 0)
         return;
     filters.push_back(Entry(stage, filter, takeOwnership));
-    CTH_DEBUG("frame filterchain: added stage=%u filter=%p owned=%d mode=%d size=%d\n",
+    logValue->debug("frame filterchain: added stage=%u filter=%p owned=%d mode=%d size=%d\n",
         stage, filter, takeOwnership, int(FrameFilterDisabled), size());
 }
 
 void FrameFilterchain::setStageSequence(const std::vector<unsigned int>& stages) {
     sequence = stages;
-    CTH_DEBUG("frame filterchain: set sequence stages=%d\n", int(sequence.size()));
+    logValue->debug("frame filterchain: set sequence stages=%d\n", int(sequence.size()));
 }
 
 int FrameFilterchain::moveStageBefore(unsigned int stage, unsigned int beforeStage) {
@@ -89,7 +96,7 @@ int FrameFilterchain::moveStageBefore(unsigned int stage, unsigned int beforeSta
     beforeIndex = findStageIndex(sequence, beforeStage);
     sequence.insert(sequence.begin() + beforeIndex, movingStage);
 
-    CTH_DEBUG("frame filterchain: moved stage=%u before stage=%u\n",
+    logValue->debug("frame filterchain: moved stage=%u before stage=%u\n",
         stage, beforeStage);
     return 1;
 }
@@ -108,7 +115,7 @@ int FrameFilterchain::moveStageAfter(unsigned int stage, unsigned int afterStage
     afterIndex = findStageIndex(sequence, afterStage);
     sequence.insert(sequence.begin() + afterIndex + 1, movingStage);
 
-    CTH_DEBUG("frame filterchain: moved stage=%u after stage=%u\n",
+    logValue->debug("frame filterchain: moved stage=%u after stage=%u\n",
         stage, afterStage);
     return 1;
 }
@@ -124,7 +131,7 @@ int FrameFilterchain::setStageMode(unsigned int stage, FrameFilterRunMode mode) 
         }
     }
 
-    CTH_TRACE("set stage=%u mode=%d entries=%d\n", "frame filterchain",
+    logValue->trace("frame filterchain", "set stage=%u mode=%d entries=%d\n",
         stage, int(mode), matched);
     return matched;
 }
@@ -166,7 +173,8 @@ void FrameFilterchain::refresh() {
 
 void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameRenderContext& context) {
     indexedFrameValue = IndexedFrame();
-    FrameFilterFrame frame(buffer, context, framePaletteValue, &indexedFrameValue);
+    FrameFilterFrame frame(buffer, context, framePaletteValue, &indexedFrameValue,
+        *logValue);
 
     for (unsigned int stageIndex = 0; stageIndex < sequence.size(); stageIndex++) {
         unsigned int stage = sequence[stageIndex];
@@ -175,16 +183,18 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameRenderContext& 
                 continue;
 
             if (filters[filterIndex].mode == FrameFilterDisabled) {
-                CTH_TRACE("skipping disabled stage=%u filter=%p\n",
-                    "frame filterchain", filters[filterIndex].stage, filters[filterIndex].filter);
+                logValue->trace("frame filterchain",
+                    "skipping disabled stage=%u filter=%p\n",
+                    filters[filterIndex].stage, filters[filterIndex].filter);
                 continue;
             }
 
             filters[filterIndex].filter->execute(frame);
 
             if (filters[filterIndex].mode == FrameFilterArmedOnce) {
-                CTH_TRACE("disarming one-shot stage=%u filter=%p\n",
-                    "frame filterchain", filters[filterIndex].stage, filters[filterIndex].filter);
+                logValue->trace("frame filterchain",
+                    "disarming one-shot stage=%u filter=%p\n",
+                    filters[filterIndex].stage, filters[filterIndex].filter);
                 filters[filterIndex].mode = FrameFilterDisabled;
             }
         }

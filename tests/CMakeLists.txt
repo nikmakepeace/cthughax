@@ -349,6 +349,23 @@ target_link_libraries(frame_generator_boundary_test PRIVATE m)
 add_test(NAME frame_generator_boundary_test
     COMMAND frame_generator_boundary_test)
 
+add_executable(frame_filterchain_diagnostics_test
+    unit/FrameFilterchainDiagnosticsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameFilterchain.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+)
+
+target_include_directories(frame_filterchain_diagnostics_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(frame_filterchain_diagnostics_test PRIVATE m)
+
+add_test(NAME frame_filterchain_diagnostics_test
+    COMMAND frame_filterchain_diagnostics_test)
+
 add_executable(frame_clock_test
     unit/FrameClockTest.cc
     ${CMAKE_SOURCE_DIR}/src/FrameClock.cc
