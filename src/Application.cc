@@ -28,10 +28,10 @@
 #include "IndexedFrame.h"
 #include "Interface.h"
 #include "InterfaceRuntime.h"
+#include "LegacyGlobalSceneSelectionFactory.h"
 #include "LegacySceneImageCatalogAdapter.h"
 #include "LegacyScenePaletteCatalogAdapter.h"
 #include "LegacySceneWaveObjectCatalogAdapter.h"
-#include "LegacySceneVisualCatalogFactory.h"
 #include "Mixer.h"
 #include "IniFiles.h"
 #include "Option.h"
@@ -50,6 +50,8 @@
 #include "ScenePaletteCatalog.h"
 #include "SceneRuntime.h"
 #include "SceneTranslationCatalog.h"
+#include "SceneVisualCatalogServiceFactory.h"
+#include "SceneVisualSelections.h"
 #include "SceneWaveObjectCatalog.h"
 #include "Screen.h"
 #include "TranslationOptions.h"
@@ -256,12 +258,12 @@ void Application::initSceneRuntime() {
     }
     if (sceneVisualCatalogFactoryValue.get() == NULL)
         sceneVisualCatalogFactoryValue
-            = createLegacySceneVisualCatalogFactory(
-                *imageOptionValue,
-                *sceneWaveObjectCatalogValue,
-                *sceneImageCatalogValue,
-                *scenePaletteCatalogValue,
-                *sceneTranslationCatalogValue);
+            = createSceneVisualCatalogServiceFactory(
+                createLegacyGlobalSceneVisualSelections(*imageOptionValue,
+                    *sceneWaveObjectCatalogValue,
+                    *sceneImageCatalogValue,
+                    *scenePaletteCatalogValue,
+                    *sceneTranslationCatalogValue));
     if (sceneRuntimeValue.get() == NULL)
         sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
             *sceneVisualCatalogFactoryValue, randomSourceValue));
