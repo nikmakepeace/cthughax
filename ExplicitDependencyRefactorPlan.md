@@ -834,8 +834,8 @@ change so it can disappear, and the completion gate:
      image, border, and flashlight.
    - Move catalog loading and generated entries into those owners instead of
      global `EffectControl` instances.
-   - Expose typed Scene selection ports and runtime-command targets for those
-     owners, including save/restore and random/change-one/change-all behavior.
+   - Replace the remaining `SceneEffectControlSelection` compatibility bridge
+     with runtime-command bindings over native `SceneOptionSelection` owners.
    - Replace `createLegacySceneVisualCatalogFactory(...)` in `Application` with
      a native visual catalog factory so production wiring no longer needs the
      legacy global reach-through.
