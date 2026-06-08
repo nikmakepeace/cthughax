@@ -1970,6 +1970,12 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "#include \"flames.h\"");
     assertSourceDoesNotContain("src/keymap.cc",
         "#include \"waves.h\"");
+    assertSourceDoesNotContain("src/Interface.cc",
+        "#include \"flames.h\"");
+    assertSourceDoesNotContain("src/Interface.cc",
+        "#include \"waves.h\"");
+    assertSourceDoesNotContain("src/Interface.cc",
+        "#include \"TranslationOptions.h\"");
     assertSourceContains("src/keymap.cc",
         "RuntimeCommand::changeSceneBy(RuntimeSceneFlame");
     assertSourceContains("src/keymap.cc",

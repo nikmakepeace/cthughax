@@ -14,10 +14,7 @@
 #include "RuntimeCommandSink.h"
 #include "Scene.h"
 #include "Image.h"
-#include "flames.h"
-#include "TranslationOptions.h"
 #include "keymap.h"
-#include "waves.h"
 
 #include <ctype.h>
 #include <signal.h>
