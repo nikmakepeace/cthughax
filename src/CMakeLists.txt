@@ -36,7 +36,7 @@ set(CTHUGHA_COMMON_SOURCES
     SceneVisualSelections.cc
     LegacySceneChoiceLock.cc
     LegacySceneCatalogAdapters.cc
-    LegacySceneEffectControlCatalog.cc
+    LegacySceneSelectionSynchronizer.cc
     LegacySceneSelectionAdapters.cc
     LegacySceneSelectionFactory.cc
     LegacySceneVisualCatalogFactory.cc

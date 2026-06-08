@@ -5,7 +5,7 @@
 #include "Configuration.h"
 #include "Flame.h"
 #include "LegacySceneCatalogAdapters.h"
-#include "LegacySceneEffectControlBindings.h"
+#include "LegacySceneControlMirror.h"
 #include "PaletteEntry.h"
 #include "SceneTypedVisualCatalogs.h"
 
@@ -149,10 +149,9 @@ static void applyStartupChoice(SceneOptionSelection& selection,
 
 static void syncLegacyControlsFromSelections(
     SceneVisualSelections& selections) {
-    LegacySceneEffectControlBindings* bindings
-        = legacySceneEffectControlBindings(selections);
-    if (bindings != 0)
-        bindings->syncControlsFromSelections();
+    LegacySceneControlMirror* mirror = legacySceneControlMirror(selections);
+    if (mirror != 0)
+        mirror->syncControlsFromSelections();
 }
 
 static unsigned int syncLegacyControlsAndReturn(

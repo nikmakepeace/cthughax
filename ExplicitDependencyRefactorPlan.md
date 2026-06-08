@@ -501,10 +501,10 @@ adapters:
   implementation still reaches through global visual `EffectControl`/option
   objects such as `flame`, `wave`, `translation`, `palette`, `border`, and
   `flashlight`.
-- `LegacySceneSelectionAdapters`, `LegacySceneVisualCatalogs`, and
-  `LegacySceneEffectControlCatalog` translate those legacy controls into
-  `SceneVisualSelections`, `SceneVisualCatalogs`, and runtime effect-control
-  routing.
+- `LegacySceneSelectionAdapters`, `LegacySceneVisualCatalogs`,
+  `LegacySceneControlMirror`, and `LegacySceneSelectionSynchronizer` translate
+  those legacy controls into `SceneVisualSelections`, `SceneVisualCatalogs`, and
+  the temporary one-way mirror that older visual code still reads.
 - The adapter remains necessary until the visual catalog/filterchain side owns
   flames, waves, palettes, images, translation tables, and frame geometry
   without `CthughaBuffer::buffer` or process-wide option catalogs.
@@ -963,12 +963,11 @@ concrete changes needed before the surface can disappear.
 
 6. **Delete legacy visual command, binding, and config bridges. Status:
    remaining.**
-   Compatibility purpose: this surface routes old runtime effect-control
-   commands, lock/use toggles, save/restore behavior, and ini contribution
-   through native Scene selections while the underlying visual catalogs are
-   still backed by legacy controls. Today that includes
-   `LegacySceneEffectControlBindings`, `LegacySceneEffectControlCatalog`,
-   `LegacySceneEffectControlTarget`, `LegacySceneSelectionAdapters`, and
+   Compatibility purpose: this surface keeps old visual control mirrors,
+   save/restore behavior, startup synchronization, and ini contribution working
+   while the underlying visual catalogs are still backed by legacy controls.
+   Today that includes `LegacySceneControlMirror`,
+   `LegacySceneSelectionSynchronizer`, `LegacySceneSelectionAdapters`, and
    `LegacySceneVisualCatalogs`.
 
    What removes it: runtime reconfiguration and persistence must talk directly
@@ -1002,17 +1001,19 @@ concrete changes needed before the surface can disappear.
    identity. The legacy Scene control bridge is now one-way: it only pushes
    native Scene selection values back to temporary legacy controls, and no
    longer exposes `selectionFor(...)`, `change(...)`, `activate(...)`, lock/use,
-   or `syncFromControls()` APIs.
+   or `syncFromControls()` APIs. `LegacySceneEffectControlBindings` and
+   `LegacySceneEffectControlCatalog` have been removed; the remaining temporary
+   surface is named around its actual job as `LegacySceneControlMirror` plus
+   `LegacySceneSelectionSynchronizer`.
 
    Concrete work still required:
    - Move remaining random, save, restore, and startup synchronization behavior
      that still depends on legacy control mirrors onto native selection owners.
    - Move ini serialization and runtime config contribution from legacy
      adapters to Scene/native visual serializers.
-   - Delete `LegacySceneEffectControlBindings`,
-     `LegacySceneEffectControlCatalog`, `LegacySceneSelectionAdapters`,
-     `LegacySceneVisualCatalogs`, and their CMake/test allowances after
-     production wiring no longer includes them.
+   - Delete `LegacySceneControlMirror`, `LegacySceneSelectionSynchronizer`,
+     `LegacySceneSelectionAdapters`, `LegacySceneVisualCatalogs`, and their
+     CMake/test allowances after production wiring no longer includes them.
 
    Completion gate: no production command, config, or serialization path uses
    `LegacyScene*` or visual `EffectControl&`; CMake no longer builds those

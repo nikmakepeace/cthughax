@@ -1,14 +1,14 @@
-// Legacy EffectControl routing adapter for SceneRuntime.
+// Legacy control mirror synchronizer for SceneRuntime.
 
-#include "LegacySceneEffectControlCatalog.h"
+#include "LegacySceneSelectionSynchronizer.h"
 
-#include "LegacySceneEffectControlBindings.h"
+#include "LegacySceneControlMirror.h"
 
 namespace {
 
-class LegacySceneEffectControlCatalog : public SceneEffectControlCatalog {
+class LegacySceneSelectionSynchronizer : public SceneRuntimeControlBridge {
     SceneVisualSelections& selections;
-    LegacySceneEffectControlBindings* bindings;
+    LegacySceneControlMirror* mirror;
     int syncedImageValue;
 
     unsigned int imageChangeFrom(int previousImageValue) {
@@ -18,15 +18,15 @@ class LegacySceneEffectControlCatalog : public SceneEffectControlCatalog {
     }
 
     void syncBoundControlsFromSelections() {
-        if (bindings != 0)
-            bindings->syncControlsFromSelections();
+        if (mirror != 0)
+            mirror->syncControlsFromSelections();
         syncedImageValue = selections.images().currentValue();
     }
 
 public:
-    explicit LegacySceneEffectControlCatalog(SceneVisualSelections& selections_)
+    explicit LegacySceneSelectionSynchronizer(SceneVisualSelections& selections_)
         : selections(selections_)
-        , bindings(legacySceneEffectControlBindings(selections_))
+        , mirror(legacySceneControlMirror(selections_))
         , syncedImageValue(selections_.images().currentValue()) { }
 
     virtual unsigned int syncControlsFromSelections() {
@@ -40,8 +40,8 @@ public:
 
 }
 
-std::unique_ptr<SceneEffectControlCatalog> createLegacySceneEffectControlCatalog(
+std::unique_ptr<SceneRuntimeControlBridge> createLegacySceneSelectionSynchronizer(
     SceneVisualSelections& selections) {
-    return std::unique_ptr<SceneEffectControlCatalog>(
-        new LegacySceneEffectControlCatalog(selections));
+    return std::unique_ptr<SceneRuntimeControlBridge>(
+        new LegacySceneSelectionSynchronizer(selections));
 }

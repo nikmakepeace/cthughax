@@ -3,7 +3,7 @@
 #include "LegacySceneSelectionAdapters.h"
 
 #include "EffectControl.h"
-#include "LegacySceneEffectControlBindings.h"
+#include "LegacySceneControlMirror.h"
 
 #include <memory>
 #include <utility>
@@ -11,7 +11,7 @@
 namespace {
 
 class LegacySceneSelectionAdapters : public SceneVisualSelections,
-    public LegacySceneEffectControlBindings {
+    public LegacySceneControlMirror {
     EffectControl& flameControl;
     EffectControl& generalFlameControl;
     EffectControl& waveControl;
@@ -128,14 +128,14 @@ void LegacySceneSelectionAdapters::syncControlsFromSelections() {
 
 }
 
-LegacySceneEffectControlBindings* legacySceneEffectControlBindings(
+LegacySceneControlMirror* legacySceneControlMirror(
     SceneVisualSelections& selections) {
-    return dynamic_cast<LegacySceneEffectControlBindings*>(&selections);
+    return dynamic_cast<LegacySceneControlMirror*>(&selections);
 }
 
-const LegacySceneEffectControlBindings* legacySceneEffectControlBindings(
+const LegacySceneControlMirror* legacySceneControlMirror(
     const SceneVisualSelections& selections) {
-    return dynamic_cast<const LegacySceneEffectControlBindings*>(&selections);
+    return dynamic_cast<const LegacySceneControlMirror*>(&selections);
 }
 
 std::unique_ptr<SceneVisualSelections> createLegacySceneSelectionAdapters(

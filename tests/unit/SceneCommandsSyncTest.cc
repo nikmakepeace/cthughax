@@ -1,9 +1,9 @@
 #include "Configuration.h"
-#include "LegacySceneEffectControlCatalog.h"
 #include "ProcessServices.h"
 #include "Scene.h"
 #include "SceneChoiceSelection.h"
 #include "SceneDependencies.h"
+#include "SceneRuntimeDependencies.h"
 
 #include <assert.h>
 #include <string>
@@ -224,14 +224,14 @@ public:
     }
 };
 
-class SyncingEffectControlCatalog : public SceneEffectControlCatalog {
+class SyncingSceneSelectionSynchronizer : public SceneRuntimeControlBridge {
     RecordingVisualCatalogs& visualCatalogs;
 
 public:
     int syncControlsCalls;
     unsigned int syncControlsResponse;
 
-    explicit SyncingEffectControlCatalog(
+    explicit SyncingSceneSelectionSynchronizer(
         RecordingVisualCatalogs& visualCatalogs_)
         : visualCatalogs(visualCatalogs_)
         , syncControlsCalls(0)
@@ -281,7 +281,7 @@ static void testRestorePushesSceneSelectionsBeforeReadingSceneSettings() {
     Scene scene;
     DummySceneGeometry geometry;
     RecordingVisualCatalogs visualCatalogs;
-    SyncingEffectControlCatalog effectControls(visualCatalogs);
+    SyncingSceneSelectionSynchronizer effectControls(visualCatalogs);
     RecordingEffectRegistry effectRegistry;
     RecordingPresetCatalog presets;
     DummyRandomSource randomSource;
@@ -302,7 +302,7 @@ static void testChangeOneUsesSyncReturnedImageChangeForCue() {
     Scene scene;
     DummySceneGeometry geometry;
     RecordingVisualCatalogs visualCatalogs;
-    SyncingEffectControlCatalog effectControls(visualCatalogs);
+    SyncingSceneSelectionSynchronizer effectControls(visualCatalogs);
     RecordingEffectRegistry effectRegistry;
     RecordingPresetCatalog presets;
     DummyRandomSource randomSource;
@@ -322,7 +322,7 @@ static void testSceneCommandsExposeNativeSelectionActions() {
     Scene scene;
     DummySceneGeometry geometry;
     RecordingVisualCatalogs visualCatalogs;
-    SyncingEffectControlCatalog effectControls(visualCatalogs);
+    SyncingSceneSelectionSynchronizer effectControls(visualCatalogs);
     RecordingEffectRegistry effectRegistry;
     RecordingPresetCatalog presets;
     DummyRandomSource randomSource;

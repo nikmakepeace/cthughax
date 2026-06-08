@@ -6,8 +6,8 @@
 #include "Flashlight.h"
 #include "Image.h"
 #include "LegacySceneCatalogAdapters.h"
-#include "LegacySceneEffectControlCatalog.h"
 #include "LegacySceneSelectionAdapters.h"
+#include "LegacySceneSelectionSynchronizer.h"
 #include "TranslationOptions.h"
 #include "display.h"
 #include "flames.h"
@@ -33,7 +33,7 @@ SceneVisualCatalogFactoryResult LegacySceneVisualCatalogFactory::create(
         new LegacySceneVisualCatalogs(
             selectionState, selections, *paletteRandomizer));
     std::unique_ptr<SceneRuntimeControlBridge> controlBridge
-        = createLegacySceneEffectControlCatalog(selections);
+        = createLegacySceneSelectionSynchronizer(selections);
     return SceneVisualCatalogFactoryResult(std::move(visualCatalogs),
         std::move(controlBridge), selections);
 }
