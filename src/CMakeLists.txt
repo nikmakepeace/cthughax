@@ -29,6 +29,7 @@ set(CTHUGHA_COMMON_SOURCES
     SceneDependencies.cc
     SceneRuntimeDependencies.cc
     SceneChoiceSelection.cc
+    SceneEffectChoiceCatalog.cc
     SceneVisualSelections.cc
     LegacySceneCatalogAdapters.cc
     LegacySceneEffectControlCatalog.cc

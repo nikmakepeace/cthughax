@@ -7,6 +7,7 @@
 #include "LegacySceneEffectControlSelection.h"
 #include "ProcessServices.h"
 #include "SceneChoiceSelection.h"
+#include "SceneEffectChoiceCatalog.h"
 #include "TranslationOptions.h"
 #include "display.h"
 #include "flames.h"
@@ -14,7 +15,6 @@
 
 #include <cstdlib>
 #include <memory>
-#include <vector>
 
 namespace {
 
@@ -24,45 +24,6 @@ static int modInt(int value, int modulo) {
     int result = value % modulo;
     return result < 0 ? result + modulo : result;
 }
-
-class EffectControlSceneChoice : public SceneChoice {
-    EffectChoice& choice;
-
-public:
-    explicit EffectControlSceneChoice(EffectChoice& choice_);
-
-    EffectChoice& effectChoice();
-    const EffectChoice& effectChoice() const;
-    virtual const char* name() const;
-    virtual int sameName(const char* other) const;
-    virtual int inUse() const;
-    virtual void setUse(int inUse);
-};
-
-class EffectControlSceneChoiceLock : public SceneChoiceLock {
-    OptionOnOff& lockValue;
-
-public:
-    explicit EffectControlSceneChoiceLock(OptionOnOff& lockValue_);
-
-    virtual int enabled() const;
-    virtual void change(const char* to);
-};
-
-class EffectControlSceneChoiceCatalog : public SceneChoiceCatalog {
-    EffectControl& option;
-    EffectControlSceneChoiceLock lockValue;
-    mutable std::vector<std::unique_ptr<EffectControlSceneChoice> > choices;
-
-public:
-    explicit EffectControlSceneChoiceCatalog(EffectControl& option_);
-
-    virtual int entryCount() const;
-    virtual SceneChoice* choiceAt(int index) const;
-    virtual SceneChoiceLock& lock();
-    virtual const SceneChoiceLock& lock() const;
-    virtual const char* optionName() const;
-};
 
 class LegacySceneEffectControlSelection : public SceneChoiceSelection,
     public SceneEffectControlSelection {
@@ -178,86 +139,12 @@ public:
     virtual SceneImageSelection& images();
 };
 
-EffectControlSceneChoice::EffectControlSceneChoice(EffectChoice& choice_)
-    : choice(choice_) { }
-
-EffectChoice& EffectControlSceneChoice::effectChoice() {
-    return choice;
-}
-
-const EffectChoice& EffectControlSceneChoice::effectChoice() const {
-    return choice;
-}
-
-const char* EffectControlSceneChoice::name() const {
-    return choice.Name();
-}
-
-int EffectControlSceneChoice::sameName(const char* other) const {
-    return const_cast<EffectChoice&>(choice).sameName(other);
-}
-
-int EffectControlSceneChoice::inUse() const {
-    return choice.inUse();
-}
-
-void EffectControlSceneChoice::setUse(int inUse_) {
-    choice.setUse(inUse_);
-}
-
-EffectControlSceneChoiceLock::EffectControlSceneChoiceLock(
-    OptionOnOff& lockValue_)
-    : lockValue(lockValue_) { }
-
-int EffectControlSceneChoiceLock::enabled() const {
-    return int(lockValue);
-}
-
-void EffectControlSceneChoiceLock::change(const char* to) {
-    lockValue.change(to);
-}
-
-EffectControlSceneChoiceCatalog::EffectControlSceneChoiceCatalog(
-    EffectControl& option_)
-    : option(option_)
-    , lockValue(option.lock)
-    , choices() { }
-
-int EffectControlSceneChoiceCatalog::entryCount() const {
-    return option.getNEntries();
-}
-
-SceneChoice* EffectControlSceneChoiceCatalog::choiceAt(int index) const {
-    EffectChoice* choice = const_cast<EffectControl&>(option)[index];
-    if (choice == 0)
-        return 0;
-
-    while (int(choices.size()) <= index)
-        choices.push_back(std::unique_ptr<EffectControlSceneChoice>());
-
-    if (choices[index].get() == 0
-        || &choices[index]->effectChoice() != choice)
-        choices[index].reset(new EffectControlSceneChoice(*choice));
-
-    return choices[index].get();
-}
-
-SceneChoiceLock& EffectControlSceneChoiceCatalog::lock() {
-    return lockValue;
-}
-
-const SceneChoiceLock& EffectControlSceneChoiceCatalog::lock() const {
-    return lockValue;
-}
-
-const char* EffectControlSceneChoiceCatalog::optionName() const {
-    return option.name();
-}
-
 LegacySceneEffectControlSelection::LegacySceneEffectControlSelection(
     EffectControl& option_)
     : SceneChoiceSelection(
-          new EffectControlSceneChoiceCatalog(option_), int(option_))
+          new SceneEffectChoiceCatalog(option_.name(), option_.choiceList(),
+              option_.lock),
+          int(option_))
     , option(option_) { }
 
 void LegacySceneEffectControlSelection::selectionChanged() {
@@ -269,15 +156,15 @@ void LegacySceneEffectControlSelection::syncSelectedValue(int value) {
 }
 
 EffectChoice* LegacySceneEffectControlSelection::currentEffectChoice() {
-    EffectControlSceneChoice* choice
-        = dynamic_cast<EffectControlSceneChoice*>(currentChoice());
+    SceneEffectChoice* choice
+        = dynamic_cast<SceneEffectChoice*>(currentChoice());
     return (choice != 0) ? &choice->effectChoice() : 0;
 }
 
 const EffectChoice* LegacySceneEffectControlSelection::currentEffectChoice()
     const {
-    const EffectControlSceneChoice* choice
-        = dynamic_cast<const EffectControlSceneChoice*>(currentChoice());
+    const SceneEffectChoice* choice
+        = dynamic_cast<const SceneEffectChoice*>(currentChoice());
     return (choice != 0) ? &choice->effectChoice() : 0;
 }
 

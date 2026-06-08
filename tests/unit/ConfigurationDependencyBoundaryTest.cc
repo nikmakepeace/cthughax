@@ -2499,12 +2499,21 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceDoesNotContain("src/SceneChoiceSelection.cc", "EffectChoice");
     assertSourceDoesNotContain("src/SceneChoiceSelection.cc", "OptionOnOff");
     assertSourceContains("src/CMakeLists.txt", "SceneChoiceSelection.cc");
+    assertSourceContains("src/CMakeLists.txt", "SceneEffectChoiceCatalog.cc");
+    assertSourceContains("tests/CMakeLists.txt",
+        "scene_effect_choice_catalog_test");
+    assertSourceContains("src/SceneEffectChoiceCatalog.h",
+        "class SceneEffectChoice : public SceneChoice");
+    assertSourceContains("src/SceneEffectChoiceCatalog.h",
+        "class SceneEffectChoiceLock : public SceneChoiceLock");
+    assertSourceContains("src/SceneEffectChoiceCatalog.h",
+        "class SceneEffectChoiceCatalog : public SceneChoiceCatalog");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "class EffectControlSceneChoice : public SceneChoice");
-    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "class EffectControlSceneChoiceLock : public SceneChoiceLock");
-    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "class EffectControlSceneChoiceCatalog : public SceneChoiceCatalog");
+        "#include \"SceneEffectChoiceCatalog.h\"");
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
+        "class EffectControlSceneChoice");
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
+        "class EffectControlSceneChoiceCatalog");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "class LegacySceneEffectControlSelection : public SceneChoiceSelection");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",

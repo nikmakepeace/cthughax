@@ -300,6 +300,13 @@ public:
         return entries[value]->desc;
     }
     int getNEntries() const { return entries.n(); }
+
+    /** @return Mutable legacy choice list backing this control. */
+    EffectChoiceList& choiceList() { return entries; }
+
+    /** @return Immutable legacy choice list backing this control. */
+    const EffectChoiceList& choiceList() const { return entries; }
+
     int autoChangeEnabled() const { return (flags & EFFECT_CONTROL_AUTO_CHANGE) != 0; }
     int bufferIndex() const { return buffer; }
     EffectControl* nextRegistered() const { return next; }
