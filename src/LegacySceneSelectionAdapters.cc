@@ -25,14 +25,23 @@ static int modInt(int value, int modulo) {
     return result < 0 ? result + modulo : result;
 }
 
-class LegacySceneControlBackedSelection : public SceneChoiceSelection {
+class LegacySceneEffectChoiceSelection : public SceneChoiceSelection {
+protected:
+    EffectChoice* currentEffectChoice();
+    const EffectChoice* currentEffectChoice() const;
+
+public:
+    LegacySceneEffectChoiceSelection(
+        SceneChoiceCatalog* catalog, int selectedValue);
+};
+
+class LegacySceneControlBackedSelection
+    : public LegacySceneEffectChoiceSelection {
     EffectControl& option;
 
 protected:
     virtual void selectionChanged();
     virtual void syncSelectedValue(int value);
-    EffectChoice* currentEffectChoice();
-    const EffectChoice* currentEffectChoice() const;
 
 public:
     explicit LegacySceneControlBackedSelection(EffectControl& option_);
@@ -42,10 +51,10 @@ public:
     void syncControlFromSelection();
 };
 
-class LegacySceneFlameSelection : public LegacySceneControlBackedSelection,
+class LegacySceneFlameSelection : public LegacySceneEffectChoiceSelection,
     public SceneFlameSelection {
 public:
-    explicit LegacySceneFlameSelection(EffectControl& flameOption_);
+    LegacySceneFlameSelection(SceneChoiceCatalog* catalog, int selectedValue);
 
     virtual const Flame* currentFlame();
 };
@@ -71,46 +80,51 @@ public:
     virtual int changeRandom(RandomSource& randomSource);
 };
 
-class LegacySceneWaveSelection : public LegacySceneControlBackedSelection,
+class LegacySceneWaveSelection : public LegacySceneEffectChoiceSelection,
     public SceneWaveSelection {
 public:
-    explicit LegacySceneWaveSelection(EffectControl& waveOption_);
+    LegacySceneWaveSelection(SceneChoiceCatalog* catalog, int selectedValue);
 
     virtual Wave* currentWave();
 };
 
-class LegacySceneTranslationSelection : public LegacySceneControlBackedSelection,
+class LegacySceneTranslationSelection : public LegacySceneEffectChoiceSelection,
     public SceneTranslationSelection {
 public:
-    explicit LegacySceneTranslationSelection(
-        EffectControl& translationOption_);
+    LegacySceneTranslationSelection(
+        SceneChoiceCatalog* catalog, int selectedValue);
 
     virtual TranslationTable currentTranslationTable();
 };
 
-class LegacyScenePaletteSelection : public LegacySceneControlBackedSelection,
+class LegacyScenePaletteSelection : public LegacySceneEffectChoiceSelection,
     public ScenePaletteSelection {
 public:
-    explicit LegacyScenePaletteSelection(EffectControl& paletteOption_);
+    LegacyScenePaletteSelection(SceneChoiceCatalog* catalog, int selectedValue);
 
     virtual PaletteEntry* currentPaletteEntry();
 };
 
-class LegacySceneImageSelection : public LegacySceneControlBackedSelection,
+class LegacySceneImageSelection : public LegacySceneEffectChoiceSelection,
     public SceneImageSelection {
 public:
-    explicit LegacySceneImageSelection(EffectControl& imageOption_);
+    LegacySceneImageSelection(SceneChoiceCatalog* catalog, int selectedValue);
 
     virtual const IndexedImage* currentImage();
 };
 
 class LegacySceneSelectionAdapters : public SceneVisualSelections,
     public LegacySceneEffectControlBindings {
+    EffectControl& flameControl;
+    EffectControl& waveControl;
     EffectControl& waveScaleControl;
     EffectControl& tableControl;
     EffectControl& objectControl;
+    EffectControl& translationControl;
+    EffectControl& paletteControl;
     EffectControl& borderControl;
     EffectControl& flashlightControl;
+    EffectControl& imagesControl;
     LegacySceneFlameSelection flameValue;
     LegacySceneGeneralFlameSelection generalFlameValue;
     LegacySceneWaveSelection waveValue;
@@ -150,9 +164,26 @@ public:
     virtual void syncControlsFromSelections();
 };
 
+LegacySceneEffectChoiceSelection::LegacySceneEffectChoiceSelection(
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : SceneChoiceSelection(catalog, selectedValue) { }
+
+EffectChoice* LegacySceneEffectChoiceSelection::currentEffectChoice() {
+    SceneEffectChoice* choice
+        = dynamic_cast<SceneEffectChoice*>(currentChoice());
+    return (choice != 0) ? &choice->effectChoice() : 0;
+}
+
+const EffectChoice* LegacySceneEffectChoiceSelection::currentEffectChoice()
+    const {
+    const SceneEffectChoice* choice
+        = dynamic_cast<const SceneEffectChoice*>(currentChoice());
+    return (choice != 0) ? &choice->effectChoice() : 0;
+}
+
 LegacySceneControlBackedSelection::LegacySceneControlBackedSelection(
     EffectControl& option_)
-    : SceneChoiceSelection(
+    : LegacySceneEffectChoiceSelection(
           new SceneEffectChoiceCatalog(option_.name(), option_.choiceList(),
               option_.lock),
           int(option_))
@@ -164,19 +195,6 @@ void LegacySceneControlBackedSelection::selectionChanged() {
 
 void LegacySceneControlBackedSelection::syncSelectedValue(int value) {
     setSelectedValue(value);
-}
-
-EffectChoice* LegacySceneControlBackedSelection::currentEffectChoice() {
-    SceneEffectChoice* choice
-        = dynamic_cast<SceneEffectChoice*>(currentChoice());
-    return (choice != 0) ? &choice->effectChoice() : 0;
-}
-
-const EffectChoice* LegacySceneControlBackedSelection::currentEffectChoice()
-    const {
-    const SceneEffectChoice* choice
-        = dynamic_cast<const SceneEffectChoice*>(currentChoice());
-    return (choice != 0) ? &choice->effectChoice() : 0;
 }
 
 int LegacySceneControlBackedSelection::isOption(
@@ -193,8 +211,8 @@ void LegacySceneControlBackedSelection::syncControlFromSelection() {
 }
 
 LegacySceneFlameSelection::LegacySceneFlameSelection(
-    EffectControl& flameOption_)
-    : LegacySceneControlBackedSelection(flameOption_) { }
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
 
 const Flame* LegacySceneFlameSelection::currentFlame() {
     FlameEntry* entry = dynamic_cast<FlameEntry*>(currentEffectChoice());
@@ -275,8 +293,9 @@ int LegacySceneGeneralFlameSelection::changeRandom(
     return encodedValue() != previousValue;
 }
 
-LegacySceneWaveSelection::LegacySceneWaveSelection(EffectControl& waveOption_)
-    : LegacySceneControlBackedSelection(waveOption_) { }
+LegacySceneWaveSelection::LegacySceneWaveSelection(
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
 
 Wave* LegacySceneWaveSelection::currentWave() {
     WaveEntry* entry = dynamic_cast<WaveEntry*>(currentEffectChoice());
@@ -284,8 +303,8 @@ Wave* LegacySceneWaveSelection::currentWave() {
 }
 
 LegacySceneTranslationSelection::LegacySceneTranslationSelection(
-    EffectControl& translationOption_)
-    : LegacySceneControlBackedSelection(translationOption_) { }
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
 
 TranslationTable LegacySceneTranslationSelection::currentTranslationTable() {
     TranslateEntry* entry = dynamic_cast<TranslateEntry*>(currentEffectChoice());
@@ -293,15 +312,16 @@ TranslationTable LegacySceneTranslationSelection::currentTranslationTable() {
 }
 
 LegacyScenePaletteSelection::LegacyScenePaletteSelection(
-    EffectControl& paletteOption_)
-    : LegacySceneControlBackedSelection(paletteOption_) { }
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
 
 PaletteEntry* LegacyScenePaletteSelection::currentPaletteEntry() {
     return dynamic_cast<PaletteEntry*>(currentEffectChoice());
 }
 
-LegacySceneImageSelection::LegacySceneImageSelection(EffectControl& imageOption_)
-    : LegacySceneControlBackedSelection(imageOption_) { }
+LegacySceneImageSelection::LegacySceneImageSelection(
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
 
 const IndexedImage* LegacySceneImageSelection::currentImage() {
     ImageEntry* entry = dynamic_cast<ImageEntry*>(currentEffectChoice());
@@ -313,27 +333,37 @@ LegacySceneSelectionAdapters::LegacySceneSelectionAdapters(EffectControl& flame_
     EffectControl& waveScale_, EffectControl& table_, EffectControl& object_,
     EffectControl& translation_, EffectControl& palette_,
     EffectControl& border_, EffectControl& flashlight_, EffectControl& images_)
-    : waveScaleControl(waveScale_)
+    : flameControl(flame_)
+    , waveControl(wave_)
+    , waveScaleControl(waveScale_)
     , tableControl(table_)
     , objectControl(object_)
+    , translationControl(translation_)
+    , paletteControl(palette_)
     , borderControl(border_)
     , flashlightControl(flashlight_)
-    , flameValue(flame_)
+    , imagesControl(images_)
+    , flameValue(new SceneEffectChoiceCatalog(flame_.name(),
+          flame_.choiceList(), flame_.lock), int(flame_))
     , generalFlameValue(generalFlame_)
-    , waveValue(wave_)
+    , waveValue(new SceneEffectChoiceCatalog(wave_.name(),
+          wave_.choiceList(), wave_.lock), int(wave_))
     , waveScaleValue(new SceneEffectChoiceCatalog(waveScale_.name(),
           waveScale_.choiceList(), waveScale_.lock), int(waveScale_))
     , tableValue(new SceneEffectChoiceCatalog(table_.name(),
           table_.choiceList(), table_.lock), int(table_))
     , objectValue(new SceneEffectChoiceCatalog(object_.name(),
           object_.choiceList(), object_.lock), int(object_))
-    , translationValue(translation_)
-    , paletteValue(palette_)
+    , translationValue(new SceneEffectChoiceCatalog(translation_.name(),
+          translation_.choiceList(), translation_.lock), int(translation_))
+    , paletteValue(new SceneEffectChoiceCatalog(palette_.name(),
+          palette_.choiceList(), palette_.lock), int(palette_))
     , borderValue(new SceneEffectChoiceCatalog(border_.name(),
           border_.choiceList(), border_.lock), int(border_))
     , flashlightValue(new SceneEffectChoiceCatalog(flashlight_.name(),
           flashlight_.choiceList(), flashlight_.lock), int(flashlight_))
-    , imagesValue(images_) { }
+    , imagesValue(new SceneEffectChoiceCatalog(images_.name(),
+          images_.choiceList(), images_.lock), int(images_)) { }
 
 SceneFlameSelection& LegacySceneSelectionAdapters::flame() {
     return flameValue;
@@ -388,58 +418,58 @@ SceneOptionSelection* LegacySceneSelectionAdapters::selectionFor(
 
 const SceneOptionSelection* LegacySceneSelectionAdapters::selectionFor(
     const EffectControl& option) const {
-    if (flameValue.isOption(option))
+    if (&option == &flameControl)
         return &flameValue;
     if (generalFlameValue.isOption(option))
         return &generalFlameValue;
-    if (waveValue.isOption(option))
+    if (&option == &waveControl)
         return &waveValue;
     if (&option == &waveScaleControl)
         return &waveScaleValue;
     if (&option == &objectControl)
         return &objectValue;
-    if (translationValue.isOption(option))
+    if (&option == &translationControl)
         return &translationValue;
     if (&option == &borderControl)
         return &borderValue;
     if (&option == &flashlightControl)
         return &flashlightValue;
-    if (paletteValue.isOption(option))
+    if (&option == &paletteControl)
         return &paletteValue;
     if (&option == &tableControl)
         return &tableValue;
-    if (imagesValue.isOption(option))
+    if (&option == &imagesControl)
         return &imagesValue;
 
     return 0;
 }
 
 void LegacySceneSelectionAdapters::syncFromControls() {
-    flameValue.syncFromControl();
+    flameValue.setValue(int(flameControl));
     generalFlameValue.syncFromControl();
-    waveValue.syncFromControl();
+    waveValue.setValue(int(waveControl));
     waveScaleValue.setValue(int(waveScaleControl));
     tableValue.setValue(int(tableControl));
     objectValue.setValue(int(objectControl));
-    translationValue.syncFromControl();
-    paletteValue.syncFromControl();
+    translationValue.setValue(int(translationControl));
+    paletteValue.setValue(int(paletteControl));
     borderValue.setValue(int(borderControl));
     flashlightValue.setValue(int(flashlightControl));
-    imagesValue.syncFromControl();
+    imagesValue.setValue(int(imagesControl));
 }
 
 void LegacySceneSelectionAdapters::syncControlsFromSelections() {
-    flameValue.syncControlFromSelection();
+    flameControl.setValue(flameValue.currentValue());
     generalFlameValue.syncControlFromSelection();
-    waveValue.syncControlFromSelection();
+    waveControl.setValue(waveValue.currentValue());
     waveScaleControl.setValue(waveScaleValue.currentValue());
     tableControl.setValue(tableValue.currentValue());
     objectControl.setValue(objectValue.currentValue());
-    translationValue.syncControlFromSelection();
-    paletteValue.syncControlFromSelection();
+    translationControl.setValue(translationValue.currentValue());
+    paletteControl.setValue(paletteValue.currentValue());
     borderControl.setValue(borderValue.currentValue());
     flashlightControl.setValue(flashlightValue.currentValue());
-    imagesValue.syncControlFromSelection();
+    imagesControl.setValue(imagesValue.currentValue());
 }
 
 }

@@ -2547,7 +2547,22 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "class EffectControlSceneChoiceCatalog");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "class LegacySceneControlBackedSelection : public SceneChoiceSelection");
+        "class LegacySceneControlBackedSelection\n"
+        "    : public LegacySceneEffectChoiceSelection");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneEffectChoiceSelection : public SceneChoiceSelection");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneFlameSelection : public LegacySceneEffectChoiceSelection");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneWaveSelection : public LegacySceneEffectChoiceSelection");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneTranslationSelection : public LegacySceneEffectChoiceSelection");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacyScenePaletteSelection : public LegacySceneEffectChoiceSelection");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneImageSelection : public LegacySceneEffectChoiceSelection");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneGeneralFlameSelection : public LegacySceneControlBackedSelection");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "SceneChoiceSelection waveScaleValue;");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
