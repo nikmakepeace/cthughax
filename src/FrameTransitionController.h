@@ -3,8 +3,6 @@
 #ifndef CTHUGHA_FRAME_TRANSITION_CONTROLLER_H
 #define CTHUGHA_FRAME_TRANSITION_CONTROLLER_H
 
-#include "Option.h"
-
 class RandomSource;
 struct MessagesConfig;
 struct SceneTransitionPolicy;
@@ -23,7 +21,6 @@ enum FrameImageCuePaletteMode {
  * file-scope statics from the frame generation path.
  */
 class FrameTransitionController {
-    OptionTime quietMessageTimeOptionValue;
     double paletteSmoothingChanceValue;
     int paletteSmoothSecondsValue;
     int quietMessageDurationMsValue;
@@ -47,12 +44,6 @@ public:
      * @param messagesConfig Startup message configuration.
      */
     void configureQuietMessages(const MessagesConfig& messagesConfig);
-
-    /** @return Runtime option for quiet-message threshold milliseconds. */
-    Option& quietMessageOption();
-
-    /** @return Runtime option for quiet-message threshold milliseconds. */
-    const Option& quietMessageOption() const;
 
     /**
      * Calculates the palette smoothing duration for a frame budget.

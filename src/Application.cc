@@ -81,6 +81,7 @@ static void applyDisplayPresentationStartupChoice(const SceneConfig& sceneConfig
 class FrameGeneratorQuietObserver : public AutoChangeQuietObserver {
     FrameGeneratorRuntime& frameGeneratorValue;
     CthughaDisplay& displayValue;
+    const Option& quietMessageOptionValue;
 
 public:
     /**
@@ -88,18 +89,20 @@ public:
      *
      * @param frameGenerator_ Generator that emits quiet-message cues.
      * @param display_ Display clock source for current rolling frame budget.
+     * @param quietMessageOption_ Runtime threshold option owned by Application.
      */
     FrameGeneratorQuietObserver(FrameGeneratorRuntime& frameGenerator_,
-        CthughaDisplay& display_)
+        CthughaDisplay& display_, const Option& quietMessageOption_)
         : frameGeneratorValue(frameGenerator_)
-        , displayValue(display_) { }
+        , displayValue(display_)
+        , quietMessageOptionValue(quietMessageOption_) { }
 
     /** Reports an ongoing quiet period to the frame generator. */
     virtual int observeQuiet(int quietLength) {
         int frameBudget = frameGenerationBudgetFramesPerSecond(int(maxFramesPerSecond),
             displayValue.rollingFps);
         return frameGeneratorValue.observeQuiet(quietLength,
-            int(frameGeneratorValue.quietMessageOption()), frameBudget);
+            int(quietMessageOptionValue), frameBudget);
     }
 };
 
@@ -171,11 +174,12 @@ Application::Application(int argc, char* argv[])
     , shutdownComplete(0) {
     cthugha_install_logging_runtime(loggingRuntimeValue);
     imageOptionValue.reset(new ImageOption(0, "image"));
+    quietMessageOptionValue.reset(new OptionTime("change-msg-time", 0));
     interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));
     errorMessagesValue.reset(new ErrorMessages());
     registerDefaultInterfaces(*interfaceRuntimeValue,
         *imageOptionValue,
-        frameGeneratorValue.quietMessageOption());
+        *quietMessageOptionValue);
 }
 
 Application::Application(int argc, char* argv[],
@@ -196,11 +200,12 @@ Application::Application(int argc, char* argv[],
     , shutdownComplete(0) {
     cthugha_install_logging_runtime(loggingRuntimeValue);
     imageOptionValue.reset(new ImageOption(0, "image"));
+    quietMessageOptionValue.reset(new OptionTime("change-msg-time", 0));
     interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));
     errorMessagesValue.reset(new ErrorMessages());
     registerDefaultInterfaces(*interfaceRuntimeValue,
         *imageOptionValue,
-        frameGeneratorValue.quietMessageOption());
+        *quietMessageOptionValue);
 }
 
 Application::~Application() {
@@ -276,7 +281,7 @@ void Application::initSceneRuntime() {
     runtimeConfigContributorValue.reset(
         new LegacyRuntimeConfigContributor(*autoChangeSettingsValue,
             *audioProcessingStateValue,
-            frameGeneratorValue.quietMessageOption()));
+            *quietMessageOptionValue));
     runtimeConfigRegistryValue->addContributor(*runtimeConfigContributorValue);
     runtimePersistenceValue.reset(
         new IniRuntimePersistence(*runtimeConfigRegistryValue, logSinkValue));
@@ -288,7 +293,7 @@ void Application::initSceneRuntime() {
             mixerControlsValue.get()));
     runtimeAutoChangeControlsValue.reset(
         new DefaultRuntimeAutoChangeControls(*autoChangeControlsValue,
-            frameGeneratorValue.quietMessageOption()));
+            *quietMessageOptionValue));
     runtimeEffectControlsValue.reset(
         new DefaultRuntimeEffectControls(randomSourceValue));
     interfaceRuntimeValue->setRuntimeConfigRegistry(runtimeConfigRegistryValue.get());
@@ -415,7 +420,8 @@ void Application::initAudioFramePipeline() {
     }
     if (autoChangeQuietObserverValue.get() == NULL)
         autoChangeQuietObserverValue.reset(
-            new FrameGeneratorQuietObserver(frameGeneratorValue, *displayValue));
+            new FrameGeneratorQuietObserver(frameGeneratorValue, *displayValue,
+                *quietMessageOptionValue));
     if (sceneChangeSchedulerValue.get() == NULL
         && sceneRuntimeValue.get() != NULL
         && autoChangeSettingsValue.get() != NULL)
@@ -525,6 +531,7 @@ int Application::initialize() {
     configurePaletteOptions(startupConfigValue.effectPolicy);
     frameGeneratorValue.configure(startupConfigValue.display,
         startupConfigValue.sceneTransition, startupConfigValue.messages);
+    quietMessageOptionValue->setValue(startupConfigValue.messages.quietMessageMs);
 
     remove_continuation_ini(startupConfigValue.paths, logSinkValue);
 

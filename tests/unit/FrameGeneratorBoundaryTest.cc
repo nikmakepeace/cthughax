@@ -194,7 +194,10 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
         "#include \"ImagePlacement.h\"");
     assertSourceContains("src/FrameFilters.h", "#include \"ImagePlacement.h\"");
     assertSourceDoesNotContain("src/FrameGeneratorRuntime.h", "ImageOption");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h", "Option");
     assertSourceDoesNotContain("src/FrameGeneratorSceneBinding.h", "ImageOption");
+    assertSourceDoesNotContain("src/FrameTransitionController.h", "Option");
+    assertSourceDoesNotContain("src/FrameTransitionController.cc", "Option");
     assertSourceDoesNotContain("src/FrameGeneratorSceneBinding.h",
         "#include \"Image.h\"");
     assertSourceDoesNotContain("src/FrameFilters.h", "#include \"Image.h\"");

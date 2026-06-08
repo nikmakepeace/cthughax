@@ -44,10 +44,6 @@ FrameStore& FrameGeneratorRuntime::frameStore() {
     return frameStoreValue;
 }
 
-Option& FrameGeneratorRuntime::quietMessageOption() {
-    return transitionControllerValue.quietMessageOption();
-}
-
 SilenceMessage& FrameGeneratorRuntime::silenceMessages() {
     return sceneBindingValue.silenceMessages();
 }

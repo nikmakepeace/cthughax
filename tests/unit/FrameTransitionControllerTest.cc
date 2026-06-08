@@ -48,23 +48,20 @@ static void testPaletteSnapUsesConfiguredProbability() {
     assert(controller.paletteChangeFrameBudget(random, 30) == 0);
 }
 
-static void testQuietMessageOptionAndDurationAreOwnedState() {
+static void testQuietMessageDurationUsesExplicitThreshold() {
     FrameTransitionController controller;
     MessagesConfig messages;
     messages.quietMessageMs = 2500;
     messages.quietMessageDurationMs = 1500;
     controller.configureQuietMessages(messages);
 
-    assert(int(controller.quietMessageOption()) == 2500);
     assert(controller.quietMessageFrameBudget(60, 2500) == 60);
-
-    controller.quietMessageOption().change("3.00sec");
-    assert(int(controller.quietMessageOption()) == 3000);
+    assert(controller.quietMessageFrameBudget(30, 1000) == 30);
 }
 
 int main() {
     testPaletteSmoothingUsesExplicitFrameBudget();
     testPaletteSnapUsesConfiguredProbability();
-    testQuietMessageOptionAndDurationAreOwnedState();
+    testQuietMessageDurationUsesExplicitThreshold();
     return 0;
 }

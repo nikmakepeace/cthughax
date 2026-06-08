@@ -7,8 +7,7 @@
 #include "imath.h"
 
 FrameTransitionController::FrameTransitionController()
-    : quietMessageTimeOptionValue("change-msg-time", 0)
-    , paletteSmoothingChanceValue(0.0)
+    : paletteSmoothingChanceValue(0.0)
     , paletteSmoothSecondsValue(1)
     , quietMessageDurationMsValue(0) { }
 
@@ -20,16 +19,7 @@ void FrameTransitionController::configureTransitions(
 
 void FrameTransitionController::configureQuietMessages(
     const MessagesConfig& messagesConfig) {
-    quietMessageTimeOptionValue.setValue(messagesConfig.quietMessageMs);
     quietMessageDurationMsValue = messagesConfig.quietMessageDurationMs;
-}
-
-Option& FrameTransitionController::quietMessageOption() {
-    return quietMessageTimeOptionValue;
-}
-
-const Option& FrameTransitionController::quietMessageOption() const {
-    return quietMessageTimeOptionValue;
 }
 
 int FrameTransitionController::paletteSmoothingFrameBudget(

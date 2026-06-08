@@ -37,6 +37,7 @@ class LegacyRuntimeConfigContributor;
 class MixerControls;
 class MixerDevice;
 class MixerSession;
+class OptionTime;
 class RuntimeAudioControls;
 class RuntimeAutoChangeControls;
 class RuntimeChangeMediator;
@@ -85,6 +86,7 @@ class Application {
     std::vector<ConfigDiagnostic> startupConfigDiagnostics;
     FrameGeneratorRuntime frameGeneratorValue;
     std::unique_ptr<ImageOption> imageOptionValue;
+    std::unique_ptr<OptionTime> quietMessageOptionValue;
     LegacyDisplayFrontendInitializer displayFrontendInitializerValue;
     DisplayFrontendInitializer* displayFrontendInitializer;
     AcousticContext acousticContextValue;

@@ -689,7 +689,13 @@ static void testAutoChangeSettingsAreApplicationOwned() {
     assertSourceDoesNotContain("src/AutoChangeControls.cc", "CTH_");
     assertSourceContains("src/Application.cc",
         "new DefaultRuntimeAutoChangeControls(*autoChangeControlsValue,\n"
-        "            frameGeneratorValue.quietMessageOption())");
+        "            *quietMessageOptionValue)");
+    assertSourceContains("src/Application.h",
+        "std::unique_ptr<OptionTime> quietMessageOptionValue");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "quietMessageOption()");
+    assertSourceDoesNotContain("src/FrameTransitionController.h",
+        "quietMessageOption()");
     assertSourceContains("src/Application.cc",
         "frameGeneratorValue(randomSourceValue, countdownTimerFactoryValue,\n"
         "          logSinkValue)");
@@ -1275,8 +1281,12 @@ static void testSceneStartupUsesSceneConfig() {
         "FrameGeneratorRuntime frameGeneratorValue");
     assertSourceContains("src/Application.h",
         "std::unique_ptr<ImageOption> imageOptionValue");
+    assertSourceContains("src/Application.h",
+        "std::unique_ptr<OptionTime> quietMessageOptionValue");
     assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
         "ImageOption");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "Option");
     assertSourceDoesNotContain("src/FrameGeneratorSceneBinding.h",
         "ImageOption");
     assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
@@ -1857,7 +1867,7 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "mixerControlsValue.get())");
     assertSourceContains("src/Application.cc",
         "new DefaultRuntimeAutoChangeControls(*autoChangeControlsValue,\n"
-        "            frameGeneratorValue.quietMessageOption())");
+        "            *quietMessageOptionValue)");
     assertSourceContains("src/Application.cc",
         "new DefaultRuntimeEffectControls(randomSourceValue)");
     assertSourceContains("src/RuntimeEffectControls.h",
@@ -2206,7 +2216,11 @@ static void testRemainingSharedRuntimeStateWasRemoved() {
     assertSourceContains("src/Application.cc",
         "registerDefaultInterfaces(*interfaceRuntimeValue,\n"
         "        *imageOptionValue,\n"
-        "        frameGeneratorValue.quietMessageOption())");
+        "        *quietMessageOptionValue)");
+    assertSourceContains("src/Application.cc",
+        "quietMessageOptionValue->setValue(startupConfigValue.messages.quietMessageMs)");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "quietMessageOption()");
     assertSourceDoesNotContain("src/keymap.h", "setInterfaceRuntime");
     assertSourceDoesNotContain("src/keymap.h", "interfaceRuntime");
     assertSourceDoesNotContain("src/keymap.cc", "keymapInterfaceRuntime");

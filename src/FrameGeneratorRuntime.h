@@ -11,7 +11,6 @@ class CountdownTimerFactory;
 class FramePalette;
 class IndexedFrame;
 class LogSink;
-class Option;
 class RandomSource;
 class Scene;
 class SceneGeometry;
@@ -70,9 +69,6 @@ public:
 
     /** @return Owned frame store. */
     FrameStore& frameStore();
-
-    /** @return Runtime quiet-message threshold option. */
-    Option& quietMessageOption();
 
     /** @return Quiet-message provider used for silence text cues. */
     SilenceMessage& silenceMessages();
