@@ -3,24 +3,13 @@
 #include "LegacySceneEffectControlCatalog.h"
 
 #include "EffectControl.h"
-#include "LegacySceneEffectControlSelection.h"
+#include "LegacySceneEffectControlBindings.h"
 
 namespace {
 
 class LegacySceneEffectControlCatalog : public SceneEffectControlCatalog {
     SceneVisualSelections& selections;
-
-    static SceneEffectControlSelection* effectControlSelection(
-        SceneOptionSelection& selection) {
-        return dynamic_cast<SceneEffectControlSelection*>(&selection);
-    }
-
-    static void syncSelection(SceneOptionSelection& selection) {
-        SceneEffectControlSelection* effectSelection
-            = effectControlSelection(selection);
-        if (effectSelection != 0)
-            effectSelection->syncFromControl();
-    }
+    LegacySceneEffectControlBindings* bindings;
 
     unsigned int imageChangeFrom(int previousImageValue) {
         return (selections.images().currentValue() != previousImageValue)
@@ -29,71 +18,31 @@ class LegacySceneEffectControlCatalog : public SceneEffectControlCatalog {
     }
 
     unsigned int changeForSelection(
-        SceneEffectControlSelection* selection, int previousImageValue) {
-        if (selection == effectControlSelection(selections.images()))
+        SceneOptionSelection* selection, int previousImageValue) {
+        if (selection == &selections.images())
             return imageChangeFrom(previousImageValue);
         return SceneNoChange;
     }
 
-    SceneEffectControlSelection* selectionFor(
+    SceneOptionSelection* selectionFor(
         const EffectControl& option) const {
-        SceneEffectControlSelection* selection;
+        if (bindings == 0)
+            return 0;
 
-        selection = effectControlSelection(selections.flame());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.generalFlame());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.wave());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.waveScale());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.object());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.translation());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.border());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.flashlight());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.palette());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.table());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-        selection = effectControlSelection(selections.images());
-        if (selection != 0 && selection->isOption(option))
-            return selection;
-
-        return 0;
+        return const_cast<SceneOptionSelection*>(
+            bindings->selectionFor(option));
     }
 
 public:
     explicit LegacySceneEffectControlCatalog(SceneVisualSelections& selections_)
-        : selections(selections_) { }
+        : selections(selections_)
+        , bindings(legacySceneEffectControlBindings(selections_)) { }
 
     virtual unsigned int syncFromControls() {
         int previousImageValue = selections.images().currentValue();
 
-        syncSelection(selections.flame());
-        syncSelection(selections.generalFlame());
-        syncSelection(selections.wave());
-        syncSelection(selections.waveScale());
-        syncSelection(selections.table());
-        syncSelection(selections.object());
-        syncSelection(selections.translation());
-        syncSelection(selections.palette());
-        syncSelection(selections.border());
-        syncSelection(selections.flashlight());
-        syncSelection(selections.images());
+        if (bindings != 0)
+            bindings->syncFromControls();
 
         return imageChangeFrom(previousImageValue);
     }
@@ -106,7 +55,7 @@ public:
         EffectControl& option, int by, RandomSource& randomSource) {
         (void)randomSource;
         int previousImageValue = selections.images().currentValue();
-        SceneEffectControlSelection* selection = selectionFor(option);
+        SceneOptionSelection* selection = selectionFor(option);
         if (selection != 0)
             selection->change(by);
         return changeForSelection(selection, previousImageValue);
@@ -115,7 +64,7 @@ public:
     virtual unsigned int change(EffectControl& option, const char* to,
         RandomSource& randomSource) {
         int previousImageValue = selections.images().currentValue();
-        SceneEffectControlSelection* selection = selectionFor(option);
+        SceneOptionSelection* selection = selectionFor(option);
         if (selection != 0)
             selection->change(to, randomSource);
         return changeForSelection(selection, previousImageValue);
@@ -123,20 +72,20 @@ public:
 
     virtual unsigned int activate(EffectControl& option, int index) {
         int previousImageValue = selections.images().currentValue();
-        SceneEffectControlSelection* selection = selectionFor(option);
+        SceneOptionSelection* selection = selectionFor(option);
         if (selection != 0)
             selection->activate(index);
         return changeForSelection(selection, previousImageValue);
     }
 
     virtual void toggleLock(EffectControl& option) {
-        SceneEffectControlSelection* selection = selectionFor(option);
+        SceneOptionSelection* selection = selectionFor(option);
         if (selection != 0)
             selection->toggleLock();
     }
 
     virtual void toggleChoiceUse(EffectControl& option, int index) {
-        SceneEffectControlSelection* selection = selectionFor(option);
+        SceneOptionSelection* selection = selectionFor(option);
         if (selection != 0)
             selection->toggleChoiceUse(index);
     }
