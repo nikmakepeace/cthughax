@@ -9,6 +9,7 @@
 #include <memory>
 
 class EffectControl;
+class SceneTranslationCatalog;
 
 /**
  * Owned legacy selection adapter plus its explicit control mirror.
@@ -39,7 +40,8 @@ createLegacySceneSelectionAdapters(
     EffectControl& flame, EffectControl& generalFlame, EffectControl& wave,
     EffectControl& waveScale, EffectControl& table, EffectControl& object,
     EffectControl& translation, EffectControl& palette, EffectControl& border,
-    EffectControl& flashlight, EffectControl& images);
+    EffectControl& flashlight, EffectControl& images,
+    const SceneTranslationCatalog& translations);
 
 /**
  * Wraps prebuilt native selections with legacy control lookup/sync bindings.

@@ -1292,7 +1292,8 @@ static void testSceneStartupUsesSceneConfig() {
         "sceneGeometryValue");
     assertSourceContains("src/Application.cc",
         "createLegacySceneVisualCatalogFactory(\n"
-        "                frameGeneratorValue.imageOption())");
+        "                frameGeneratorValue.imageOption(),\n"
+        "                *sceneTranslationCatalogValue)");
     assertSourceDoesNotContain("src/Application.cc",
         "cthugha_install_logging_runtime(loggingRuntimeValue);\n"
         "    sceneVisualCatalogFactoryValue");
@@ -1445,6 +1446,8 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceContains("src/LegacySceneVisualCatalogFactory.cc",
         "createLegacySceneSelectionAdapters(\n"
         "            flame, flameGeneral, wave, waveScale, table, object");
+    assertSourceContains("src/LegacySceneVisualCatalogFactory.cc",
+        "palette, border, flashlight, images, translations)");
     assertSourceContains("src/LegacySceneVisualCatalogFactory.cc",
         "#include \"display.h\"");
     assertSourceContains("src/LegacySceneVisualCatalogFactory.cc",
@@ -2358,15 +2361,39 @@ static void testRemainingSharedRuntimeStateWasRemoved() {
 static void testTranslationGenerationUsesApplicationRandomSource() {
     assertSourceContains("src/Application.cc",
         "initializeVisualCatalogs(frameGeneratorValue.geometry(),\n"
-        "            startupConfigValue.paths, randomSourceValue, logSinkValue)");
-    assertSourceContains("src/Application.cc", "init_translate(geometry, randomSource)");
+        "            startupConfigValue.paths, startupConfigValue.effectPolicy,\n"
+        "            *sceneTranslationCatalogValue, randomSourceValue, logSinkValue)");
+    assertSourceContains("src/Application.cc",
+        "translations.load(geometry.width(), geometry.height(),\n"
+        "        effectPolicy.useTranslatesEnabled, randomSource)");
+    assertSourceContains("src/Application.cc", "init_translate(translations)");
+    assertSourceContains("src/Application.h",
+        "std::unique_ptr<SceneTranslationCatalog> sceneTranslationCatalogValue");
+    assertSourceContains("src/CMakeLists.txt", "SceneTranslationCatalog.cc");
+    assertSourceContains("tests/CMakeLists.txt", "scene_translation_catalog_test");
     assertSourceContains("src/TranslationOptions.h",
         "int init_translate(const SceneGeometry& geometry, RandomSource& randomSource)");
+    assertSourceContains("src/TranslationOptions.h",
+        "int init_translate(const SceneTranslationCatalog& catalog)");
     assertSourceContains("src/TranslationOptions.cc",
-        "defaultTranslationCatalog().generateAll(geometry.width(), geometry.height(),\n"
-        "            randomSource, generatedTables)");
+        "return init_translate(catalog)");
+    assertSourceContains("src/SceneTranslationCatalog.cc",
+        "defaultTranslationCatalog().generateAll(width, height, randomSource");
     assertSourceContains("src/TranslateGenerator.h",
         "void generateAll(int width, int height, RandomSource& randomSource");
+    assertSourceDoesNotContain("src/LegacySceneSelectionFactory.cc",
+        "#include \"TranslationOptions.h\"");
+    assertSourceDoesNotContain("src/LegacySceneSelectionFactory.cc",
+        "TranslateOption");
+    assertSourceDoesNotContain("src/LegacySceneSelectionFactory.cc",
+        "translationTable(i)");
+    assertSourceContains("src/LegacySceneSelectionFactory.cc",
+        "createSceneTranslationChoiceCatalog(\n"
+        "    EffectControl& option, const SceneTranslationCatalog& translations)");
+    assertSourceContains("src/LegacySceneSelectionFactory.cc",
+        "SceneTranslationChoiceCatalog* catalog = new SceneTranslationChoiceCatalog(");
+    assertSourceContains("src/LegacySceneSelectionFactory.cc",
+        "catalog->addChoice(translations.tableAt(i), translations.inUseAt(i))");
     assertSourceDoesNotContain("src/TranslateGenerator.cc",
         "high_resolution_clock");
     assertSourceDoesNotContain("src/TranslateGenerator.cc", "#include <chrono>");
@@ -2477,12 +2504,13 @@ static void testImagePlacementUsesInjectedRandomSource() {
 static void testGeneralFlameUsesInjectedRandomSource() {
     assertSourceContains("src/Scene.h", "RandomSource& randomSource");
     assertSourceContains("src/LegacySceneVisualCatalogFactory.cc",
-        "palette, border, flashlight, images)");
+        "palette, border, flashlight, images, translations)");
     assertSourceDoesNotContain("src/Application.cc",
         "flashlight, frameGeneratorValue.imageOption());");
     assertSourceContains("src/Application.cc",
         "createLegacySceneVisualCatalogFactory(\n"
-        "                frameGeneratorValue.imageOption())");
+        "                frameGeneratorValue.imageOption(),\n"
+        "                *sceneTranslationCatalogValue)");
     assertSourceDoesNotContain("src/Application.cc",
         "cthugha_install_logging_runtime(loggingRuntimeValue);\n"
         "    sceneVisualCatalogFactoryValue");
@@ -2746,6 +2774,24 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceContains("tests/CMakeLists.txt",
         "scene_typed_visual_catalogs_test");
     assertSourceContains("tests/CMakeLists.txt",
+        "scene_translation_catalog_test");
+    assertSourceContains("src/SceneTranslationCatalog.h",
+        "class SceneTranslationCatalog");
+    assertSourceDoesNotContain("src/SceneTranslationCatalog.h",
+        "EffectControl");
+    assertSourceDoesNotContain("src/SceneTranslationCatalog.cc",
+        "EffectControl");
+    assertSourceDoesNotContain("src/SceneTranslationCatalog.h",
+        "EffectChoice");
+    assertSourceDoesNotContain("src/SceneTranslationCatalog.cc",
+        "EffectChoice");
+    assertSourceDoesNotContain("src/SceneTranslationCatalog.h",
+        "TranslateOption");
+    assertSourceDoesNotContain("src/SceneTranslationCatalog.cc",
+        "TranslateOption");
+    assertSourceContains("tests/unit/SceneTranslationCatalogTest.cc",
+        "testEnabledCatalogOwnsGeneratedTables");
+    assertSourceContains("tests/CMakeLists.txt",
         "scene_general_flame_selection_value_test");
     assertSourceDoesNotExist("src/SceneEffectChoiceCatalog.h");
     assertSourceDoesNotExist("src/SceneEffectChoiceCatalog.cc");
@@ -2882,7 +2928,7 @@ static void testEffectControlUsesInjectedRandomSource() {
         "                createSceneWaveObjectChoiceCatalog(object)");
     assertSourceContains("src/LegacySceneSelectionFactory.cc",
         "new SceneTranslationChoiceSelection(\n"
-        "                createSceneTranslationChoiceCatalog(translation)");
+        "                createSceneTranslationChoiceCatalog(translation, translations)");
     assertSourceContains("src/LegacySceneSelectionFactory.cc",
         "new ScenePaletteChoiceSelection(\n"
         "                createScenePaletteChoiceCatalog(palette)");

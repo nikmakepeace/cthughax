@@ -43,6 +43,7 @@
 #include "Scene.h"
 #include "SceneChangeScheduler.h"
 #include "SceneRuntime.h"
+#include "SceneTranslationCatalog.h"
 #include "Screen.h"
 #include "TranslationOptions.h"
 #include "FrameGeneratorFrameBudget.h"
@@ -58,7 +59,9 @@
 #include <unistd.h>
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
-    const PathConfig& pathConfig, RandomSource& randomSource, LogSink& log);
+    const PathConfig& pathConfig, const EffectPolicy& effectPolicy,
+    SceneTranslationCatalog& translations, RandomSource& randomSource,
+    LogSink& log);
 static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
     const PathConfig& pathConfig, const FrameGeometry& geometry,
     ImageOption& images, LogSink& log);
@@ -221,10 +224,13 @@ void Application::initSceneRuntime() {
     if (runtimeConfigRegistryValue.get() != NULL)
         return;
 
+    if (sceneTranslationCatalogValue.get() == NULL)
+        sceneTranslationCatalogValue.reset(new SceneTranslationCatalog());
     if (sceneVisualCatalogFactoryValue.get() == NULL)
         sceneVisualCatalogFactoryValue
             = createLegacySceneVisualCatalogFactory(
-                frameGeneratorValue.imageOption());
+                frameGeneratorValue.imageOption(),
+                *sceneTranslationCatalogValue);
     if (sceneRuntimeValue.get() == NULL)
         sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
             *sceneVisualCatalogFactoryValue, randomSourceValue));
@@ -290,6 +296,7 @@ void Application::shutdownSceneRuntime() {
     runtimeConfigRegistryValue.reset();
     sceneRuntimeValue.reset();
     sceneVisualCatalogFactoryValue.reset();
+    sceneTranslationCatalogValue.reset();
     autoChangeControlsValue.reset();
     autoChangeSettingsValue.reset();
     audioProcessingSelectorValue.reset();
@@ -504,8 +511,10 @@ int Application::initialize() {
     // Visual catalogs depend on final buffer dimensions and must be available
     // before startup scene config can be matched to concrete catalog entries.
     logSinkValue.info("Initializing Frame Generator storage...\n");
+    sceneTranslationCatalogValue.reset(new SceneTranslationCatalog());
     if (initializeVisualCatalogs(frameGeneratorValue.geometry(),
-            startupConfigValue.paths, randomSourceValue, logSinkValue))
+            startupConfigValue.paths, startupConfigValue.effectPolicy,
+            *sceneTranslationCatalogValue, randomSourceValue, logSinkValue))
         return 0;
     if (loadEffectPolicyImages(startupConfigValue.effectPolicy,
             startupConfigValue.paths, frameGeneratorValue.geometry(),
@@ -722,7 +731,9 @@ void Application::runFrame(int doDisplay) {
 }
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
-    const PathConfig& pathConfig, RandomSource& randomSource, LogSink& log) {
+    const PathConfig& pathConfig, const EffectPolicy& effectPolicy,
+    SceneTranslationCatalog& translations, RandomSource& randomSource,
+    LogSink& log) {
     // Built-in visual choices and file-backed catalogs are application startup
     // state, not pixel-buffer state. They live here because option parsing can
     // change buffer dimensions and stage initial option names before startup.
@@ -731,7 +742,9 @@ static int initializeVisualCatalogs(const FrameGeometry& geometry,
     if (init_flames())
         return 1;
 
-    if (init_translate(geometry, randomSource))
+    translations.load(geometry.width(), geometry.height(),
+        effectPolicy.useTranslatesEnabled, randomSource);
+    if (init_translate(translations))
         return 1;
 
     if (init_wave(pathConfig, log))

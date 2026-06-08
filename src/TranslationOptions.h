@@ -10,6 +10,7 @@
 #include <vector>
 
 class RandomSource;
+class SceneTranslationCatalog;
 class SceneGeometry;
 struct EffectPolicy;
 
@@ -95,6 +96,15 @@ public:
  * @return Zero on completion.
  */
 int init_translate(const SceneGeometry& geometry, RandomSource& randomSource);
+
+/**
+ * Registers generated translation entries from a native Scene catalog into the
+ * temporary legacy TranslateOption mirror.
+ *
+ * @param catalog Native Scene-owned translation catalog.
+ * @return Zero on completion.
+ */
+int init_translate(const SceneTranslationCatalog& catalog);
 
 /** Enables built-in translation table generation/loading. */
 extern OptionOnOff use_translates;

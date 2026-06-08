@@ -8,9 +8,9 @@
 #include "SceneBuiltInChoiceCatalogs.h"
 #include "SceneChoiceSelection.h"
 #include "SceneGeneralFlameSelectionValue.h"
+#include "SceneTranslationCatalog.h"
 #include "SceneTypedVisualCatalogs.h"
 #include "SceneVisualSelectionSet.h"
-#include "TranslationOptions.h"
 #include "WaveObject.h"
 #include "display.h"
 #include "flames.h"
@@ -64,20 +64,12 @@ static SceneChoiceCatalog* createSceneWaveObjectChoiceCatalog(
 }
 
 static SceneChoiceCatalog* createSceneTranslationChoiceCatalog(
-    EffectControl& option) {
+    EffectControl& option, const SceneTranslationCatalog& translations) {
     SceneTranslationChoiceCatalog* catalog = new SceneTranslationChoiceCatalog(
         option.name(), new LegacySceneChoiceLock(option.lock));
-    TranslateOption* translateOption = dynamic_cast<TranslateOption*>(&option);
 
-    for (int i = 0; i < option.getNEntries(); i++) {
-        EffectChoice* choice = option[i];
-        if (choice != 0) {
-            TranslationTable table = (translateOption != 0)
-                ? translateOption->translationTable(i)
-                : TranslationTable(choice->Name(), 0, 0, 0);
-            catalog->addChoice(table, choice->inUse());
-        }
-    }
+    for (int i = 0; i < translations.entryCount(); i++)
+        catalog->addChoice(translations.tableAt(i), translations.inUseAt(i));
 
     return catalog;
 }
@@ -117,7 +109,8 @@ createLegacySceneSelectionAdapters(
     EffectControl& flame, EffectControl& generalFlame, EffectControl& wave,
     EffectControl& waveScale, EffectControl& table, EffectControl& object,
     EffectControl& translation, EffectControl& palette, EffectControl& border,
-    EffectControl& flashlight, EffectControl& images) {
+    EffectControl& flashlight, EffectControl& images,
+    const SceneTranslationCatalog& translations) {
     return createLegacySceneSelectionAdapters(flame, generalFlame, wave,
         waveScale, table, object, translation, palette, border, flashlight,
         images,
@@ -140,7 +133,7 @@ createLegacySceneSelectionAdapters(
             new SceneWaveObjectChoiceSelection(
                 createSceneWaveObjectChoiceCatalog(object), int(object)),
             new SceneTranslationChoiceSelection(
-                createSceneTranslationChoiceCatalog(translation),
+                createSceneTranslationChoiceCatalog(translation, translations),
                 int(translation)),
             new ScenePaletteChoiceSelection(
                 createScenePaletteChoiceCatalog(palette), int(palette)),

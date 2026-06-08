@@ -75,6 +75,7 @@ add_executable(visual_effects_bench
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
     ${CMAKE_SOURCE_DIR}/src/Translate.cc
     ${CMAKE_SOURCE_DIR}/src/TranslateGenerator.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneTranslationCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/TranslationOptions.cc
 )
 

@@ -794,212 +794,238 @@ public:
 
 #### Migration Plan
 
-The Frame Generator migration plan is a compatibility-surface audit. Each item
-names the temporary surface, why it exists, exactly what must change before that
-surface can disappear, and whether that work is already complete.
+The Frame Generator migration plan is a compatibility-surface audit. For each
+item below, the important questions are: what temporary surface still exists,
+what job that surface performs, what concrete code changes remove the need for
+it, and what must be true before the item can be erased from this plan.
 
 1. **Retire the `CthughaBuffer`/`VideoDirector` global storage path. Status:
    complete.**
-   Compatibility surface: the old `CthughaBuffer` and `VideoDirector` path kept
-   active/passive indexed buffers, current-frame access, scene observation,
-   image/text cues, palette transition behavior, and filterchain execution
-   reachable through process-global storage.
+   The compatibility surfaces were the old process-global `CthughaBuffer` and
+   `VideoDirector` entry points. They kept active/passive indexed buffers,
+   "current frame" lookup, scene observation, image/text cues, palette
+   transitions, and filterchain execution available while the ownership model
+   was being moved.
 
-   What it was for: it let the application keep rendering while frame storage,
-   geometry, scene binding, transition state, and filterchain execution moved
-   under an owned Frame Generator runtime.
+   They existed so rendering could continue during the extraction. Without
+   them, every caller would have needed to switch to an owned runtime, explicit
+   storage, explicit scene binding, and explicit Display handoff in one large
+   change.
 
-   What had to change for it to be unnecessary:
-   - `FrameGeneratorRuntime` had to own the frame lifetime instead of
-     `CthughaBuffer`.
-   - `FrameStore` had to own active/passive indexed storage and swaps.
-   - `FrameGeometry` and `FrameStorageLayout` had to describe visible geometry
-     and storage layout without global buffer dimensions.
-   - `FrameGeneratorSceneBinding` had to own generator-side scene observation
-     and cue consumption.
-   - `FrameTransitionController` had to own palette/image transition state
-     previously hidden in director statics.
-   - `FrameGeneratorPipeline` had to execute generation from explicit inputs.
-   - `Application` had to pass the returned `IndexedFrame` to Display
-     explicitly.
-   - Display had to stop using `CthughaBuffer::current` or
-     `CthughaBuffer::buffer` as a fallback source.
+   The concrete removal work was:
+   - make `FrameGeneratorRuntime` own the frame-generation lifetime;
+   - make `FrameStore` own active/passive indexed storage, clears, resize, and
+     swaps;
+   - split visible dimensions from storage details with `FrameGeometry` and
+     `FrameStorageLayout`;
+   - move generator-side scene observation and cue consumption into
+     `FrameGeneratorSceneBinding`;
+   - move palette/image transition state into `FrameTransitionController`;
+   - execute rendering through `FrameGeneratorPipeline` using explicit inputs;
+   - pass the returned `IndexedFrame` from `Application` to Display;
+   - remove Display fallback reads from `CthughaBuffer::current` or
+     `CthughaBuffer::buffer`.
 
-   Completion gate: satisfied. `VideoDirector` is deleted, static
+   This item can stay complete because `VideoDirector` is deleted, static
    `CthughaBuffer` aliases are gone, production frame delivery uses the
    `IndexedFrame` returned by `FrameGeneratorRuntime::render(...)`, and
-   boundary tests block `CthughaBuffer` aliases and display reach-through from
-   the Frame Generator path.
+   boundary tests block global buffer aliases and Display reach-through from the
+   Frame Generator path.
 
 2. **Rename or port legacy `VideoFilterchain`, `VideoFilters`,
    `VideoFrameContext`, and `VideoFrameBudget` APIs. Status: complete.**
-   Compatibility surface: the old `Video*` file, class, and build names were
-   compatibility names for code that had moved into the Frame Generator module
-   but still used the legacy video/filterchain vocabulary.
+   The compatibility surfaces were the old `Video*` headers, source files,
+   class names, helper APIs, CMake references, tests, and benchmarks that still
+   named generator code as "video" after the implementation had moved into the
+   Frame Generator module.
 
-   What it was for: it avoided mixing an explicit Frame Generator boundary with
-   public API names that still implied the previous video/director ownership
-   model.
+   They existed to keep call sites compiling while storage, context, budget,
+   and pipeline ownership were renamed and ported. The compatibility names were
+   not for behavior; they were a vocabulary bridge from the legacy
+   video/director model to the explicit Frame Generator model.
 
-   What had to change for it to be unnecessary:
-   - Rename or port `VideoFilterchain*` to `FrameFilterchain*`.
-   - Rename or port `VideoFilters*` to `FrameFilters*`.
-   - Rename or port `VideoFrameContext` to `FrameGeneratorContext`.
-   - Rename or port `VideoFrameBudget*` to `FrameGeneratorFrameBudget*`.
-   - Update includes, public headers, CMake targets, tests, benchmarks, and
-     callers to use the new names.
-   - Keep any unavoidable remaining `Video*` name private to a legacy adapter
-     and document that adapter with a boundary test.
+   The concrete removal work was:
+   - port `VideoFilterchain*` headers, sources, classes, and includes to
+     `FrameFilterchain*`;
+   - port `VideoFilters*` headers, sources, classes, and includes to
+     `FrameFilters*`;
+   - replace public `VideoFrameContext` use with `FrameGeneratorContext`;
+   - replace public `VideoFrameBudget*` use with `FrameGeneratorFrameBudget*`;
+   - update `FrameGeneratorRuntime`, `FrameGeneratorPipeline`, filter code,
+     `Application`, tests, and benchmarks to include and call the new names;
+   - update CMake source lists and test target names so the build graph no
+     longer advertises the old generator names;
+   - leave any unavoidable `Video*` name only inside a private legacy adapter,
+     with a boundary test documenting why that adapter remains.
 
-   Completion gate: satisfied. The public generator path uses
+   The public Frame Generator API no longer exposes `Video*` names when public
+   headers, method signatures, exported type names, CMake/test/benchmark names,
+   and production callers all use the `Frame*`/`FrameGenerator*` vocabulary.
+   This item can stay complete because the public generator path now uses
    `FrameFilterchain*`, `FrameFilters*`, `FrameGeneratorContext`,
    `FrameGeneratorFrameBudget`, `FrameGeneratorPipeline`, and
-   `FrameGeneratorRuntime`; the legacy `Video*` generator files are gone; and
+   `FrameGeneratorRuntime`; legacy `Video*` generator files are gone; and
    boundary tests reject public `Video*` API names in Frame Generator files.
 
 3. **Replace generator-side legacy logging macros with explicit `LogSink&`.
    Status: complete.**
-   Compatibility surface: generator and filter code previously logged through
-   `CTH_*` macros and the process-level legacy logging bridge.
+   The compatibility surface was direct use of legacy `CTH_*` logging macros
+   from generator and filter code. Those macros reached through the
+   process-level logging bridge instead of receiving diagnostics as a module
+   dependency.
 
-   What it was for: it kept diagnostics working while the generator code still
-   had no injected diagnostics dependency.
+   The surface existed so diagnostics kept working before the generator had an
+   injectable logging port.
 
-   What had to change for it to be unnecessary:
-   - `FrameGeneratorRuntime` had to receive a `LogSink&` at construction.
-   - Pipeline, filterchain, scene-binding, filter-frame, and wave-runtime code
-     had to receive diagnostics through constructors or method parameters.
-   - Configure/render/filter diagnostics had to call explicit logging ports
-     instead of the macro bridge.
-   - Unit tests had to be able to inject recording or silent log sinks.
-   - Boundary tests had to reject `CTH_DEBUG`, `CTH_INFO`, `CTH_WARN`,
+   The concrete removal work was:
+   - pass a `LogSink&` into `FrameGeneratorRuntime`;
+   - thread diagnostics into pipeline, filterchain, scene-binding,
+     filter-frame, and wave-runtime code through constructors or method
+     parameters;
+   - replace configure/render/filter macro calls with explicit `LogSink`
+     operations;
+   - keep any process-level logging adapter at the application boundary, not in
+     generator sources;
+   - add unit tests that inject recording or silent log sinks;
+   - add boundary tests rejecting `CTH_DEBUG`, `CTH_INFO`, `CTH_WARN`,
      `CTH_ERROR`, `CTH_TRACE`, and `CTH_LOG_ENABLED` in the generator path.
 
-   Completion gate: satisfied. Frame Generator diagnostics are injectable and
-   boundary tests prevent logging macro bridge calls from returning to generator
-   sources.
+   This item can stay complete because Frame Generator diagnostics are
+   injectable and boundary tests prevent legacy logging macro bridge calls from
+   returning to generator sources.
 
 4. **Replace the generator render input compatibility bundle. Status: complete
    for Frame Generator.**
-   Compatibility surface: the old render-input shape bundled raw audio,
-   processed wave data, `AudioMetrics`, `AcousticContext`, scene snapshot,
-   timing, display-facing frame context, and frame budget values into a broad
-   per-frame context.
+   The compatibility surface was the old broad render-input bundle. It mixed
+   raw audio, processed wave data, `AudioMetrics`, `AcousticContext`, scene
+   snapshot data, timing, display-facing frame context, and frame budget values
+   into one per-frame shape.
 
-   What it was for: it let rendering keep its old call shape while audio
-   analysis, scene snapshots, timing, and budget values were split into explicit
-   inputs.
+   The surface existed so rendering could keep the old call pattern while Audio
+   analysis, Scene snapshots, timing, and budget values were split into
+   explicit module inputs.
 
-   What had to change for it to be unnecessary:
-   - `FrameGeneratorContext` had to become the only generator render input
-     bundle.
-   - Audio had to provide immutable `AudioAnalysisSnapshot` values instead of
-     exposing rolling analyzer or acoustic-context state to generation code.
-   - The generator context had to carry borrow-only audio frame pointers,
-     raw/processed audio buffers, scene snapshot, timing, and explicit frame
-     budget values.
-   - Frame Generator files had to stop including or exposing
-     `VideoFrameContext`, `FrameRenderContext`, `AcousticContext`, and
-     `AudioAnalyzer.h`.
-   - Boundary tests had to block those older context types from generator
-     sources.
+   The concrete removal work was:
+   - make `FrameGeneratorContext` the only render input bundle accepted by the
+     generator;
+   - make Audio provide immutable `AudioAnalysisSnapshot` values instead of
+     exposing rolling analyzer or acoustic-context state;
+   - put borrow-only audio frame pointers, raw/processed audio buffers, scene
+     snapshot, timing, and explicit frame-budget values into
+     `FrameGeneratorContext`;
+   - remove `VideoFrameContext`, `FrameRenderContext`, `AcousticContext`, and
+     `AudioAnalyzer.h` from generator headers and sources;
+   - keep any remaining context translation in Audio, Scene, Display, or
+     application boundary code;
+   - add boundary tests blocking the older context types from generator sources.
 
-   Completion gate: satisfied for Frame Generator. `FrameRenderContext` and
-   `AcousticContext` may still exist in Scene, Audio, or Display follow-up
-   work, but they are no longer generator render inputs.
+   This item can stay complete for Frame Generator because render now enters
+   through `FrameGeneratorContext`. `FrameRenderContext` and `AcousticContext`
+   may still exist in Scene, Audio, or Display follow-up work, but they are no
+   longer generator render inputs.
 
 5. **Move visual catalogs and selections off global `EffectControl` objects.
    Status: remaining.**
-   Compatibility surface: `LegacySceneVisualCatalogFactory.cc` still constructs
-   Scene-facing visual catalogs from global visual controls, and
-   `LegacySceneSelectionFactory.cc` still creates some selections by reading
-   legacy `EffectControl` or `EffectChoiceList` state. This is the surface for
-   flames, general flame, waves, wave scale, tables, objects, translations,
-   palettes, images, border, and flashlight.
+   The compatibility surfaces are the legacy visual catalog and selection
+   factories that still touch global visual controls:
+   `LegacySceneVisualCatalogFactory.cc`, `LegacySceneSelectionFactory.cc`, and
+   the temporary legacy `EffectControl` entries they read or mirror. Those
+   surfaces currently stand in for native owners of flames, general flame,
+   waves, wave scale, tables, objects, translations, palettes, images, border,
+   and flashlight.
 
-   What it is for: it lets explicit Scene selections and the Frame Generator
-   scene binding coexist with the old visual catalog system while native visual
-   owners are added incrementally.
+   They exist because old visual loading, current-value lookup, randomization,
+   lock/use state, command routing, and persistence were all centered on
+   `EffectControl`. Scene and Frame Generator now want typed visual selections,
+   but some domains still need the old controls to load files, expose the
+   selected payload, or contribute persisted values.
 
-   What must change for it to be unnecessary:
-   - Add native catalog owners for every visual domain used by Scene and Frame
-     Generator: flames, general flame, waves, wave scale, tables, objects,
-     translations, palettes, images, border, and flashlight.
-   - Move catalog loading/generation into those owners. File-backed catalogs
-     such as objects, translations, palettes, and images should load into owned
-     typed entries; built-in catalogs should expose native metadata without
-     `EffectChoiceList`.
-   - Move remaining allowed-choice metadata into native catalogs, so no catalog
-     availability decision depends on `EffectChoice::inUse()`.
-   - Move current-value lookup into native selections or typed owner ports, so
-     Scene never asks an `EffectControl` for the selected payload.
-   - Move random/change behavior, including random palette mutation and
-     add-random-palette behavior, into native palette/catalog services.
-   - Move persistence for visual selections and file-backed visual catalog
-     entries into Scene/native visual serializers instead of legacy controls.
-   - Provide typed APIs consumed by `SceneVisualCatalogs`,
+   The concrete removal work is:
+   - add native catalog owners for every visual domain consumed by Scene or
+     Frame Generator: flame, general flame, wave, wave scale, table,
+     translation, object, palette, image, border, and flashlight;
+   - move file-backed loading and generated catalog construction into those
+     owners, so objects, palettes, images, and translations load into owned
+     typed entries rather than temporary `EffectChoice` entries;
+   - move built-in choice metadata into native catalogs, so availability no
+     longer depends on `EffectChoice::inUse()` or `EffectChoiceList`;
+   - move current-value lookup into native selections or typed owner ports, so
+     Scene never asks an `EffectControl` for the selected payload;
+   - move visual randomization and mutation behavior into native services,
+     including random palette changes and add-random-palette behavior;
+   - move lock/use state into native selections, with command APIs that edit
+     typed selections rather than generic controls;
+   - move persistence for visual selections and file-backed visual catalog
+     entries into Scene/native visual serializers;
+   - provide typed APIs consumed by `SceneVisualCatalogs`,
      `SceneVisualSelections`, `FrameGeneratorSceneBinding`, runtime commands,
-     and tests.
-   - Replace `createLegacySceneVisualCatalogFactory(...)` in `Application` with
-     a native visual catalog factory.
-   - Remove the construction-time includes of global visual option headers from
-     production Scene/Frame Generator wiring.
+     boundary tests, and unit tests;
+   - replace `createLegacySceneVisualCatalogFactory(...)` in `Application` with
+     a native visual catalog factory;
+   - remove production Scene and Frame Generator construction-time includes of
+     global visual option headers.
+
+   This item can be erased when production wiring no longer creates
+   `createLegacySceneVisualCatalogFactory(...)`; native visual owners supply
+   every catalog, selected payload, allowed-choice value, random operation,
+   lock/use value, and persisted value used by Scene or Frame Generator; and
+   boundary tests block global visual `EffectControl` dependencies from those
+   modules.
 
    Current progress toward that gate:
    - General-flame selection is native.
    - Flame and wave selections point at typed `Flame` and `Wave` catalog items.
-   - Flame and wave default availability is now native
+   - Flame and wave default availability is native
      `SceneBuiltInChoiceCatalogs` metadata instead of a read through legacy
      `EffectChoice::inUse()`.
-   - Object, translation, palette, and image selections copy typed payloads into
-     owned Scene catalog entries.
+   - Translation entries are generated into native `SceneTranslationCatalog`
+     ownership, mirrored into the temporary legacy translation option, and used
+     directly by Scene translation selections.
+   - Object, palette, and image selections copy typed payloads into owned Scene
+     catalog entries after legacy loaders populate their temporary entries.
    - Wave-scale, table, border, and flashlight choice metadata is built by
-     `SceneBuiltInChoiceCatalogs` instead of borrowed from
-     `EffectChoiceList`.
-   - `Application` now creates the temporary visual factory and `SceneRuntime`
+     `SceneBuiltInChoiceCatalogs` instead of borrowed from `EffectChoiceList`.
+   - `Application` creates the temporary visual factory and `SceneRuntime`
      after built-in/file-backed visual catalog loading, so copied Scene
-     catalogs see the loaded object, translation, palette, and image entries
-     instead of constructor-time partial catalogs.
+     catalogs see loaded object, translation, palette, and image entries.
    - Global visual headers are quarantined in legacy construction files, and
      Frame Generator files use Scene ports plus narrow border/flashlight
      renderer ports instead of including global visual option headers.
 
-   Completion gate: production wiring no longer creates
-   `createLegacySceneVisualCatalogFactory(...)`; native visual owners supply
-   every catalog, selection, current-value lookup, allowed-choice value, random
-   operation, and persisted value used by Scene/Frame Generator; and boundary
-   tests block global visual `EffectControl` dependencies from those modules.
-
 6. **Delete legacy visual command, binding, and config bridges. Status:
    remaining.**
-   Compatibility surface: `LegacySceneControlMirror`,
+   The compatibility surfaces are `LegacySceneControlMirror`,
    `LegacySceneSelectionSynchronizer`, `LegacySceneSelectionAdapters`, and
-   `LegacySceneVisualCatalogs` keep native Scene selections synchronized with
-   the old controls and keep runtime command/config paths working while item 5
+   `LegacySceneVisualCatalogs`. They keep native Scene selections synchronized
+   with old controls and keep runtime command/config paths working while item 5
    is incomplete.
 
-   What it is for: item 5 is about who owns catalogs and selected payloads;
-   this item is about the temporary glue that still mirrors those selections to
-   old controls for startup synchronization, save/restore, runtime command
-   routing, and ini contribution.
+   They exist because item 5 moves catalog and payload ownership, while this
+   item moves all remaining command, startup, save/restore, preset, and ini
+   paths away from generic `EffectControl` identity. Until those paths are
+   native, the bridge mirrors native selection state back to temporary controls.
 
-   What must change for it to be unnecessary:
-   - Runtime commands must address Scene visual selections by typed selection
-     ids or typed owner ports, never by visual `EffectControl&` identity.
-   - Startup synchronization must initialize native visual owners directly from
-     startup config and loaded catalogs instead of first initializing legacy
-     controls.
-   - Save/restore and preset operations must read and write native selections
-     only.
-   - Runtime ini contribution must come from `SceneSerializer` or native visual
-     serializers, not from legacy control mirrors.
-   - Any remaining display-panel or interface route that edits Scene visuals
-     through a generic effect-control target must move to typed Scene runtime
-     commands or a private non-Scene adapter.
-   - Once no production command/config/serialization path needs the mirror,
-     delete `LegacySceneControlMirror`, `LegacySceneSelectionSynchronizer`,
-     `LegacySceneSelectionAdapters`, and `LegacySceneVisualCatalogs` from code,
-     CMake, and test allowances.
+   The concrete removal work is:
+   - route runtime commands by typed Scene selection ids or typed owner ports,
+     never by visual `EffectControl&`;
+   - initialize native visual owners directly from startup config and loaded
+     catalogs instead of initializing legacy controls first;
+   - make save/restore and preset operations read and write native selections
+     only;
+   - make runtime ini contribution come from `SceneSerializer` or native visual
+     serializers;
+   - move any remaining F2, X11 panel, or interface route that edits Scene
+     visuals through a generic effect-control target to typed Scene runtime
+     commands or to a private non-Scene adapter;
+   - delete the bridge classes and files once no production command/config/
+     serialization path calls them;
+   - remove bridge sources from CMake and remove test allowances for them.
+
+   This item can be erased when no production command, config, startup-sync,
+   save/restore, preset, or serialization path uses `LegacyScene*` or visual
+   `EffectControl&`; CMake no longer builds the legacy Scene visual bridges;
+   and boundary tests assert that Scene and Frame Generator use native visual
+   owners.
 
    Current progress toward that gate:
    - Scene commands expose typed activation, lock, and choice-use operations.
@@ -1010,54 +1036,50 @@ surface can disappear, and whether that work is already complete.
    - The remaining bridge is one-way: it pushes native selection values back to
      temporary legacy controls and is passed explicitly instead of discovered
      through RTTI or selection-side identity lookup.
-   - Scene settings reads no longer unconditionally sync the temporary legacy
+   - Scene settings reads no longer unconditionally sync temporary legacy
      controls; lock/use mutations sync at the command edge, and settings reads
      only sync when they auto-advance a wave selection to a runnable wave.
 
-   Completion gate: no production command, config, startup-sync, save/restore,
-   preset, or serialization path uses `LegacyScene*` or visual
-   `EffectControl&`; CMake no longer builds the legacy Scene visual bridges; and
-   boundary tests assert that Scene and Frame Generator use native visual
-   owners.
-
 7. **Finish the separate Display cleanup outside Frame Generator. Status:
    related remaining.**
-   Compatibility surface: Display still publishes legacy aliases and still owns
-   some presentation, overlay, panel, event, and renderer state through globals
-   or file-scope/function-local statics.
+   The compatibility surfaces are Display's legacy global aliases and renderer
+   statics: `cthughaDisplay`, `displayDevice`, `displayBackend`,
+   `displayRuntime`, plus presentation, overlay, panel, event, and native
+   pixel-transfer state still owned through globals or file-scope/function-local
+   statics.
 
-   What it is for: it keeps older presentation and interface code working while
-   Display is split into explicit module-owned presentation and event ports.
-   It is tracked here only because Display used to read generator storage; it
-   is not supposed to be part of the Frame Generator dependency path now that
-   frames are handed to Display explicitly.
+   They exist so older presentation and interface code can keep running while
+   Display is split into explicit module-owned presentation, event, overlay, and
+   renderer ports. This item is listed here only because Display used to read
+   generator storage; it should remain outside the Frame Generator dependency
+   path now that frames are handed to Display explicitly.
 
-   What must change for it to be unnecessary:
-   - Introduce or finish a `DisplaySystem`/presentation root that owns backend,
-     device, facade/coordinator, presentation settings, overlay rendering,
-     event collection, and close order.
-   - Remove normal runtime reads/writes of `cthughaDisplay`, `displayDevice`,
-     `displayBackend`, and `displayRuntime`; pass explicit Display ports to
-     callers instead.
-   - Move `display.cc` renderer state such as animation counters,
-     height-field rotation, scratch buffers, presentation effects, and native
-     pixel-transfer state into Display-owned runtime objects.
-   - Keep frame presentation one-way: `Application` passes an `IndexedFrame`
+   The concrete removal work is:
+   - introduce or finish a `DisplaySystem` or presentation root that owns the
+     backend, device, facade/coordinator, presentation settings, overlay
+     rendering, event collection, and close order;
+   - remove normal runtime reads/writes of `cthughaDisplay`, `displayDevice`,
+     `displayBackend`, and `displayRuntime`;
+   - pass explicit Display ports to callers instead of publishing aliases;
+   - move `display.cc` renderer state such as animation counters, height-field
+     rotation, scratch buffers, presentation effects, and native pixel-transfer
+     state into Display-owned runtime objects;
+   - keep frame presentation one-way: `Application` passes an `IndexedFrame`
      plus presentation context/overlays into Display, and Display never asks
-     Frame Generator or `CthughaBuffer` for current pixels.
-   - Route raw display events to Commands/Input through an `InputEventSink` or
+     Frame Generator or `CthughaBuffer` for current pixels;
+   - route raw display events to Commands/Input through an `InputEventSink` or
      input queue, not through command dispatch or option mutation inside
-     Display.
-   - Give Interface an overlay source/sink handoff so overlay rendering does
-     not print through display globals.
-   - Update X11/SDL/device tests and source-boundary tests around the new
+     Display;
+   - give Interface an overlay source/sink handoff so overlay rendering does
+     not print through display globals;
+   - update X11/SDL/device tests and source-boundary tests around the new
      Display module ports.
 
-   Completion gate: production runtime code has no display aliases/globals,
-   Display renderer state is object-owned, Display never reads Frame Generator
-   storage, Display never dispatches commands through global state, and Frame
-   Generator boundary tests continue to prove Display cleanup is outside the
-   generator dependency path.
+   This item can be erased when production runtime code has no display aliases
+   or globals, Display renderer state is object-owned, Display never reads
+   Frame Generator storage, Display never dispatches commands through global
+   state, and Frame Generator boundary tests continue to prove Display cleanup
+   is outside the generator dependency path.
 
 ### Display
 
