@@ -1384,20 +1384,17 @@ static void testSceneStartupUsesSceneConfig() {
         "class SceneEffectControlSelection");
     assertSourceDoesNotExist("src/LegacySceneEffectControlSelection.h");
     assertSourceDoesNotExist("src/LegacySceneEffectControlBindings.h");
-    assertSourceContains("src/LegacySceneControlMirror.h",
-        "class LegacySceneControlMirror");
-    assertSourceDoesNotContain("src/LegacySceneControlMirror.h",
-        "selectionFor");
-    assertSourceDoesNotContain("src/LegacySceneControlMirror.h",
-        "syncFromControls");
-    assertSourceContains("src/LegacySceneControlMirror.h",
-        "virtual void syncControlsFromSelections() = 0;");
+    assertSourceDoesNotExist("src/LegacySceneControlMirror.h");
     assertSourceDoesNotExist("src/LegacySceneEffectControlCatalog.h");
     assertSourceDoesNotExist("src/LegacySceneEffectControlCatalog.cc");
     assertSourceDoesNotExist("src/LegacySceneSelectionSynchronizer.h");
     assertSourceDoesNotExist("src/LegacySceneSelectionSynchronizer.cc");
-    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "#include \"LegacySceneControlMirror.h\"");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneControlMirror");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "virtual void syncControlsFromSelections() = 0;");
     assertSourceContains("src/LegacySceneSelectionAdapters.h",
         "class LegacySceneSelectionAdapterSet");
     assertSourceContains("src/LegacySceneSelectionAdapters.h",
@@ -1471,7 +1468,7 @@ static void testSceneStartupUsesSceneConfig() {
         "class ScenePaletteRandomizer");
     assertSourceContains("src/LegacySceneVisualCatalogFactory.h",
         "std::unique_ptr<LegacySceneSelectionAdapterSet> ownedAdapters");
-    assertSourceContains("src/LegacySceneVisualCatalogFactory.h",
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogFactory.h",
         "LegacySceneControlMirror& controlMirror");
     assertSourceContains("src/LegacySceneVisualCatalogFactory.h",
         "std::unique_ptr<SceneVisualCatalogFactory> createLegacySceneVisualCatalogFactory");

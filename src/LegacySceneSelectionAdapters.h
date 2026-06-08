@@ -3,12 +3,12 @@
 #ifndef CTHUGHA_LEGACY_SCENE_SELECTION_ADAPTERS_H
 #define CTHUGHA_LEGACY_SCENE_SELECTION_ADAPTERS_H
 
-#include "LegacySceneControlMirror.h"
 #include "SceneVisualSelections.h"
 
 #include <memory>
 
 class EffectControl;
+class LegacySceneControlMirror;
 class SceneImageCatalog;
 class ScenePaletteCatalog;
 class SceneSelectionSynchronizer;
@@ -25,8 +25,11 @@ class SceneWaveObjectCatalog;
 class LegacySceneSelectionAdapterSet {
 public:
     std::unique_ptr<SceneVisualSelections> selections;
+
+private:
     std::unique_ptr<LegacySceneControlMirror> controlMirror;
 
+public:
     LegacySceneSelectionAdapterSet(
         std::unique_ptr<SceneVisualSelections> selections_,
         std::unique_ptr<LegacySceneControlMirror> controlMirror_);

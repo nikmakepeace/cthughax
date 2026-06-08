@@ -1,6 +1,7 @@
 #include "LegacySceneSelectionAdapters.h"
 
 #include "EffectControl.h"
+#include "SceneDependencies.h"
 
 #include <cassert>
 #include <memory>
@@ -113,7 +114,10 @@ static void testMirrorCopiesSelectionValuesAndLocks() {
             std::unique_ptr<SceneVisualSelections>(
                 new StubSceneVisualSelections()));
 
-    adapters->controlMirror->syncControlsFromSelections();
+    std::unique_ptr<SceneSelectionSynchronizer> synchronizer
+        = adapters->createSelectionSynchronizer();
+
+    synchronizer->syncControlsFromSelections();
 
     assertControlState(flame, 1, 1);
     assertControlState(generalFlame, 2, 0);

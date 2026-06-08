@@ -8,7 +8,6 @@
 #include <memory>
 
 class ImageOption;
-class LegacySceneControlMirror;
 class LegacySceneSelectionAdapterSet;
 class SceneImageCatalog;
 class ScenePaletteCatalog;
@@ -26,7 +25,6 @@ class SceneWaveObjectCatalog;
 class LegacySceneVisualCatalogFactory : public SceneVisualCatalogFactory {
     std::unique_ptr<LegacySceneSelectionAdapterSet> ownedAdapters;
     SceneVisualSelections& selections;
-    LegacySceneControlMirror& controlMirror;
     std::unique_ptr<ScenePaletteRandomizer> paletteRandomizer;
 
 public:

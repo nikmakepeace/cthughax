@@ -3,11 +3,26 @@
 #include "LegacySceneSelectionAdapters.h"
 
 #include "EffectControl.h"
-#include "LegacySceneControlMirror.h"
 #include "SceneDependencies.h"
 
 #include <memory>
 #include <utility>
+
+/**
+ * Adapter-level mirror for legacy visual EffectControls.
+ *
+ * Native Scene selections should not implement legacy EffectControl identity
+ * APIs. This private mirror copies the Scene-owned selection values into
+ * legacy controls still read by older catalog/display code.
+ */
+class LegacySceneControlMirror {
+public:
+    /** Destroys the compatibility mirror. */
+    virtual ~LegacySceneControlMirror() { }
+
+    /** Synchronizes all legacy control values from their bound selections. */
+    virtual void syncControlsFromSelections() = 0;
+};
 
 namespace {
 
