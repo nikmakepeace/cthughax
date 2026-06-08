@@ -28,6 +28,10 @@ public:
     void setDimensions(int width_, int height_);
 
     void swapBuffers();
+    /**
+     * Clears active and passive visible plus hidden pixel storage.
+     */
+    void clear();
     unsigned char* activePixels();
     unsigned char* passivePixels();
     const unsigned char* activePixels() const;

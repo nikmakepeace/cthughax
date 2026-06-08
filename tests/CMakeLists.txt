@@ -238,6 +238,24 @@ target_link_libraries(frame_completion_test PRIVATE m)
 
 add_test(NAME frame_completion_test COMMAND frame_completion_test)
 
+add_executable(frame_store_test
+    unit/FrameStoreTest.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
+    ${CMAKE_SOURCE_DIR}/src/CthughaBuffer.cc
+)
+
+target_include_directories(frame_store_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(frame_store_test PRIVATE m)
+
+add_test(NAME frame_store_test COMMAND frame_store_test)
+
 add_executable(frame_clock_test
     unit/FrameClockTest.cc
     ${CMAKE_SOURCE_DIR}/src/FrameClock.cc

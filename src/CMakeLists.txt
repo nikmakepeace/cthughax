@@ -84,8 +84,10 @@ set(CTHUGHA_COMMON_SOURCES
     DosVga9x14Font.cc
     FrameClock.cc
     FrameCompletion.cc
+    FrameGeometry.cc
     FramePacer.cc
     FrameRateMeter.cc
+    FrameStore.cc
     Image.cc
     IndexedDisplayFrame.cc
     OverlaySource.cc

@@ -86,6 +86,13 @@ void CthughaBuffer::swapBuffers() {
     passiveBuffer = t;
 }
 
+void CthughaBuffer::clear() {
+    if (activeAllocation != 0)
+        memset(activeAllocation, 0, allocationByteCount());
+    if (passiveAllocation != 0)
+        memset(passiveAllocation, 0, allocationByteCount());
+}
+
 unsigned char* CthughaBuffer::activePixels() {
     return activeBuffer;
 }
