@@ -9,6 +9,7 @@
 #include "SceneChoiceSelection.h"
 #include "SceneEffectChoiceCatalog.h"
 #include "SceneGeneralFlameSelectionValue.h"
+#include "SceneTypedVisualCatalogs.h"
 #include "TranslationOptions.h"
 #include "display.h"
 #include "flames.h"
@@ -26,22 +27,6 @@ protected:
 public:
     LegacySceneEffectChoiceSelection(
         SceneChoiceCatalog* catalog, int selectedValue);
-};
-
-class LegacySceneFlameSelection : public LegacySceneEffectChoiceSelection,
-    public SceneFlameSelection {
-public:
-    LegacySceneFlameSelection(SceneChoiceCatalog* catalog, int selectedValue);
-
-    virtual const Flame* currentFlame();
-};
-
-class LegacySceneWaveSelection : public LegacySceneEffectChoiceSelection,
-    public SceneWaveSelection {
-public:
-    LegacySceneWaveSelection(SceneChoiceCatalog* catalog, int selectedValue);
-
-    virtual Wave* currentWave();
 };
 
 class LegacySceneTranslationSelection : public LegacySceneEffectChoiceSelection,
@@ -82,9 +67,9 @@ class LegacySceneSelectionAdapters : public SceneVisualSelections,
     EffectControl& borderControl;
     EffectControl& flashlightControl;
     EffectControl& imagesControl;
-    LegacySceneFlameSelection flameValue;
+    SceneFlameChoiceSelection flameValue;
     SceneGeneralFlameSelectionValue generalFlameValue;
-    LegacySceneWaveSelection waveValue;
+    SceneWaveChoiceSelection waveValue;
     SceneChoiceSelection waveScaleValue;
     SceneChoiceSelection tableValue;
     SceneChoiceSelection objectValue;
@@ -151,6 +136,41 @@ static SceneChoiceCatalog* createOwnedSceneChoiceCatalog(
     return catalog;
 }
 
+static int legacyChoiceInUse(EffectControl& option, int index, int defaultUse) {
+    EffectChoice* choice = option[index];
+    return (choice != 0) ? choice->inUse() : defaultUse;
+}
+
+static SceneChoiceCatalog* createSceneFlameChoiceCatalog(
+    EffectControl& option) {
+    SceneFlameChoiceCatalog* catalog = new SceneFlameChoiceCatalog(
+        option.name(), new SceneEffectChoiceLock(option.lock));
+
+    for (int i = 0; i < nFlameCatalogEntries; i++) {
+        const Flame* flame = flameByIndex(i);
+        if (flame != 0)
+            catalog->addChoice(
+                flame, flame->name(), legacyChoiceInUse(option, i, i != 0));
+    }
+
+    return catalog;
+}
+
+static SceneChoiceCatalog* createSceneWaveChoiceCatalog(
+    EffectControl& option) {
+    SceneWaveChoiceCatalog* catalog = new SceneWaveChoiceCatalog(
+        option.name(), new SceneEffectChoiceLock(option.lock));
+
+    for (int i = 0; i < nWaveCatalogEntries; i++) {
+        Wave* wave = waveByIndex(i);
+        if (wave != 0)
+            catalog->addChoice(
+                wave, wave->name(), legacyChoiceInUse(option, i, i < 33));
+    }
+
+    return catalog;
+}
+
 LegacySceneEffectChoiceSelection::LegacySceneEffectChoiceSelection(
     SceneChoiceCatalog* catalog, int selectedValue)
     : SceneChoiceSelection(catalog, selectedValue) { }
@@ -166,24 +186,6 @@ const EffectChoice* LegacySceneEffectChoiceSelection::currentEffectChoice()
     const SceneEffectChoice* choice
         = dynamic_cast<const SceneEffectChoice*>(currentChoice());
     return (choice != 0) ? &choice->effectChoice() : 0;
-}
-
-LegacySceneFlameSelection::LegacySceneFlameSelection(
-    SceneChoiceCatalog* catalog, int selectedValue)
-    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
-
-const Flame* LegacySceneFlameSelection::currentFlame() {
-    FlameEntry* entry = dynamic_cast<FlameEntry*>(currentEffectChoice());
-    return (entry != 0) ? &entry->flame() : 0;
-}
-
-LegacySceneWaveSelection::LegacySceneWaveSelection(
-    SceneChoiceCatalog* catalog, int selectedValue)
-    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
-
-Wave* LegacySceneWaveSelection::currentWave() {
-    WaveEntry* entry = dynamic_cast<WaveEntry*>(currentEffectChoice());
-    return (entry != 0) ? &entry->wave() : 0;
 }
 
 LegacySceneTranslationSelection::LegacySceneTranslationSelection(
@@ -228,12 +230,10 @@ LegacySceneSelectionAdapters::LegacySceneSelectionAdapters(EffectControl& flame_
     , borderControl(border_)
     , flashlightControl(flashlight_)
     , imagesControl(images_)
-    , flameValue(new SceneEffectChoiceCatalog(flame_.name(),
-          flame_.choiceList(), flame_.lock), int(flame_))
+    , flameValue(createSceneFlameChoiceCatalog(flame_), int(flame_))
     , generalFlameValue(generalFlame_.name(),
           new SceneEffectChoiceLock(generalFlame_.lock), int(generalFlame_))
-    , waveValue(new SceneEffectChoiceCatalog(wave_.name(),
-          wave_.choiceList(), wave_.lock), int(wave_))
+    , waveValue(createSceneWaveChoiceCatalog(wave_), int(wave_))
     , waveScaleValue(createOwnedSceneChoiceCatalog(waveScale_),
           int(waveScale_))
     , tableValue(createOwnedSceneChoiceCatalog(table_), int(table_))

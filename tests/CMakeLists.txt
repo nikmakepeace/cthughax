@@ -982,6 +982,24 @@ target_link_libraries(scene_effect_choice_catalog_test PRIVATE m)
 
 add_test(NAME scene_effect_choice_catalog_test COMMAND scene_effect_choice_catalog_test)
 
+add_executable(scene_typed_visual_catalogs_test
+    unit/SceneTypedVisualCatalogsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneTypedVisualCatalogs.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneChoiceSelection.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneVisualSelections.cc
+)
+
+target_include_directories(scene_typed_visual_catalogs_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scene_typed_visual_catalogs_test PRIVATE m)
+
+add_test(NAME scene_typed_visual_catalogs_test
+    COMMAND scene_typed_visual_catalogs_test)
+
 add_executable(scene_general_flame_selection_value_test
     unit/SceneGeneralFlameSelectionValueTest.cc
     ${CMAKE_SOURCE_DIR}/src/SceneGeneralFlameSelectionValue.cc

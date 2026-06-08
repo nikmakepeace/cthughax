@@ -32,6 +32,7 @@ set(CTHUGHA_COMMON_SOURCES
     SceneChoiceSelection.cc
     SceneEffectChoiceCatalog.cc
     SceneGeneralFlameSelectionValue.cc
+    SceneTypedVisualCatalogs.cc
     SceneVisualSelections.cc
     LegacySceneCatalogAdapters.cc
     LegacySceneEffectControlCatalog.cc
