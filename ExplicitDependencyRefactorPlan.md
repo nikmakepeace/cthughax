@@ -564,14 +564,14 @@ public:
 
 #### Migration Plan
 
-1. Keep `LegacyScene*` as the only allowed compatibility surface while the
+1. Keep visual compatibility isolated to named loader/UI surfaces while the
    visual/filterchain runtime is still legacy-backed.
 2. Deglobalize Frame Generator: introduce owned frame storage/geometry and split
    `VideoDirector`/filterchain responsibilities away from `CthughaBuffer`
    aliases.
 3. Introduce native visual catalogs and selection storage for flames, waves,
    translations, palettes, images, border, flashlight, and related metadata.
-4. Delete `LegacyScene*` adapters and their boundary exceptions once no
+4. Delete remaining compatibility loaders and boundary exceptions once no
    production wiring needs legacy visual `EffectControl&` inputs.
 
 ### Audio
@@ -693,8 +693,8 @@ can publish an `IndexedFrame` for
 
 The remaining compatibility surfaces are:
 
-- `LegacyScene*` visual catalog adapters, which still bridge explicit Scene
-  selections to global `EffectControl` catalog objects;
+- Scene catalog copy loaders that still read `EffectControl`/`ImageOption`
+  entries populated by compatibility visual loaders;
 - Display compatibility aliases and `display.cc` renderer statics, which are
   tracked as Display follow-up because generated frames are already handed to
   Display explicitly.
@@ -1383,11 +1383,11 @@ Display path may reach through `displayDevice`, `displayBackend`,
 
 The next high-value module is Frame Generator / frame filterchain.
 
-Scene's runtime boundary is explicit now. The remaining Scene-facing legacy code
-is the well-named `LegacyScene*` adapter layer, which exists because production
-visual catalogs and selections are still backed by global `EffectControl`
-objects, `VideoDirector`, and `CthughaBuffer`. Deglobalizing frame generation and
-native visual catalogs should make those adapters fall away naturally.
+Scene's runtime boundary is explicit now. The remaining Scene-facing
+compatibility code is the visual loader/list surface, which exists because
+production visual catalogs still flow through `EffectControl`/`ImageOption`
+lists and some Display/UI paths still expose those lists. Deglobalizing native
+visual loaders should make the compatibility copy loaders fall away naturally.
 
 Recommended Frame/Visual order:
 
@@ -1401,7 +1401,7 @@ Recommended Frame/Visual order:
    palettes, images, border, and flashlight.
 5. Replace `copyScene*CatalogFrom*Option(...)` compatibility copy calls with
    native visual loaders.
-6. Delete `LegacyScene*` once no production path needs legacy visual
+6. Delete compatibility copy loaders once no production path needs legacy visual
    `EffectControl&` adapters.
 
 ## Cross-Cutting Guard Rails
