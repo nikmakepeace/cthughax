@@ -2,7 +2,10 @@
 
 #include "SceneTypedVisualCatalogs.h"
 
+#include "PaletteEntry.h"
+
 #include <cctype>
+#include <cstring>
 
 namespace {
 
@@ -21,6 +24,53 @@ static int sameChoiceName(const std::string& name, const char* other) {
     }
 
     return (*left == '\0') && ((*right == '\0') || (*right == ' '));
+}
+
+static void copyBoundedString(char* target, unsigned int targetSize,
+    const char* source) {
+    if (targetSize == 0)
+        return;
+
+    std::strncpy(target, (source != 0) ? source : "", targetSize);
+    target[targetSize - 1] = '\0';
+}
+
+static void copyPaletteMetadata(
+    PaletteEntry& target, const PaletteEntry& source) {
+    static const unsigned int energyCount
+        = sizeof(target.metadataEnergies) / sizeof(target.metadataEnergies[0]);
+
+    copyBoundedString(target.sourcePath, sizeof(target.sourcePath),
+        source.sourcePath);
+    copyBoundedString(target.metadataName, sizeof(target.metadataName),
+        source.metadataName);
+    copyBoundedString(target.metadataSet, sizeof(target.metadataSet),
+        source.metadataSet);
+    copyBoundedString(target.metadataEnergy, sizeof(target.metadataEnergy),
+        source.metadataEnergy);
+
+    target.metadataSetCount = source.metadataSetCount;
+    if (target.metadataSetCount < 0)
+        target.metadataSetCount = 0;
+    if (target.metadataSetCount > PALETTE_METADATA_MAX_VALUES)
+        target.metadataSetCount = PALETTE_METADATA_MAX_VALUES;
+    for (int i = 0; i < PALETTE_METADATA_MAX_VALUES; i++) {
+        copyBoundedString(target.metadataSets[i], sizeof(target.metadataSets[i]),
+            (i < target.metadataSetCount) ? source.metadataSets[i] : "");
+    }
+
+    target.metadataEnergyCount = source.metadataEnergyCount;
+    if (target.metadataEnergyCount < 0)
+        target.metadataEnergyCount = 0;
+    if (target.metadataEnergyCount > int(energyCount))
+        target.metadataEnergyCount = int(energyCount);
+    for (unsigned int i = 0; i < energyCount; i++) {
+        copyBoundedString(target.metadataEnergies[i],
+            sizeof(target.metadataEnergies[i]),
+            (i < unsigned(target.metadataEnergyCount))
+                ? source.metadataEnergies[i]
+                : "");
+    }
 }
 
 }
@@ -243,4 +293,80 @@ TranslationTable SceneTranslationChoiceSelection::currentTranslationTable() {
     SceneTranslationChoice* choice
         = dynamic_cast<SceneTranslationChoice*>(currentChoice());
     return (choice != 0) ? choice->table() : TranslationTable();
+}
+
+ScenePaletteChoice::ScenePaletteChoice(
+    const PaletteEntry& palette_, int inUse_)
+    : paletteValue(new PaletteEntry(palette_.Name(), palette_.Desc()))
+    , nameValue(palette_.Name())
+    , inUseValue(inUse_) {
+    paletteValue->colors().copyFrom(palette_.colors());
+    copyPaletteMetadata(*paletteValue, palette_);
+}
+
+ScenePaletteChoice::~ScenePaletteChoice() { }
+
+PaletteEntry* ScenePaletteChoice::paletteEntry() const {
+    return paletteValue.get();
+}
+
+const char* ScenePaletteChoice::name() const {
+    return nameValue.c_str();
+}
+
+int ScenePaletteChoice::sameName(const char* other) const {
+    return sameChoiceName(nameValue, other);
+}
+
+int ScenePaletteChoice::inUse() const {
+    return inUseValue;
+}
+
+void ScenePaletteChoice::setUse(int inUse_) {
+    inUseValue = inUse_;
+}
+
+ScenePaletteChoiceCatalog::ScenePaletteChoiceCatalog(
+    const char* optionName_, SceneChoiceLock* lock_)
+    : optionNameValue((optionName_ != 0) ? optionName_ : "")
+    , lockValue(lock_)
+    , choices() { }
+
+ScenePaletteChoice& ScenePaletteChoiceCatalog::addChoice(
+    const PaletteEntry& palette, int inUse) {
+    choices.push_back(std::unique_ptr<ScenePaletteChoice>(
+        new ScenePaletteChoice(palette, inUse)));
+    return *choices.back();
+}
+
+int ScenePaletteChoiceCatalog::entryCount() const {
+    return int(choices.size());
+}
+
+SceneChoice* ScenePaletteChoiceCatalog::choiceAt(int index) const {
+    if ((index < 0) || (index >= int(choices.size())))
+        return 0;
+    return choices[index].get();
+}
+
+SceneChoiceLock& ScenePaletteChoiceCatalog::lock() {
+    return *lockValue;
+}
+
+const SceneChoiceLock& ScenePaletteChoiceCatalog::lock() const {
+    return *lockValue;
+}
+
+const char* ScenePaletteChoiceCatalog::optionName() const {
+    return optionNameValue.c_str();
+}
+
+ScenePaletteChoiceSelection::ScenePaletteChoiceSelection(
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : SceneChoiceSelection(catalog, selectedValue) { }
+
+PaletteEntry* ScenePaletteChoiceSelection::currentPaletteEntry() {
+    ScenePaletteChoice* choice
+        = dynamic_cast<ScenePaletteChoice*>(currentChoice());
+    return (choice != 0) ? choice->paletteEntry() : 0;
 }

@@ -297,4 +297,98 @@ public:
     virtual TranslationTable currentTranslationTable();
 };
 
+/**
+ * Owned SceneChoice entry that stores a copied PaletteEntry payload.
+ */
+class ScenePaletteChoice : public SceneChoice {
+    std::unique_ptr<PaletteEntry> paletteValue;
+    std::string nameValue;
+    int inUseValue;
+
+public:
+    /**
+     * Creates one palette choice.
+     *
+     * @param palette_ Palette entry copied into the Scene choice.
+     * @param inUse_ Nonzero when selectable by default.
+     */
+    ScenePaletteChoice(const PaletteEntry& palette_, int inUse_);
+    ~ScenePaletteChoice();
+
+    /** @return Mutable owned palette entry. */
+    PaletteEntry* paletteEntry() const;
+
+    /** @return Stable choice name. */
+    virtual const char* name() const;
+
+    /** Returns nonzero when text names this choice. */
+    virtual int sameName(const char* other) const;
+
+    /** @return Nonzero when this choice may be selected randomly/cyclically. */
+    virtual int inUse() const;
+
+    /** Sets whether this choice may be selected randomly/cyclically. */
+    virtual void setUse(int inUse);
+};
+
+/**
+ * Owned SceneChoiceCatalog for palette choices.
+ */
+class ScenePaletteChoiceCatalog : public SceneChoiceCatalog {
+    std::string optionNameValue;
+    std::unique_ptr<SceneChoiceLock> lockValue;
+    std::vector<std::unique_ptr<ScenePaletteChoice> > choices;
+
+public:
+    /**
+     * Creates an empty palette choice catalog.
+     *
+     * @param optionName_ Stable catalog/option name.
+     * @param lock_ Owned lock state for this selection.
+     */
+    ScenePaletteChoiceCatalog(const char* optionName_, SceneChoiceLock* lock_);
+
+    /**
+     * Adds one copied palette choice.
+     *
+     * @param palette Palette entry copied into this catalog.
+     * @param inUse Nonzero when selectable by default.
+     * @return Mutable choice entry.
+     */
+    ScenePaletteChoice& addChoice(const PaletteEntry& palette, int inUse);
+
+    /** @return Number of owned choices. */
+    virtual int entryCount() const;
+
+    /** @return Choice at index, or NULL when out of range. */
+    virtual SceneChoice* choiceAt(int index) const;
+
+    /** @return Mutable lock for the selection using this catalog. */
+    virtual SceneChoiceLock& lock();
+
+    /** @return Immutable lock for the selection using this catalog. */
+    virtual const SceneChoiceLock& lock() const;
+
+    /** @return Stable catalog/option name. */
+    virtual const char* optionName() const;
+};
+
+/**
+ * Catalog-backed palette selection that returns an owned PaletteEntry.
+ */
+class ScenePaletteChoiceSelection : public SceneChoiceSelection,
+    public ScenePaletteSelection {
+public:
+    /**
+     * Creates a palette selection over an owned catalog.
+     *
+     * @param catalog Owned palette catalog.
+     * @param selectedValue Initial selected index.
+     */
+    ScenePaletteChoiceSelection(SceneChoiceCatalog* catalog, int selectedValue);
+
+    /** @return Selected owned palette entry, or NULL. */
+    virtual PaletteEntry* currentPaletteEntry();
+};
+
 #endif

@@ -29,14 +29,6 @@ public:
         SceneChoiceCatalog* catalog, int selectedValue);
 };
 
-class LegacyScenePaletteSelection : public LegacySceneEffectChoiceSelection,
-    public ScenePaletteSelection {
-public:
-    LegacyScenePaletteSelection(SceneChoiceCatalog* catalog, int selectedValue);
-
-    virtual PaletteEntry* currentPaletteEntry();
-};
-
 class LegacySceneImageSelection : public LegacySceneEffectChoiceSelection,
     public SceneImageSelection {
 public:
@@ -65,7 +57,7 @@ class LegacySceneSelectionAdapters : public SceneVisualSelections,
     SceneChoiceSelection tableValue;
     SceneChoiceSelection objectValue;
     SceneTranslationChoiceSelection translationValue;
-    LegacyScenePaletteSelection paletteValue;
+    ScenePaletteChoiceSelection paletteValue;
     SceneChoiceSelection borderValue;
     SceneChoiceSelection flashlightValue;
     LegacySceneImageSelection imagesValue;
@@ -181,6 +173,20 @@ static SceneChoiceCatalog* createSceneTranslationChoiceCatalog(
     return catalog;
 }
 
+static SceneChoiceCatalog* createScenePaletteChoiceCatalog(
+    EffectControl& option) {
+    ScenePaletteChoiceCatalog* catalog = new ScenePaletteChoiceCatalog(
+        option.name(), new SceneEffectChoiceLock(option.lock));
+
+    for (int i = 0; i < option.getNEntries(); i++) {
+        PaletteEntry* entry = dynamic_cast<PaletteEntry*>(option[i]);
+        if (entry != 0)
+            catalog->addChoice(*entry, entry->inUse());
+    }
+
+    return catalog;
+}
+
 LegacySceneEffectChoiceSelection::LegacySceneEffectChoiceSelection(
     SceneChoiceCatalog* catalog, int selectedValue)
     : SceneChoiceSelection(catalog, selectedValue) { }
@@ -196,14 +202,6 @@ const EffectChoice* LegacySceneEffectChoiceSelection::currentEffectChoice()
     const SceneEffectChoice* choice
         = dynamic_cast<const SceneEffectChoice*>(currentChoice());
     return (choice != 0) ? &choice->effectChoice() : 0;
-}
-
-LegacyScenePaletteSelection::LegacyScenePaletteSelection(
-    SceneChoiceCatalog* catalog, int selectedValue)
-    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
-
-PaletteEntry* LegacyScenePaletteSelection::currentPaletteEntry() {
-    return dynamic_cast<PaletteEntry*>(currentEffectChoice());
 }
 
 LegacySceneImageSelection::LegacySceneImageSelection(
@@ -241,8 +239,7 @@ LegacySceneSelectionAdapters::LegacySceneSelectionAdapters(EffectControl& flame_
     , objectValue(createOwnedSceneChoiceCatalog(object_), int(object_))
     , translationValue(createSceneTranslationChoiceCatalog(translation_),
           int(translation_))
-    , paletteValue(new SceneEffectChoiceCatalog(palette_.name(),
-          palette_.choiceList(), palette_.lock), int(palette_))
+    , paletteValue(createScenePaletteChoiceCatalog(palette_), int(palette_))
     , borderValue(createOwnedSceneChoiceCatalog(border_), int(border_))
     , flashlightValue(createOwnedSceneChoiceCatalog(flashlight_),
           int(flashlight_))

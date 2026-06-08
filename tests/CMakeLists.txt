@@ -987,6 +987,10 @@ add_executable(scene_typed_visual_catalogs_test
     ${CMAKE_SOURCE_DIR}/src/SceneTypedVisualCatalogs.cc
     ${CMAKE_SOURCE_DIR}/src/SceneChoiceSelection.cc
     ${CMAKE_SOURCE_DIR}/src/SceneVisualSelections.cc
+    ${CMAKE_SOURCE_DIR}/src/ColorPalette.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
 )
 
 target_include_directories(scene_typed_visual_catalogs_test PRIVATE

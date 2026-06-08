@@ -1,5 +1,6 @@
 #include "SceneTypedVisualCatalogs.h"
 
+#include "PaletteEntry.h"
 #include "ProcessServices.h"
 
 #include <cassert>
@@ -147,6 +148,62 @@ static void testTranslationSelectionReturnsOwnedTable() {
     assert(table.data()[0] == 3);
 }
 
+static void testPaletteCatalogCopiesEntry() {
+    PaletteEntry source("warm", "Warm Palette");
+    source.colors().setColor(5, 10, 20, 30);
+    std::strcpy(source.sourcePath, "resources/map/warm.map");
+    std::strcpy(source.metadataName, "Warm Test");
+    std::strcpy(source.metadataSet, "classic");
+    source.metadataSetCount = 1;
+    std::strcpy(source.metadataSets[0], "classic");
+    std::strcpy(source.metadataEnergy, "high");
+    source.metadataEnergyCount = 1;
+    std::strcpy(source.metadataEnergies[0], "high");
+
+    ScenePaletteChoiceCatalog catalog("palette", new RecordingLock());
+    ScenePaletteChoice& choice = catalog.addChoice(source, 1);
+    source.colors().setColor(5, 100, 100, 100);
+    std::strcpy(source.metadataSets[0], "mutated");
+
+    assert(std::strcmp(catalog.optionName(), "palette") == 0);
+    assert(catalog.entryCount() == 1);
+    assert(catalog.choiceAt(0)->sameName("WARM trailing") != 0);
+
+    PaletteEntry* copied = choice.paletteEntry();
+    assert(copied != &source);
+    assert(std::strcmp(copied->Name(), "warm") == 0);
+    assert(std::strcmp(copied->Desc(), "Warm Palette") == 0);
+    assert(copied->colors().component(5, 0) == 10);
+    assert(copied->colors().component(5, 1) == 20);
+    assert(copied->colors().component(5, 2) == 30);
+    assert(std::strcmp(copied->sourcePath, "resources/map/warm.map") == 0);
+    assert(std::strcmp(copied->metadataName, "Warm Test") == 0);
+    assert(copied->metadataSetCount == 1);
+    assert(std::strcmp(copied->metadataSets[0], "classic") == 0);
+    assert(copied->metadataEnergyCount == 1);
+    assert(std::strcmp(copied->metadataEnergies[0], "high") == 0);
+}
+
+static void testPaletteSelectionReturnsOwnedEntry() {
+    PaletteEntry first("warm", "Warm Palette");
+    first.colors().setColor(1, 1, 2, 3);
+    PaletteEntry second("cool", "Cool Palette");
+    second.colors().setColor(1, 4, 5, 6);
+    ScenePaletteChoiceCatalog* catalog
+        = new ScenePaletteChoiceCatalog("palette", new RecordingLock());
+    catalog->addChoice(first, 1);
+    catalog->addChoice(second, 1);
+    ScenePaletteChoiceSelection selection(catalog, 0);
+    FixedRandomSource randomSource;
+
+    assert(std::strcmp(selection.currentPaletteEntry()->Name(), "warm") == 0);
+    selection.change("cool", randomSource);
+    PaletteEntry* selected = selection.currentPaletteEntry();
+    assert(selection.currentValue() == 1);
+    assert(std::strcmp(selected->Name(), "cool") == 0);
+    assert(selected->colors().component(1, 2) == 6);
+}
+
 int main() {
     testFlameCatalogOwnsTypedChoices();
     testFlameSelectionReturnsTypedFlame();
@@ -154,5 +211,7 @@ int main() {
     testWaveSelectionReturnsTypedWave();
     testTranslationCatalogCopiesTableData();
     testTranslationSelectionReturnsOwnedTable();
+    testPaletteCatalogCopiesEntry();
+    testPaletteSelectionReturnsOwnedEntry();
     return 0;
 }
