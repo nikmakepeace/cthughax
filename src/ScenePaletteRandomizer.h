@@ -1,49 +1,53 @@
-// Palette randomization port used by Scene visual catalogs.
+// Native random-palette mutation for Scene visual catalogs.
 
 #ifndef CTHUGHA_SCENE_PALETTE_RANDOMIZER_H
 #define CTHUGHA_SCENE_PALETTE_RANDOMIZER_H
 
-class PaletteEntry;
 class RandomSource;
+class ScenePaletteChoiceSelection;
 
 /**
- * Mutates and returns random palette entries for Scene visual commands.
+ * Mutates Scene-owned random palette entries.
  *
- * The current implementation may still bridge to legacy palette storage, but
- * Scene visual catalog code depends only on this narrow typed port.
+ * This service owns the random.N slot bookkeeping for Scene palette selections
+ * and persists generated entries to the legacy-compatible resources/map files.
+ * It does not read or mutate the global palette option catalog.
  */
 class ScenePaletteRandomizer {
+    int lastRandomIndexValue;
+    int lastRandomSelectionIndexValue;
+
 public:
-    /** Destroys the palette randomizer interface. */
-    virtual ~ScenePaletteRandomizer() { }
+    /** Creates a randomizer with no previously generated random slot. */
+    ScenePaletteRandomizer();
 
     /**
-     * Randomizes the most recent random palette slot.
+     * Randomizes the selected random.N entry or the last generated random slot.
      *
+     * @param selection Scene-owned palette selection to mutate.
      * @param randomSource Random source used for palette generation.
-     * @param currentPaletteIndex Current Scene palette index. Legacy-backed
-     *        implementations use this to update temporary global palette
-     *        current state internally instead of relying on a wider mirror.
-     * @return Mutated palette entry index, or a negative value on failure.
+     * @return Mutated Scene palette selection index, or a negative value when
+     *         the selection could not be updated.
      */
-    virtual int randomizeLast(
-        RandomSource& randomSource, int currentPaletteIndex) = 0;
+    int randomizeLast(
+        ScenePaletteChoiceSelection& selection, RandomSource& randomSource);
 
     /**
-     * Adds a new random palette slot.
+     * Adds a new Scene-owned random palette entry.
      *
+     * @param selection Scene-owned palette selection to append to.
      * @param randomSource Random source used for palette generation.
-     * @return Added palette entry index, or a negative value on failure.
+     * @return Added Scene palette selection index, or a negative value when the
+     *         selection could not be updated.
      */
-    virtual int addRandom(RandomSource& randomSource) = 0;
+    int addRandom(
+        ScenePaletteChoiceSelection& selection, RandomSource& randomSource);
 
-    /**
-     * Returns the random palette entry at an index.
-     *
-     * @param index Palette entry index.
-     * @return Palette entry, or NULL when the index is invalid.
-     */
-    virtual PaletteEntry* paletteEntry(int index) = 0;
+    /** @return Most recent random.N suffix, or -1 before one is generated. */
+    int lastRandomIndex() const;
+
+    /** @return Most recent Scene palette selection index, or -1 before use. */
+    int lastRandomSelectionIndex() const;
 };
 
 #endif

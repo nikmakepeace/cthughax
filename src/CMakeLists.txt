@@ -39,7 +39,7 @@ set(CTHUGHA_COMMON_SOURCES
     SceneTypedVisualCatalogs.cc
     SceneVisualSelectionSet.cc
     SceneVisualSelections.cc
-    LegacyScenePaletteRandomizer.cc
+    ScenePaletteRandomizer.cc
     LegacySceneImageCatalogAdapter.cc
     LegacyScenePaletteCatalogAdapter.cc
     LegacySceneWaveObjectCatalogAdapter.cc

@@ -514,8 +514,6 @@ adapters:
   visual catalog state rather than legacy `EffectControl` globals.
 - Owned visual catalogs for flame, wave, table, object, translation, palette,
   image, border, and flashlight choices, including allowed-choice metadata.
-- Native `ScenePaletteRandomizer` and wave-object source owned by the visual
-  catalog/runtime boundary rather than `LegacyScenePaletteRandomizer`.
 - `FrameGeometry` from Frame Generator so Scene and visual catalogs do not depend
   on `VideoDirector`/`CthughaBuffer` as geometry providers.
 - Removal-condition tests for deleting `LegacyScene*` once the native visual
@@ -996,17 +994,18 @@ from this plan.
      Generator APIs no longer expose `ImageOption` or include `Image.h`.
    - Palette entries are copied into native `ScenePaletteCatalog` ownership
      after the legacy palette loader runs, and initial Scene palette selections
-     use that native catalog. Random/add-random palette mutation still uses the
-     temporary legacy palette randomizer bridge.
-   - The temporary legacy palette randomizer and global visual selection
-     bridges depend on the narrow `PaletteOption` compatibility header instead
-     of the broad Display header.
+     use that native catalog. Random/add-random palette mutation now uses
+     `ScenePaletteRandomizer`, which appends or replaces Scene-owned palette
+     entries and persists generated random.N files without reading the global
+     `palette` option.
+   - The remaining global visual selection bridge depends on the narrow
+     `PaletteOption` compatibility header instead of the broad Display header.
    - Scene visual settings construction, startup choice application, typed
-     selection mutation, and random-palette catalog refresh now live in
+     selection mutation, and random-palette mutation now live in
      `SceneVisualCatalogService` instead of a `LegacySceneVisualCatalogs`
-     implementation. The random-palette dependency is a native
-     `ScenePaletteRandomizer` port, with the old global palette implementation
-     quarantined in `LegacyScenePaletteRandomizer`.
+     implementation. `LegacyScenePaletteRandomizer` is deleted; the separate
+     old `PaletteEntry` static random-palette helpers remain only for the legacy
+     global palette path and its persistence coverage.
    - `LegacySceneVisualCatalogFactory` no longer includes the global flame,
      wave, border, flashlight, display, or translation option headers. The
      temporary read of current legacy visual globals is isolated in
@@ -1030,10 +1029,10 @@ from this plan.
 
 6. **Delete legacy visual startup and catalog bridges. Status: remaining.**
    Remaining compatibility surfaces: `LegacySceneSelectionFactory`,
-   `LegacyGlobalSceneSelectionFactory`, `LegacySceneVisualCatalogFactory`, and
-   `LegacyScenePaletteRandomizer`. `LegacySceneSelectionAdapters` is deleted;
-   native selections are no longer mirrored back into visual `EffectControl`
-   globals.
+   `LegacyGlobalSceneSelectionFactory`, and
+   `LegacySceneVisualCatalogFactory`. `LegacySceneSelectionAdapters` and
+   `LegacyScenePaletteRandomizer` are deleted; native selections are no longer
+   mirrored back into visual `EffectControl` globals.
 
    What remains:
    - Replace `LegacyGlobalSceneSelectionFactory` and
@@ -1048,12 +1047,6 @@ from this plan.
      the Scene visual factory without a `LegacyScene*` helper, the factory owns
      only native catalog/selection services, and boundary tests assert that
      Scene and Frame Generator construction has no legacy visual factory.
-   - Replace `LegacyScenePaletteRandomizer` with a native palette randomizer
-     and persistence service. This is complete when random palette generation
-     and replacement no longer call the global `palette` option or legacy
-     palette file helpers; the Scene palette catalog owns generated entries and
-     persistence metadata; and random-palette unit tests run without
-     `PaletteOption`.
    - Retire any pre-startup or non-Scene UI fallback that still displays Scene
      visual choices through legacy `EffectControl` lists. This is complete when
      F2 lists, X11 menus, keymap actions, and runtime config display code all

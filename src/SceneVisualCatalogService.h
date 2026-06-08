@@ -3,22 +3,22 @@
 #ifndef CTHUGHA_SCENE_VISUAL_CATALOG_SERVICE_H
 #define CTHUGHA_SCENE_VISUAL_CATALOG_SERVICE_H
 
+#include "ScenePaletteRandomizer.h"
 #include "SceneRuntimeDependencies.h"
 
-class ScenePaletteRandomizer;
 class SceneVisualSelections;
 
 /**
  * Scene visual catalog implementation over explicit native selections.
  *
  * This service reads and mutates Scene-owned selections, builds current
- * `SceneSettings`, emits image/palette forced-change flags, and delegates only
- * random-palette mutation through a narrow palette randomizer port.
+ * `SceneSettings`, emits image/palette forced-change flags, and owns native
+ * random-palette mutation for Scene palette selections.
  */
 class SceneVisualCatalogService : public SceneVisualCatalogs {
     SceneSelectionState& selectionState;
     SceneVisualSelections& selections;
-    ScenePaletteRandomizer& paletteRandomizer;
+    ScenePaletteRandomizer paletteRandomizer;
 
     Wave* selectRunnableWave(const WaveConfig& config);
 
@@ -28,11 +28,9 @@ public:
      *
      * @param selectionState_ Storage for the latest computed settings snapshot.
      * @param selections_ Scene-owned visual selections.
-     * @param paletteRandomizer_ Random palette mutation port.
      */
     SceneVisualCatalogService(SceneSelectionState& selectionState_,
-        SceneVisualSelections& selections_,
-        ScenePaletteRandomizer& paletteRandomizer_);
+        SceneVisualSelections& selections_);
 
     /** Builds current settings from native visual selections. */
     virtual const SceneSettings& currentSettings(SceneGeometry& geometry);

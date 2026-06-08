@@ -93,12 +93,20 @@ target_link_libraries(random_palette_persistence_test PRIVATE m)
 
 add_test(NAME random_palette_persistence_test COMMAND random_palette_persistence_test)
 
-add_executable(legacy_scene_palette_randomizer_test
-    unit/LegacyScenePaletteRandomizerTest.cc
-    ${CMAKE_SOURCE_DIR}/src/LegacyScenePaletteRandomizer.cc
-    ${CMAKE_SOURCE_DIR}/src/palettes.cc
+add_executable(scene_palette_randomizer_test
+    unit/ScenePaletteRandomizerTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ScenePaletteRandomizer.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneTypedVisualCatalogs.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneWaveObjectCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneTranslationCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/ScenePaletteCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneImageCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneChoiceSelection.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneVisualSelections.cc
+    ${CMAKE_SOURCE_DIR}/src/TranslateGenerator.cc
     ${CMAKE_SOURCE_DIR}/src/PaletteRandomGenerator.cc
     ${CMAKE_SOURCE_DIR}/src/ColorPalette.cc
+    ${CMAKE_SOURCE_DIR}/src/Image.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoiceLoader.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
@@ -107,21 +115,22 @@ add_executable(legacy_scene_palette_randomizer_test
     ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
 )
 
-target_compile_definitions(legacy_scene_palette_randomizer_test PRIVATE
+target_compile_definitions(scene_palette_randomizer_test PRIVATE
     CTH_LIBDIR="${CTH_DATA_DIR}"
 )
 
-target_include_directories(legacy_scene_palette_randomizer_test PRIVATE
+target_include_directories(scene_palette_randomizer_test PRIVATE
     ${CMAKE_BINARY_DIR}
     ${CMAKE_BINARY_DIR}/src
     ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(legacy_scene_palette_randomizer_test PRIVATE m)
+target_link_libraries(scene_palette_randomizer_test PRIVATE m)
 
-add_test(NAME legacy_scene_palette_randomizer_test COMMAND legacy_scene_palette_randomizer_test)
+add_test(NAME scene_palette_randomizer_test COMMAND scene_palette_randomizer_test)
 
 add_executable(image_placement_test
     unit/ImagePlacementTest.cc

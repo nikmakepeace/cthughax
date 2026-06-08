@@ -4,8 +4,6 @@
 
 #include "Configuration.h"
 #include "Flame.h"
-#include "PaletteEntry.h"
-#include "ScenePaletteRandomizer.h"
 #include "SceneTypedVisualCatalogs.h"
 #include "SceneVisualSelections.h"
 
@@ -56,36 +54,16 @@ static unsigned int forcedChangeForSelection(SceneSelectionTarget target) {
     }
 }
 
-static void refreshOwnedPaletteEntry(SceneVisualSelections& selections,
-    ScenePaletteRandomizer& paletteRandomizer, int index) {
-    if (index < 0)
-        return;
-
-    ScenePaletteChoiceSelection* paletteSelection
-        = dynamic_cast<ScenePaletteChoiceSelection*>(&selections.palette());
-    PaletteEntry* paletteEntry = paletteRandomizer.paletteEntry(index);
-    if (paletteSelection == 0 || paletteEntry == 0)
-        return;
-
-    if (index < paletteSelection->entryCount())
-        paletteSelection->replacePaletteEntry(index, *paletteEntry,
-            paletteEntry->inUse());
-    else if (index == paletteSelection->entryCount())
-        paletteSelection->appendPaletteEntry(*paletteEntry,
-            paletteEntry->inUse());
-}
-
 static void applyStartupChoice(SceneOptionSelection& selection,
     const std::string& choice, RandomSource& randomSource) {
     selection.change(choice.c_str(), randomSource);
 }
 
 SceneVisualCatalogService::SceneVisualCatalogService(
-    SceneSelectionState& selectionState_, SceneVisualSelections& selections_,
-    ScenePaletteRandomizer& paletteRandomizer_)
+    SceneSelectionState& selectionState_, SceneVisualSelections& selections_)
     : selectionState(selectionState_)
     , selections(selections_)
-    , paletteRandomizer(paletteRandomizer_) { }
+    , paletteRandomizer() { }
 
 Wave* SceneVisualCatalogService::selectRunnableWave(
     const WaveConfig& config) {
@@ -258,17 +236,31 @@ void SceneVisualCatalogService::toggleChoiceUse(
 
 unsigned int SceneVisualCatalogService::randomPalette(
     RandomSource& randomSource) {
-    int index = paletteRandomizer.randomizeLast(randomSource,
-        selections.palette().currentValue());
-    refreshOwnedPaletteEntry(selections, paletteRandomizer, index);
+    ScenePaletteChoiceSelection* paletteSelection
+        = dynamic_cast<ScenePaletteChoiceSelection*>(&selections.palette());
+    if (paletteSelection == 0)
+        return SceneNoChange;
+
+    int index = paletteRandomizer.randomizeLast(*paletteSelection,
+        randomSource);
+    if (index < 0)
+        return SceneNoChange;
+
     selections.palette().setValue(index);
     return ScenePaletteChanged;
 }
 
 unsigned int SceneVisualCatalogService::addRandomPalette(
     RandomSource& randomSource) {
-    int index = paletteRandomizer.addRandom(randomSource);
-    refreshOwnedPaletteEntry(selections, paletteRandomizer, index);
+    ScenePaletteChoiceSelection* paletteSelection
+        = dynamic_cast<ScenePaletteChoiceSelection*>(&selections.palette());
+    if (paletteSelection == 0)
+        return SceneNoChange;
+
+    int index = paletteRandomizer.addRandom(*paletteSelection, randomSource);
+    if (index < 0)
+        return SceneNoChange;
+
     selections.palette().setValue(index);
     return ScenePaletteChanged;
 }

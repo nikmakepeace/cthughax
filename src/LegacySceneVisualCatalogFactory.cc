@@ -3,7 +3,6 @@
 #include "LegacySceneVisualCatalogFactory.h"
 
 #include "LegacyGlobalSceneSelectionFactory.h"
-#include "LegacyScenePaletteRandomizer.h"
 #include "SceneImageCatalog.h"
 #include "ScenePaletteCatalog.h"
 #include "SceneTranslationCatalog.h"
@@ -16,16 +15,14 @@
 LegacySceneVisualCatalogFactory::LegacySceneVisualCatalogFactory(
     std::unique_ptr<SceneVisualSelections> ownedSelections_)
     : ownedSelections(std::move(ownedSelections_))
-    , selections(*ownedSelections)
-    , paletteRandomizer(createLegacyScenePaletteRandomizer()) { }
+    , selections(*ownedSelections) { }
 
 LegacySceneVisualCatalogFactory::~LegacySceneVisualCatalogFactory() { }
 
 SceneVisualCatalogFactoryResult LegacySceneVisualCatalogFactory::create(
     SceneSelectionState& selectionState) {
     std::unique_ptr<SceneVisualCatalogs> visualCatalogs(
-        new SceneVisualCatalogService(
-            selectionState, selections, *paletteRandomizer));
+        new SceneVisualCatalogService(selectionState, selections));
     return SceneVisualCatalogFactoryResult(std::move(visualCatalogs),
         selections);
 }

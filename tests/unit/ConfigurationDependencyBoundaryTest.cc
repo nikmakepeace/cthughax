@@ -1636,7 +1636,7 @@ static void testSceneStartupUsesSceneConfig() {
         "#include \"LegacySceneSelectionAdapters.h\"");
     assertSourceContains("src/LegacySceneVisualCatalogFactory.h",
         "class LegacySceneVisualCatalogFactory : public SceneVisualCatalogFactory");
-    assertSourceContains("src/LegacySceneVisualCatalogFactory.h",
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogFactory.h",
         "class ScenePaletteRandomizer");
     assertSourceContains("src/LegacySceneVisualCatalogFactory.h",
         "std::unique_ptr<SceneVisualSelections> ownedSelections");
@@ -1657,7 +1657,7 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceContains("src/LegacySceneVisualCatalogFactory.cc",
         "createLegacyGlobalSceneVisualSelections(images, waveObjects,\n"
         "                imageCatalog, paletteCatalog, translations)");
-    assertSourceContains("src/LegacySceneVisualCatalogFactory.cc",
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogFactory.cc",
         "#include \"LegacyScenePaletteRandomizer.h\"");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogFactory.cc",
         "#include \"LegacySceneCatalogAdapters.h\"");
@@ -1736,26 +1736,20 @@ static void testSceneStartupUsesSceneConfig() {
         "createLegacySceneVisualSelections(flame, flameGeneral, wave");
     assertSourceDoesNotExist("src/LegacySceneCatalogAdapters.cc");
     assertSourceDoesNotExist("src/LegacySceneCatalogAdapters.h");
-    assertSourceDoesNotContain("src/LegacyScenePaletteRandomizer.cc",
-        "class LegacySceneWaveObjectSource");
-    assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
-        "class LegacyScenePaletteRandomizer : public ScenePaletteRandomizer");
-    assertSourceDoesNotContain("src/LegacyScenePaletteRandomizer.cc",
-        "#include \"display.h\"");
-    assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
-        "#include \"PaletteOption.h\"");
-    assertSourceDoesNotContain("src/LegacyScenePaletteRandomizer.h",
-        "class SceneWaveObjectSource");
-    assertSourceContains("src/LegacyScenePaletteRandomizer.h",
-        "#include \"ScenePaletteRandomizer.h\"");
+    assertSourceDoesNotExist("src/LegacyScenePaletteRandomizer.cc");
+    assertSourceDoesNotExist("src/LegacyScenePaletteRandomizer.h");
     assertSourceContains("src/ScenePaletteRandomizer.h",
         "class ScenePaletteRandomizer");
     assertSourceContains("src/ScenePaletteRandomizer.h",
-        "RandomSource& randomSource, int currentPaletteIndex");
-    assertSourceContains("src/ScenePaletteRandomizer.h",
-        "virtual PaletteEntry* paletteEntry(int index) = 0");
-    assertSourceDoesNotContain("src/LegacyScenePaletteRandomizer.h",
-        "createLegacySceneWaveObjectSource");
+        "ScenePaletteChoiceSelection& selection, RandomSource& randomSource");
+    assertSourceContains("src/ScenePaletteRandomizer.cc",
+        "generateRandomPalette(entry->colors(), randomSource)");
+    assertSourceDoesNotContain("src/ScenePaletteRandomizer.cc",
+        "#include \"PaletteOption.h\"");
+    assertSourceDoesNotContain("src/ScenePaletteRandomizer.cc",
+        "PaletteEntry::randomizeLast(randomSource)");
+    assertSourceDoesNotContain("src/ScenePaletteRandomizer.cc",
+        "PaletteEntry::addRandom(randomSource)");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogFactory.h",
         "std::unique_ptr<SceneWaveObjectSource> waveObjects");
     assertSourceDoesNotContain("src/SceneVisualCatalogService.cc",
@@ -1764,17 +1758,19 @@ static void testSceneStartupUsesSceneConfig() {
         "currentWaveObject()");
     assertSourceContains("src/SceneVisualCatalogService.cc",
         "currentSceneWaveObject(selections.object())");
+    assertSourceDoesNotContain("src/SceneVisualCatalogService.cc",
+        "refreshOwnedPaletteEntry");
     assertSourceContains("src/SceneVisualCatalogService.cc",
-        "refreshOwnedPaletteEntry(selections, paletteRandomizer, index)");
+        "paletteRandomizer.randomizeLast(*paletteSelection,\n"
+        "        randomSource)");
     assertSourceContains("src/SceneVisualCatalogService.cc",
-        "paletteSelection->replacePaletteEntry(index, *paletteEntry");
-    assertSourceContains("src/SceneVisualCatalogService.cc",
-        "paletteSelection->appendPaletteEntry(*paletteEntry");
+        "paletteRandomizer.addRandom(*paletteSelection, randomSource)");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogFactory.h",
         "class LegacySceneWaveObjectSource");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogFactory.h",
         "class LegacyScenePaletteRandomizer");
-    assertSourceContains("src/CMakeLists.txt", "LegacyScenePaletteRandomizer.cc");
+    assertSourceDoesNotContain("src/CMakeLists.txt", "LegacyScenePaletteRandomizer.cc");
+    assertSourceContains("src/CMakeLists.txt", "ScenePaletteRandomizer.cc");
     assertSourceDoesNotContain("src/CMakeLists.txt", "LegacySceneCatalogAdapters.cc");
     assertSourceDoesNotContain("src/CMakeLists.txt", "LegacySceneEffectControlCatalog.cc");
     assertSourceDoesNotContain("src/CMakeLists.txt", "LegacySceneSelectionSynchronizer.cc");
@@ -2808,27 +2804,34 @@ static void testPaletteGenerationUsesInjectedRandomSource() {
     assertSourceDoesNotContain("src/palettes.cc", "::Random(256)");
     assertSourceDoesNotContain("src/PaletteEntry.h", "static void Random()");
     assertSourceContains("src/SceneVisualCatalogService.cc",
-        "paletteRandomizer.randomizeLast(randomSource,\n"
-        "        selections.palette().currentValue())");
-    assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
-        "palette.setValue(currentPaletteIndex)");
-    assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
-        "PaletteEntry::randomizeLast(randomSource)");
-    assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
-        "PaletteEntry::addRandom(randomSource)");
-    assertSourceContains("src/LegacyScenePaletteRandomizer.cc",
+        "paletteRandomizer.randomizeLast(*paletteSelection,\n"
+        "        randomSource)");
+    assertSourceContains("src/ScenePaletteRandomizer.cc",
+        "generateRandomPalette(entry->colors(), randomSource)");
+    assertSourceContains("src/ScenePaletteRandomizer.cc",
+        "maxSceneRandomPaletteIndex(selection)");
+    assertSourceContains("src/ScenePaletteRandomizer.cc",
+        "maxPersistedRandomPaletteIndex()");
+    assertSourceDoesNotContain("src/ScenePaletteRandomizer.cc",
         "#include \"PaletteOption.h\"");
-    assertSourceDoesNotContain("src/LegacyScenePaletteRandomizer.cc",
-        "#include \"display.h\"");
+    assertSourceDoesNotContain("src/ScenePaletteRandomizer.cc",
+        "PaletteEntry::randomizeLast(randomSource)");
+    assertSourceDoesNotContain("src/ScenePaletteRandomizer.cc",
+        "PaletteEntry::addRandom(randomSource)");
+    assertSourceDoesNotExist("src/LegacyScenePaletteRandomizer.cc");
+    assertSourceDoesNotExist("src/LegacyScenePaletteRandomizer.h");
     assertSourceContains("tests/unit/RandomPalettePersistenceTest.cc",
         "#include \"PaletteOption.h\"");
     assertSourceDoesNotContain("tests/unit/RandomPalettePersistenceTest.cc",
         "#include \"display.h\"");
-    assertSourceContains("tests/unit/LegacyScenePaletteRandomizerTest.cc",
-        "testRandomizerUsesExplicitCurrentPaletteIndex");
-    assertSourceContains("tests/unit/LegacyScenePaletteRandomizerTest.cc",
-        "randomizer->randomizeLast(randomSource, 1)");
+    assertSourceContains("tests/unit/ScenePaletteRandomizerTest.cc",
+        "testRandomizerReplacesSelectedRandomPaletteInSceneSelection");
+    assertSourceDoesNotContain("tests/unit/ScenePaletteRandomizerTest.cc",
+        "#include \"PaletteOption.h\"");
+    assertSourceDoesNotExist("tests/unit/LegacyScenePaletteRandomizerTest.cc");
     assertSourceContains("tests/CMakeLists.txt",
+        "scene_palette_randomizer_test");
+    assertSourceDoesNotContain("tests/CMakeLists.txt",
         "legacy_scene_palette_randomizer_test");
     assertSourceDoesNotContain("src/SceneVisualCatalogService.cc",
         "PaletteEntry::randomizeLast(randomSource)");

@@ -10,7 +10,6 @@
 class ImageOption;
 class SceneImageCatalog;
 class ScenePaletteCatalog;
-class ScenePaletteRandomizer;
 class SceneTranslationCatalog;
 class SceneVisualSelections;
 class SceneWaveObjectCatalog;
@@ -25,7 +24,6 @@ class SceneWaveObjectCatalog;
 class LegacySceneVisualCatalogFactory : public SceneVisualCatalogFactory {
     std::unique_ptr<SceneVisualSelections> ownedSelections;
     SceneVisualSelections& selections;
-    std::unique_ptr<ScenePaletteRandomizer> paletteRandomizer;
 
 public:
     /**
@@ -36,7 +34,7 @@ public:
     explicit LegacySceneVisualCatalogFactory(
         std::unique_ptr<SceneVisualSelections> ownedSelections_);
 
-    /** Destroys owned selections and randomizer objects after SceneRuntime use. */
+    /** Destroys owned selections after SceneRuntime use. */
     ~LegacySceneVisualCatalogFactory();
 
     /**
