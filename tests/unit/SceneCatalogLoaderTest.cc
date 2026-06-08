@@ -2,9 +2,11 @@
 #include "ScenePaletteCatalogLoader.h"
 #include "SceneWaveObjectCatalogLoader.h"
 
+#include "Configuration.h"
 #include "EffectChoiceLoader.h"
 #include "Image.h"
 #include "PaletteEntry.h"
+#include "ProcessServices.h"
 #include "SceneImageCatalog.h"
 #include "ScenePaletteCatalog.h"
 #include "SceneWaveObjectCatalog.h"
@@ -13,8 +15,12 @@
 #include "png.h"
 
 #include <assert.h>
+#include <cstdio>
 #include <stdarg.h>
 #include <string.h>
+#include <string>
+#include <sys/stat.h>
+#include <unistd.h>
 
 int cth_log_enabled(int) { return 0; }
 int cth_log(int, const char*, ...) { return 0; }
@@ -41,6 +47,15 @@ EffectChoice* read_png_image(FILE*, const char*, const char*, const char*,
     const ImageLoadTarget&) {
     return 0;
 }
+
+class SilentLogSink : public LogSink {
+public:
+    virtual int enabled(int) const { return 0; }
+
+protected:
+    virtual void write(
+        int, const char*, int, const char*, va_list) { }
+};
 
 static int catalogIndexByName(
     const SceneImageCatalog& catalog, const char* name) {
@@ -71,18 +86,64 @@ static int catalogIndexByName(
     return -1;
 }
 
-static void testCopiesWaveObjectsFromEffectControl() {
-    EffectChoiceList objectEntries;
-    EffectControl objectOption(-1, "object-test", objectEntries);
-    objectOption.add(_objects, _nObjects);
+static std::string createTemporaryObjectRoot() {
+    char pathTemplate[] = "/tmp/cthughanix-scene-objects-XXXXXX";
+    char* path = mkdtemp(pathTemplate);
+    assert(path != 0);
 
+    std::string root(path);
+    std::string objectDir = root + "/obj";
+    assert(mkdir(objectDir.c_str(), 0700) == 0);
+    return root;
+}
+
+static void writeObjectFile(const std::string& root, const char* name) {
+    std::string path = root + "/obj/" + name;
+    FILE* file = fopen(path.c_str(), "w");
+    assert(file != 0);
+    assert(fputs(
+        "# ignored\n"
+        "10,20,30 - 11,22,33\n"
+        "13,24,31 - 10,20,30\n",
+        file) >= 0);
+    fclose(file);
+}
+
+static void removeTemporaryObjectRoot(const std::string& root) {
+    unlink((root + "/obj/fixture.obj").c_str());
+    rmdir((root + "/obj").c_str());
+    rmdir(root.c_str());
+}
+
+static void testLoadsWaveObjectsFromPathConfig() {
+    std::string root = createTemporaryObjectRoot();
+    writeObjectFile(root, "fixture.obj");
+
+    PathConfig pathConfig;
+    pathConfig.extraLibraryPath = root;
+    SilentLogSink log;
     SceneWaveObjectCatalog catalog;
-    copySceneWaveObjectCatalogFromEffectControl(objectOption, catalog);
 
-    int index = catalogIndexByName(catalog, "bigH");
-    assert(index >= 0);
-    assert(catalog.inUseAt(index) == 1);
-    assert(catalog.objectAt(index) != 0);
+    loadSceneWaveObjectCatalog(catalog, pathConfig, 1, log);
+
+    int builtInIndex = catalogIndexByName(catalog, "bigH");
+    assert(builtInIndex >= 0);
+    assert(catalog.objectAt(builtInIndex) != 0);
+
+    int fixtureIndex = catalogIndexByName(catalog, "fixture");
+    assert(fixtureIndex >= 0);
+    assert(catalog.inUseAt(fixtureIndex) == 1);
+
+    const WObject* object = catalog.objectAt(fixtureIndex);
+    assert(object != 0);
+    assert(object[0][0][0] == 0);
+    assert(object[0][0][1] == 0);
+    assert(object[0][0][2] == 0);
+    assert(object[0][1][0] == 1);
+    assert(object[0][1][1] == 2);
+    assert(object[0][1][2] == 3);
+
+    removeTemporaryObjectRoot(root);
 }
 
 static void testCopiesImagesFromImageOption() {
@@ -127,7 +188,7 @@ static void testCopiesPalettesFromEffectControl() {
 }
 
 int main() {
-    testCopiesWaveObjectsFromEffectControl();
+    testLoadsWaveObjectsFromPathConfig();
     testCopiesImagesFromImageOption();
     testCopiesPalettesFromEffectControl();
     return 0;

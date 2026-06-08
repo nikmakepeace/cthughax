@@ -1219,6 +1219,8 @@ static void testCatalogLoadingUsesPathConfig() {
     assertSourceContains("src/Image.cc", "loadEffectChoices(*this, pathConfig");
     assertSourceContains("src/palettes.cc", "loadEffectChoices(palette, pathConfig");
     assertSourceContains("src/waves.cc", "loadEffectChoices(object, pathConfig");
+    assertSourceContains("src/SceneWaveObjectCatalogLoader.cc",
+        "pathConfig.extraLibraryPath");
 }
 
 static void testCatalogLoadingSkipsDuplicateNamesWithoutCompressedAssetShellOut() {
@@ -3152,13 +3154,20 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceDoesNotExist("src/LegacySceneWaveObjectCatalogAdapter.h");
     assertSourceDoesNotExist("src/LegacySceneWaveObjectCatalogAdapter.cc");
     assertSourceContains("src/SceneWaveObjectCatalogLoader.cc",
-        "copySceneWaveObjectCatalogFromEffectControl(");
+        "loadSceneWaveObjectCatalog(");
     assertSourceContains("src/SceneWaveObjectCatalogLoader.cc",
-        "waveObjectEntryObject(choice)");
+        "read_wave_object(file, featureName.c_str())");
+    assertSourceDoesNotContain("src/SceneWaveObjectCatalogLoader.cc",
+        "copySceneWaveObjectCatalogFromEffectControl");
+    assertSourceDoesNotContain("src/SceneWaveObjectCatalogLoader.cc",
+        "#include \"EffectControl.h\"");
     assertSourceContains("src/Application.h",
         "std::unique_ptr<SceneWaveObjectCatalog> sceneWaveObjectCatalogValue");
     assertSourceContains("src/Application.cc",
-        "copySceneWaveObjectCatalogFromEffectControl(object, waveObjects)");
+        "loadSceneWaveObjectCatalog(\n"
+        "        waveObjects, pathConfig, effectPolicy.useObjectsEnabled, log)");
+    assertSourceDoesNotContain("src/Application.cc",
+        "copySceneWaveObjectCatalogFromEffectControl(");
     assertSourceContains("src/CMakeLists.txt", "SceneWaveObjectCatalog.cc");
     assertSourceContains("src/CMakeLists.txt",
         "SceneWaveObjectCatalogLoader.cc");
@@ -3179,7 +3188,7 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceContains("tests/unit/SceneWaveObjectCatalogTest.cc",
         "testCatalogOwnsCopiedWaveObjects");
     assertSourceContains("tests/unit/SceneCatalogLoaderTest.cc",
-        "testCopiesWaveObjectsFromEffectControl");
+        "testLoadsWaveObjectsFromPathConfig");
     assertSourceContains("src/SceneImageCatalog.h",
         "class SceneImageCatalog");
     assertSourceDoesNotContain("src/SceneImageCatalog.h",

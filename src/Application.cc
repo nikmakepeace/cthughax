@@ -245,8 +245,9 @@ void Application::initSceneRuntime() {
         sceneTranslationCatalogValue.reset(new SceneTranslationCatalog());
     if (sceneWaveObjectCatalogValue.get() == NULL) {
         sceneWaveObjectCatalogValue.reset(new SceneWaveObjectCatalog());
-        copySceneWaveObjectCatalogFromEffectControl(
-            object, *sceneWaveObjectCatalogValue);
+        loadSceneWaveObjectCatalog(*sceneWaveObjectCatalogValue,
+            startupConfigValue.paths,
+            startupConfigValue.effectPolicy.useObjectsEnabled, logSinkValue);
     }
     if (sceneImageCatalogValue.get() == NULL) {
         sceneImageCatalogValue.reset(new SceneImageCatalog());
@@ -802,7 +803,8 @@ static int initializeVisualCatalogs(const FrameGeometry& geometry,
 
     if (init_wave(pathConfig, log))
         return 1;
-    copySceneWaveObjectCatalogFromEffectControl(object, waveObjects);
+    loadSceneWaveObjectCatalog(
+        waveObjects, pathConfig, effectPolicy.useObjectsEnabled, log);
 
     if (load_palettes(pathConfig))
         return 1;

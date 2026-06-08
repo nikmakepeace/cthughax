@@ -1141,6 +1141,7 @@ add_executable(scene_catalog_loader_test
     ${CMAKE_SOURCE_DIR}/src/EffectRegistry.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
     ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
     ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc

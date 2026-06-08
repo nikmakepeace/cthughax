@@ -1,22 +1,26 @@
-// Scene wave-object catalog loader compatibility helpers.
+// Scene wave-object catalog loading.
 
 #ifndef CTHUGHA_SCENE_WAVE_OBJECT_CATALOG_LOADER_H
 #define CTHUGHA_SCENE_WAVE_OBJECT_CATALOG_LOADER_H
 
-class EffectControl;
+struct PathConfig;
+class LogSink;
 class SceneWaveObjectCatalog;
 
 /**
- * Copies object option entries into a native Scene wave-object catalog.
+ * Loads built-in and file-backed wave objects into a Scene catalog.
  *
- * This quarantines the remaining EffectControl-backed object loader outside
- * Scene runtime construction while object file loading is still compatibility
- * backed.
+ * This is the native Scene wave-object startup path. The compatibility object
+ * EffectControl list may still exist for non-Scene UI, but Scene construction
+ * does not need to copy from it.
  *
- * @param objectOption Object EffectControl populated by init_wave().
- * @param catalog Native catalog to replace with copied entries.
+ * @param catalog Native catalog to replace with loaded entries.
+ * @param pathConfig Startup path configuration.
+ * @param fileObjectsEnabled Nonzero to scan configured object directories.
+ * @param log Diagnostics sink for loader progress and file errors.
+ * @return Zero after scanning configured paths.
  */
-void copySceneWaveObjectCatalogFromEffectControl(
-    EffectControl& objectOption, SceneWaveObjectCatalog& catalog);
+int loadSceneWaveObjectCatalog(SceneWaveObjectCatalog& catalog,
+    const PathConfig& pathConfig, int fileObjectsEnabled, LogSink& log);
 
 #endif
