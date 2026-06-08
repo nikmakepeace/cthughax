@@ -1413,6 +1413,8 @@ static void testSceneStartupUsesSceneConfig() {
         "class SceneWaveObjectSource");
     assertSourceContains("src/LegacySceneCatalogAdapters.h",
         "class ScenePaletteRandomizer");
+    assertSourceContains("src/LegacySceneCatalogAdapters.h",
+        "virtual PaletteEntry* paletteEntry(int index) = 0");
     assertSourceDoesNotContain("src/LegacySceneCatalogAdapters.h",
         "createLegacySceneWaveObjectSource");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
@@ -1423,6 +1425,12 @@ static void testSceneStartupUsesSceneConfig() {
         "currentWaveObject()");
     assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "currentSceneWaveObject(selections.object())");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "refreshOwnedPaletteEntry(selections, paletteRandomizer, index)");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "paletteSelection->replacePaletteEntry(index, *paletteEntry");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "paletteSelection->appendPaletteEntry(*paletteEntry");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
         "class LegacySceneWaveObjectSource");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
@@ -2614,6 +2622,10 @@ static void testEffectControlUsesInjectedRandomSource() {
         "class ScenePaletteChoiceCatalog : public SceneChoiceCatalog");
     assertSourceContains("src/SceneTypedVisualCatalogs.h",
         "class ScenePaletteChoiceSelection : public SceneChoiceSelection");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "int appendPaletteEntry(const PaletteEntry& palette, int inUse)");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "int replacePaletteEntry(int index, const PaletteEntry& palette, int inUse)");
     assertSourceContains("src/SceneTypedVisualCatalogs.h",
         "class SceneImageChoice : public SceneChoice");
     assertSourceContains("src/SceneTypedVisualCatalogs.h",

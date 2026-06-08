@@ -910,11 +910,13 @@ changes needed before the surface can disappear.
    border, and flashlight selections now use owned `SceneChoiceListCatalog`
    choice entries instead of borrowing legacy `EffectChoiceList` entries. The
    legacy adapter still syncs those values to the old controls until the native
-   visual owner replaces the remaining legacy factory.
+   visual owner replaces the remaining legacy factory. Random/add-random
+   palette commands now refresh the owned Scene palette copy after the legacy
+   random palette adapter mutates or appends the persisted palette entry.
 
    Concrete changes required:
    - Move catalog loading, generated entries, allowed-choice metadata, and
-     current-entry lookup into those owners.
+     remaining random palette generation/persistence into those owners.
    - Give those owners the small typed APIs needed by `SceneVisualCatalogs`,
      `SceneVisualSelections`, `FrameGeneratorSceneBinding`, and runtime
      commands.

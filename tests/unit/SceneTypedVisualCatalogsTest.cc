@@ -270,6 +270,32 @@ static void testPaletteSelectionReturnsOwnedEntry() {
     assert(selected->colors().component(1, 2) == 6);
 }
 
+static void testPaletteSelectionCanReplaceAndAppendEntries() {
+    PaletteEntry first("warm", "Warm Palette");
+    first.colors().setColor(1, 1, 2, 3);
+    PaletteEntry replacement("warm", "Warmer Palette");
+    replacement.colors().setColor(1, 7, 8, 9);
+    PaletteEntry appended("random.1", "Random Palette");
+    appended.colors().setColor(1, 11, 12, 13);
+    ScenePaletteChoiceCatalog* catalog
+        = new ScenePaletteChoiceCatalog("palette", new RecordingLock());
+    catalog->addChoice(first, 1);
+    ScenePaletteChoiceSelection selection(catalog, 0);
+
+    assert(selection.replacePaletteEntry(0, replacement, 1) != 0);
+    PaletteEntry* afterReplace = selection.currentPaletteEntry();
+    assert(std::strcmp(afterReplace->Desc(), "Warmer Palette") == 0);
+    assert(afterReplace->colors().component(1, 0) == 7);
+
+    int appendedIndex = selection.appendPaletteEntry(appended, 1);
+    assert(appendedIndex == 1);
+    assert(selection.entryCount() == 2);
+    selection.setValue(appendedIndex);
+    PaletteEntry* selected = selection.currentPaletteEntry();
+    assert(std::strcmp(selected->Name(), "random.1") == 0);
+    assert(selected->colors().component(1, 2) == 13);
+}
+
 static void testImageCatalogCopiesImageAndPalette() {
     ColorPalette* palette = new ColorPalette();
     palette->setColor(3, 11, 22, 33);
@@ -333,6 +359,7 @@ int main() {
     testTranslationSelectionReturnsOwnedTable();
     testPaletteCatalogCopiesEntry();
     testPaletteSelectionReturnsOwnedEntry();
+    testPaletteSelectionCanReplaceAndAppendEntries();
     testImageCatalogCopiesImageAndPalette();
     testImageSelectionReturnsOwnedImage();
     return 0;

@@ -11,6 +11,7 @@
 #include "LegacySceneEffectControlBindings.h"
 #include "LegacySceneEffectControlCatalog.h"
 #include "LegacySceneSelectionAdapters.h"
+#include "SceneTypedVisualCatalogs.h"
 #include "TranslationOptions.h"
 #include "display.h"
 #include "flames.h"
@@ -25,6 +26,25 @@ static WObject* currentSceneWaveObject(SceneOptionSelection& selection) {
     SceneWaveObjectSelection* objectSelection
         = dynamic_cast<SceneWaveObjectSelection*>(&selection);
     return (objectSelection != 0) ? objectSelection->currentObject() : 0;
+}
+
+static void refreshOwnedPaletteEntry(SceneVisualSelections& selections,
+    ScenePaletteRandomizer& paletteRandomizer, int index) {
+    if (index < 0)
+        return;
+
+    ScenePaletteChoiceSelection* paletteSelection
+        = dynamic_cast<ScenePaletteChoiceSelection*>(&selections.palette());
+    PaletteEntry* paletteEntry = paletteRandomizer.paletteEntry(index);
+    if (paletteSelection == 0 || paletteEntry == 0)
+        return;
+
+    if (index < paletteSelection->entryCount())
+        paletteSelection->replacePaletteEntry(index, *paletteEntry,
+            paletteEntry->inUse());
+    else if (index == paletteSelection->entryCount())
+        paletteSelection->appendPaletteEntry(*paletteEntry,
+            paletteEntry->inUse());
 }
 
 LegacySceneVisualCatalogs::LegacySceneVisualCatalogs(
@@ -216,12 +236,16 @@ unsigned int LegacySceneVisualCatalogs::change(SceneSelectionTarget target,
 }
 
 unsigned int LegacySceneVisualCatalogs::randomPalette(RandomSource& randomSource) {
-    selections.palette().setValue(paletteRandomizer.randomizeLast(randomSource));
+    int index = paletteRandomizer.randomizeLast(randomSource);
+    refreshOwnedPaletteEntry(selections, paletteRandomizer, index);
+    selections.palette().setValue(index);
     return syncLegacyControlsAndReturn(selections, ScenePaletteChanged);
 }
 
 unsigned int LegacySceneVisualCatalogs::addRandomPalette(RandomSource& randomSource) {
-    selections.palette().setValue(paletteRandomizer.addRandom(randomSource));
+    int index = paletteRandomizer.addRandom(randomSource);
+    refreshOwnedPaletteEntry(selections, paletteRandomizer, index);
+    selections.palette().setValue(index);
     return syncLegacyControlsAndReturn(selections, ScenePaletteChanged);
 }
 

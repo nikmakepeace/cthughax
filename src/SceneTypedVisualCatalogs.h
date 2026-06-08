@@ -413,6 +413,15 @@ public:
     ScenePaletteChoice(const PaletteEntry& palette_, int inUse_);
     ~ScenePaletteChoice();
 
+    /**
+     * Replaces the owned payload without changing this choice object's
+     * identity.
+     *
+     * @param palette_ Palette entry copied into this choice.
+     * @param inUse_ Nonzero when selectable by default.
+     */
+    void copyFrom(const PaletteEntry& palette_, int inUse_);
+
     /** @return Mutable owned palette entry. */
     PaletteEntry* paletteEntry() const;
 
@@ -455,6 +464,16 @@ public:
      */
     ScenePaletteChoice& addChoice(const PaletteEntry& palette, int inUse);
 
+    /**
+     * Replaces a copied palette choice in place.
+     *
+     * @param index Choice index to replace.
+     * @param palette Palette entry copied into this catalog.
+     * @param inUse Nonzero when selectable by default.
+     * @return Nonzero when the index existed and was replaced.
+     */
+    int replaceChoice(int index, const PaletteEntry& palette, int inUse);
+
     /** @return Number of owned choices. */
     virtual int entryCount() const;
 
@@ -476,6 +495,8 @@ public:
  */
 class ScenePaletteChoiceSelection : public SceneChoiceSelection,
     public ScenePaletteSelection {
+    ScenePaletteChoiceCatalog* paletteCatalogValue;
+
 public:
     /**
      * Creates a palette selection over an owned catalog.
@@ -484,6 +505,25 @@ public:
      * @param selectedValue Initial selected index.
      */
     ScenePaletteChoiceSelection(SceneChoiceCatalog* catalog, int selectedValue);
+
+    /**
+     * Appends a copied palette entry to the owned catalog.
+     *
+     * @param palette Palette entry copied into this selection.
+     * @param inUse Nonzero when selectable by default.
+     * @return New entry index, or -1 when the catalog is unavailable.
+     */
+    int appendPaletteEntry(const PaletteEntry& palette, int inUse);
+
+    /**
+     * Replaces a copied palette entry in the owned catalog.
+     *
+     * @param index Existing entry index.
+     * @param palette Palette entry copied into this selection.
+     * @param inUse Nonzero when selectable by default.
+     * @return Nonzero when the entry was replaced.
+     */
+    int replacePaletteEntry(int index, const PaletteEntry& palette, int inUse);
 
     /** @return Selected owned palette entry, or NULL. */
     virtual PaletteEntry* currentPaletteEntry();

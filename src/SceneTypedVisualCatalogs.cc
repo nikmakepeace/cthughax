@@ -415,14 +415,22 @@ TranslationTable SceneTranslationChoiceSelection::currentTranslationTable() {
 
 ScenePaletteChoice::ScenePaletteChoice(
     const PaletteEntry& palette_, int inUse_)
-    : paletteValue(new PaletteEntry(palette_.Name(), palette_.Desc()))
-    , nameValue(palette_.Name())
-    , inUseValue(inUse_) {
-    paletteValue->colors().copyFrom(palette_.colors());
-    copyPaletteMetadata(*paletteValue, palette_);
+    : paletteValue()
+    , nameValue()
+    , inUseValue(0) {
+    copyFrom(palette_, inUse_);
 }
 
 ScenePaletteChoice::~ScenePaletteChoice() { }
+
+void ScenePaletteChoice::copyFrom(
+    const PaletteEntry& palette_, int inUse_) {
+    paletteValue.reset(new PaletteEntry(palette_.Name(), palette_.Desc()));
+    nameValue = palette_.Name();
+    inUseValue = inUse_;
+    paletteValue->colors().copyFrom(palette_.colors());
+    copyPaletteMetadata(*paletteValue, palette_);
+}
 
 PaletteEntry* ScenePaletteChoice::paletteEntry() const {
     return paletteValue.get();
@@ -457,6 +465,15 @@ ScenePaletteChoice& ScenePaletteChoiceCatalog::addChoice(
     return *choices.back();
 }
 
+int ScenePaletteChoiceCatalog::replaceChoice(
+    int index, const PaletteEntry& palette, int inUse) {
+    if ((index < 0) || (index >= int(choices.size())))
+        return 0;
+
+    choices[index]->copyFrom(palette, inUse);
+    return 1;
+}
+
 int ScenePaletteChoiceCatalog::entryCount() const {
     return int(choices.size());
 }
@@ -481,7 +498,27 @@ const char* ScenePaletteChoiceCatalog::optionName() const {
 
 ScenePaletteChoiceSelection::ScenePaletteChoiceSelection(
     SceneChoiceCatalog* catalog, int selectedValue)
-    : SceneChoiceSelection(catalog, selectedValue) { }
+    : SceneChoiceSelection(catalog, selectedValue)
+    , paletteCatalogValue(
+          dynamic_cast<ScenePaletteChoiceCatalog*>(catalog)) { }
+
+int ScenePaletteChoiceSelection::appendPaletteEntry(
+    const PaletteEntry& palette, int inUse) {
+    if (paletteCatalogValue == 0)
+        return -1;
+
+    int index = paletteCatalogValue->entryCount();
+    paletteCatalogValue->addChoice(palette, inUse);
+    return index;
+}
+
+int ScenePaletteChoiceSelection::replacePaletteEntry(
+    int index, const PaletteEntry& palette, int inUse) {
+    if (paletteCatalogValue == 0)
+        return 0;
+
+    return paletteCatalogValue->replaceChoice(index, palette, inUse);
+}
 
 PaletteEntry* ScenePaletteChoiceSelection::currentPaletteEntry() {
     ScenePaletteChoice* choice

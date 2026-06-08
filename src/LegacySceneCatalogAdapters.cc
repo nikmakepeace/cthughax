@@ -17,6 +17,12 @@ public:
         PaletteEntry::addRandom(randomSource);
         return PaletteEntry::lastRandomPos;
     }
+
+    virtual PaletteEntry* paletteEntry(int index) {
+        if ((index < 0) || (index >= palette.getNEntries()))
+            return 0;
+        return dynamic_cast<PaletteEntry*>(palette[index]);
+    }
 };
 
 }
