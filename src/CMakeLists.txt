@@ -33,6 +33,7 @@ set(CTHUGHA_COMMON_SOURCES
     SceneChoiceSelection.cc
     SceneGeneralFlameSelectionValue.cc
     SceneImageCatalog.cc
+    ScenePaletteCatalog.cc
     SceneTranslationCatalog.cc
     SceneWaveObjectCatalog.cc
     SceneTypedVisualCatalogs.cc
@@ -41,6 +42,7 @@ set(CTHUGHA_COMMON_SOURCES
     LegacySceneChoiceLock.cc
     LegacySceneCatalogAdapters.cc
     LegacySceneImageCatalogAdapter.cc
+    LegacyScenePaletteCatalogAdapter.cc
     LegacySceneWaveObjectCatalogAdapter.cc
     LegacySceneSelectionSynchronizer.cc
     LegacySceneSelectionAdapters.cc

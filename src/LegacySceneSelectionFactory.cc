@@ -9,6 +9,7 @@
 #include "SceneChoiceSelection.h"
 #include "SceneGeneralFlameSelectionValue.h"
 #include "SceneImageCatalog.h"
+#include "ScenePaletteCatalog.h"
 #include "SceneTranslationCatalog.h"
 #include "SceneTypedVisualCatalogs.h"
 #include "SceneVisualSelectionSet.h"
@@ -73,14 +74,14 @@ static SceneChoiceCatalog* createSceneTranslationChoiceCatalog(
 }
 
 static SceneChoiceCatalog* createScenePaletteChoiceCatalog(
-    EffectControl& option) {
+    EffectControl& option, const ScenePaletteCatalog& palettes) {
     ScenePaletteChoiceCatalog* catalog = new ScenePaletteChoiceCatalog(
         option.name(), new LegacySceneChoiceLock(option.lock));
 
-    for (int i = 0; i < option.getNEntries(); i++) {
-        PaletteEntry* entry = dynamic_cast<PaletteEntry*>(option[i]);
+    for (int i = 0; i < palettes.entryCount(); i++) {
+        const PaletteEntry* entry = palettes.paletteAt(i);
         if (entry != 0)
-            catalog->addChoice(*entry, entry->inUse());
+            catalog->addChoice(*entry, palettes.inUseAt(i));
     }
 
     return catalog;
@@ -108,6 +109,7 @@ createLegacySceneSelectionAdapters(
     EffectControl& flashlight, EffectControl& images,
     const SceneWaveObjectCatalog& waveObjects,
     const SceneImageCatalog& imageCatalog,
+    const ScenePaletteCatalog& paletteCatalog,
     const SceneTranslationCatalog& translations) {
     return createLegacySceneSelectionAdapters(flame, generalFlame, wave,
         waveScale, table, object, translation, palette, border, flashlight,
@@ -135,7 +137,8 @@ createLegacySceneSelectionAdapters(
                 createSceneTranslationChoiceCatalog(translation, translations),
                 int(translation)),
             new ScenePaletteChoiceSelection(
-                createScenePaletteChoiceCatalog(palette), int(palette)),
+                createScenePaletteChoiceCatalog(palette, paletteCatalog),
+                int(palette)),
             new SceneChoiceSelection(
                 createSceneBorderChoiceCatalog(border.name(),
                     new LegacySceneChoiceLock(border.lock)),

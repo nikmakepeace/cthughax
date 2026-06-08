@@ -9,6 +9,7 @@
 #include "LegacySceneSelectionAdapters.h"
 #include "LegacySceneSelectionSynchronizer.h"
 #include "SceneImageCatalog.h"
+#include "ScenePaletteCatalog.h"
 #include "SceneTranslationCatalog.h"
 #include "SceneWaveObjectCatalog.h"
 #include "TranslationOptions.h"
@@ -39,10 +40,11 @@ SceneVisualCatalogFactoryResult LegacySceneVisualCatalogFactory::create(
 std::unique_ptr<SceneVisualCatalogFactory> createLegacySceneVisualCatalogFactory(
     ImageOption& images, const SceneWaveObjectCatalog& waveObjects,
     const SceneImageCatalog& imageCatalog,
+    const ScenePaletteCatalog& paletteCatalog,
     const SceneTranslationCatalog& translations) {
     return std::unique_ptr<SceneVisualCatalogFactory>(
         new LegacySceneVisualCatalogFactory(createLegacySceneSelectionAdapters(
             flame, flameGeneral, wave, waveScale, table, object, translation,
             palette, border, flashlight, images, waveObjects, imageCatalog,
-            translations)));
+            paletteCatalog, translations)));
 }

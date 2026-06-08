@@ -1045,6 +1045,26 @@ target_link_libraries(scene_image_catalog_test PRIVATE m)
 add_test(NAME scene_image_catalog_test
     COMMAND scene_image_catalog_test)
 
+add_executable(scene_palette_catalog_test
+    unit/ScenePaletteCatalogTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ScenePaletteCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/ColorPalette.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+)
+
+target_include_directories(scene_palette_catalog_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scene_palette_catalog_test PRIVATE m)
+
+add_test(NAME scene_palette_catalog_test
+    COMMAND scene_palette_catalog_test)
+
 add_executable(legacy_scene_choice_lock_test
     unit/LegacySceneChoiceLockTest.cc
     ${CMAKE_SOURCE_DIR}/src/LegacySceneChoiceLock.cc

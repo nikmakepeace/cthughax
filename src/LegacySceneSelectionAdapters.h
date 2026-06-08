@@ -10,6 +10,7 @@
 
 class EffectControl;
 class SceneImageCatalog;
+class ScenePaletteCatalog;
 class SceneTranslationCatalog;
 class SceneWaveObjectCatalog;
 
@@ -45,6 +46,7 @@ createLegacySceneSelectionAdapters(
     EffectControl& flashlight, EffectControl& images,
     const SceneWaveObjectCatalog& waveObjects,
     const SceneImageCatalog& imageCatalog,
+    const ScenePaletteCatalog& paletteCatalog,
     const SceneTranslationCatalog& translations);
 
 /**

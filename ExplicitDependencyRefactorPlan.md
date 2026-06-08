@@ -987,8 +987,10 @@ it, and what must be true before the item can be erased from this plan.
    - Image entries are copied into native `SceneImageCatalog` ownership after
      the explicit Frame Generator image option loads, and Scene image
      selections use that native catalog.
-   - Palette selections copy typed payloads into owned Scene catalog entries
-     after legacy loaders populate their temporary entries.
+   - Palette entries are copied into native `ScenePaletteCatalog` ownership
+     after the legacy palette loader runs, and initial Scene palette selections
+     use that native catalog. Random/add-random palette mutation still uses the
+     temporary legacy palette randomizer bridge.
    - Wave-scale, table, border, and flashlight choice metadata is built by
      `SceneBuiltInChoiceCatalogs` instead of borrowed from `EffectChoiceList`.
    - `Application` creates the temporary visual factory and `SceneRuntime`

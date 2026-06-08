@@ -28,6 +28,7 @@
 #include "Interface.h"
 #include "InterfaceRuntime.h"
 #include "LegacySceneImageCatalogAdapter.h"
+#include "LegacyScenePaletteCatalogAdapter.h"
 #include "LegacySceneWaveObjectCatalogAdapter.h"
 #include "LegacySceneVisualCatalogs.h"
 #include "Mixer.h"
@@ -45,6 +46,7 @@
 #include "Scene.h"
 #include "SceneChangeScheduler.h"
 #include "SceneImageCatalog.h"
+#include "ScenePaletteCatalog.h"
 #include "SceneRuntime.h"
 #include "SceneTranslationCatalog.h"
 #include "SceneWaveObjectCatalog.h"
@@ -64,8 +66,9 @@
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
     const PathConfig& pathConfig, const EffectPolicy& effectPolicy,
-    SceneWaveObjectCatalog& waveObjects, SceneTranslationCatalog& translations,
-    RandomSource& randomSource, LogSink& log);
+    SceneWaveObjectCatalog& waveObjects, ScenePaletteCatalog& palettes,
+    SceneTranslationCatalog& translations, RandomSource& randomSource,
+    LogSink& log);
 static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
     const PathConfig& pathConfig, const FrameGeometry& geometry,
     ImageOption& images, LogSink& log);
@@ -239,12 +242,17 @@ void Application::initSceneRuntime() {
         loadSceneImageCatalogFromLegacy(
             frameGeneratorValue.imageOption(), *sceneImageCatalogValue);
     }
+    if (scenePaletteCatalogValue.get() == NULL) {
+        scenePaletteCatalogValue.reset(new ScenePaletteCatalog());
+        loadScenePaletteCatalogFromLegacy(palette, *scenePaletteCatalogValue);
+    }
     if (sceneVisualCatalogFactoryValue.get() == NULL)
         sceneVisualCatalogFactoryValue
             = createLegacySceneVisualCatalogFactory(
                 frameGeneratorValue.imageOption(),
                 *sceneWaveObjectCatalogValue,
                 *sceneImageCatalogValue,
+                *scenePaletteCatalogValue,
                 *sceneTranslationCatalogValue);
     if (sceneRuntimeValue.get() == NULL)
         sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
@@ -312,6 +320,7 @@ void Application::shutdownSceneRuntime() {
     sceneRuntimeValue.reset();
     sceneVisualCatalogFactoryValue.reset();
     sceneImageCatalogValue.reset();
+    scenePaletteCatalogValue.reset();
     sceneWaveObjectCatalogValue.reset();
     sceneTranslationCatalogValue.reset();
     autoChangeControlsValue.reset();
@@ -529,11 +538,12 @@ int Application::initialize() {
     // before startup scene config can be matched to concrete catalog entries.
     logSinkValue.info("Initializing Frame Generator storage...\n");
     sceneWaveObjectCatalogValue.reset(new SceneWaveObjectCatalog());
+    scenePaletteCatalogValue.reset(new ScenePaletteCatalog());
     sceneTranslationCatalogValue.reset(new SceneTranslationCatalog());
     if (initializeVisualCatalogs(frameGeneratorValue.geometry(),
             startupConfigValue.paths, startupConfigValue.effectPolicy,
-            *sceneWaveObjectCatalogValue, *sceneTranslationCatalogValue,
-            randomSourceValue, logSinkValue))
+            *sceneWaveObjectCatalogValue, *scenePaletteCatalogValue,
+            *sceneTranslationCatalogValue, randomSourceValue, logSinkValue))
         return 0;
     if (loadEffectPolicyImages(startupConfigValue.effectPolicy,
             startupConfigValue.paths, frameGeneratorValue.geometry(),
@@ -754,8 +764,9 @@ void Application::runFrame(int doDisplay) {
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
     const PathConfig& pathConfig, const EffectPolicy& effectPolicy,
-    SceneWaveObjectCatalog& waveObjects, SceneTranslationCatalog& translations,
-    RandomSource& randomSource, LogSink& log) {
+    SceneWaveObjectCatalog& waveObjects, ScenePaletteCatalog& palettes,
+    SceneTranslationCatalog& translations, RandomSource& randomSource,
+    LogSink& log) {
     // Built-in visual choices and file-backed catalogs are application startup
     // state, not pixel-buffer state. They live here because option parsing can
     // change buffer dimensions and stage initial option names before startup.
@@ -775,6 +786,7 @@ static int initializeVisualCatalogs(const FrameGeometry& geometry,
 
     if (load_palettes(pathConfig))
         return 1;
+    loadScenePaletteCatalogFromLegacy(palette, palettes);
 
     return 0;
 }
