@@ -941,7 +941,10 @@ concrete changes needed before the surface can disappear.
    such as `Border.h`, `Flashlight.h`, or `Configuration.h`. Border and
    flashlight rendering now have narrow `BorderRenderer.h` and
    `FlashlightRenderer.h` ports, so `FrameFilters.cc` can use those renderer
-   helpers without including the global option headers.
+   helpers without including the global option headers. `FrameGeneratorRuntime`
+   also no longer includes the full configuration header; its public API uses
+   forwarded startup config ports and delegates config interpretation to the
+   geometry, transition, and message collaborators.
 
    Concrete work still required:
    - Add native visual catalog owners that load or generate every choice used by

@@ -2,7 +2,6 @@
 
 #include "FrameGeneratorRuntime.h"
 
-#include "Configuration.h"
 #include "FrameFilterchain.h"
 #include "IndexedFrame.h"
 #include "ProcessServices.h"
