@@ -936,6 +936,9 @@ concrete changes needed before the surface can disappear.
    temporary legacy lookup and synchronization table. Global-backed selection
    construction is isolated in `LegacySceneSelectionFactory.cc`, so
    `LegacySceneSelectionAdapters.cc` no longer includes visual catalog globals.
+   `FrameGeneratorSceneBinding.cc` now stays behind `SceneSettings` and
+   `FrameFilters`; it no longer includes legacy global visual option headers
+   such as `Border.h`, `Flashlight.h`, or `Configuration.h`.
 
    Concrete work still required:
    - Add native visual catalog owners that load or generate every choice used by
