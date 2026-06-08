@@ -5,6 +5,8 @@
 #ifndef __AUDIO_TYPES_H
 #define __AUDIO_TYPES_H
 
+#include <stdint.h>
+
 enum AudioSampleFormat {
     SF_u8 = 0,
     SF_s8,
@@ -15,7 +17,25 @@ enum AudioSampleFormat {
 };
 
 // One stereo sample in Cthugha's internal signed 8-bit format.
-typedef char char2[2];
+typedef int8_t AudioSample;
+typedef uint8_t AudioByte;
+typedef AudioSample char2[2];
+
+static inline int audioSigned8FromByte(AudioByte value) {
+    return (value < 128) ? int(value) : int(value) - 256;
+}
+
+static inline AudioSample audioSampleFromSigned8Byte(AudioByte value) {
+    return (AudioSample)audioSigned8FromByte(value);
+}
+
+static inline AudioSample audioSampleFromUnsigned8Byte(AudioByte value) {
+    return (AudioSample)(int(value) - 128);
+}
+
+static inline int audioSampleMagnitude(AudioSample sample) {
+    return (sample < 0) ? -int(sample) : int(sample);
+}
 
 enum AudioInputMode {
     AIM_DSPIn,

@@ -546,8 +546,8 @@ static double vertex_sound_stretch(const FrameGeneratorContext& context, int x, 
 
     for (i = 0; i < samples; i++) {
         int sample = (slice + i) & 1023;
-        sound += abs(waveData[sample][0]);
-        sound += abs(waveData[sample][1]);
+        sound += audioSampleMagnitude(waveData[sample][0]);
+        sound += audioSampleMagnitude(waveData[sample][1]);
     }
 
     double amp = (double)sound / (double)(samples * 2 * 128);
@@ -621,8 +621,8 @@ static double wire_sound_scale(const FrameGeneratorContext& context, double scre
     const char2* waveData = processedWaveData(context);
 
     for (i = 0; i < 1024; i++) {
-        sound += abs(waveData[i][0]);
-        sound += abs(waveData[i][1]);
+        sound += audioSampleMagnitude(waveData[i][0]);
+        sound += audioSampleMagnitude(waveData[i][1]);
     }
 
     return screenScale * (0.60 + 1.40 * ((double)sound / (double)(1024 * 2 * 128)));
@@ -1704,8 +1704,8 @@ void wave_wire1(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
         sampleCount = max(1024 / frame.n, 1);
         for (j = 0; j < sampleCount; j++) {
             int sample = min(i * sampleCount + j, 1023);
-            s[0] += abs(waveData[sample][0]);
-            s[1] += abs(waveData[sample][1]);
+            s[0] += audioSampleMagnitude(waveData[sample][0]);
+            s[1] += audioSampleMagnitude(waveData[sample][1]);
         }
 
         scale0 = frame.screenScale * (0.60 + 1.40 * ((double)s[0] / (double)(sampleCount * 128)));

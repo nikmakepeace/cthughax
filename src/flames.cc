@@ -231,8 +231,12 @@ static unsigned char passiveLinearPixel(FrameRenderTarget& buffer, int offset) {
     return buffer.passivePixels()[buffer.visibleLinearOffset(offset)];
 }
 
+static int signedByteFromUnsigned(unsigned char value) {
+    return (value < 128) ? int(value) : int(value) - 256;
+}
+
 static int passiveSignedLinearPixel(FrameRenderTarget& buffer, int offset) {
-    return int((char)passiveLinearPixel(buffer, offset));
+    return signedByteFromUnsigned(passiveLinearPixel(buffer, offset));
 }
 
 static void setActiveLinearPixel(FrameRenderTarget& buffer, int offset,

@@ -75,8 +75,31 @@ static void testFrameBuilderReadsCenteredHistory() {
     assert(frame.samples == 1024);
 }
 
+static void testFrameBuilderPreservesSigned8BoundarySamples() {
+    FakeLogSink log;
+    DecodedAudioHistory history(4096, formatFor(1000, 2, SF_s8), 2048, log);
+    AudioFrameBuilder builder(log);
+    AudioFrame frame;
+    AudioByte pcm[2048];
+
+    memset(pcm, 0, sizeof(pcm));
+    pcm[0] = 0x80;
+    pcm[1] = 0xff;
+    pcm[2] = 0x00;
+    pcm[3] = 0x7f;
+
+    assert(history.appendDecodedPcm(reinterpret_cast<const char*>(pcm), 1024) == 1024);
+    builder.build(frame, history, 512);
+
+    assert(int(frame.raw[0][1]) == -128);
+    assert(int(frame.raw[0][0]) == -1);
+    assert(int(frame.raw[1][1]) == 0);
+    assert(int(frame.raw[1][0]) == 127);
+}
+
 int main() {
     testHistoryKeepsRecentWindowWhileAppending();
     testFrameBuilderReadsCenteredHistory();
+    testFrameBuilderPreservesSigned8BoundarySamples();
     return 0;
 }

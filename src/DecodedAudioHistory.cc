@@ -297,28 +297,27 @@ void AudioFrameBuilder::build(AudioFrame& frame, const DecodedAudioHistory& hist
 
 void AudioFrameBuilder::convert(char2* dst, void* src, int n,
     const PcmFormat& format) {
-    unsigned char* data_u8 = (unsigned char*)src;
-    char* data_s8 = (char*)src;
+    AudioByte* data_u8 = (AudioByte*)src;
+    AudioByte* data_s8 = (AudioByte*)src;
     unsigned short* data_u16 = (unsigned short*)src;
-    short* data_s16 = (short*)src;
 
     int cInc = (format.channels == 1) ? 0 : 1;
 
     switch (format.sampleFormat) {
     case SF_u8:
         for (int i = 0; i < n; i++) {
-            dst[i][1] = int(*data_u8) - 128;
+            dst[i][1] = audioSampleFromUnsigned8Byte(*data_u8);
             data_u8 += cInc;
-            dst[i][0] = int(*data_u8) - 128;
+            dst[i][0] = audioSampleFromUnsigned8Byte(*data_u8);
             data_u8++;
         }
         break;
 
     case SF_s8:
         for (int i = 0; i < n; i++) {
-            dst[i][1] = int(*data_s8);
+            dst[i][1] = audioSampleFromSigned8Byte(*data_s8);
             data_s8 += cInc;
-            dst[i][0] = int(*data_s8);
+            dst[i][0] = audioSampleFromSigned8Byte(*data_s8);
             data_s8++;
         }
         break;
@@ -329,9 +328,9 @@ void AudioFrameBuilder::convert(char2* dst, void* src, int n,
     case SF_s16_le:
 #endif
         for (int i = 0; i < n; i++) {
-            dst[i][1] = int(*data_u16) >> 8;
+            dst[i][1] = audioSampleFromSigned8Byte(AudioByte(int(*data_u16) >> 8));
             data_u16 += cInc;
-            dst[i][0] = int(*data_u16) >> 8;
+            dst[i][0] = audioSampleFromSigned8Byte(AudioByte(int(*data_u16) >> 8));
             data_u16++;
         }
         break;
@@ -342,9 +341,9 @@ void AudioFrameBuilder::convert(char2* dst, void* src, int n,
     case SF_s16_be:
 #endif
         for (int i = 0; i < n; i++) {
-            dst[i][1] = int(*data_u16) & 255;
+            dst[i][1] = audioSampleFromSigned8Byte(AudioByte(int(*data_u16) & 255));
             data_u16 += cInc;
-            dst[i][0] = int(*data_u16) & 255;
+            dst[i][0] = audioSampleFromSigned8Byte(AudioByte(int(*data_u16) & 255));
             data_u16++;
         }
         break;
@@ -355,10 +354,10 @@ void AudioFrameBuilder::convert(char2* dst, void* src, int n,
     case SF_u16_le:
 #endif
         for (int i = 0; i < n; i++) {
-            dst[i][1] = (int(*data_s16) >> 8) - 128;
-            data_s16 += cInc;
-            dst[i][0] = (int(*data_s16) >> 8) - 128;
-            data_s16++;
+            dst[i][1] = audioSampleFromUnsigned8Byte(AudioByte(int(*data_u16) >> 8));
+            data_u16 += cInc;
+            dst[i][0] = audioSampleFromUnsigned8Byte(AudioByte(int(*data_u16) >> 8));
+            data_u16++;
         }
         break;
 
@@ -368,10 +367,10 @@ void AudioFrameBuilder::convert(char2* dst, void* src, int n,
     case SF_u16_be:
 #endif
         for (int i = 0; i < n; i++) {
-            dst[i][1] = (int(*data_s16) & 255) - 128;
-            data_s16 += cInc;
-            dst[i][0] = (int(*data_s16) & 255) - 128;
-            data_s16++;
+            dst[i][1] = audioSampleFromUnsigned8Byte(AudioByte(int(*data_u16) & 255));
+            data_u16 += cInc;
+            dst[i][0] = audioSampleFromUnsigned8Byte(AudioByte(int(*data_u16) & 255));
+            data_u16++;
         }
         break;
 

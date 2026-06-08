@@ -21,11 +21,11 @@ AudioMetrics AudioProcessor::analyze(const char2* frame, int minNoise) const {
         return metrics;
 
     /* Get the amplitude of this sound frame as root mean squared. */
-    const char* d = (const char*)frame;
+    const AudioSample* d = &frame[0][0];
     for (int i = 1024; i != 0; i--) {
-        al += *d * *d;
+        al += int(*d) * int(*d);
         d++;
-        ar += *d * *d;
+        ar += int(*d) * int(*d);
         d++;
     }
 

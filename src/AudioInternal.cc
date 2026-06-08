@@ -31,7 +31,7 @@ int audioSampleWindowForVisualMaxDimension(int visualMaxDimension) {
 }
 
 static int audioPcmPeak(const PcmFormat& format, const char* data, int samples) {
-    const unsigned char* bytes = (const unsigned char*)data;
+    const AudioByte* bytes = (const AudioByte*)data;
     int peak = 0;
     int channels = format.channels;
     if ((data == NULL) || (samples <= 0) || (channels <= 0))
@@ -46,7 +46,7 @@ static int audioPcmPeak(const PcmFormat& format, const char* data, int samples) 
         break;
     case SF_s8:
         for (int i = 0; i < samples * channels; i++)
-            peak = max(peak, abs((int)((const signed char*)data)[i]));
+            peak = max(peak, audioSampleMagnitude(audioSampleFromSigned8Byte(bytes[i])));
         break;
     case SF_u16_le:
         for (int i = 0; i < samples * channels; i++) {
