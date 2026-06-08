@@ -9,11 +9,11 @@
 #include "PaletteTransition.h"
 #include "PaletteEntry.h"
 #include "ProcessServices.h"
-#include "VideoFilters.h"
+#include "FrameFilters.h"
 
 template <class Filter>
-static Filter* stageFilter(VideoFilterchain& filterchain,
-    VideoFilterchainSequence::Stage stage) {
+static Filter* stageFilter(FrameFilterchain& filterchain,
+    FrameFilterchainSequence::Stage stage) {
     return dynamic_cast<Filter*>(filterchain.stageFilter(stage));
 }
 
@@ -102,19 +102,19 @@ int FrameGeneratorSceneBinding::observeQuiet(int quietLength,
     return 1;
 }
 
-VideoFilterchainSequence FrameGeneratorSceneBinding::defaultFilterchainSequence() const {
-    VideoFilterchainSequence sequence;
+FrameFilterchainSequence FrameGeneratorSceneBinding::defaultFilterchainSequence() const {
+    FrameFilterchainSequence sequence;
 
-    sequence.append(VideoFilterchainSequence::ImageStage);
-    sequence.append(VideoFilterchainSequence::BorderStage);
-    sequence.append(VideoFilterchainSequence::FlameStage);
-    sequence.append(VideoFilterchainSequence::TranslateStage);
-    sequence.append(VideoFilterchainSequence::WaveStage);
-    sequence.append(VideoFilterchainSequence::TextStage);
-    sequence.append(VideoFilterchainSequence::FrameCommitStage);
-    sequence.append(VideoFilterchainSequence::PaletteStage);
-    sequence.append(VideoFilterchainSequence::FlashlightStage);
-    sequence.append(VideoFilterchainSequence::IndexedFrameStage);
+    sequence.append(FrameFilterchainSequence::ImageStage);
+    sequence.append(FrameFilterchainSequence::BorderStage);
+    sequence.append(FrameFilterchainSequence::FlameStage);
+    sequence.append(FrameFilterchainSequence::TranslateStage);
+    sequence.append(FrameFilterchainSequence::WaveStage);
+    sequence.append(FrameFilterchainSequence::TextStage);
+    sequence.append(FrameFilterchainSequence::FrameCommitStage);
+    sequence.append(FrameFilterchainSequence::PaletteStage);
+    sequence.append(FrameFilterchainSequence::FlashlightStage);
+    sequence.append(FrameFilterchainSequence::IndexedFrameStage);
 
     CTH_DEBUG("frame generator: default stage sequence stages=%d\n",
         int(sequence.sequence().size()));
@@ -129,7 +129,7 @@ void FrameGeneratorSceneBinding::applySceneToFilterchain(unsigned int changes,
     const SceneSettings& settings = scene->settings();
 
     FlameFilter* flameFilter
-        = stageFilter<FlameFilter>(*filterchain, VideoFilterchainSequence::FlameStage);
+        = stageFilter<FlameFilter>(*filterchain, FrameFilterchainSequence::FlameStage);
     if (flameFilter != 0) {
         flameFilter->setFlame(settings.flame);
         flameFilter->setGeneralFlame(settings.generalFlame);
@@ -137,25 +137,25 @@ void FrameGeneratorSceneBinding::applySceneToFilterchain(unsigned int changes,
 
     TranslateFilter* translateFilter
         = stageFilter<TranslateFilter>(*filterchain,
-            VideoFilterchainSequence::TranslateStage);
+            FrameFilterchainSequence::TranslateStage);
     if (translateFilter != 0 && (changes & SceneTranslationChanged))
         translateFilter->setTranslate(settings.translationTable);
 
     WaveFilter* waveFilter
-        = stageFilter<WaveFilter>(*filterchain, VideoFilterchainSequence::WaveStage);
+        = stageFilter<WaveFilter>(*filterchain, FrameFilterchainSequence::WaveStage);
     if (waveFilter != 0) {
         waveFilter->setRandomSource(randomSourceValue);
         waveFilter->setWave(settings.wave, settings.waveConfig);
     }
 
     BorderFilter* borderFilter
-        = stageFilter<BorderFilter>(*filterchain, VideoFilterchainSequence::BorderStage);
+        = stageFilter<BorderFilter>(*filterchain, FrameFilterchainSequence::BorderStage);
     if (borderFilter != 0)
         borderFilter->setBorderMode(settings.borderMode);
 
     FrameCommitFilter* frameCommitFilter
         = stageFilter<FrameCommitFilter>(*filterchain,
-            VideoFilterchainSequence::FrameCommitStage);
+            FrameFilterchainSequence::FrameCommitStage);
     if (frameCommitFilter != 0)
         frameCommitFilter->setSceneNames(settings.flameName, settings.waveName,
             settings.waveScaleName, settings.tableName);
@@ -163,7 +163,7 @@ void FrameGeneratorSceneBinding::applySceneToFilterchain(unsigned int changes,
     if (changes & ScenePaletteChanged) {
         PaletteFilter* paletteFilter
             = stageFilter<PaletteFilter>(*filterchain,
-                VideoFilterchainSequence::PaletteStage);
+                FrameFilterchainSequence::PaletteStage);
         if (paletteFilter != 0) {
             int frameBudget = paletteFilter->needsTarget(settings.palette)
                 ? transitionController.paletteChangeFrameBudget(randomSourceValue,
@@ -174,22 +174,22 @@ void FrameGeneratorSceneBinding::applySceneToFilterchain(unsigned int changes,
         }
     }
 
-    filterchain->setStageMode(VideoFilterchainSequence::FlashlightStage,
-        settings.flashlightEnabled ? VideoFilterEnabled : VideoFilterDisabled);
-    filterchain->setStageMode(VideoFilterchainSequence::BorderStage,
-        VideoFilterEnabled);
-    filterchain->setStageMode(VideoFilterchainSequence::FlameStage,
-        VideoFilterEnabled);
-    filterchain->setStageMode(VideoFilterchainSequence::TranslateStage,
-        VideoFilterEnabled);
-    filterchain->setStageMode(VideoFilterchainSequence::WaveStage,
-        VideoFilterEnabled);
-    filterchain->setStageMode(VideoFilterchainSequence::FrameCommitStage,
-        VideoFilterEnabled);
-    filterchain->setStageMode(VideoFilterchainSequence::PaletteStage,
-        VideoFilterEnabled);
-    filterchain->setStageMode(VideoFilterchainSequence::IndexedFrameStage,
-        VideoFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::FlashlightStage,
+        settings.flashlightEnabled ? FrameFilterEnabled : FrameFilterDisabled);
+    filterchain->setStageMode(FrameFilterchainSequence::BorderStage,
+        FrameFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::FlameStage,
+        FrameFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::TranslateStage,
+        FrameFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::WaveStage,
+        FrameFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::FrameCommitStage,
+        FrameFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::PaletteStage,
+        FrameFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::IndexedFrameStage,
+        FrameFilterEnabled);
 }
 
 void FrameGeneratorSceneBinding::applyPendingImageCue(
@@ -199,7 +199,7 @@ void FrameGeneratorSceneBinding::applyPendingImageCue(
         return;
 
     ImageFilter* imageFilter
-        = stageFilter<ImageFilter>(*filterchain, VideoFilterchainSequence::ImageStage);
+        = stageFilter<ImageFilter>(*filterchain, FrameFilterchainSequence::ImageStage);
     if (imageFilter == 0)
         return;
 
@@ -207,8 +207,8 @@ void FrameGeneratorSceneBinding::applyPendingImageCue(
     imageFilter->setPlacement(imagePlacementStrategy.choose(*pendingImageCue,
         geometryValue.width(), geometryValue.height(), randomSourceValue));
     imageFilter->setOverlayPassiveBuffer(1);
-    filterchain->setStageMode(VideoFilterchainSequence::ImageStage,
-        VideoFilterArmedOnce);
+    filterchain->setStageMode(FrameFilterchainSequence::ImageStage,
+        FrameFilterArmedOnce);
     applyImageCuePalette(*pendingImageCue, frameBudgetFramesPerSecond);
 
     appliedImageCueId = pendingImageCueId;
@@ -226,7 +226,7 @@ void FrameGeneratorSceneBinding::applyImageCuePalette(const IndexedImage& image,
 
     PaletteFilter* paletteFilter
         = stageFilter<PaletteFilter>(*filterchain,
-            VideoFilterchainSequence::PaletteStage);
+            FrameFilterchainSequence::PaletteStage);
     if (paletteFilter == 0)
         return;
 
@@ -260,20 +260,20 @@ void FrameGeneratorSceneBinding::applyPendingTextCue() {
 
     TextInjectionFilter* textFilter
         = stageFilter<TextInjectionFilter>(*filterchain,
-            VideoFilterchainSequence::TextStage);
+            FrameFilterchainSequence::TextStage);
     if (textFilter == 0)
         return;
 
     textFilter->setInkColor(pendingTextInkColor);
     textFilter->setMessage(pendingTextMessage.c_str(), pendingTextFrames);
-    filterchain->setStageMode(VideoFilterchainSequence::TextStage,
-        VideoFilterEnabled);
+    filterchain->setStageMode(FrameFilterchainSequence::TextStage,
+        FrameFilterEnabled);
 
     appliedTextCueId = pendingTextCueId;
 }
 
 void FrameGeneratorSceneBinding::configureFilterchain(
-    VideoFilterchain& filterchain_, const FrameGeneratorContext& context) {
+    FrameFilterchain& filterchain_, const FrameGeneratorContext& context) {
     if (filterchain != &filterchain_) {
         filterchain = &filterchain_;
         pendingSceneChanges |= SceneAllChanged;

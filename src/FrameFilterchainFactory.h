@@ -1,16 +1,16 @@
-#ifndef __VIDEO_FILTERCHAIN_FACTORY_H
-#define __VIDEO_FILTERCHAIN_FACTORY_H
+#ifndef CTHUGHA_FRAME_FILTERCHAIN_FACTORY_H
+#define CTHUGHA_FRAME_FILTERCHAIN_FACTORY_H
 
-#include "VideoFilterchainSequence.h"
+#include "FrameFilterchainSequence.h"
 
-class VideoFilterchain;
+class FrameFilterchain;
 
 /**
- * Builds concrete video filterchains from stage sequences.
+ * Builds concrete frame filterchains from stage sequences.
  */
-class VideoFilterchainFactory {
+class FrameFilterchainFactory {
 public:
-    VideoFilterchainFactory();
+    FrameFilterchainFactory();
 
     /**
      * Allocates and populates a filterchain for a sequence.
@@ -18,7 +18,7 @@ public:
      * @param sequence Stage order and set of filters to install.
      * @return Newly allocated filterchain owned by the caller.
      */
-    VideoFilterchain* create(const VideoFilterchainSequence& sequence) const;
+    FrameFilterchain* create(const FrameFilterchainSequence& sequence) const;
 
     /**
      * Refreshes filters after display or scene configuration changes.
@@ -26,7 +26,7 @@ public:
      * @param filterchain Existing filterchain to refresh.
      * @param sequence Stage sequence used for diagnostic context.
      */
-    void refresh(VideoFilterchain& filterchain, const VideoFilterchainSequence& sequence) const;
+    void refresh(FrameFilterchain& filterchain, const FrameFilterchainSequence& sequence) const;
 };
 
 #endif

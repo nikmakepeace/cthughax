@@ -4,7 +4,7 @@
 
 #include "FrameStore.h"
 #include "Translate.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -72,7 +72,7 @@ static void testTranslateUsesPitchedRows() {
     TranslationTable translationTable("mirror-y", table.data(),
         packed.width(), packed.height());
     Translate translate(translationTable);
-    VideoFrameContext context;
+    FrameRenderContext context;
 
     translate.execute(packed, context);
     translate.execute(padded, context);

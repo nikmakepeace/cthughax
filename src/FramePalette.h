@@ -4,7 +4,7 @@
 #include "ColorPalette.h"
 
 /**
- * Palette state published with an indexed video frame.
+ * Palette state published with an indexed frame.
  *
  * Display backends can use paletteDirty() to avoid uploading unchanged palette
  * data every frame.

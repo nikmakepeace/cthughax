@@ -1,17 +1,17 @@
-#include "VideoFrameBudget.h"
+#include "FrameGeneratorFrameBudget.h"
 
 #include <assert.h>
 
 static void testConfiguredMaxFramesPerSecondWins() {
-    assert(videoFrameBudgetFramesPerSecond(25, 59.8) == 25);
+    assert(frameGenerationBudgetFramesPerSecond(25, 59.8) == 25);
 }
 
 static void testRollingFramesPerSecondFeedsUncappedBudgets() {
-    assert(videoFrameBudgetFramesPerSecond(0, 48.9) == 48);
+    assert(frameGenerationBudgetFramesPerSecond(0, 48.9) == 48);
 }
 
 static void testMissingRollingFramesPerSecondFallsBackToSixty() {
-    assert(videoFrameBudgetFramesPerSecond(0, 0.0) == 60);
+    assert(frameGenerationBudgetFramesPerSecond(0, 0.0) == 60);
 }
 
 int main() {

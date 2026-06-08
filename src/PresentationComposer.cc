@@ -4,7 +4,7 @@
 #include "IndexedDisplayFrame.h"
 #include "IndexedFrame.h"
 #include "Screen.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 
 static void prepareDestination(IndexedDisplayFrame& destination, int width,
     int height, FramePalette* framePalette, PresentationFrameObserver* observer) {
@@ -44,7 +44,7 @@ static int screenAlreadyAttempted(ScreenEntry* const* attempted, int count,
 static int renderWithScreen(ScreenEntry& screen, const IndexedFrame& source,
     IndexedDisplayFrame& destination, double frameTimeSeconds,
     double deltaTimeSeconds, double framesPerSecond,
-    PresentationFrameObserver* observer, const VideoFrameContext* frameContext) {
+    PresentationFrameObserver* observer, const FrameRenderContext* frameContext) {
     xy outputSize = screen.outputSize(source.width, source.height);
     prepareDestination(destination, outputSize.x, outputSize.y,
         source.framePalette, observer);
@@ -65,7 +65,7 @@ PresentationComposer::PresentationComposer()
 const IndexedDisplayFrame& PresentationComposer::compose(const IndexedFrame& source,
     IndexedDisplayFrame& destination, PresentationScreenSelection& selection,
     double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
-    PresentationFrameObserver* observer, const VideoFrameContext* frameContext) {
+    PresentationFrameObserver* observer, const FrameRenderContext* frameContext) {
     renderedScreenValue = 0;
     ScreenEntry* requestedScreen = selection.current();
     if (!source.valid() || requestedScreen == 0) {

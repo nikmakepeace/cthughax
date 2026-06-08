@@ -1,7 +1,7 @@
 #include "cthugha.h"
 #include "Border.h"
 #include "FrameRenderTarget.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 #include "cth_buffer.h"
 
 static EffectChoice* border_entries[]
@@ -15,7 +15,7 @@ void init_border() {
     border.add(border_entries, 4);
 }
 
-static int audioBorderBytesAvailable(const VideoFrameContext& context) {
+static int audioBorderBytesAvailable(const FrameRenderContext& context) {
     if (context.audioFrame != 0)
         return context.audioFrame->samples * int(sizeof(char2));
 
@@ -23,7 +23,7 @@ static int audioBorderBytesAvailable(const VideoFrameContext& context) {
 }
 
 static void copyAudioBorderRow(unsigned char* destination, int width, int pitch,
-    const VideoFrameContext& context) {
+    const FrameRenderContext& context) {
     const unsigned char* rawBytes
         = reinterpret_cast<const unsigned char*>(context.rawAudioData);
     int available = audioBorderBytesAvailable(context);
@@ -37,7 +37,7 @@ static void copyAudioBorderRow(unsigned char* destination, int width, int pitch,
         memset(destination + width, 0, pitch - width);
 }
 
-void apply_border(FrameRenderTarget& buffer, const VideoFrameContext& context, int borderMode) {
+void apply_border(FrameRenderTarget& buffer, const FrameRenderContext& context, int borderMode) {
     unsigned char* active = buffer.activePixels();
     if (active == 0)
         return;

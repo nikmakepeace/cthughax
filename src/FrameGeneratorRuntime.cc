@@ -3,6 +3,7 @@
 #include "FrameGeneratorRuntime.h"
 
 #include "Configuration.h"
+#include "FrameFilterchain.h"
 #include "IndexedFrame.h"
 #include "ProcessServices.h"
 #include "SceneGeometry.h"
@@ -91,5 +92,5 @@ const IndexedFrame& FrameGeneratorRuntime::render(
     logValue.trace("frame generator", "running filterchain=%p filters=%d\n",
         &pipelineValue.filterchain(), pipelineValue.filterchain().size());
     return pipelineValue.render(frameStoreValue.renderTarget(),
-        context.videoFrameContext());
+        context.frameRenderContext());
 }

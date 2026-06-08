@@ -159,7 +159,7 @@ add_executable(flame_storage_layout_test
     ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
     ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
     ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
-    ${CMAKE_SOURCE_DIR}/src/VideoFilterchain.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderContext.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
     ${CMAKE_SOURCE_DIR}/src/EffectRegistry.cc
@@ -192,7 +192,7 @@ add_executable(translate_storage_layout_test
     ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
     ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
     ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
-    ${CMAKE_SOURCE_DIR}/src/VideoFilterchain.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderContext.cc
 )
 
 target_include_directories(translate_storage_layout_test PRIVATE
@@ -260,6 +260,7 @@ add_test(NAME screen_renderer_characterization_test COMMAND screen_renderer_char
 add_executable(screen_render_context_test
     unit/ScreenRenderContextTest.cc
     ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderContext.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
     ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
 )
@@ -442,20 +443,21 @@ target_link_libraries(translate_generator_test PRIVATE m)
 
 add_test(NAME translate_generator_test COMMAND translate_generator_test)
 
-add_executable(video_frame_budget_test
-    unit/VideoFrameBudgetTest.cc
-    ${CMAKE_SOURCE_DIR}/src/VideoFrameBudget.cc
+add_executable(frame_generator_frame_budget_test
+    unit/FrameGeneratorFrameBudgetTest.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeneratorFrameBudget.cc
 )
 
-target_include_directories(video_frame_budget_test PRIVATE
+target_include_directories(frame_generator_frame_budget_test PRIVATE
     ${CMAKE_BINARY_DIR}
     ${CMAKE_BINARY_DIR}/src
     ${CMAKE_SOURCE_DIR}/src
 )
 
-target_link_libraries(video_frame_budget_test PRIVATE m)
+target_link_libraries(frame_generator_frame_budget_test PRIVATE m)
 
-add_test(NAME video_frame_budget_test COMMAND video_frame_budget_test)
+add_test(NAME frame_generator_frame_budget_test
+    COMMAND frame_generator_frame_budget_test)
 
 add_executable(presentation_composer_test
     unit/PresentationComposerTest.cc
@@ -493,6 +495,7 @@ add_executable(cthugha_display_presentation_test
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
     ${CMAKE_SOURCE_DIR}/src/DisplayRuntime.cc
     ${CMAKE_SOURCE_DIR}/src/FrameClock.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderContext.cc
     ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
     ${CMAKE_SOURCE_DIR}/src/FrameRateMeter.cc
     ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc

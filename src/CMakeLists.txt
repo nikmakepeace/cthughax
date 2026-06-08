@@ -86,6 +86,7 @@ set(CTHUGHA_COMMON_SOURCES
     FrameCompletion.cc
     FrameGeneratorPipeline.cc
     FrameGeneratorContext.cc
+    FrameRenderContext.cc
     FrameGeneratorRuntime.cc
     FrameGeneratorSceneBinding.cc
     FrameGeometry.cc
@@ -99,11 +100,11 @@ set(CTHUGHA_COMMON_SOURCES
     PixelTransfer.cc
     PresentationComposer.cc
     ViewportPolicy.cc
-    VideoFilterchain.cc
-    VideoFilterchainSequence.cc
-    VideoFilters.cc
-    VideoFilterchainFactory.cc
-    VideoFrameBudget.cc
+    FrameFilterchain.cc
+    FrameFilterchainSequence.cc
+    FrameFilters.cc
+    FrameFilterchainFactory.cc
+    FrameGeneratorFrameBudget.cc
     keymap.cc
     InterfaceCredits.cc
     InterfaceList.cc

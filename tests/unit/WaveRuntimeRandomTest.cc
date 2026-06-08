@@ -4,7 +4,7 @@
 
 #include "ProcessServices.h"
 #include "Wave.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -16,41 +16,41 @@ int cth_log_context(int, const char*, const char*, ...) { return 0; }
 int cth_log_error(const char*, ...) { return 0; }
 int cth_log_errno(int, const char*, ...) { return 0; }
 
-void wave_dotHor(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_dotVert(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_lineHor(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_lineVert(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_spike(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_spikeH(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_buff9(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_buff10(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_buff11(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_buff14(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_buff15(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_buff16(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_pete0(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_pete1(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_pete2(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_fract1(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_fract2(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_test(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_aaron(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_wire1(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_wire1dot5(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_wire1dot55(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_wire1dot6(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_wire2(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_wire2dot1(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_lineHLdiff(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_spiral(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_pyro(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_warp(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_laser(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_corner(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_jump(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_sticks(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_grid(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
-void wave_none(FrameRenderTarget&, const VideoFrameContext&, WaveRuntime&) { }
+void wave_dotHor(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_dotVert(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_lineHor(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_lineVert(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_spike(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_spikeH(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_buff9(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_buff10(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_buff11(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_buff14(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_buff15(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_buff16(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_pete0(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_pete1(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_pete2(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_fract1(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_fract2(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_test(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_aaron(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_wire1(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_wire1dot5(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_wire1dot55(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_wire1dot6(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_wire2(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_wire2dot1(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_lineHLdiff(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_spiral(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_pyro(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_warp(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_laser(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_corner(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_jump(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_sticks(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_grid(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
+void wave_none(FrameRenderTarget&, const FrameRenderContext&, WaveRuntime&) { }
 
 class SequenceRandomSource : public RandomSource {
     std::vector<int> values;

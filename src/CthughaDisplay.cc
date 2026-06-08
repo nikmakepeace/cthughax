@@ -9,7 +9,7 @@
 #include "Interface.h"
 #include "IndexedFrame.h"
 #include "Screen.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 #include "ViewportPolicy.h"
 #include "ViewportPresentation.h"
 
@@ -73,7 +73,7 @@ void CthughaDisplay::present(const IndexedFrame& frame) {
 }
 
 void CthughaDisplay::present(const IndexedFrame& frame,
-    const VideoFrameContext& context) {
+    const FrameRenderContext& context) {
     if (!frame.valid()) {
         sourceFrame = NULL;
         return;
@@ -85,7 +85,7 @@ void CthughaDisplay::present(const IndexedFrame& frame,
     presentSourceWithContext(&context);
 }
 
-void CthughaDisplay::presentSourceWithContext(const VideoFrameContext* context) {
+void CthughaDisplay::presentSourceWithContext(const FrameRenderContext* context) {
     presentationContextValue = context;
     (*this)();
     presentationContextValue = 0;

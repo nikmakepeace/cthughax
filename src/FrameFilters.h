@@ -1,13 +1,13 @@
-#ifndef __VIDEO_FILTERS_H
-#define __VIDEO_FILTERS_H
+#ifndef CTHUGHA_FRAME_FILTERS_H
+#define CTHUGHA_FRAME_FILTERS_H
 
 #include "Flame.h"
 #include "FramePalette.h"
 #include "Image.h"
 #include "PaletteTransition.h"
 #include "Translate.h"
-#include "VideoFilterchain.h"
-#include "VideoFilterchainSequence.h"
+#include "FrameFilterchain.h"
+#include "FrameFilterchainSequence.h"
 #include "Wave.h"
 
 #include <string>
@@ -40,7 +40,7 @@ enum TextInjectionVerticalAlign {
 
 // Contract: one-shot pixel injector. Writes the selected image into the active
 // buffer, and can mirror the same pixels into passive for immediate display.
-class ImageFilter : public VideoFilter {
+class ImageFilter : public FrameFilter {
     const IndexedImage* image;
     ImagePlacement placement;
     int overlayPassiveBuffer;
@@ -72,14 +72,14 @@ public:
     /**
      * Draws the selected image into the active indexed pixel buffer.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: feedback filter. Runs the selected Flame over the buffer, usually
 // reading passive pixels and hidden border rows while writing active pixels.
-class FlameFilter : public VideoFilter {
+class FlameFilter : public FrameFilter {
     const Flame* flame;
     int generalFlame;
     FlameLookupTables lookupTables;
@@ -104,14 +104,14 @@ public:
     /**
      * Runs the selected flame against active/passive indexed pixels.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: coordinate remap filter. The Translate executor owns any
 // active/passive swap it needs before remapping passive pixels into active.
-class TranslateFilter : public VideoFilter {
+class TranslateFilter : public FrameFilter {
     Translate translate;
 
 public:
@@ -127,14 +127,14 @@ public:
     /**
      * Applies the configured coordinate remap to the frame buffer.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: sound-reactive drawing filter. Draws into active pixels using the
 // current frame context plus wave-local state; it does not commit the frame.
-class WaveFilter : public VideoFilter {
+class WaveFilter : public FrameFilter {
     Wave* wave;
     WaveConfig config;
     WaveState state;
@@ -164,15 +164,15 @@ public:
     /**
      * Draws the configured wave using the frame audio/time context.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: indexed-buffer text injector. Wraps CP437 text at word boundaries,
 // draws it into active pixels, and lets later frame commits/feed-back stages
 // make it part of the visual material.
-class TextInjectionFilter : public VideoFilter {
+class TextInjectionFilter : public FrameFilter {
     const BitmapFont* font;
     std::string message;
     int framesRemaining;
@@ -213,14 +213,14 @@ public:
     /**
      * Draws the active text cue and decrements its remaining frame count.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: frame boundary. Emits optional diagnostics, then swaps active and
 // passive so the finished indexed image becomes the display source.
-class FrameCommitFilter : public VideoFilter {
+class FrameCommitFilter : public FrameFilter {
     const char* flameName;
     const char* waveName;
     const char* waveScaleName;
@@ -244,28 +244,28 @@ public:
     /**
      * Commits the active indexed buffer by swapping active/passive buffers.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: palette post-filter. Reads acoustic context and writes temporary
 // flashlight output into the frame palette; it ignores indexed pixels.
-class FlashlightFilter : public VideoFilter {
+class FlashlightFilter : public FrameFilter {
 public:
     FlashlightFilter();
 
     /**
      * Applies the acoustic flashlight effect to the frame palette.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: hidden-row writer. Fills the active buffer border rows used by
 // flame feedback; visible pixels are left to later stages.
-class BorderFilter : public VideoFilter {
+class BorderFilter : public FrameFilter {
     int borderMode;
 
 public:
@@ -281,14 +281,14 @@ public:
     /**
      * Writes hidden border rows into the active indexed buffer.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: palette transition filter. Advances the display-facing
 // FramePalette toward the configured target; it ignores indexed pixels.
-class PaletteFilter : public VideoFilter {
+class PaletteFilter : public FrameFilter {
     PaletteTransition transition;
     FramePalette framePaletteValue;
 
@@ -345,31 +345,31 @@ public:
     /**
      * Advances the active frame palette by one visual frame.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 // Contract: final display export. Publishes the committed indexed pixels and
 // frame palette as a driver-facing frame descriptor.
-class IndexedFrameFilter : public VideoFilter {
+class IndexedFrameFilter : public FrameFilter {
 public:
     IndexedFrameFilter();
 
     /**
      * Publishes the passive indexed pixels as the display-facing frame.
      *
-     * @param frame Current video frame wrapper.
+     * @param frame Current frame filter wrapper.
      */
-    void execute(VideoFrame& frame);
+    void execute(FrameFilterFrame& frame);
 };
 
 /**
  * Extracts the frame palette installed in a filterchain.
  *
- * @param filterchain Filterchain configured by VideoFilterchainFactory.
+ * @param filterchain Filterchain configured by FrameFilterchainFactory.
  * @return FramePalette owned by PaletteFilter, or NULL when no palette stage exists.
  */
-FramePalette* framePaletteFromFilterchain(VideoFilterchain& filterchain);
+FramePalette* framePaletteFromFilterchain(FrameFilterchain& filterchain);
 
 #endif

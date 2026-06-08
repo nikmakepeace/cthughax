@@ -1,52 +1,15 @@
-// Internal video filterchain scaffold.
+// Internal frame filterchain scaffold.
 
-#ifndef __VIDEO_FILTERCHAIN_H
-#define __VIDEO_FILTERCHAIN_H
+#ifndef CTHUGHA_FRAME_FILTERCHAIN_H
+#define CTHUGHA_FRAME_FILTERCHAIN_H
 
-#include "AudioFrame.h"
-#include "AudioAnalyzer.h"
+#include "FrameRenderContext.h"
 #include "IndexedFrame.h"
 
 #include <vector>
 
 class FrameRenderTarget;
 class FramePalette;
-class SceneSnapshot;
-
-/**
- * Per-frame inputs shared by every video filter.
- *
- * The pointers are borrowed for the duration of one filterchain run. Time values
- * are in seconds and match the visual frame clock, not the audio sample clock.
- */
-class VideoFrameContext {
-public:
-    /** Audio frame facade for this visual frame, or NULL when audio is absent. */
-    const AudioFrame* audioFrame;
-
-    /** Raw signed 8-bit stereo audio samples, usually audioFrame->raw. */
-    const char2* rawAudioData;
-
-    /** Processed signed 8-bit stereo samples after the selected audio processor. */
-    const char2* processedWaveData;
-
-    /** Analysis metrics derived from the current audio frame, or NULL. */
-    const AudioMetrics* audioMetrics;
-
-    /** Higher-level acoustic state used by sound-reactive filters, or NULL. */
-    const AcousticContext* acousticContext;
-
-    /** Immutable scene state for this visual frame, or NULL when unavailable. */
-    const SceneSnapshot* sceneSnapshot;
-
-    /** Current visual-frame timestamp, in seconds. */
-    double now;
-
-    /** Seconds elapsed since the previous visual frame. */
-    double deltaT;
-
-    VideoFrameContext();
-};
 
 /**
  * Mutable frame object passed through one filterchain execution.
@@ -54,29 +17,29 @@ public:
  * Filters use this to access the active/passive indexed buffers, frame context,
  * optional frame palette, and final published IndexedFrame.
  */
-class VideoFrame {
+class FrameFilterFrame {
     FrameRenderTarget* bufferValue;
-    const VideoFrameContext* contextValue;
+    const FrameRenderContext* contextValue;
     FramePalette* framePaletteValue;
     IndexedFrame* indexedFrameValue;
 
 public:
     /**
-     * Wraps the state for one video filterchain run.
+     * Wraps the state for one frame filterchain run.
      *
      * @param buffer_ Active/passive indexed pixel buffer for this visual frame.
      * @param context_ Borrowed per-frame audio/time context.
      * @param framePalette_ Palette state to update or read, or NULL.
      * @param indexedFrame_ Destination for final display frame publication.
      */
-    VideoFrame(FrameRenderTarget& buffer_, const VideoFrameContext& context_,
+    FrameFilterFrame(FrameRenderTarget& buffer_, const FrameRenderContext& context_,
         FramePalette* framePalette_, IndexedFrame* indexedFrame_);
 
     /** @return Active/passive indexed pixel buffer for this frame. */
     FrameRenderTarget& buffer();
 
     /** @return Borrowed audio/time context for this frame. */
-    const VideoFrameContext& context() const;
+    const FrameRenderContext& context() const;
 
     /** @return Mutable frame palette, or NULL when no palette stage is installed. */
     FramePalette* framePalette();
@@ -96,11 +59,11 @@ public:
 };
 
 /**
- * Base interface for one video filter stage.
+ * Base interface for one frame filter stage.
  */
-class VideoFilter {
+class FrameFilter {
 public:
-    virtual ~VideoFilter();
+    virtual ~FrameFilter();
 
     /** Rebuilds internal lookup/cache state after display or scene changes. */
     virtual void refresh() { }
@@ -110,39 +73,39 @@ public:
      *
      * @param frame Mutable frame wrapper containing buffers, palette, and context.
      */
-    virtual void execute(VideoFrame& frame) = 0;
+    virtual void execute(FrameFilterFrame& frame) = 0;
 };
 
-enum VideoFilterRunMode {
+enum FrameFilterRunMode {
     /** Stage is skipped during filterchain runs. */
-    VideoFilterDisabled,
+    FrameFilterDisabled,
 
     /** Stage executes on every filterchain run. */
-    VideoFilterEnabled,
+    FrameFilterEnabled,
 
-    /** Stage executes on the next run, then changes back to VideoFilterDisabled. */
-    VideoFilterArmedOnce
+    /** Stage executes on the next run, then changes back to FrameFilterDisabled. */
+    FrameFilterArmedOnce
 };
 
 /**
- * Ordered collection of video filters keyed by stage id.
+ * Ordered collection of frame filters keyed by stage id.
  *
- * Stage ids are normally VideoFilterchainSequence::Stage values. A stage can
+ * Stage ids are normally FrameFilterchainSequence::Stage values. A stage can
  * contain more than one filter, and run modes are applied to every filter with
  * the matching stage id.
  */
-class VideoFilterchain {
+class FrameFilterchain {
     struct Entry {
         unsigned int stage;
-        VideoFilter* filter;
+        FrameFilter* filter;
         int owned;
-        VideoFilterRunMode mode;
+        FrameFilterRunMode mode;
 
-        Entry(unsigned int stage_, VideoFilter* filter_, int owned_)
+        Entry(unsigned int stage_, FrameFilter* filter_, int owned_)
             : stage(stage_)
             , filter(filter_)
             , owned(owned_)
-            , mode(VideoFilterDisabled) { }
+            , mode(FrameFilterDisabled) { }
     };
 
     std::vector<Entry> filters;
@@ -151,8 +114,8 @@ class VideoFilterchain {
     IndexedFrame indexedFrameValue;
 
 public:
-    VideoFilterchain();
-    ~VideoFilterchain();
+    FrameFilterchain();
+    ~FrameFilterchain();
 
     /** Deletes owned filters and clears stage order, palette, and published frame. */
     void clear();
@@ -160,11 +123,11 @@ public:
     /**
      * Adds a filter to a stage.
      *
-     * @param stage Stage id, normally a VideoFilterchainSequence::Stage value.
+     * @param stage Stage id, normally a FrameFilterchainSequence::Stage value.
      * @param filter Filter instance to add; ignored when NULL.
      * @param takeOwnership Nonzero to delete filter in clear()/destructor.
      */
-    void add(unsigned int stage, VideoFilter* filter, int takeOwnership = 0);
+    void add(unsigned int stage, FrameFilter* filter, int takeOwnership = 0);
 
     /**
      * Replaces the stage execution order.
@@ -198,22 +161,22 @@ public:
      * @param mode Disabled, enabled, or armed-once execution mode.
      * @return Number of filters matched by the stage id.
      */
-    int setStageMode(unsigned int stage, VideoFilterRunMode mode);
+    int setStageMode(unsigned int stage, FrameFilterRunMode mode);
 
     /**
      * @param stage Stage id to query.
-     * @return First matching filter's run mode, or VideoFilterDisabled.
+     * @return First matching filter's run mode, or FrameFilterDisabled.
      */
-    VideoFilterRunMode stageMode(unsigned int stage) const;
+    FrameFilterRunMode stageMode(unsigned int stage) const;
 
     /**
      * @param stage Stage id to query.
      * @return First matching filter for the stage, or NULL.
      */
-    VideoFilter* stageFilter(unsigned int stage);
+    FrameFilter* stageFilter(unsigned int stage);
 
     /**
-     * Sets the shared frame palette pointer supplied to VideoFrame.
+     * Sets the shared frame palette pointer supplied to FrameFilterFrame.
      *
      * @param framePalette Palette owned by a filter or caller; not owned here.
      */
@@ -234,7 +197,7 @@ public:
      * @param buffer Active/passive indexed pixel buffer to mutate.
      * @param context Per-frame audio/time context; borrowed during the call.
      */
-    void run(FrameRenderTarget& buffer, const VideoFrameContext& context);
+    void run(FrameRenderTarget& buffer, const FrameRenderContext& context);
 
     /** @return Number of registered filter entries, not number of stages. */
     int size() const;

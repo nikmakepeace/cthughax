@@ -5,7 +5,7 @@
 
 class FrameRenderTarget;
 class RandomSource;
-class VideoFrameContext;
+class FrameRenderContext;
 
 /**
  * 3D wire object used by object-based wave renderers.
@@ -264,11 +264,11 @@ public:
      * Wave renderer function.
      *
      * @param buffer Active indexed pixel buffer to draw into.
-     * @param context Current video frame audio/time context.
+     * @param context Current frame render audio/time context.
      * @param runtime Wave config, state, lookup tables, and fire budget.
      */
     typedef void (*Function)(FrameRenderTarget& buffer,
-        const VideoFrameContext& context, WaveRuntime& runtime);
+        const FrameRenderContext& context, WaveRuntime& runtime);
 
     /**
      * Predicate that decides whether a wave can run with a config.
@@ -312,14 +312,14 @@ public:
      * Executes the wave renderer for one visual frame.
      *
      * @param buffer Active indexed pixel buffer to draw into.
-     * @param context Current video frame audio/time context.
+     * @param context Current frame render audio/time context.
      * @param config Wave-scale/table/object/dimension settings.
      * @param needsConfiguration Nonzero when renderer should rebuild state.
      * @param state Persistent state storage for this wave.
      * @param lookupTables Shared lookup-table cache.
      * @param randomSource Random source used by renderer effects.
      */
-    void execute(FrameRenderTarget& buffer, const VideoFrameContext& context,
+    void execute(FrameRenderTarget& buffer, const FrameRenderContext& context,
         const WaveConfig& config, int needsConfiguration, WaveState& state,
         WaveLookupTables& lookupTables, RandomSource& randomSource) const;
 };

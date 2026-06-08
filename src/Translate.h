@@ -6,7 +6,7 @@
 #include "TranslationTable.h"
 
 class FrameRenderTarget;
-class VideoFrameContext;
+class FrameRenderContext;
 
 /**
  * Runtime executor for one translation table.
@@ -39,9 +39,9 @@ public:
      *
      * @param buffer Active/passive indexed pixel buffer. Dimensions must match
      *        the translation table.
-     * @param context Current video frame context; currently unused by translate.
+     * @param context Current frame render context; currently unused by translate.
      */
-    void execute(FrameRenderTarget& buffer, const VideoFrameContext& context) const;
+    void execute(FrameRenderTarget& buffer, const FrameRenderContext& context) const;
 };
 
 #endif

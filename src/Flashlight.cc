@@ -3,7 +3,7 @@
 #include "cthugha.h"
 #include "Flashlight.h"
 #include "FramePalette.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 #include "display.h"
 #include "imath.h"
 
@@ -16,7 +16,7 @@ void init_flashlight() {
     flashlight.add(flashlight_entries, 2);
 }
 
-void apply_flashlight(FramePalette& framePalette, const VideoFrameContext& context) {
+void apply_flashlight(FramePalette& framePalette, const FrameRenderContext& context) {
     if (context.acousticContext == 0)
         return;
 

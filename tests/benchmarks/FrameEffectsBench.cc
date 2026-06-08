@@ -3,7 +3,7 @@
 #include "FrameStore.h"
 #include "Flame.h"
 #include "Translate.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 #include "imath.h"
 #include "TranslationOptions.h"
 #include "cth_buffer.h"
@@ -42,7 +42,7 @@ namespace {
 const int kHiddenRows = 3;
 const int kMaxBenchmarkDimension = 4096;
 
-struct VideoBenchConfig {
+struct FrameEffectsBenchConfig {
     int width;
     int height;
     std::string fixtureDir;
@@ -50,13 +50,13 @@ struct VideoBenchConfig {
     std::string activeImagePath;
     std::string passiveImagePath;
 
-    VideoBenchConfig()
+    FrameEffectsBenchConfig()
         : width(160)
         , height(100) { }
 };
 
-VideoBenchConfig& config() {
-    static VideoBenchConfig value;
+FrameEffectsBenchConfig& config() {
+    static FrameEffectsBenchConfig value;
     return value;
 }
 
@@ -97,7 +97,7 @@ int parseSize(const char* value, int& width, int& height) {
     return 1;
 }
 
-void parseVideoArgs(int* argc, char** argv) {
+void parseFrameEffectsArgs(int* argc, char** argv) {
     int output = 1;
 
     for (int i = 1; i < *argc; i++) {
@@ -465,7 +465,7 @@ void createTranslationEntries() {
     }
 }
 
-void initializeVideoBenchmarks() {
+void initializeFrameEffectsBenchmarks() {
     static int initialized = 0;
     if (initialized)
         return;
@@ -486,9 +486,9 @@ void setCommonCounters(benchmark::State& state) {
 
 static void BM_Flame(benchmark::State& state, const Flame* flame,
     const BufferFixture* fixture) {
-    initializeVideoBenchmarks();
+    initializeFrameEffectsBenchmarks();
 
-    VideoFrameContext context;
+    FrameRenderContext context;
     static FlameLookupTables lookupTables;
     FrameRenderTarget& buffer = benchmarkBuffer();
 
@@ -507,9 +507,9 @@ static void BM_Flame(benchmark::State& state, const Flame* flame,
 
 static void BM_TranslateEntry(benchmark::State& state, TranslateEntry* entry,
     const BufferFixture* fixture) {
-    initializeVideoBenchmarks();
+    initializeFrameEffectsBenchmarks();
 
-    VideoFrameContext context;
+    FrameRenderContext context;
     Translate translate(entry->table());
     FrameRenderTarget& buffer = benchmarkBuffer();
 
@@ -536,8 +536,8 @@ std::string benchmarkName(const char* prefix, const char* entryName,
     return name;
 }
 
-void registerVideoBenchmarks() {
-    initializeVideoBenchmarks();
+void registerFrameEffectsBenchmarks() {
+    initializeFrameEffectsBenchmarks();
     const std::vector<BufferFixture>& allFixtures = fixtures();
 
     for (int i = 0; i < nFlameCatalogEntries; i++) {
@@ -564,13 +564,13 @@ void registerVideoBenchmarks() {
 } // namespace
 
 int main(int argc, char** argv) {
-    parseVideoArgs(&argc, argv);
+    parseFrameEffectsArgs(&argc, argv);
 
     benchmark::Initialize(&argc, argv);
     if (benchmark::ReportUnrecognizedArguments(argc, argv))
         return 1;
 
-    registerVideoBenchmarks();
+    registerFrameEffectsBenchmarks();
     benchmark::RunSpecifiedBenchmarks();
     benchmark::Shutdown();
     return 0;

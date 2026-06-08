@@ -3,24 +3,24 @@
 #ifndef CTHUGHA_FRAME_GENERATOR_PIPELINE_H
 #define CTHUGHA_FRAME_GENERATOR_PIPELINE_H
 
-#include "VideoFilterchainFactory.h"
+#include "FrameFilterchainFactory.h"
 
 #include <memory>
 
 class FrameRenderTarget;
 class FramePalette;
 class IndexedFrame;
-class VideoFrameContext;
-class VideoFilterchain;
-class VideoFilterchainSequence;
+class FrameRenderContext;
+class FrameFilterchain;
+class FrameFilterchainSequence;
 
 /**
- * Owns the concrete video filterchain used by FrameGeneratorRuntime.
+ * Owns the concrete frame filterchain used by FrameGeneratorRuntime.
  */
 class FrameGeneratorPipeline {
-    VideoFilterchainFactory factoryValue;
-    std::unique_ptr<VideoFilterchain> filterchainValue;
-    VideoFilterchainSequence sequenceValue;
+    FrameFilterchainFactory factoryValue;
+    std::unique_ptr<FrameFilterchain> filterchainValue;
+    FrameFilterchainSequence sequenceValue;
 
 public:
     /** Creates an empty pipeline. */
@@ -34,13 +34,13 @@ public:
      *
      * @param sequence Stage sequence to install when the pipeline is empty.
      */
-    void initialize(const VideoFilterchainSequence& sequence);
+    void initialize(const FrameFilterchainSequence& sequence);
 
     /** Deletes the owned filterchain and published frame descriptor. */
     void reset();
 
     /** @return Owned filterchain. initialize() must have been called. */
-    VideoFilterchain& filterchain();
+    FrameFilterchain& filterchain();
 
     /** @return Palette owned by the pipeline's palette filter, or NULL. */
     FramePalette* framePalette() const;
@@ -53,7 +53,7 @@ public:
      * @return Published frame descriptor owned by the filterchain.
      */
     const IndexedFrame& render(FrameRenderTarget& target,
-        const VideoFrameContext& context);
+        const FrameRenderContext& context);
 };
 
 #endif

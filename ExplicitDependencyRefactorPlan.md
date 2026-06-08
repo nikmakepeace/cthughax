@@ -598,7 +598,7 @@ Processing and analysis are explicit:
 - `AudioProcessor` owns its processing/FFT collaborators.
 - `AudioFramePipeline` / `DefaultAudioFramePipeline` process each frame,
   update frame metrics, and update the Application-owned `AcousticContext`.
-- `VideoFrameContext` and `ScreenRenderContext` carry audio products into
+- `FrameRenderContext` and `ScreenRenderContext` carry audio products into
   visual consumers.
 
 Remaining audio-adjacent debt:
@@ -690,20 +690,17 @@ module. Its responsibility is to turn an explicit scene snapshot, audio frame,
 analysis state, timing, and generator-owned renderer state into one completed
 `IndexedFrame`.
 
-The module already has useful per-frame handoffs. `VideoFrameContext` carries
-audio metrics, `AcousticContext`, frame timing, and a `SceneSnapshot` into video
+The module already has useful per-frame handoffs. `FrameRenderContext` carries
+audio metrics, `AcousticContext`, frame timing, and a `SceneSnapshot` into frame
 filters. The filterchain can publish an `IndexedFrame` for
 `CthughaDisplay::present(...)`, and filter-local state such as
 `FlameLookupTables`, `WaveState`, and `WaveLookupTables` is already object-owned.
 
 The remaining compatibility surfaces are:
 
-- legacy `VideoFilterchain`, `VideoFilters`, and `VideoFrameContext` names,
-  which are now internal Frame Generator mechanics rather than cross-module
-  ports;
 - generator-side `CTH_*` logging macro call sites, which still rely on the
   process-level logging bridge instead of an injected diagnostics port;
-- the `VideoFrameContext`/`AcousticContext` input bundle, which still carries
+- the `FrameRenderContext`/`AcousticContext` input bundle, which still carries
   raw audio pointers, analysis state, scene snapshot, timing, and frame budget
   as one legacy frame context;
 - `LegacyScene*` visual catalog adapters, which still bridge explicit Scene
@@ -807,47 +804,32 @@ has an Application-owned `FrameGeneratorRuntime`, `FrameGeometry`, `FrameStore`,
 back to generator storage, and boundary tests block display/runtime-command
 reach-through from the generation path.
 
+The old `VideoFilterchain`, `VideoFilters`, `VideoFrameContext`, and
+`VideoFrameBudget` naming compatibility item is complete and is not listed as
+remaining work. The compatibility surface existed only so legacy filter code
+could move under `FrameGeneratorRuntime` before every public type was renamed.
+It is no longer needed once public generator headers, CMake targets, unit tests,
+and benchmarks use `Frame*` names, and any old `Video*` names are gone or
+quarantined behind private adapters named by a boundary test.
+
 The remaining Frame Generator work is compatibility cleanup and boundary
-hardening:
+hardening. Each item below names what the temporary surface is for, what must
+change so it can disappear, and the completion gate:
 
-1. **Rename or port legacy `VideoFilterchain`, `VideoFilters`, and
-   `VideoFrameContext` APIs.**
-   Current compatibility surface: these APIs keep the old video/filterchain
-   vocabulary alive so existing filters can be moved under
-   `FrameGeneratorRuntime` without rewriting every type at once. They are not
-   cross-module ports anymore; they are internal generation mechanics.
-
-   Concrete changes required:
-   - Rename or replace `VideoFrameContext` with a Frame Generator input type,
-     such as `FrameGeneratorInputs` or `FrameRenderContext`, that contains only
-     explicit per-frame audio, scene snapshot, timing, and frame-budget data.
-   - Rename or replace `VideoFilterchain`, `VideoFilterchainSequence`,
-     `VideoFilterchainFactory`, `VideoFilterFrame`, and filter base types with
-     `FrameGenerator*` names.
-   - Update `FrameGeneratorRuntime`, `FrameGeneratorPipeline`, and
-     `FrameGeneratorSceneBinding` public headers so they do not include
-     `VideoFilterchain*.h`, return `VideoFilterchain*` types, or expose methods
-     named `videoFrameContext()`.
-   - If some old implementation must remain temporarily, move it behind a
-     private adapter boundary used only by `.cc` files and name that adapter as
-     temporary in the boundary test.
-   - Update CMake targets, unit tests, benchmarks, and source-boundary tests to
-     use the new names.
-
-   Completion gate: public Frame Generator headers and tests use only
-   `FrameGenerator*` or neutral names; any remaining `Video*` names are private
-   implementation files with explicit removal tests.
-
-2. **Replace remaining generator-side legacy logging macros with explicit
+1. **Replace remaining generator-side legacy logging macros with explicit
    `LogSink&`.**
-   Current compatibility surface: generator-adjacent code still uses `CTH_*`
-   macros because many legacy filters and catalog loaders were written before
-   diagnostics were injectable services.
+   This compatibility surface is for old generator-adjacent code that still
+   calls `CTH_*` macros. Those macros route through the process-level logging
+   bridge, so callers can emit diagnostics without receiving a diagnostics
+   collaborator.
+
+   There is no need for the compatibility surface once generator code receives
+   a diagnostics port explicitly. That can be a direct `LogSink&` or a small
+   `FrameGeneratorDiagnostics` wrapper passed through `FrameGeneratorRuntime`,
+   `FrameGeneratorPipeline`, filter constructors, and catalog-loading helpers.
 
    Concrete changes required:
-   - Decide where diagnostics enter the module: `FrameGeneratorRuntime`,
-     `FrameGeneratorPipeline`, filter constructors, or a small
-     `FrameGeneratorDiagnostics`/`LogSink&` port.
+   - Choose the diagnostics entry point for the module.
    - Thread that diagnostics port into filters and helper functions that log
      during configure/render/catalog work.
    - Replace `CTH_DEBUG`, `CTH_INFO`, `CTH_WARN`, `CTH_ERROR`, and
@@ -861,12 +843,17 @@ hardening:
    bridge includes in the Frame Generator path, and generator tests can inject
    a fake or silent log sink.
 
-3. **Replace the `VideoFrameContext`/`AcousticContext` compatibility input with
+2. **Replace the `FrameRenderContext`/`AcousticContext` compatibility input with
    a typed audio analysis snapshot.**
-   Current compatibility surface: `FrameGeneratorContext` wraps
-   `VideoFrameContext`, which carries raw audio pointers, processed wave data,
-   `AudioMetrics`, `AcousticContext`, `SceneSnapshot`, and timing as one legacy
-   compatibility bundle.
+   This compatibility surface is for keeping old filters working while Audio
+   still exposes analysis through `AcousticContext` and the frame path still
+   passes one broad render-context bundle. `FrameRenderContext` carries raw
+   audio pointers, processed wave data, `AudioMetrics`, `AcousticContext`,
+   `SceneSnapshot`, timing, and frame-budget data together.
+
+   There is no need for the compatibility surface once Audio produces a typed,
+   immutable analysis product and Frame Generator receives only the fields it
+   consumes for one render call.
 
    Concrete changes required:
    - Define the immutable audio-analysis product that Frame Generator actually
@@ -874,7 +861,7 @@ hardening:
      and acoustic values consumed by filters and scene-change visuals.
    - Have the Audio module produce that snapshot alongside the raw and
      processed audio buffers for the frame.
-   - Replace `VideoFrameContext` inside `FrameGeneratorContext` with explicit
+   - Replace `FrameRenderContext` inside `FrameGeneratorContext` with explicit
      fields or narrow views for raw PCM, processed wave data, audio metrics or
      analysis snapshot, scene snapshot, frame time, frame delta, and frame
      budget.
@@ -885,15 +872,19 @@ hardening:
      call.
 
    Completion gate: Frame Generator does not include `AudioAnalyzer.h` or
-   expose `AcousticContext`/`VideoFrameContext`; tests prove render-time audio
+   expose `AcousticContext`/`FrameRenderContext`; tests prove render-time audio
    inputs are borrowed only for one frame and can be supplied by a small test
    fixture.
 
-4. **Move visual catalogs and selections off global `EffectControl` objects.**
-   Current compatibility surface: `LegacyScene*` adapters translate Scene
-   selections to global `EffectControl` and `EffectChoiceList` objects for
-   flames, waves, translations, palettes, images, border, and flashlight. This
-   lets the explicit Scene boundary coexist with legacy visual catalogs.
+3. **Move visual catalogs and selections off global `EffectControl` objects.**
+   This compatibility surface is for making explicit Scene selections coexist
+   with legacy visual catalogs. `LegacyScene*` adapters translate Scene choices
+   to global `EffectControl` and `EffectChoiceList` objects for flames, waves,
+   translations, palettes, images, border, and flashlight.
+
+   There is no need for the compatibility surface once visual catalogs,
+   selections, runtime commands, and config serialization are owned by native
+   Scene/Frame Generator objects instead of global `EffectControl` instances.
 
    Concrete changes required:
    - Create owned catalog/selection objects for each visual family:
@@ -918,11 +909,16 @@ hardening:
 Related Display follow-up: **Finish the separate Display cleanup that remains
 outside Frame Generator.**
 
-Current compatibility surface: Display still publishes legacy aliases and owns
-renderer state through file-scope/function-local statics because older
-presentation, overlay, panel, and event code expected global display access.
-This is outside Frame Generator as long as generated frames are handed to
+This compatibility surface is for older presentation, overlay, panel, and event
+code that still expects global display access. Display still publishes legacy
+aliases and owns some renderer state through file-scope/function-local statics.
+This stays outside Frame Generator as long as generated frames are handed to
 Display explicitly.
+
+There is no need for the compatibility surface once Display owns those
+collaborators behind a `DisplaySystem`/presentation port, Interface emits
+overlay commands through an explicit overlay source, and raw platform events
+flow to Commands/Input through an input sink.
 
 Concrete changes required:
 - Remove normal runtime reads/writes of `cthughaDisplay`, `displayDevice`,
@@ -994,7 +990,7 @@ public:
   DisplayGeometry geometry() const;
 
   void present(const IndexedFrame& frame,
-               const VideoFrameContext& context,
+               const FrameRenderContext& context,
                InterfaceOverlaySource& overlays);
 
   OverlaySink& overlaySink();
@@ -1065,7 +1061,7 @@ Display path may reach through `displayDevice`, `displayBackend`,
    Today `CthughaDisplay` owns `FrameClock`, and Audio/Frame Generator borrow
    timing by asking the display object. Make the dependency explicit:
    `Application` or an Application-owned `VisualFrameClock` begins the frame and
-   produces a `FrameTiming`/`VideoFrameContext` value. Display receives that
+   produces a `FrameTiming`/`FrameRenderContext` value. Display receives that
    value for FPS/status overlays and presentation effects. Frame pacing and
    `maxFramesPerSecond` belong to Application Lifecycle/FramePacer settings;
    Display owns only presentation-facing state such as selected screen, zoom,
@@ -1136,7 +1132,7 @@ Display path may reach through `displayDevice`, `displayBackend`,
     should depend on:
     - `DisplayPresentationSettings&`;
     - `DisplayOutput&`/`DisplayRuntime&` supplied by `DisplaySystem`;
-    - explicit `FrameTiming`/`VideoFrameContext` supplied per frame;
+    - explicit `FrameTiming`/`FrameRenderContext` supplied per frame;
     - an `InterfaceOverlaySource&` supplied per frame or at open time.
     It should not include `xcthugha.h`, call X11 methods, read display globals,
     or publish `cthughaDisplay`.
@@ -1237,7 +1233,7 @@ Display path may reach through `displayDevice`, `displayBackend`,
 
 ## Recommended Next Module
 
-The next high-value module is Frame Generator / video filterchain.
+The next high-value module is Frame Generator / frame filterchain.
 
 Scene's runtime boundary is explicit now. The remaining Scene-facing legacy code
 is the well-named `LegacyScene*` adapter layer, which exists because production

@@ -11,7 +11,7 @@
 class IndexedDisplayFrame;
 class IndexedFrame;
 class ScreenEntry;
-class VideoFrameContext;
+class FrameRenderContext;
 
 /** Observer notified when composed presentation storage or geometry changes. */
 class PresentationFrameObserver {
@@ -68,7 +68,7 @@ public:
         IndexedDisplayFrame& destination, PresentationScreenSelection& selection,
         double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
         PresentationFrameObserver* observer = 0,
-        const VideoFrameContext* frameContext = 0);
+        const FrameRenderContext* frameContext = 0);
 
     /** @return Screen entry used by the last successful compose call. */
     ScreenEntry* renderedScreen() const;

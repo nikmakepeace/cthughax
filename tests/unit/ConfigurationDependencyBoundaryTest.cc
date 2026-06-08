@@ -1480,10 +1480,10 @@ static void testSceneSnapshotFlowsThroughFrameContext() {
     assertSourceContains("src/Scene.h", "SceneSnapshot snapshot() const");
     assertSourceContains("src/Scene.cc",
         "return SceneSnapshot(settingsValue, versionValue)");
-    assertSourceContains("src/VideoFilterchain.h", "class SceneSnapshot");
-    assertSourceContains("src/VideoFilterchain.h",
+    assertSourceContains("src/FrameRenderContext.h", "class SceneSnapshot");
+    assertSourceContains("src/FrameRenderContext.h",
         "const SceneSnapshot* sceneSnapshot");
-    assertSourceContains("src/VideoFilterchain.cc", "sceneSnapshot(0)");
+    assertSourceContains("src/FrameRenderContext.cc", "sceneSnapshot(0)");
     assertSourceContains("src/Application.h",
         "const SceneSnapshot& sceneSnapshot");
     assertSourceContains("src/Application.cc",
@@ -2254,9 +2254,9 @@ static void testWavesUseInjectedRandomSource() {
     assertSourceContains("src/Wave.h", "double randomUnit()");
     assertSourceContains("src/Wave.cc",
         "lookupTables, randomSource, fireBudget)");
-    assertSourceContains("src/VideoFilters.h",
+    assertSourceContains("src/FrameFilters.h",
         "void setRandomSource(RandomSource& randomSource)");
-    assertSourceContains("src/VideoFilters.cc",
+    assertSourceContains("src/FrameFilters.cc",
         "wave->execute(frame.buffer(), frame.context(), config,\n"
         "            needsConfiguration, state, lookupTables, *randomSourceValue)");
     assertSourceContains("src/FrameGeneratorSceneBinding.cc",

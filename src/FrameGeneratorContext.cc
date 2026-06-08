@@ -3,17 +3,17 @@
 #include "FrameGeneratorContext.h"
 
 FrameGeneratorContext::FrameGeneratorContext()
-    : videoFrameContextValue()
+    : frameRenderContextValue()
     , frameBudgetFramesPerSecondValue(60) { }
 
 FrameGeneratorContext::FrameGeneratorContext(
-    const VideoFrameContext& videoFrameContext, int frameBudgetFramesPerSecond)
-    : videoFrameContextValue(videoFrameContext)
+    const FrameRenderContext& frameRenderContext, int frameBudgetFramesPerSecond)
+    : frameRenderContextValue(frameRenderContext)
     , frameBudgetFramesPerSecondValue(
           frameBudgetFramesPerSecond > 0 ? frameBudgetFramesPerSecond : 60) { }
 
-const VideoFrameContext& FrameGeneratorContext::videoFrameContext() const {
-    return videoFrameContextValue;
+const FrameRenderContext& FrameGeneratorContext::frameRenderContext() const {
+    return frameRenderContextValue;
 }
 
 int FrameGeneratorContext::frameBudgetFramesPerSecond() const {

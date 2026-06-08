@@ -25,7 +25,7 @@ const char* audioSampleFormatText(int) { return "benchmark-format"; }
 
 namespace {
 
-const int kVideoFrameSamples = 1024;
+const int kVisualFrameSamples = 1024;
 const int kAudioSliceMs = 10;
 const int kProtectedHistorySamples = 44100;
 const int kBufferCapacitySamples = 44100 * 3;
@@ -88,8 +88,8 @@ struct PcmFixture {
 
         format = source.format();
         sliceSamples = samplesForAudioSlice(format);
-        frame1024.resize(format.bytesForSamples(kVideoFrameSamples));
-        source.read(frame1024.data(), (int)frame1024.size(), kVideoFrameSamples);
+        frame1024.resize(format.bytesForSamples(kVisualFrameSamples));
+        source.read(frame1024.data(), (int)frame1024.size(), kVisualFrameSamples);
 
         slice10ms.resize(format.bytesForSamples(sliceSamples));
         source.read(slice10ms.data(), (int)slice10ms.size(), sliceSamples);
@@ -166,7 +166,7 @@ struct PrismPcmFrameFixture {
         }
 
         int samplesRead = (int)pcm.size() / bytesPerSample;
-        if (samplesRead < kVideoFrameSamples) {
+        if (samplesRead < kVisualFrameSamples) {
             error = std::string("prism PCM fixture too short for one visual frame: ")
                 + prismPcmFixturePath();
             return;
@@ -174,7 +174,7 @@ struct PrismPcmFrameFixture {
 
         NullLogSink log;
         DecodedAudioHistory history(samplesRead, format,
-            kVideoFrameSamples, log);
+            kVisualFrameSamples, log);
         AudioFrameBuilder builder(log);
         history.appendDecodedPcm(pcm.data(), samplesRead);
         frame.clear();
@@ -200,13 +200,13 @@ static int requirePrismPcmFrameFixture(benchmark::State& state) {
 void fillFrameFromFixture(AudioFrame& frame) {
     const PcmFixture& fixture = pcmFixture();
     NullLogSink log;
-    DecodedAudioHistory history(kVideoFrameSamples * 2, fixture.format,
-        kVideoFrameSamples, log);
+    DecodedAudioHistory history(kVisualFrameSamples * 2, fixture.format,
+        kVisualFrameSamples, log);
     AudioFrameBuilder builder(log);
 
     frame.clear();
-    history.appendDecodedPcm(fixture.frame1024.data(), kVideoFrameSamples);
-    builder.build(frame, history, kVideoFrameSamples / 2);
+    history.appendDecodedPcm(fixture.frame1024.data(), kVisualFrameSamples);
+    builder.build(frame, history, kVisualFrameSamples / 2);
 }
 
 void primeHistory(DecodedAudioHistory& history) {
@@ -239,16 +239,16 @@ static void BM_Wav_OpenParse(benchmark::State& state) {
 static void BM_Wav_Read1024(benchmark::State& state) {
     NullLogSink log;
     WavPcmSource source(primaryFixturePath(), log);
-    std::vector<char> scratch(source.format().bytesForSamples(kVideoFrameSamples));
+    std::vector<char> scratch(source.format().bytesForSamples(kVisualFrameSamples));
     long long totalSamples = 0;
 
     for (auto _ : state) {
-        int samples = source.read(scratch.data(), (int)scratch.size(), kVideoFrameSamples);
+        int samples = source.read(scratch.data(), (int)scratch.size(), kVisualFrameSamples);
         if (samples <= 0) {
             state.PauseTiming();
             source.rewind();
             state.ResumeTiming();
-            samples = source.read(scratch.data(), (int)scratch.size(), kVideoFrameSamples);
+            samples = source.read(scratch.data(), (int)scratch.size(), kVisualFrameSamples);
         }
         totalSamples += samples;
         benchmark::DoNotOptimize(samples);
@@ -396,16 +396,16 @@ static void BM_AudioFrameBuilder_Build1024(benchmark::State& state) {
         kProtectedHistorySamples, log);
     AudioFrameBuilder builder(log);
     AudioFrame frame;
-    long long centerSample = kVideoFrameSamples;
+    long long centerSample = kVisualFrameSamples;
     long long totalSamples = 0;
 
     primeHistory(history);
 
     for (auto _ : state) {
         builder.build(frame, history, centerSample);
-        centerSample += kVideoFrameSamples;
-        if (centerSample + kVideoFrameSamples >= fixture.threeSecondSamples()) {
-            centerSample = kVideoFrameSamples;
+        centerSample += kVisualFrameSamples;
+        if (centerSample + kVisualFrameSamples >= fixture.threeSecondSamples()) {
+            centerSample = kVisualFrameSamples;
         }
         totalSamples += frame.samples;
         benchmark::DoNotOptimize(frame.samples);

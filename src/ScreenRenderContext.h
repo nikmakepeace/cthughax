@@ -11,7 +11,7 @@
 
 class AudioFrame;
 class AcousticContext;
-class VideoFrameContext;
+class FrameRenderContext;
 struct AudioMetrics;
 
 /**
@@ -58,7 +58,7 @@ public:
      */
     ScreenRenderContext(const IndexedFrame& source, IndexedDisplayFrame& destination,
         double frameTimeSeconds, double deltaTimeSeconds, double framesPerSecond,
-        const VideoFrameContext& frameContext);
+        const FrameRenderContext& frameContext);
 
     /**
      * Creates a render context with an explicit destination pixel window.

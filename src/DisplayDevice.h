@@ -104,7 +104,7 @@ public:
     virtual DisplayEventStats processEvents(InputEventSink&) { return DisplayEventStats(); }
 
     /**
-     * Supplies the palette published by the active video filterchain.
+     * Supplies the palette published by the active frame filterchain.
      *
      * @param framePalette_ Borrowed palette pointer, or NULL.
      */

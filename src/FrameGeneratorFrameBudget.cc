@@ -1,6 +1,6 @@
-#include "VideoFrameBudget.h"
+#include "FrameGeneratorFrameBudget.h"
 
-int videoFrameBudgetFramesPerSecond(int configuredMaxFramesPerSecond,
+int frameGenerationBudgetFramesPerSecond(int configuredMaxFramesPerSecond,
     double rollingFramesPerSecond) {
     if (configuredMaxFramesPerSecond > 0)
         return configuredMaxFramesPerSecond;

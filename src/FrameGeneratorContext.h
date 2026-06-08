@@ -3,17 +3,17 @@
 #ifndef CTHUGHA_FRAME_GENERATOR_CONTEXT_H
 #define CTHUGHA_FRAME_GENERATOR_CONTEXT_H
 
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 
 /**
  * Borrowed inputs and frame-budget policy for one frame generation pass.
  *
- * Audio, scene, and timing data are represented by VideoFrameContext for
+ * Audio, scene, and timing data are represented by FrameRenderContext for
  * compatibility with legacy filters. The frame budget is explicit so generator
  * policy never reads display globals to estimate durations.
  */
 class FrameGeneratorContext {
-    VideoFrameContext videoFrameContextValue;
+    FrameRenderContext frameRenderContextValue;
     int frameBudgetFramesPerSecondValue;
 
 public:
@@ -23,14 +23,14 @@ public:
     /**
      * Creates a context from legacy filter inputs and an explicit frame budget.
      *
-     * @param videoFrameContext Per-frame audio, scene, and timing inputs.
+     * @param frameRenderContext Per-frame audio, scene, and timing inputs.
      * @param frameBudgetFramesPerSecond Frames per second used for transitions.
      */
-    FrameGeneratorContext(const VideoFrameContext& videoFrameContext,
+    FrameGeneratorContext(const FrameRenderContext& frameRenderContext,
         int frameBudgetFramesPerSecond);
 
     /** @return Legacy filter context borrowed for this render call. */
-    const VideoFrameContext& videoFrameContext() const;
+    const FrameRenderContext& frameRenderContext() const;
 
     /** @return Explicit frame-rate budget for transition durations. */
     int frameBudgetFramesPerSecond() const;

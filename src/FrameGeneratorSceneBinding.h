@@ -9,13 +9,13 @@
 #include "Image.h"
 #include "Scene.h"
 #include "SilenceMessage.h"
-#include "VideoFilterchainSequence.h"
+#include "FrameFilterchainSequence.h"
 
 #include <string>
 
 class CountdownTimerFactory;
 class RandomSource;
-class VideoFilterchain;
+class FrameFilterchain;
 
 /**
  * Observes Scene changes and applies queued generator work to a filterchain.
@@ -31,7 +31,7 @@ class FrameGeneratorSceneBinding : public SceneObserver {
     RandomSource& randomSourceValue;
     SilenceMessage silenceMessage;
     Scene* scene;
-    VideoFilterchain* filterchain;
+    FrameFilterchain* filterchain;
     unsigned int pendingSceneChanges;
     const IndexedImage* pendingImageCue;
     unsigned int pendingImageCueId;
@@ -97,7 +97,7 @@ public:
      *
      * @return Ordered image/border/flame/translate/wave/text/commit/palette/export stages.
      */
-    VideoFilterchainSequence defaultFilterchainSequence() const;
+    FrameFilterchainSequence defaultFilterchainSequence() const;
 
     /**
      * Applies pending scene changes and cues to a filterchain.
@@ -105,7 +105,7 @@ public:
      * @param filterchain_ Filterchain owned by FrameGeneratorPipeline.
      * @param context Explicit per-frame generator context.
      */
-    void configureFilterchain(VideoFilterchain& filterchain_,
+    void configureFilterchain(FrameFilterchain& filterchain_,
         const FrameGeneratorContext& context);
 
     /** SceneObserver callback for settings changes. */

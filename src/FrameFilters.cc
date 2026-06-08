@@ -7,7 +7,7 @@
 #include "BitmapFont.h"
 #include "Image.h"
 #include "ProcessServices.h"
-#include "VideoFilters.h"
+#include "FrameFilters.h"
 #include "cth_buffer.h"
 #include "PaletteEntry.h"
 #include "Wave.h"
@@ -31,8 +31,8 @@ void ImageFilter::setOverlayPassiveBuffer(int enabled) {
     overlayPassiveBuffer = enabled;
 }
 
-void ImageFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing image stage\n", "video filterchain");
+void ImageFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing image stage\n", "frame filterchain");
     if (image == 0 || !placement.visible())
         return;
 
@@ -74,8 +74,8 @@ void FlameFilter::setGeneralFlame(int generalFlame_) {
     generalFlame = generalFlame_;
 }
 
-void FlameFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing flame stage\n", "video filterchain");
+void FlameFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing flame stage\n", "frame filterchain");
 
     if (flame != 0)
         flame->execute(frame.buffer(), frame.context(), generalFlame, lookupTables);
@@ -88,8 +88,8 @@ void TranslateFilter::setTranslate(const TranslationTable& table) {
     translate = Translate(table);
 }
 
-void TranslateFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing translate stage\n", "video filterchain");
+void TranslateFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing translate stage\n", "frame filterchain");
     translate.execute(frame.buffer(), frame.context());
 }
 
@@ -119,8 +119,8 @@ void WaveFilter::setRandomSource(RandomSource& randomSource) {
     randomSourceValue = &randomSource;
 }
 
-void WaveFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing wave stage\n", "video filterchain");
+void WaveFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing wave stage\n", "frame filterchain");
     if (wave != NULL && randomSourceValue != 0) {
         wave->execute(frame.buffer(), frame.context(), config,
             needsConfiguration, state, lookupTables, *randomSourceValue);
@@ -314,8 +314,8 @@ static void textInjectionDrawLine(FrameRenderTarget& buffer, const BitmapFont& f
     }
 }
 
-void TextInjectionFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing text stage frames-remaining=%d\n", "video filterchain",
+void TextInjectionFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing text stage frames-remaining=%d\n", "frame filterchain",
         framesRemaining);
 
     if (framesRemaining <= 0 || message.empty())
@@ -374,8 +374,8 @@ void FrameCommitFilter::setSceneNames(const char* flameName_, const char* waveNa
     tableName = (tableName_ != 0) ? tableName_ : "unknown";
 }
 
-void FrameCommitFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("committing indexed buffer frame\n", "video filterchain");
+void FrameCommitFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("committing indexed buffer frame\n", "frame filterchain");
     FrameRenderTarget& buffer = frame.buffer();
 
     if (CTH_LOG_ENABLED(CTH_LOG_DEBUG) && (debugReports < 16)) {
@@ -405,8 +405,8 @@ void FrameCommitFilter::execute(VideoFrame& frame) {
 
 FlashlightFilter::FlashlightFilter() { }
 
-void FlashlightFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing flashlight stage\n", "video filterchain");
+void FlashlightFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing flashlight stage\n", "frame filterchain");
     FramePalette* framePalette = frame.framePalette();
     if (framePalette != 0)
         apply_flashlight(*framePalette, frame.context());
@@ -419,8 +419,8 @@ void BorderFilter::setBorderMode(int borderMode_) {
     borderMode = borderMode_;
 }
 
-void BorderFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing border stage mode=%d\n", "video filterchain", borderMode);
+void BorderFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing border stage mode=%d\n", "frame filterchain", borderMode);
     apply_border(frame.buffer(), frame.context(), borderMode);
 }
 
@@ -456,21 +456,21 @@ void PaletteFilter::snapThenTransitionPalette(const ColorPalette& immediatePalet
         strategy);
 }
 
-void PaletteFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("executing palette stage\n", "video filterchain");
+void PaletteFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("executing palette stage\n", "frame filterchain");
     FramePalette* framePalette = frame.framePalette();
     transition.execute((framePalette != 0) ? *framePalette : framePaletteValue);
 }
 
 IndexedFrameFilter::IndexedFrameFilter() { }
 
-void IndexedFrameFilter::execute(VideoFrame& frame) {
-    CTH_TRACE("publishing indexed frame\n", "video filterchain");
+void IndexedFrameFilter::execute(FrameFilterFrame& frame) {
+    CTH_TRACE("publishing indexed frame\n", "frame filterchain");
     FrameRenderTarget& buffer = frame.buffer();
     frame.publishIndexedFrame(IndexedFrame(buffer.passivePixels(),
         buffer.width(), buffer.height(), buffer.pitch(), frame.framePalette()));
 }
 
-FramePalette* framePaletteFromFilterchain(VideoFilterchain& filterchain) {
+FramePalette* framePaletteFromFilterchain(FrameFilterchain& filterchain) {
     return filterchain.framePalette();
 }

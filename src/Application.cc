@@ -44,7 +44,7 @@
 #include "SceneRuntime.h"
 #include "Screen.h"
 #include "TranslationOptions.h"
-#include "VideoFrameBudget.h"
+#include "FrameGeneratorFrameBudget.h"
 #include "flames.h"
 #include "keymap.h"
 #include "keys.h"
@@ -84,17 +84,17 @@ public:
 
     /** Reports an ongoing quiet period to the frame generator. */
     virtual int observeQuiet(int quietLength) {
-        int frameBudget = videoFrameBudgetFramesPerSecond(int(maxFramesPerSecond),
+        int frameBudget = frameGenerationBudgetFramesPerSecond(int(maxFramesPerSecond),
             displayValue.rollingFps);
         return frameGeneratorValue.observeQuiet(quietLength,
             int(frameGeneratorValue.quietMessageOption()), frameBudget);
     }
 };
 
-static VideoFrameContext videoFrameContextFor(const AudioFrame& frame,
+static FrameRenderContext frameRenderContextFor(const AudioFrame& frame,
     const AcousticContext& acousticContext, const SceneSnapshot* sceneSnapshot,
     double frameNow, double frameDeltaT) {
-    VideoFrameContext context;
+    FrameRenderContext context;
     context.audioFrame = &frame;
     context.rawAudioData = frame.raw;
     context.processedWaveData = frame.processedWaveData;
@@ -413,11 +413,11 @@ const IndexedFrame* Application::runFrameGenerator(
     // The generator receives a snapshot-like context for this visual frame.
     // Audio frame data and frame-local metrics are owned by AudioIngest; filters
     // borrow them only during render().
-    VideoFrameContext videoContext = videoFrameContextFor(frame, acousticContextValue,
+    FrameRenderContext frameContext = frameRenderContextFor(frame, acousticContextValue,
         &sceneSnapshot, displayValue->currentFrameTimeSeconds(),
         displayValue->currentFrameDeltaSeconds());
-    FrameGeneratorContext context(videoContext,
-        videoFrameBudgetFramesPerSecond(int(maxFramesPerSecond),
+    FrameGeneratorContext context(frameContext,
+        frameGenerationBudgetFramesPerSecond(int(maxFramesPerSecond),
             displayValue->rollingFps));
 
     const IndexedFrame& indexedFrame = frameGeneratorValue.render(context);
@@ -688,7 +688,7 @@ void Application::runFrame(int doDisplay) {
     // Generate indexed active/passive pixels and publish a frame view.
     SceneSnapshot sceneSnapshot = sceneRuntimeValue->snapshot();
     const IndexedFrame* indexedFrame = runFrameGenerator(audioFrame, sceneSnapshot);
-    VideoFrameContext presentationContext = videoFrameContextFor(audioFrame,
+    FrameRenderContext presentationContext = frameRenderContextFor(audioFrame,
         acousticContextValue, &sceneSnapshot, displayValue->currentFrameTimeSeconds(),
         displayValue->currentFrameDeltaSeconds());
     if (traceFrameTiming)

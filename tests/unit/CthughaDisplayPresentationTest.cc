@@ -7,22 +7,12 @@
 #include "InputQueue.h"
 #include "ProcessServices.h"
 #include "Screen.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 
 #include <assert.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
-
-VideoFrameContext::VideoFrameContext()
-    : audioFrame(0)
-    , rawAudioData(0)
-    , processedWaveData(0)
-    , audioMetrics(0)
-    , acousticContext(0)
-    , sceneSnapshot(0)
-    , now(0.0)
-    , deltaT(0.0) { }
 
 DisplayDevice::DisplayDevice()
     : textOnScreen(0)
@@ -275,7 +265,7 @@ static void testPresentPassesAudioContextToScreenRenderer() {
     AudioFrame audioFrame;
     audioFrame.metrics.amplitude = 42;
 
-    VideoFrameContext frameContext;
+    FrameRenderContext frameContext;
     frameContext.audioFrame = &audioFrame;
     frameContext.rawAudioData = audioFrame.raw;
     frameContext.processedWaveData = audioFrame.processedWaveData;

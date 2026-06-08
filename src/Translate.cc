@@ -18,7 +18,7 @@ int Translate::ready() const {
     return tableValue.ready();
 }
 
-void Translate::execute(FrameRenderTarget& buffer, const VideoFrameContext& context) const {
+void Translate::execute(FrameRenderTarget& buffer, const FrameRenderContext& context) const {
     (void)context;
 
     if (!ready())

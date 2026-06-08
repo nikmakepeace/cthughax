@@ -53,13 +53,14 @@ if(WITH_PULSE)
 endif()
 
 add_executable(visual_effects_bench
-    VideoEffectsBench.cc
+    FrameEffectsBench.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
     ${CMAKE_SOURCE_DIR}/src/EffectRegistry.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
     ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/FrameRenderTarget.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderContext.cc
     ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
     ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
     ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
@@ -73,7 +74,6 @@ add_executable(visual_effects_bench
     ${CMAKE_SOURCE_DIR}/src/Translate.cc
     ${CMAKE_SOURCE_DIR}/src/TranslateGenerator.cc
     ${CMAKE_SOURCE_DIR}/src/TranslationOptions.cc
-    ${CMAKE_SOURCE_DIR}/src/VideoFilterchain.cc
 )
 
 target_compile_definitions(visual_effects_bench PRIVATE

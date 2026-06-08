@@ -1,47 +1,37 @@
 #include "cthugha.h"
-#include "VideoFilterchain.h"
+#include "FrameFilterchain.h"
 
-VideoFrameContext::VideoFrameContext()
-    : audioFrame(0)
-    , rawAudioData(0)
-    , processedWaveData(0)
-    , audioMetrics(0)
-    , acousticContext(0)
-    , sceneSnapshot(0)
-    , now(0.0)
-    , deltaT(0.0) { }
+FrameFilter::~FrameFilter() { }
 
-VideoFilter::~VideoFilter() { }
-
-VideoFrame::VideoFrame(FrameRenderTarget& buffer_, const VideoFrameContext& context_,
+FrameFilterFrame::FrameFilterFrame(FrameRenderTarget& buffer_, const FrameRenderContext& context_,
     FramePalette* framePalette_, IndexedFrame* indexedFrame_)
     : bufferValue(&buffer_)
     , contextValue(&context_)
     , framePaletteValue(framePalette_)
     , indexedFrameValue(indexedFrame_) { }
 
-FrameRenderTarget& VideoFrame::buffer() {
+FrameRenderTarget& FrameFilterFrame::buffer() {
     return *bufferValue;
 }
 
-const VideoFrameContext& VideoFrame::context() const {
+const FrameRenderContext& FrameFilterFrame::context() const {
     return *contextValue;
 }
 
-FramePalette* VideoFrame::framePalette() {
+FramePalette* FrameFilterFrame::framePalette() {
     return framePaletteValue;
 }
 
-const FramePalette* VideoFrame::framePalette() const {
+const FramePalette* FrameFilterFrame::framePalette() const {
     return framePaletteValue;
 }
 
-void VideoFrame::publishIndexedFrame(const IndexedFrame& indexedFrame) {
+void FrameFilterFrame::publishIndexedFrame(const IndexedFrame& indexedFrame) {
     if (indexedFrameValue != 0)
         *indexedFrameValue = indexedFrame;
 }
 
-const IndexedFrame& VideoFrame::indexedFrame() const {
+const IndexedFrame& FrameFilterFrame::indexedFrame() const {
     return *indexedFrameValue;
 }
 
@@ -54,14 +44,14 @@ static int findStageIndex(const std::vector<unsigned int>& sequence, unsigned in
     return -1;
 }
 
-VideoFilterchain::VideoFilterchain()
+FrameFilterchain::FrameFilterchain()
     : framePaletteValue(0) { }
 
-VideoFilterchain::~VideoFilterchain() {
+FrameFilterchain::~FrameFilterchain() {
     clear();
 }
 
-void VideoFilterchain::clear() {
+void FrameFilterchain::clear() {
     for (unsigned int i = 0; i < filters.size(); i++) {
         if (filters[i].owned)
             delete filters[i].filter;
@@ -72,20 +62,20 @@ void VideoFilterchain::clear() {
     indexedFrameValue = IndexedFrame();
 }
 
-void VideoFilterchain::add(unsigned int stage, VideoFilter* filter, int takeOwnership) {
+void FrameFilterchain::add(unsigned int stage, FrameFilter* filter, int takeOwnership) {
     if (filter == 0)
         return;
     filters.push_back(Entry(stage, filter, takeOwnership));
-    CTH_DEBUG("video filterchain: added stage=%u filter=%p owned=%d mode=%d size=%d\n",
-        stage, filter, takeOwnership, int(VideoFilterDisabled), size());
+    CTH_DEBUG("frame filterchain: added stage=%u filter=%p owned=%d mode=%d size=%d\n",
+        stage, filter, takeOwnership, int(FrameFilterDisabled), size());
 }
 
-void VideoFilterchain::setStageSequence(const std::vector<unsigned int>& stages) {
+void FrameFilterchain::setStageSequence(const std::vector<unsigned int>& stages) {
     sequence = stages;
-    CTH_DEBUG("video filterchain: set sequence stages=%d\n", int(sequence.size()));
+    CTH_DEBUG("frame filterchain: set sequence stages=%d\n", int(sequence.size()));
 }
 
-int VideoFilterchain::moveStageBefore(unsigned int stage, unsigned int beforeStage) {
+int FrameFilterchain::moveStageBefore(unsigned int stage, unsigned int beforeStage) {
     if (stage == beforeStage)
         return 1;
 
@@ -99,12 +89,12 @@ int VideoFilterchain::moveStageBefore(unsigned int stage, unsigned int beforeSta
     beforeIndex = findStageIndex(sequence, beforeStage);
     sequence.insert(sequence.begin() + beforeIndex, movingStage);
 
-    CTH_DEBUG("video filterchain: moved stage=%u before stage=%u\n",
+    CTH_DEBUG("frame filterchain: moved stage=%u before stage=%u\n",
         stage, beforeStage);
     return 1;
 }
 
-int VideoFilterchain::moveStageAfter(unsigned int stage, unsigned int afterStage) {
+int FrameFilterchain::moveStageAfter(unsigned int stage, unsigned int afterStage) {
     if (stage == afterStage)
         return 1;
 
@@ -118,12 +108,12 @@ int VideoFilterchain::moveStageAfter(unsigned int stage, unsigned int afterStage
     afterIndex = findStageIndex(sequence, afterStage);
     sequence.insert(sequence.begin() + afterIndex + 1, movingStage);
 
-    CTH_DEBUG("video filterchain: moved stage=%u after stage=%u\n",
+    CTH_DEBUG("frame filterchain: moved stage=%u after stage=%u\n",
         stage, afterStage);
     return 1;
 }
 
-int VideoFilterchain::setStageMode(unsigned int stage, VideoFilterRunMode mode) {
+int FrameFilterchain::setStageMode(unsigned int stage, FrameFilterRunMode mode) {
     int matched = 0;
 
     for (unsigned int i = 0; i < filters.size(); i++) {
@@ -134,21 +124,21 @@ int VideoFilterchain::setStageMode(unsigned int stage, VideoFilterRunMode mode) 
         }
     }
 
-    CTH_TRACE("set stage=%u mode=%d entries=%d\n", "video filterchain",
+    CTH_TRACE("set stage=%u mode=%d entries=%d\n", "frame filterchain",
         stage, int(mode), matched);
     return matched;
 }
 
-VideoFilterRunMode VideoFilterchain::stageMode(unsigned int stage) const {
+FrameFilterRunMode FrameFilterchain::stageMode(unsigned int stage) const {
     for (unsigned int i = 0; i < filters.size(); i++) {
         if (filters[i].stage == stage)
             return filters[i].mode;
     }
 
-    return VideoFilterDisabled;
+    return FrameFilterDisabled;
 }
 
-VideoFilter* VideoFilterchain::stageFilter(unsigned int stage) {
+FrameFilter* FrameFilterchain::stageFilter(unsigned int stage) {
     for (unsigned int i = 0; i < filters.size(); i++) {
         if (filters[i].stage == stage)
             return filters[i].filter;
@@ -157,26 +147,26 @@ VideoFilter* VideoFilterchain::stageFilter(unsigned int stage) {
     return 0;
 }
 
-void VideoFilterchain::setFramePalette(FramePalette* framePalette) {
+void FrameFilterchain::setFramePalette(FramePalette* framePalette) {
     framePaletteValue = framePalette;
 }
 
-FramePalette* VideoFilterchain::framePalette() const {
+FramePalette* FrameFilterchain::framePalette() const {
     return framePaletteValue;
 }
 
-const IndexedFrame& VideoFilterchain::indexedFrame() const {
+const IndexedFrame& FrameFilterchain::indexedFrame() const {
     return indexedFrameValue;
 }
 
-void VideoFilterchain::refresh() {
+void FrameFilterchain::refresh() {
     for (unsigned int i = 0; i < filters.size(); i++)
         filters[i].filter->refresh();
 }
 
-void VideoFilterchain::run(FrameRenderTarget& buffer, const VideoFrameContext& context) {
+void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameRenderContext& context) {
     indexedFrameValue = IndexedFrame();
-    VideoFrame frame(buffer, context, framePaletteValue, &indexedFrameValue);
+    FrameFilterFrame frame(buffer, context, framePaletteValue, &indexedFrameValue);
 
     for (unsigned int stageIndex = 0; stageIndex < sequence.size(); stageIndex++) {
         unsigned int stage = sequence[stageIndex];
@@ -184,23 +174,23 @@ void VideoFilterchain::run(FrameRenderTarget& buffer, const VideoFrameContext& c
             if (filters[filterIndex].stage != stage)
                 continue;
 
-            if (filters[filterIndex].mode == VideoFilterDisabled) {
+            if (filters[filterIndex].mode == FrameFilterDisabled) {
                 CTH_TRACE("skipping disabled stage=%u filter=%p\n",
-                    "video filterchain", filters[filterIndex].stage, filters[filterIndex].filter);
+                    "frame filterchain", filters[filterIndex].stage, filters[filterIndex].filter);
                 continue;
             }
 
             filters[filterIndex].filter->execute(frame);
 
-            if (filters[filterIndex].mode == VideoFilterArmedOnce) {
+            if (filters[filterIndex].mode == FrameFilterArmedOnce) {
                 CTH_TRACE("disarming one-shot stage=%u filter=%p\n",
-                    "video filterchain", filters[filterIndex].stage, filters[filterIndex].filter);
-                filters[filterIndex].mode = VideoFilterDisabled;
+                    "frame filterchain", filters[filterIndex].stage, filters[filterIndex].filter);
+                filters[filterIndex].mode = FrameFilterDisabled;
             }
         }
     }
 }
 
-int VideoFilterchain::size() const {
+int FrameFilterchain::size() const {
     return int(filters.size());
 }

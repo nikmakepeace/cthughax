@@ -1,5 +1,5 @@
 #include "ScreenRenderContext.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderContext.h"
 
 ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     IndexedDisplayFrame& destination, double frameTimeSeconds, double deltaTimeSeconds,
@@ -23,7 +23,7 @@ ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
 ScreenRenderContext::ScreenRenderContext(const IndexedFrame& source,
     IndexedDisplayFrame& destination, double frameTimeSeconds,
     double deltaTimeSeconds, double framesPerSecond,
-    const VideoFrameContext& frameContext)
+    const FrameRenderContext& frameContext)
     : sourceValue(&source)
     , destinationValue(&destination)
     , destinationPixelsValue(destination.pixels())

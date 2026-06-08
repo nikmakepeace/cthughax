@@ -28,7 +28,7 @@ class DisplayRuntime;
 class ErrorMessages;
 class InterfaceRuntime;
 class SecondsClock;
-class VideoFrameContext;
+class FrameRenderContext;
 struct DisplayConfig;
 
 class CthughaDisplay : public PresentationFrameObserver {
@@ -36,7 +36,7 @@ protected:
     DisplayDevice& deviceValue;
     DisplayRuntime& runtimeValue;
     const IndexedFrame* sourceFrame;
-    const VideoFrameContext* presentationContextValue;
+    const FrameRenderContext* presentationContextValue;
     IndexedDisplayFrame indexedDisplayFrameValue;
     PresentationComposer presentationComposer;
     DisplayViewport displayViewportValue;
@@ -59,7 +59,7 @@ protected:
     const IndexedDisplayFrame& composePresentationFrame(
         PresentationScreenSelection& screenSelection);
     const IndexedDisplayFrame& composePresentationFrame();
-    void presentSourceWithContext(const VideoFrameContext* context);
+    void presentSourceWithContext(const FrameRenderContext* context);
 
     void updateFPS();
     void checkZoom();
@@ -100,7 +100,7 @@ public:
      *        the display backend.
      * @param context Borrowed per-frame audio/timing context.
      */
-    void present(const IndexedFrame& frame, const VideoFrameContext& context);
+    void present(const IndexedFrame& frame, const FrameRenderContext& context);
 
     /** Frontend-specific presentation path for the current explicit source frame. */
     virtual void operator()() { }

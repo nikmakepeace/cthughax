@@ -4,9 +4,9 @@
 
 #include "FramePalette.h"
 #include "IndexedFrame.h"
-#include "VideoFilterchain.h"
-#include "VideoFilterchainSequence.h"
-#include "VideoFilters.h"
+#include "FrameFilterchain.h"
+#include "FrameFilterchainSequence.h"
+#include "FrameFilters.h"
 
 FrameGeneratorPipeline::FrameGeneratorPipeline()
     : factoryValue()
@@ -16,7 +16,7 @@ FrameGeneratorPipeline::FrameGeneratorPipeline()
 FrameGeneratorPipeline::~FrameGeneratorPipeline() { }
 
 void FrameGeneratorPipeline::initialize(
-    const VideoFilterchainSequence& sequence) {
+    const FrameFilterchainSequence& sequence) {
     if (filterchainValue.get() != 0)
         return;
 
@@ -26,10 +26,10 @@ void FrameGeneratorPipeline::initialize(
 
 void FrameGeneratorPipeline::reset() {
     filterchainValue.reset();
-    sequenceValue = VideoFilterchainSequence();
+    sequenceValue = FrameFilterchainSequence();
 }
 
-VideoFilterchain& FrameGeneratorPipeline::filterchain() {
+FrameFilterchain& FrameGeneratorPipeline::filterchain() {
     return *filterchainValue;
 }
 
@@ -41,7 +41,7 @@ FramePalette* FrameGeneratorPipeline::framePalette() const {
 }
 
 const IndexedFrame& FrameGeneratorPipeline::render(FrameRenderTarget& target,
-    const VideoFrameContext& context) {
+    const FrameRenderContext& context) {
     filterchainValue->run(target, context);
     return filterchainValue->indexedFrame();
 }

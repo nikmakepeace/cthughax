@@ -86,6 +86,19 @@ static void testOldVideoDirectorIsRetired() {
     assertSourceDoesNotExist("src/VideoDirector.cc");
 }
 
+static void testLegacyVideoFilterNamesAreRetired() {
+    assertSourceDoesNotExist("src/VideoFilterchain.h");
+    assertSourceDoesNotExist("src/VideoFilterchain.cc");
+    assertSourceDoesNotExist("src/VideoFilterchainFactory.h");
+    assertSourceDoesNotExist("src/VideoFilterchainFactory.cc");
+    assertSourceDoesNotExist("src/VideoFilterchainSequence.h");
+    assertSourceDoesNotExist("src/VideoFilterchainSequence.cc");
+    assertSourceDoesNotExist("src/VideoFilters.h");
+    assertSourceDoesNotExist("src/VideoFilters.cc");
+    assertSourceDoesNotExist("src/VideoFrameBudget.h");
+    assertSourceDoesNotExist("src/VideoFrameBudget.cc");
+}
+
 static void testFrameStoreOwnsStorageLayout() {
     assertSourceContains("src/FrameStore.h", "FrameStorageLayout layoutValue");
     assertSourceContains("src/FrameStore.cc", "bufferValue.setLayout(layoutValue)");
@@ -124,6 +137,8 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
         "src/FrameGeneratorSceneBinding.cc",
         "src/FrameGeometry.h",
         "src/FrameGeometry.cc",
+        "src/FrameRenderContext.h",
+        "src/FrameRenderContext.cc",
         "src/FrameRenderTarget.h",
         "src/FrameRenderTarget.cc",
         "src/FrameStore.h",
@@ -131,10 +146,16 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
         "src/FrameStorageLayout.h",
         "src/FrameTransitionController.h",
         "src/FrameTransitionController.cc",
-        "src/VideoFilterchain.h",
-        "src/VideoFilterchain.cc",
-        "src/VideoFilters.h",
-        "src/VideoFilters.cc",
+        "src/FrameGeneratorFrameBudget.h",
+        "src/FrameGeneratorFrameBudget.cc",
+        "src/FrameFilterchain.h",
+        "src/FrameFilterchain.cc",
+        "src/FrameFilterchainFactory.h",
+        "src/FrameFilterchainFactory.cc",
+        "src/FrameFilterchainSequence.h",
+        "src/FrameFilterchainSequence.cc",
+        "src/FrameFilters.h",
+        "src/FrameFilters.cc",
         "src/Wave.h",
         "src/Wave.cc",
         "src/waves.cc"
@@ -150,6 +171,10 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
     assertFilesDoNotContain(files, fileCount, "CthughaBuffer");
     assertFilesDoNotContain(files, fileCount, "FrameRenderTarget::buffer");
     assertFilesDoNotContain(files, fileCount, "FrameRenderTarget::current");
+    assertFilesDoNotContain(files, fileCount, "VideoFilterchain");
+    assertFilesDoNotContain(files, fileCount, "VideoFilters");
+    assertFilesDoNotContain(files, fileCount, "VideoFrameContext");
+    assertFilesDoNotContain(files, fileCount, "VideoFrameBudget");
     assertFilesDoNotContain(files, fileCount, "#include \"CthughaDisplay.h\"");
     assertFilesDoNotContain(files, fileCount, "#include \"DisplayDevice.h\"");
     assertFilesDoNotContain(files, fileCount, "#include \"DisplayRuntime.h\"");
@@ -157,7 +182,7 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
 }
 
 static void testGeneratorDiagnosticsAndMathTablesAreOwned() {
-    assertSourceDoesNotContain("src/VideoFilters.cc",
+    assertSourceDoesNotContain("src/FrameFilters.cc",
         "static int debugReports");
     assertSourceDoesNotContain("src/waves.cc", "isin(");
     assertSourceDoesNotContain("src/waves.cc", "icos(");
@@ -171,6 +196,7 @@ int main() {
     testFrameGeneratorOwnsApplicationStorageAndPipeline();
     testLegacyCthughaBufferIsRetired();
     testOldVideoDirectorIsRetired();
+    testLegacyVideoFilterNamesAreRetired();
     testFrameStoreOwnsStorageLayout();
     testDisplayNeverReadsGeneratorCurrentStorage();
     testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands();

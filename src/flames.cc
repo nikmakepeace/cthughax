@@ -253,7 +253,7 @@ static void clearActiveVisiblePixels(FrameRenderTarget& buffer) {
  * read buffer.passivePixels() or the border rows.
  * Sound/border: ignores sound and border input.
  */
-void flame_clear(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_clear(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     clearActiveVisiblePixels(buffer);
 }
 
@@ -271,7 +271,7 @@ void flame_clear(FrameRenderTarget& buffer, const VideoFrameContext& context, Fl
  * Sound/border: reads from the hidden bottom border through the below-neighbor
  * samples, so border modes can feed or damp the upward flame.
  */
-void flame_upslow(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_upslow(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     unsigned int tmp;
     unsigned int tmp2;
@@ -300,7 +300,7 @@ void flame_upslow(FrameRenderTarget& buffer, const VideoFrameContext& context, F
  * as its own filterchain stage.
  * Sound/border: bottom border rows affect the lower-neighbor samples.
  */
-void flame_upsubtle(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_upsubtle(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(-1 + buffer.width(), 0 + buffer.width(),
         1 + buffer.width(), buffer.width() + buffer.width());
 
@@ -314,7 +314,7 @@ void flame_upsubtle(FrameRenderTarget& buffer, const VideoFrameContext& context,
  * from itself plus three lower neighbors, then applying divsub.
  * Sound/border: bottom border rows can inject energy into the upward motion.
  */
-void flame_upfast(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_upfast(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -342,7 +342,7 @@ void flame_upfast(FrameRenderTarget& buffer, const VideoFrameContext& context, F
  * and lower samples into the pixel one row above.
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_leftslow(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_leftslow(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -367,7 +367,7 @@ void flame_leftslow(FrameRenderTarget& buffer, const VideoFrameContext& context,
  * own filterchain stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_leftsubtle(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_leftsubtle(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(+1, +buffer.width(),
         1 + buffer.width(), buffer.width() + buffer.width());
 
@@ -381,7 +381,7 @@ void flame_leftsubtle(FrameRenderTarget& buffer, const VideoFrameContext& contex
  * and lower into each destination pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_leftfast(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_leftfast(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -409,7 +409,7 @@ void flame_leftfast(FrameRenderTarget& buffer, const VideoFrameContext& context,
  * left, and lower samples into buffer.activePixels().
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_rightslow(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_rightslow(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     int src = buffer.width() + 1;
@@ -434,7 +434,7 @@ void flame_rightslow(FrameRenderTarget& buffer, const VideoFrameContext& context
  * own filterchain stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_rightsubtle(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_rightsubtle(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(-1, buffer.width() - 1,
         buffer.width(), buffer.width() + buffer.width());
 
@@ -448,7 +448,7 @@ void flame_rightsubtle(FrameRenderTarget& buffer, const VideoFrameContext& conte
  * and lower into each destination pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_rightfast(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_rightfast(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     buffer.swapBuffers();
@@ -477,7 +477,7 @@ void flame_rightfast(FrameRenderTarget& buffer, const VideoFrameContext& context
  * halves use divsub for averaging and decay.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_water(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_water(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     int src = buffer.width();
@@ -513,7 +513,7 @@ void flame_water(FrameRenderTarget& buffer, const VideoFrameContext& context, Fl
  * temporaries, preserving the old compact arithmetic behavior.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_watersubtle(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_watersubtle(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     int src = buffer.width();
@@ -553,7 +553,7 @@ void flame_watersubtle(FrameRenderTarget& buffer, const VideoFrameContext& conte
  * How: averages left, current, right, and current again through divsub.
  * Sound/border: does not intentionally sample vertical border rows.
  */
-void flame_skyline(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_skyline(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     int src = buffer.width() + 1;
@@ -578,7 +578,7 @@ void flame_skyline(FrameRenderTarget& buffer, const VideoFrameContext& context, 
  * averaging, which gives this flame its sharper texture.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_weird(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_weird(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     int src = buffer.width() + 1;
@@ -606,7 +606,7 @@ void flame_weird(FrameRenderTarget& buffer, const VideoFrameContext& context, Fl
  * uses divsub2, which divides by two and subtracts one.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_zzz(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_zzz(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     buffer.swapBuffers();
@@ -628,7 +628,7 @@ void flame_zzz(FrameRenderTarget& buffer, const VideoFrameContext& context, Flam
  * at zero, four pixels at a time through divsub4.
  * Sound/border: ignores sound and border input.
  */
-void flame_fade(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_fade(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     int i;
     buffer.swapBuffers();
 
@@ -663,7 +663,7 @@ void flame_fade(FrameRenderTarget& buffer, const VideoFrameContext& context, Fla
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_subtle(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_general_subtle(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets = general_offsets(runtime.generalFlame, buffer.width());
 
     flame_general_subtle_filter(buffer, runtime.lookupTables, offsets);
@@ -705,7 +705,7 @@ void flame_general_subtle_filter(FrameRenderTarget& buffer,
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_slow(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_general_slow(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets = general_offsets(runtime.generalFlame, buffer.width());
 
     flame_general_slow_filter(buffer, runtime.lookupTables, offsets);
@@ -740,7 +740,7 @@ void flame_general_slow_filter(FrameRenderTarget& buffer,
  * Sound/border: the top hidden border row becomes the new top visible row, so
  * border mode has a direct visible effect here.
  */
-void flame_down(FrameRenderTarget& buffer, const VideoFrameContext& context, FlameRuntime& runtime) {
+void flame_down(FrameRenderTarget& buffer, const FrameRenderContext& context, FlameRuntime& runtime) {
     for (int y = 0; y < buffer.height(); y++) {
         unsigned char* dst = buffer.activeRow(y);
         int src = -buffer.width() + y * buffer.width();
