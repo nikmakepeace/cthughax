@@ -234,12 +234,10 @@ LegacySceneSelectionAdapters::LegacySceneSelectionAdapters(EffectControl& flame_
           new SceneEffectChoiceLock(generalFlame_.lock), int(generalFlame_))
     , waveValue(new SceneEffectChoiceCatalog(wave_.name(),
           wave_.choiceList(), wave_.lock), int(wave_))
-    , waveScaleValue(new SceneEffectChoiceCatalog(waveScale_.name(),
-          waveScale_.choiceList(), waveScale_.lock), int(waveScale_))
-    , tableValue(new SceneEffectChoiceCatalog(table_.name(),
-          table_.choiceList(), table_.lock), int(table_))
-    , objectValue(new SceneEffectChoiceCatalog(object_.name(),
-          object_.choiceList(), object_.lock), int(object_))
+    , waveScaleValue(createOwnedSceneChoiceCatalog(waveScale_),
+          int(waveScale_))
+    , tableValue(createOwnedSceneChoiceCatalog(table_), int(table_))
+    , objectValue(createOwnedSceneChoiceCatalog(object_), int(object_))
     , translationValue(new SceneEffectChoiceCatalog(translation_.name(),
           translation_.choiceList(), translation_.lock), int(translation_))
     , paletteValue(new SceneEffectChoiceCatalog(palette_.name(),
