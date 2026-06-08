@@ -29,15 +29,6 @@ public:
         SceneChoiceCatalog* catalog, int selectedValue);
 };
 
-class LegacySceneTranslationSelection : public LegacySceneEffectChoiceSelection,
-    public SceneTranslationSelection {
-public:
-    LegacySceneTranslationSelection(
-        SceneChoiceCatalog* catalog, int selectedValue);
-
-    virtual TranslationTable currentTranslationTable();
-};
-
 class LegacyScenePaletteSelection : public LegacySceneEffectChoiceSelection,
     public ScenePaletteSelection {
 public:
@@ -73,7 +64,7 @@ class LegacySceneSelectionAdapters : public SceneVisualSelections,
     SceneChoiceSelection waveScaleValue;
     SceneChoiceSelection tableValue;
     SceneChoiceSelection objectValue;
-    LegacySceneTranslationSelection translationValue;
+    SceneTranslationChoiceSelection translationValue;
     LegacyScenePaletteSelection paletteValue;
     SceneChoiceSelection borderValue;
     SceneChoiceSelection flashlightValue;
@@ -171,6 +162,25 @@ static SceneChoiceCatalog* createSceneWaveChoiceCatalog(
     return catalog;
 }
 
+static SceneChoiceCatalog* createSceneTranslationChoiceCatalog(
+    EffectControl& option) {
+    SceneTranslationChoiceCatalog* catalog = new SceneTranslationChoiceCatalog(
+        option.name(), new SceneEffectChoiceLock(option.lock));
+    TranslateOption* translateOption = dynamic_cast<TranslateOption*>(&option);
+
+    for (int i = 0; i < option.getNEntries(); i++) {
+        EffectChoice* choice = option[i];
+        if (choice != 0) {
+            TranslationTable table = (translateOption != 0)
+                ? translateOption->translationTable(i)
+                : TranslationTable(choice->Name(), 0, 0, 0);
+            catalog->addChoice(table, choice->inUse());
+        }
+    }
+
+    return catalog;
+}
+
 LegacySceneEffectChoiceSelection::LegacySceneEffectChoiceSelection(
     SceneChoiceCatalog* catalog, int selectedValue)
     : SceneChoiceSelection(catalog, selectedValue) { }
@@ -186,15 +196,6 @@ const EffectChoice* LegacySceneEffectChoiceSelection::currentEffectChoice()
     const SceneEffectChoice* choice
         = dynamic_cast<const SceneEffectChoice*>(currentChoice());
     return (choice != 0) ? &choice->effectChoice() : 0;
-}
-
-LegacySceneTranslationSelection::LegacySceneTranslationSelection(
-    SceneChoiceCatalog* catalog, int selectedValue)
-    : LegacySceneEffectChoiceSelection(catalog, selectedValue) { }
-
-TranslationTable LegacySceneTranslationSelection::currentTranslationTable() {
-    TranslateEntry* entry = dynamic_cast<TranslateEntry*>(currentEffectChoice());
-    return (entry != 0) ? entry->table() : TranslationTable();
 }
 
 LegacyScenePaletteSelection::LegacyScenePaletteSelection(
@@ -238,8 +239,8 @@ LegacySceneSelectionAdapters::LegacySceneSelectionAdapters(EffectControl& flame_
           int(waveScale_))
     , tableValue(createOwnedSceneChoiceCatalog(table_), int(table_))
     , objectValue(createOwnedSceneChoiceCatalog(object_), int(object_))
-    , translationValue(new SceneEffectChoiceCatalog(translation_.name(),
-          translation_.choiceList(), translation_.lock), int(translation_))
+    , translationValue(createSceneTranslationChoiceCatalog(translation_),
+          int(translation_))
     , paletteValue(new SceneEffectChoiceCatalog(palette_.name(),
           palette_.choiceList(), palette_.lock), int(palette_))
     , borderValue(createOwnedSceneChoiceCatalog(border_), int(border_))

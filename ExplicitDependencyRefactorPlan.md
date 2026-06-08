@@ -897,16 +897,18 @@ changes needed before the surface can disappear.
    `SceneGeneralFlameSelectionValue` with explicit lock and diagnostics ports.
    Flame and wave selections now use `SceneTypedVisualCatalogs` entries that
    point directly at typed `Flame` and `Wave` catalog items instead of legacy
-   `FlameEntry`/`WaveEntry` choices. Wave-scale, table, object, border, and
-   flashlight selections now use owned `SceneChoiceListCatalog` choice entries
-   instead of borrowing legacy `EffectChoiceList` entries. The legacy adapter
-   still syncs those values to the old controls until the native visual owner
-   replaces the remaining legacy factory. Object current-entry lookup still
-   goes through the legacy `SceneWaveObjectSource` adapter.
+   `FlameEntry`/`WaveEntry` choices. Translation selection now uses owned
+   `SceneTypedVisualCatalogs` entries that copy `TranslationTable` data instead
+   of resolving the current table through `TranslateEntry`. Wave-scale, table,
+   object, border, and flashlight selections now use owned
+   `SceneChoiceListCatalog` choice entries instead of borrowing legacy
+   `EffectChoiceList` entries. The legacy adapter still syncs those values to
+   the old controls until the native visual owner replaces the remaining legacy
+   factory. Object current-entry lookup still goes through the legacy
+   `SceneWaveObjectSource` adapter.
 
    Concrete changes required:
-   - Create owned catalog and selection objects for translation, palette, and
-     image.
+   - Create owned catalog and selection objects for palette and image.
    - Move catalog loading, generated entries, allowed-choice metadata, and
      current-entry lookup into those owners, including native object lookup for
      object-capable waves.

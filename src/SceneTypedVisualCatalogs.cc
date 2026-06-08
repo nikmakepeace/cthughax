@@ -164,3 +164,83 @@ Wave* SceneWaveChoiceSelection::currentWave() {
     SceneWaveChoice* choice = dynamic_cast<SceneWaveChoice*>(currentChoice());
     return (choice != 0) ? choice->wave() : 0;
 }
+
+SceneTranslationChoice::SceneTranslationChoice(
+    const TranslationTable& table_, int inUse_)
+    : nameValue((table_.name() != 0) ? table_.name() : "none")
+    , tableData()
+    , tableValue()
+    , inUseValue(inUse_) {
+    if (table_.data() != 0 && table_.size() > 0) {
+        tableData.assign(table_.data(), table_.data() + table_.size());
+    }
+
+    tableValue = TranslationTable(nameValue.c_str(),
+        tableData.empty() ? 0 : &tableData[0],
+        table_.width(), table_.height());
+}
+
+TranslationTable SceneTranslationChoice::table() const {
+    return tableValue;
+}
+
+const char* SceneTranslationChoice::name() const {
+    return nameValue.c_str();
+}
+
+int SceneTranslationChoice::sameName(const char* other) const {
+    return sameChoiceName(nameValue, other);
+}
+
+int SceneTranslationChoice::inUse() const {
+    return inUseValue;
+}
+
+void SceneTranslationChoice::setUse(int inUse_) {
+    inUseValue = inUse_;
+}
+
+SceneTranslationChoiceCatalog::SceneTranslationChoiceCatalog(
+    const char* optionName_, SceneChoiceLock* lock_)
+    : optionNameValue((optionName_ != 0) ? optionName_ : "")
+    , lockValue(lock_)
+    , choices() { }
+
+SceneTranslationChoice& SceneTranslationChoiceCatalog::addChoice(
+    const TranslationTable& table, int inUse) {
+    choices.push_back(std::unique_ptr<SceneTranslationChoice>(
+        new SceneTranslationChoice(table, inUse)));
+    return *choices.back();
+}
+
+int SceneTranslationChoiceCatalog::entryCount() const {
+    return int(choices.size());
+}
+
+SceneChoice* SceneTranslationChoiceCatalog::choiceAt(int index) const {
+    if ((index < 0) || (index >= int(choices.size())))
+        return 0;
+    return choices[index].get();
+}
+
+SceneChoiceLock& SceneTranslationChoiceCatalog::lock() {
+    return *lockValue;
+}
+
+const SceneChoiceLock& SceneTranslationChoiceCatalog::lock() const {
+    return *lockValue;
+}
+
+const char* SceneTranslationChoiceCatalog::optionName() const {
+    return optionNameValue.c_str();
+}
+
+SceneTranslationChoiceSelection::SceneTranslationChoiceSelection(
+    SceneChoiceCatalog* catalog, int selectedValue)
+    : SceneChoiceSelection(catalog, selectedValue) { }
+
+TranslationTable SceneTranslationChoiceSelection::currentTranslationTable() {
+    SceneTranslationChoice* choice
+        = dynamic_cast<SceneTranslationChoice*>(currentChoice());
+    return (choice != 0) ? choice->table() : TranslationTable();
+}

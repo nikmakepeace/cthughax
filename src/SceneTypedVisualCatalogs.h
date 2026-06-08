@@ -200,4 +200,101 @@ public:
     virtual Wave* currentWave();
 };
 
+/**
+ * Owned SceneChoice entry that stores one TranslationTable payload.
+ */
+class SceneTranslationChoice : public SceneChoice {
+    std::string nameValue;
+    std::vector<int> tableData;
+    TranslationTable tableValue;
+    int inUseValue;
+
+public:
+    /**
+     * Creates one translation-table choice.
+     *
+     * @param table_ Translation table to copy into the Scene choice.
+     * @param inUse_ Nonzero when selectable by default.
+     */
+    SceneTranslationChoice(const TranslationTable& table_, int inUse_);
+
+    /** @return Immutable table view backed by this owned choice. */
+    TranslationTable table() const;
+
+    /** @return Stable choice name. */
+    virtual const char* name() const;
+
+    /** Returns nonzero when text names this choice. */
+    virtual int sameName(const char* other) const;
+
+    /** @return Nonzero when this choice may be selected randomly/cyclically. */
+    virtual int inUse() const;
+
+    /** Sets whether this choice may be selected randomly/cyclically. */
+    virtual void setUse(int inUse);
+};
+
+/**
+ * Owned SceneChoiceCatalog for translation-table choices.
+ */
+class SceneTranslationChoiceCatalog : public SceneChoiceCatalog {
+    std::string optionNameValue;
+    std::unique_ptr<SceneChoiceLock> lockValue;
+    std::vector<std::unique_ptr<SceneTranslationChoice> > choices;
+
+public:
+    /**
+     * Creates an empty translation-table choice catalog.
+     *
+     * @param optionName_ Stable catalog/option name.
+     * @param lock_ Owned lock state for this selection.
+     */
+    SceneTranslationChoiceCatalog(
+        const char* optionName_, SceneChoiceLock* lock_);
+
+    /**
+     * Adds one translation-table choice.
+     *
+     * @param table Translation table copied into this catalog.
+     * @param inUse Nonzero when selectable by default.
+     * @return Mutable choice entry.
+     */
+    SceneTranslationChoice& addChoice(
+        const TranslationTable& table, int inUse);
+
+    /** @return Number of owned choices. */
+    virtual int entryCount() const;
+
+    /** @return Choice at index, or NULL when out of range. */
+    virtual SceneChoice* choiceAt(int index) const;
+
+    /** @return Mutable lock for the selection using this catalog. */
+    virtual SceneChoiceLock& lock();
+
+    /** @return Immutable lock for the selection using this catalog. */
+    virtual const SceneChoiceLock& lock() const;
+
+    /** @return Stable catalog/option name. */
+    virtual const char* optionName() const;
+};
+
+/**
+ * Catalog-backed translation selection that returns an owned table view.
+ */
+class SceneTranslationChoiceSelection : public SceneChoiceSelection,
+    public SceneTranslationSelection {
+public:
+    /**
+     * Creates a translation-table selection over an owned catalog.
+     *
+     * @param catalog Owned translation-table catalog.
+     * @param selectedValue Initial selected index.
+     */
+    SceneTranslationChoiceSelection(
+        SceneChoiceCatalog* catalog, int selectedValue);
+
+    /** @return Selected translation table, or an empty table. */
+    virtual TranslationTable currentTranslationTable();
+};
+
 #endif

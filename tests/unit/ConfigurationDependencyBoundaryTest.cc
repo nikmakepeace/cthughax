@@ -2584,6 +2584,12 @@ static void testEffectControlUsesInjectedRandomSource() {
         "class SceneWaveChoiceCatalog : public SceneChoiceCatalog");
     assertSourceContains("src/SceneTypedVisualCatalogs.h",
         "class SceneWaveChoiceSelection : public SceneChoiceSelection");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "class SceneTranslationChoice : public SceneChoice");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "class SceneTranslationChoiceCatalog : public SceneChoiceCatalog");
+    assertSourceContains("src/SceneTypedVisualCatalogs.h",
+        "class SceneTranslationChoiceSelection : public SceneChoiceSelection");
     assertSourceDoesNotContain("src/SceneTypedVisualCatalogs.h",
         "EffectControl");
     assertSourceDoesNotContain("src/SceneTypedVisualCatalogs.cc",
@@ -2596,8 +2602,8 @@ static void testEffectControlUsesInjectedRandomSource() {
         "class LegacySceneFlameSelection");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "class LegacySceneWaveSelection");
-    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "class LegacySceneTranslationSelection : public LegacySceneEffectChoiceSelection");
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
+        "class LegacySceneTranslationSelection");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "class LegacyScenePaletteSelection : public LegacySceneEffectChoiceSelection");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
@@ -2615,6 +2621,8 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "SceneChoiceSelection objectValue;");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "SceneTranslationChoiceSelection translationValue;");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "SceneChoiceSelection borderValue;");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "SceneChoiceSelection flashlightValue;");
@@ -2628,6 +2636,8 @@ static void testEffectControlUsesInjectedRandomSource() {
         "tableValue(createOwnedSceneChoiceCatalog(table_)");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "objectValue(createOwnedSceneChoiceCatalog(object_)");
+    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+        "translationValue(createSceneTranslationChoiceCatalog(translation_)");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "borderValue(createOwnedSceneChoiceCatalog(border_)");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
@@ -2646,6 +2656,8 @@ static void testEffectControlUsesInjectedRandomSource() {
         "tableValue(new SceneEffectChoiceCatalog");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "objectValue(new SceneEffectChoiceCatalog");
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
+        "translationValue(new SceneEffectChoiceCatalog");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "LegacySceneControlBackedSelection waveScaleValue;");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
@@ -2696,14 +2708,14 @@ static void testEffectControlUsesInjectedRandomSource() {
         "dynamic_cast<SceneFlameChoice*>(currentChoice())");
     assertSourceContains("src/SceneTypedVisualCatalogs.cc",
         "dynamic_cast<SceneWaveChoice*>(currentChoice())");
+    assertSourceContains("src/SceneTypedVisualCatalogs.cc",
+        "dynamic_cast<SceneTranslationChoice*>(currentChoice())");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "dynamic_cast<FlameEntry*>(currentEffectChoice())");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "dynamic_cast<WaveEntry*>(currentEffectChoice())");
-    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.cc",
         "dynamic_cast<TranslateEntry*>(currentEffectChoice())");
-    assertSourceContains("src/LegacySceneSelectionAdapters.cc",
-        "return (entry != 0) ? entry->table() : TranslationTable()");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",
         "dynamic_cast<PaletteEntry*>(currentEffectChoice())");
     assertSourceContains("src/LegacySceneSelectionAdapters.cc",

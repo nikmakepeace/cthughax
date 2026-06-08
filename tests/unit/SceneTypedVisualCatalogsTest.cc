@@ -107,10 +107,52 @@ static void testWaveSelectionReturnsTypedWave() {
     assert(catalog->lock().enabled() == 1);
 }
 
+static void testTranslationCatalogCopiesTableData() {
+    int sourceData[] = { 0, 1, 2, 3 };
+    SceneTranslationChoiceCatalog catalog("translate", new RecordingLock());
+    SceneTranslationChoice& choice = catalog.addChoice(
+        TranslationTable("warp", sourceData, 2, 2), 1);
+    sourceData[1] = 99;
+
+    assert(std::strcmp(catalog.optionName(), "translate") == 0);
+    assert(catalog.entryCount() == 1);
+    assert(catalog.choiceAt(0)->sameName("WARP trailing") != 0);
+
+    TranslationTable table = choice.table();
+    assert(std::strcmp(table.name(), "warp") == 0);
+    assert(table.ready() != 0);
+    assert(table.width() == 2);
+    assert(table.height() == 2);
+    assert(table.data() != sourceData);
+    assert(table.data()[1] == 1);
+}
+
+static void testTranslationSelectionReturnsOwnedTable() {
+    int firstData[] = { 0, 1, 2, 3 };
+    int secondData[] = { 3, 2, 1, 0 };
+    SceneTranslationChoiceCatalog* catalog
+        = new SceneTranslationChoiceCatalog("translate", new RecordingLock());
+    catalog->addChoice(TranslationTable("none", 0, 0, 0), 0);
+    catalog->addChoice(TranslationTable("twist", firstData, 2, 2), 1);
+    catalog->addChoice(TranslationTable("mirror", secondData, 2, 2), 1);
+    SceneTranslationChoiceSelection selection(catalog, 1);
+    FixedRandomSource randomSource;
+
+    assert(std::strcmp(selection.currentTranslationTable().name(), "twist")
+        == 0);
+    selection.change("mirror", randomSource);
+    TranslationTable table = selection.currentTranslationTable();
+    assert(selection.currentValue() == 2);
+    assert(std::strcmp(table.name(), "mirror") == 0);
+    assert(table.data()[0] == 3);
+}
+
 int main() {
     testFlameCatalogOwnsTypedChoices();
     testFlameSelectionReturnsTypedFlame();
     testWaveCatalogOwnsTypedChoices();
     testWaveSelectionReturnsTypedWave();
+    testTranslationCatalogCopiesTableData();
+    testTranslationSelectionReturnsOwnedTable();
     return 0;
 }
