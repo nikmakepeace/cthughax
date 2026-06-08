@@ -16,7 +16,7 @@
 LegacySceneVisualCatalogFactory::LegacySceneVisualCatalogFactory(
     std::unique_ptr<LegacySceneSelectionAdapterSet> ownedAdapters_)
     : ownedAdapters(std::move(ownedAdapters_))
-    , selections(*ownedAdapters->selections)
+    , selections(ownedAdapters->selections())
     , paletteRandomizer(createLegacyScenePaletteRandomizer()) { }
 
 LegacySceneVisualCatalogFactory::~LegacySceneVisualCatalogFactory() { }

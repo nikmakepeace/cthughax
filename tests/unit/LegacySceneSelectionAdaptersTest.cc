@@ -2,6 +2,7 @@
 
 #include "EffectControl.h"
 #include "SceneDependencies.h"
+#include "SceneVisualSelections.h"
 
 #include <cassert>
 #include <memory>

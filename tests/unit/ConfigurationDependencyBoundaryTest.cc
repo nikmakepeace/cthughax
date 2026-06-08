@@ -1398,7 +1398,13 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceContains("src/LegacySceneSelectionAdapters.h",
         "class LegacySceneSelectionAdapterSet");
     assertSourceContains("src/LegacySceneSelectionAdapters.h",
-        "std::unique_ptr<LegacySceneControlMirror> controlMirror");
+        "std::unique_ptr<LegacySceneSelectionAdapterState> state");
+    assertSourceContains("src/LegacySceneSelectionAdapters.h",
+        "SceneVisualSelections& selections()");
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.h",
+        "LegacySceneControlMirror");
+    assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.h",
+        "#include \"SceneVisualSelections.h\"");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.h",
         "EffectControl& flame");
     assertSourceDoesNotContain("src/LegacySceneSelectionAdapters.h",

@@ -3,12 +3,11 @@
 #ifndef CTHUGHA_LEGACY_SCENE_SELECTION_ADAPTERS_H
 #define CTHUGHA_LEGACY_SCENE_SELECTION_ADAPTERS_H
 
-#include "SceneVisualSelections.h"
-
 #include <memory>
 
-class LegacySceneControlMirror;
+class LegacySceneSelectionAdapterState;
 class SceneSelectionSynchronizer;
+class SceneVisualSelections;
 
 /**
  * Owned native selections plus their explicit legacy control mirror.
@@ -18,17 +17,17 @@ class SceneSelectionSynchronizer;
  * behavior.
  */
 class LegacySceneSelectionAdapterSet {
-public:
-    std::unique_ptr<SceneVisualSelections> selections;
-
-private:
-    std::unique_ptr<LegacySceneControlMirror> controlMirror;
+    std::unique_ptr<LegacySceneSelectionAdapterState> state;
 
 public:
-    LegacySceneSelectionAdapterSet(
-        std::unique_ptr<SceneVisualSelections> selections_,
-        std::unique_ptr<LegacySceneControlMirror> controlMirror_);
+    /** Creates a handle around private legacy adapter state. */
+    explicit LegacySceneSelectionAdapterSet(
+        std::unique_ptr<LegacySceneSelectionAdapterState> state_);
+
     ~LegacySceneSelectionAdapterSet();
+
+    /** @return Native selections owned by this adapter set. */
+    SceneVisualSelections& selections();
 
     /**
      * Creates the temporary one-way synchronizer for these adapters.

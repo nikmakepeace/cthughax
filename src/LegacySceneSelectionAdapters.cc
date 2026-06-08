@@ -4,6 +4,7 @@
 
 #include "EffectControl.h"
 #include "SceneDependencies.h"
+#include "SceneVisualSelections.h"
 
 #include <memory>
 #include <utility>
@@ -125,18 +126,33 @@ public:
 
 }
 
+class LegacySceneSelectionAdapterState {
+public:
+    std::unique_ptr<SceneVisualSelections> selections;
+    std::unique_ptr<LegacySceneControlMirror> controlMirror;
+
+    LegacySceneSelectionAdapterState(
+        std::unique_ptr<SceneVisualSelections> selections_,
+        std::unique_ptr<LegacySceneControlMirror> controlMirror_)
+        : selections(std::move(selections_))
+        , controlMirror(std::move(controlMirror_)) { }
+};
+
 LegacySceneSelectionAdapterSet::LegacySceneSelectionAdapterSet(
-    std::unique_ptr<SceneVisualSelections> selections_,
-    std::unique_ptr<LegacySceneControlMirror> controlMirror_)
-    : selections(std::move(selections_))
-    , controlMirror(std::move(controlMirror_)) { }
+    std::unique_ptr<LegacySceneSelectionAdapterState> state_)
+    : state(std::move(state_)) { }
 
 LegacySceneSelectionAdapterSet::~LegacySceneSelectionAdapterSet() { }
+
+SceneVisualSelections& LegacySceneSelectionAdapterSet::selections() {
+    return *state->selections;
+}
 
 std::unique_ptr<SceneSelectionSynchronizer>
 LegacySceneSelectionAdapterSet::createSelectionSynchronizer() {
     return std::unique_ptr<SceneSelectionSynchronizer>(
-        new LegacySceneSelectionSynchronizer(*selections, *controlMirror));
+        new LegacySceneSelectionSynchronizer(
+            *state->selections, *state->controlMirror));
 }
 
 std::unique_ptr<LegacySceneSelectionAdapterSet>
@@ -152,5 +168,7 @@ createLegacySceneSelectionAdapters(
         palette, border, flashlight, images, *selections));
     return std::unique_ptr<LegacySceneSelectionAdapterSet>(
         new LegacySceneSelectionAdapterSet(
-            std::move(selections), std::move(controlMirror)));
+            std::unique_ptr<LegacySceneSelectionAdapterState>(
+                new LegacySceneSelectionAdapterState(
+                    std::move(selections), std::move(controlMirror)))));
 }
