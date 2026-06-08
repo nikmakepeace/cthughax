@@ -156,6 +156,8 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
         "src/FrameFilterchainSequence.cc",
         "src/FrameFilters.h",
         "src/FrameFilters.cc",
+        "src/Translate.h",
+        "src/Translate.cc",
         "src/Wave.h",
         "src/Wave.cc",
         "src/waves.cc"
@@ -214,6 +216,8 @@ static void testGeneratorDiagnosticsAndMathTablesAreOwned() {
         "src/FrameFilters.cc",
         "src/FrameRenderTarget.h",
         "src/FrameRenderTarget.cc",
+        "src/Translate.h",
+        "src/Translate.cc",
         "src/Wave.h",
         "src/Wave.cc",
         "src/waves.cc"
