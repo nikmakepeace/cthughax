@@ -40,6 +40,12 @@ public:
     const Scene& scene() const;
     SceneSnapshot snapshot() const;
 
+    /**
+     * @return Native visual selections owned by the visual catalog factory
+     *         result, or NULL when no selection set is available.
+     */
+    SceneVisualSelections* visualSelections();
+
     SceneCommandTarget& commandTarget();
     SceneSerializer& serializer();
 };

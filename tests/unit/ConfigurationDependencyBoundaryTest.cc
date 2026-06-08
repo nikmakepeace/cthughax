@@ -1844,6 +1844,10 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceDoesNotContain("src/SceneRuntime.h", "PaletteOption");
     assertSourceDoesNotContain("src/SceneRuntime.h", "ImageOption");
     assertSourceDoesNotContain("src/SceneRuntime.h", "LegacySceneWaveObjectSource");
+    assertSourceContains("src/SceneRuntime.h",
+        "SceneVisualSelections* visualSelections()");
+    assertSourceContains("src/SceneRuntime.cc",
+        "return visualCatalogFactoryResultValue.selections");
     assertSourceDoesNotContain("src/SceneDependencies.h", "LegacySceneWaveObjectSource");
     assertSourceDoesNotContain("src/SceneDependencies.h", "LegacyScenePaletteRandomizer");
     assertSourceDoesNotContain("src/SceneDependencies.h", "class SceneWaveObjectSource");
@@ -2334,6 +2338,13 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "int runSceneSelectionKey(RuntimeSceneTarget sceneTarget");
     assertSourceContains("src/InterfaceRuntime.h",
         "int runSceneChoiceKey(RuntimeSceneTarget sceneTarget");
+    assertSourceContains("src/InterfaceRuntime.h",
+        "void setSceneVisualSelections(SceneVisualSelections* selections)");
+    assertSourceContains("src/InterfaceRuntime.h",
+        "SceneOptionSelection* sceneSelection(RuntimeSceneTarget target) const");
+    assertSourceContains("src/InterfaceRuntime.cc",
+        "case RuntimeScenePalette:\n"
+        "        return &sceneVisualSelectionsValue->palette()");
     assertSourceContains("src/InterfaceRuntime.cc",
         "context.targetSceneSelection(sceneTarget, element)");
     assertSourceContains("src/InterfaceRuntime.cc",
@@ -2349,10 +2360,18 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
     assertSourceContains("src/InterfaceList.cc",
         "runtime.runSceneChoiceKey(sceneTarget");
     assertSourceContains("src/InterfaceList.cc",
+        "runtime.sceneSelection(sceneTarget)");
+    assertSourceContains("src/InterfaceList.cc",
+        "const SceneChoice* choice = selection->choiceAt(index)");
+    assertSourceContains("src/InterfaceList.cc",
+        "return (choice != NULL && choice->inUse()) ? \"yes\" : \"no\"");
+    assertSourceContains("src/InterfaceList.cc",
         "new InterfaceList(\"Flame\", \"Select Flame\", &flame,\n"
         "            RuntimeSceneFlame)");
     assertSourceContains("tests/unit/InterfaceRuntimeTest.cc",
         "testSceneSelectionCommandContextUsesTypedRuntimeCommand");
+    assertSourceContains("tests/unit/InterfaceRuntimeTest.cc",
+        "testSceneVisualSelectionsAreLateBoundToRuntime");
     assertSourceContains("tests/unit/InterfaceRuntimeTest.cc",
         "testSceneChoiceCommandContextUsesTypedRuntimeCommand");
     assertSourceContains("src/xcthugha.h",

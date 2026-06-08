@@ -1069,6 +1069,11 @@ from this plan.
    - Keymap visual actions, F2 visual rows, and X11 panel visual menus dispatch
      typed Scene commands without including the broad flame, wave, or
      translation umbrellas.
+   - `InterfaceRuntime` late-binds native `SceneVisualSelections` from
+     `SceneRuntime`; Scene-targeted visual list panels read native
+     `SceneChoice` names/use flags for display and dispatch typed Scene choice
+     commands, leaving legacy `EffectControl` list reads only as fallback and
+     non-Scene compatibility.
    - `RuntimeEffectControlOwner`, `LegacySceneEffectControlTarget`,
      `LegacySceneEffectControlBindings`, and
      `LegacySceneEffectControlCatalog` are deleted.

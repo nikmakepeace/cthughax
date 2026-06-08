@@ -10,6 +10,7 @@
 #include "Interface.h"
 #include "ProcessServices.h"
 #include "RuntimeCommandTargets.h"
+#include "SceneVisualSelections.h"
 #include "keymap.h"
 
 #include <string.h>
@@ -18,6 +19,7 @@
 InterfaceRuntime::InterfaceRuntime(MillisecondClock& clock_)
     : currentInterfaceValue(NULL)
     , runtimeConfigRegistryValue(NULL)
+    , sceneVisualSelectionsValue(NULL)
     , sceneChangeStatusProviderValue(NULL)
     , autoChangeControlsValue(NULL)
     , audioProcessingSelectorValue(NULL)
@@ -171,6 +173,44 @@ void InterfaceRuntime::setRuntimeConfigRegistry(RuntimeConfigRegistry* registry)
 
 const RuntimeConfigRegistry* InterfaceRuntime::runtimeConfigRegistry() const {
     return runtimeConfigRegistryValue;
+}
+
+void InterfaceRuntime::setSceneVisualSelections(
+    SceneVisualSelections* selections) {
+    sceneVisualSelectionsValue = selections;
+}
+
+SceneOptionSelection* InterfaceRuntime::sceneSelection(
+    RuntimeSceneTarget target) const {
+    if (sceneVisualSelectionsValue == NULL)
+        return NULL;
+
+    switch (target) {
+    case RuntimeSceneFlame:
+        return &sceneVisualSelectionsValue->flame();
+    case RuntimeSceneGeneralFlame:
+        return &sceneVisualSelectionsValue->generalFlame();
+    case RuntimeSceneWave:
+        return &sceneVisualSelectionsValue->wave();
+    case RuntimeSceneWaveScale:
+        return &sceneVisualSelectionsValue->waveScale();
+    case RuntimeSceneObject:
+        return &sceneVisualSelectionsValue->object();
+    case RuntimeSceneTranslation:
+        return &sceneVisualSelectionsValue->translation();
+    case RuntimeSceneBorder:
+        return &sceneVisualSelectionsValue->border();
+    case RuntimeSceneFlashlight:
+        return &sceneVisualSelectionsValue->flashlight();
+    case RuntimeScenePalette:
+        return &sceneVisualSelectionsValue->palette();
+    case RuntimeSceneTable:
+        return &sceneVisualSelectionsValue->table();
+    case RuntimeSceneImage:
+        return &sceneVisualSelectionsValue->images();
+    }
+
+    return NULL;
 }
 
 void InterfaceRuntime::setSceneChangeStatusProvider(

@@ -10,6 +10,7 @@
 #include "ProcessServices.h"
 #include "RuntimeCommandSink.h"
 #include "RuntimeCommandTargets.h"
+#include "SceneVisualSelections.h"
 #include "keymap.h"
 
 #include <assert.h>
@@ -32,6 +33,83 @@ public:
     virtual void change(int) { }
     virtual void change(const char*) { }
     virtual const char* text() const { return "simple"; }
+};
+
+class FakeSceneSelection : public SceneFlameSelection,
+    public SceneGeneralFlameSelection,
+    public SceneWaveSelection,
+    public SceneWaveObjectSelection,
+    public SceneTranslationSelection,
+    public ScenePaletteSelection,
+    public SceneImageSelection {
+    const char* nameValue;
+
+public:
+    explicit FakeSceneSelection(const char* name_)
+        : nameValue(name_) { }
+
+    virtual const char* catalogName() const { return nameValue; }
+    virtual const char* currentName() const { return nameValue; }
+    virtual int currentValue() const { return 0; }
+    virtual int entryCount() const { return 0; }
+    virtual void change(int) { }
+    virtual void change(const char*, RandomSource&) { }
+    virtual int changeRandom(RandomSource&) { return 0; }
+    virtual void setValue(int) { }
+    virtual const Flame* currentFlame() { return NULL; }
+    virtual int encodedValue() const { return 0; }
+    virtual const char* selectionText() const { return nameValue; }
+    virtual Wave* currentWave() { return NULL; }
+    virtual WObject* currentObject() { return NULL; }
+    virtual TranslationTable currentTranslationTable() {
+        return TranslationTable();
+    }
+    virtual PaletteEntry* currentPaletteEntry() { return NULL; }
+    virtual const IndexedImage* currentImage() { return NULL; }
+};
+
+class FakeSceneVisualSelections : public SceneVisualSelections {
+public:
+    FakeSceneSelection flameValue;
+    FakeSceneSelection generalFlameValue;
+    FakeSceneSelection waveValue;
+    FakeSceneSelection waveScaleValue;
+    FakeSceneSelection tableValue;
+    FakeSceneSelection objectValue;
+    FakeSceneSelection translationValue;
+    FakeSceneSelection paletteValue;
+    FakeSceneSelection borderValue;
+    FakeSceneSelection flashlightValue;
+    FakeSceneSelection imageValue;
+
+    FakeSceneVisualSelections()
+        : flameValue("flame")
+        , generalFlameValue("general-flame")
+        , waveValue("wave")
+        , waveScaleValue("wave-scale")
+        , tableValue("table")
+        , objectValue("object")
+        , translationValue("translation")
+        , paletteValue("palette")
+        , borderValue("border")
+        , flashlightValue("flashlight")
+        , imageValue("image") { }
+
+    virtual SceneFlameSelection& flame() { return flameValue; }
+    virtual SceneGeneralFlameSelection& generalFlame() {
+        return generalFlameValue;
+    }
+    virtual SceneWaveSelection& wave() { return waveValue; }
+    virtual SceneOptionSelection& waveScale() { return waveScaleValue; }
+    virtual SceneOptionSelection& table() { return tableValue; }
+    virtual SceneOptionSelection& object() { return objectValue; }
+    virtual SceneTranslationSelection& translation() {
+        return translationValue;
+    }
+    virtual ScenePaletteSelection& palette() { return paletteValue; }
+    virtual SceneOptionSelection& border() { return borderValue; }
+    virtual SceneOptionSelection& flashlight() { return flashlightValue; }
+    virtual SceneImageSelection& images() { return imageValue; }
 };
 
 class FakeMillisecondClock : public MillisecondClock {
@@ -405,6 +483,35 @@ static void testSceneSelectionCommandContextUsesTypedRuntimeCommand() {
     assert(sink.calls == 1);
 }
 
+static void testSceneVisualSelectionsAreLateBoundToRuntime() {
+    FakeMillisecondClock clock(1000);
+    InterfaceRuntime runtime(clock);
+    FakeSceneVisualSelections selections;
+
+    assert(runtime.sceneSelection(RuntimeScenePalette) == NULL);
+
+    runtime.setSceneVisualSelections(&selections);
+    assert(runtime.sceneSelection(RuntimeSceneFlame)
+        == &selections.flameValue);
+    assert(runtime.sceneSelection(RuntimeSceneWave)
+        == &selections.waveValue);
+    assert(runtime.sceneSelection(RuntimeSceneWaveScale)
+        == &selections.waveScaleValue);
+    assert(runtime.sceneSelection(RuntimeSceneObject)
+        == &selections.objectValue);
+    assert(runtime.sceneSelection(RuntimeSceneTranslation)
+        == &selections.translationValue);
+    assert(runtime.sceneSelection(RuntimeScenePalette)
+        == &selections.paletteValue);
+    assert(runtime.sceneSelection(RuntimeSceneTable)
+        == &selections.tableValue);
+    assert(runtime.sceneSelection(RuntimeSceneImage)
+        == &selections.imageValue);
+
+    runtime.setSceneVisualSelections(NULL);
+    assert(runtime.sceneSelection(RuntimeScenePalette) == NULL);
+}
+
 static void testSceneChoiceCommandContextUsesTypedRuntimeCommand() {
     FakeMillisecondClock clock(1000);
     InterfaceRuntime runtime(clock);
@@ -442,6 +549,7 @@ int main() {
     testCreditsAnimationStateIsOwnedByRuntime();
     testOptionCommandContextIsScoped();
     testSceneSelectionCommandContextUsesTypedRuntimeCommand();
+    testSceneVisualSelectionsAreLateBoundToRuntime();
     testSceneChoiceCommandContextUsesTypedRuntimeCommand();
     testMillisecondsComeFromInjectedClock();
     return 0;

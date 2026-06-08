@@ -265,6 +265,8 @@ void Application::initSceneRuntime() {
     if (sceneRuntimeValue.get() == NULL)
         sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
             *sceneVisualCatalogFactoryValue, randomSourceValue));
+    interfaceRuntimeValue->setSceneVisualSelections(
+        sceneRuntimeValue->visualSelections());
 
     frameGeneratorValue.bindScene(sceneRuntimeValue->scene());
     runtimeConfigRegistryValue.reset(new RuntimeConfigRegistry(startupConfigValue));
@@ -312,6 +314,7 @@ void Application::initSceneRuntime() {
 
 void Application::shutdownSceneRuntime() {
     interfaceRuntimeValue->setAutoChangeControls(NULL);
+    interfaceRuntimeValue->setSceneVisualSelections(NULL);
     frameGeneratorValue.unbindScene();
     interfaceRuntimeValue->setAudioProcessingSelector(NULL);
     interfaceRuntimeValue->setRuntimeConfigRegistry(NULL);

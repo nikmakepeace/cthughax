@@ -23,6 +23,8 @@ class KeymapRegistry;
 class MillisecondClock;
 class Option;
 class RuntimeConfigRegistry;
+class SceneOptionSelection;
+class SceneVisualSelections;
 /**
  * Application-owned runtime state for the keyboard/interface subsystem.
  *
@@ -35,6 +37,7 @@ class InterfaceRuntime {
     std::vector<Interface*> ownedInterfacesValue;
     Interface* currentInterfaceValue;
     RuntimeConfigRegistry* runtimeConfigRegistryValue;
+    SceneVisualSelections* sceneVisualSelectionsValue;
     const SceneChangeStatusProvider* sceneChangeStatusProviderValue;
     AutoChangeControls* autoChangeControlsValue;
     AudioProcessingSelector* audioProcessingSelectorValue;
@@ -156,6 +159,22 @@ public:
      * @return Installed registry, or NULL when not yet available.
      */
     const RuntimeConfigRegistry* runtimeConfigRegistry() const;
+
+    /**
+     * Installs the read-only source used by Scene-targeted visual list panels.
+     *
+     * @param selections Native Scene visual selections, or NULL to fall back to
+     *        legacy list display sources.
+     */
+    void setSceneVisualSelections(SceneVisualSelections* selections);
+
+    /**
+     * Returns the native Scene selection for a runtime scene target.
+     *
+     * @param target Runtime scene target to display.
+     * @return Selection owned by SceneRuntime, or NULL before Scene startup.
+     */
+    SceneOptionSelection* sceneSelection(RuntimeSceneTarget target) const;
 
     /**
      * Installs the provider used for automatic scene-change status text.

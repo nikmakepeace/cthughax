@@ -1639,6 +1639,7 @@ add_test(NAME audio_frame_pipeline_test COMMAND audio_frame_pipeline_test)
 add_executable(interface_runtime_test
     unit/InterfaceRuntimeTest.cc
     ${CMAKE_SOURCE_DIR}/src/InterfaceRuntime.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneVisualSelections.cc
     ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
 )
 

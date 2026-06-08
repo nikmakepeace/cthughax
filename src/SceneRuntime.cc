@@ -48,6 +48,10 @@ SceneSnapshot SceneRuntime::snapshot() const {
     return sceneValue.snapshot();
 }
 
+SceneVisualSelections* SceneRuntime::visualSelections() {
+    return visualCatalogFactoryResultValue.selections;
+}
+
 SceneCommandTarget& SceneRuntime::commandTarget() {
     return commandTargetValue;
 }

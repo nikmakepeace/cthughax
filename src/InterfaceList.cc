@@ -8,6 +8,7 @@
 #include "FlameOptions.h"
 #include "RuntimeCommandSink.h"
 #include "Scene.h"
+#include "SceneChoiceSelection.h"
 #include "Screen.h"
 #include "Image.h"
 #include "keymap.h"
@@ -45,11 +46,48 @@ public:
         , sceneTarget(sceneTarget_)
         , hasSceneTarget(1) { }
 
+    SceneOptionSelection* sceneSelection(InterfaceRuntime& runtime) const {
+        return hasSceneTarget ? runtime.sceneSelection(sceneTarget) : NULL;
+    }
+
+    int entryCount(InterfaceRuntime& runtime) const {
+        SceneOptionSelection* selection = sceneSelection(runtime);
+        return (selection != NULL) ? selection->entryCount()
+                                   : effectControl->getNEntries();
+    }
+
+    const char* rowName(SceneOptionSelection* selection, int index) const {
+        if (selection != NULL) {
+            const SceneChoice* choice = selection->choiceAt(index);
+            return (choice != NULL) ? choice->name() : "unknown";
+        }
+
+        return effectControl->entries[index]->name;
+    }
+
+    const char* rowDescription(
+        SceneOptionSelection* selection, int index) const {
+        if (selection != NULL)
+            return rowName(selection, index);
+
+        return effectControl->entries[index]->desc;
+    }
+
+    const char* rowUseText(SceneOptionSelection* selection, int index) const {
+        if (selection != NULL) {
+            const SceneChoice* choice = selection->choiceAt(index);
+            return (choice != NULL && choice->inUse()) ? "yes" : "no";
+        }
+
+        return effectControl->entries[index]->use.text();
+    }
+
     virtual void display(InterfaceRuntime& runtime) {
 
         Interface::display(runtime);
 
-        int n = effectControl->getNEntries();
+        SceneOptionSelection* selection = sceneSelection(runtime);
+        int n = entryCount(runtime);
         if (n == 0)
             return;
 
@@ -67,10 +105,12 @@ public:
                 continue;
 
             char str1[128];
-            snprintf(str1, sizeof(str1), "%c%s", (s == sel) ? '>' : ' ', effectControl->entries[s]->name);
+            snprintf(str1, sizeof(str1), "%c%s", (s == sel) ? '>' : ' ',
+                rowName(selection, s));
 
             char str2[128];
-            snprintf(str2, sizeof(str2), "%s %3s%c", effectControl->entries[s]->desc, effectControl->entries[s]->use.text(),
+            snprintf(str2, sizeof(str2), "%s %3s%c",
+                rowDescription(selection, s), rowUseText(selection, s),
                 (s == sel) ? '<' : ' ');
 
             char str3[128];
@@ -87,7 +127,7 @@ public:
         CommandRegistry& commands, CommandDispatcher& dispatcher,
         CommandContext& context, int key) {
         int ret = key;
-        int n = effectControl->getNEntries();
+        int n = entryCount(runtime);
 
         nElements = n;
 
