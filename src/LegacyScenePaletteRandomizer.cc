@@ -1,6 +1,6 @@
-// Legacy global Scene catalog adapters.
+// Legacy global Scene palette randomizer.
 
-#include "LegacySceneCatalogAdapters.h"
+#include "LegacyScenePaletteRandomizer.h"
 
 #include "PaletteOption.h"
 

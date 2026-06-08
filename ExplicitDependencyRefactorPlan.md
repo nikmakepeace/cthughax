@@ -516,7 +516,7 @@ adapters:
 - Owned visual catalogs for flame, wave, table, object, translation, palette,
   image, border, and flashlight choices, including allowed-choice metadata.
 - Native `ScenePaletteRandomizer` and wave-object source owned by the visual
-  catalog/runtime boundary rather than `LegacySceneCatalogAdapters`.
+  catalog/runtime boundary rather than `LegacyScenePaletteRandomizer`.
 - `FrameGeometry` from Frame Generator so Scene and visual catalogs do not depend
   on `VideoDirector`/`CthughaBuffer` as geometry providers.
 - Removal-condition tests for deleting `LegacyScene*` once the native visual
@@ -1007,7 +1007,7 @@ from this plan.
      `SceneVisualCatalogService` instead of a `LegacySceneVisualCatalogs`
      implementation. The random-palette dependency is a native
      `ScenePaletteRandomizer` port, with the old global palette implementation
-     quarantined in `LegacySceneCatalogAdapters`.
+     quarantined in `LegacyScenePaletteRandomizer`.
    - `LegacySceneVisualCatalogFactory` no longer includes the global flame,
      wave, border, flashlight, display, or translation option headers. The
      temporary read of current legacy visual globals is isolated in
@@ -1033,7 +1033,7 @@ from this plan.
    remaining.**
    Compatibility surface: `LegacySceneSelectionAdapters`,
    `LegacyGlobalSceneSelectionFactory`, `LegacySceneVisualCatalogFactory`, and
-   `LegacySceneCatalogAdapters`.
+   `LegacyScenePaletteRandomizer`.
 
    Purpose: keep native Scene selections synchronized with old controls while
    runtime commands, startup sync, save/restore, presets, and ini persistence

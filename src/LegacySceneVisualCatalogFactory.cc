@@ -3,7 +3,7 @@
 #include "LegacySceneVisualCatalogFactory.h"
 
 #include "LegacyGlobalSceneSelectionFactory.h"
-#include "LegacySceneCatalogAdapters.h"
+#include "LegacyScenePaletteRandomizer.h"
 #include "LegacySceneSelectionAdapters.h"
 #include "SceneImageCatalog.h"
 #include "ScenePaletteCatalog.h"
