@@ -185,6 +185,20 @@ static void testFrameGeneratorModuleDoesNotReachDisplayOrRuntimeCommands() {
     assertFilesDoNotContain(files, fileCount, "#include \"Flashlight.h\"");
     assertSourceDoesNotContain("src/FrameGeneratorRuntime.cc",
         "#include \"Configuration.h\"");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "DisplayConfig");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "MessagesConfig");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "SceneTransitionPolicy");
+    assertSourceDoesNotContain("src/FrameGeometry.cc",
+        "#include \"Configuration.h\"");
+    assertSourceDoesNotContain("src/FrameTransitionController.cc",
+        "#include \"Configuration.h\"");
+    assertSourceDoesNotContain("src/SilenceMessage.cc",
+        "#include \"Configuration.h\"");
+    assertSourceDoesNotContain("src/QotdMessagesProvider.cc",
+        "#include \"Configuration.h\"");
     assertSourceContains("src/FrameFilters.cc", "#include \"BorderRenderer.h\"");
     assertSourceContains("src/FrameFilters.cc",
         "#include \"FlashlightRenderer.h\"");

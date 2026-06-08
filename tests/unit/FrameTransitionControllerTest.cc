@@ -1,6 +1,5 @@
 #include "FrameTransitionController.h"
 
-#include "Configuration.h"
 #include "ProcessServices.h"
 
 #include <assert.h>
@@ -27,10 +26,7 @@ public:
 
 static void testPaletteSmoothingUsesExplicitFrameBudget() {
     FrameTransitionController controller;
-    SceneTransitionPolicy policy;
-    policy.paletteSmoothingChance = 1.0;
-    policy.paletteSmoothSeconds = 3;
-    controller.configureTransitions(policy);
+    controller.configureTransitions(1.0, 3);
     FixedRandomSource random(0);
 
     assert(controller.paletteSmoothingFrameBudget(24) == 72);
@@ -39,10 +35,7 @@ static void testPaletteSmoothingUsesExplicitFrameBudget() {
 
 static void testPaletteSnapUsesConfiguredProbability() {
     FrameTransitionController controller;
-    SceneTransitionPolicy policy;
-    policy.paletteSmoothingChance = 0.0;
-    policy.paletteSmoothSeconds = 5;
-    controller.configureTransitions(policy);
+    controller.configureTransitions(0.0, 5);
     FixedRandomSource random(0);
 
     assert(controller.paletteChangeFrameBudget(random, 30) == 0);
@@ -50,10 +43,7 @@ static void testPaletteSnapUsesConfiguredProbability() {
 
 static void testQuietMessageDurationUsesExplicitThreshold() {
     FrameTransitionController controller;
-    MessagesConfig messages;
-    messages.quietMessageMs = 2500;
-    messages.quietMessageDurationMs = 1500;
-    controller.configureQuietMessages(messages);
+    controller.configureQuietMessages(1500);
 
     assert(controller.quietMessageFrameBudget(60, 2500) == 60);
     assert(controller.quietMessageFrameBudget(30, 1000) == 30);

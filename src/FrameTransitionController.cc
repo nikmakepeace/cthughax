@@ -2,7 +2,6 @@
 
 #include "FrameTransitionController.h"
 
-#include "Configuration.h"
 #include "ProcessServices.h"
 #include "imath.h"
 
@@ -12,14 +11,14 @@ FrameTransitionController::FrameTransitionController()
     , quietMessageDurationMsValue(0) { }
 
 void FrameTransitionController::configureTransitions(
-    const SceneTransitionPolicy& transitionPolicy) {
-    paletteSmoothingChanceValue = transitionPolicy.paletteSmoothingChance;
-    paletteSmoothSecondsValue = transitionPolicy.paletteSmoothSeconds;
+    double paletteSmoothingChance, int paletteSmoothSeconds) {
+    paletteSmoothingChanceValue = paletteSmoothingChance;
+    paletteSmoothSecondsValue = paletteSmoothSeconds;
 }
 
 void FrameTransitionController::configureQuietMessages(
-    const MessagesConfig& messagesConfig) {
-    quietMessageDurationMsValue = messagesConfig.quietMessageDurationMs;
+    int quietMessageDurationMs) {
+    quietMessageDurationMsValue = quietMessageDurationMs;
 }
 
 int FrameTransitionController::paletteSmoothingFrameBudget(

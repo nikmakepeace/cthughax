@@ -1,5 +1,4 @@
 #include "cthugha.h"
-#include "Configuration.h"
 #include "SilenceMessage.h"
 
 static const char* programNameFallback() {
@@ -15,6 +14,13 @@ static double randomUnitInterval(RandomSource& randomSource) {
     return double(randomSource.uniformInt(scale)) / double(scale);
 }
 
+SilenceMessageConfig::SilenceMessageConfig()
+    : quietMessageFile()
+    , qotdEnabled(0)
+    , qotdPrefetchTimeoutMs(0)
+    , qotdServer()
+    , qotdPort("17") { }
+
 SilenceMessage::SilenceMessage()
     : defaultMessages()
     , fileMessages()
@@ -24,11 +30,12 @@ SilenceMessage::SilenceMessage()
     , initialized(0)
     , qotdEnabled(0) { }
 
-void SilenceMessage::configure(const MessagesConfig& messagesConfig) {
-    qotdMessages.configure(messagesConfig);
-    loadFile(messagesConfig.quietMessageFile.c_str());
-    setQotdEnabled(messagesConfig.qotdEnabled);
-    setQotdServer(messagesConfig.qotdServer.c_str());
+void SilenceMessage::configure(const SilenceMessageConfig& config) {
+    qotdMessages.configureDefaults(config.qotdServer, config.qotdPort,
+        config.qotdPrefetchTimeoutMs);
+    loadFile(config.quietMessageFile.c_str());
+    setQotdEnabled(config.qotdEnabled);
+    setQotdServer(config.qotdServer.c_str());
 }
 
 void SilenceMessage::initialize() {

@@ -1021,6 +1021,12 @@ from this plan.
      list/interface compatibility, and legacy option implementation files.
      Frame Generator files use Scene ports plus narrow border/flashlight
      renderer ports instead of including global visual option headers.
+   - `Application` translates startup `Config` into
+     `FrameGeneratorRuntimeConfig` and `SilenceMessageConfig` before
+     configuring Frame Generator services. `FrameGeometry`,
+     `FrameTransitionController`, `FrameGeneratorRuntime`, `SilenceMessage`,
+     and `QotdMessagesProvider` no longer include `Configuration.h` or expose
+     `DisplayConfig`, `SceneTransitionPolicy`, or `MessagesConfig`.
    - F2/list interfaces for Scene visual choices are registered from native
      `RuntimeSceneTarget` selections only. The list interface no longer carries
      visual `EffectControl` fallbacks or the legacy visual option headers;

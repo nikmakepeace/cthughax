@@ -4,8 +4,6 @@
 #define CTHUGHA_FRAME_TRANSITION_CONTROLLER_H
 
 class RandomSource;
-struct MessagesConfig;
-struct SceneTransitionPolicy;
 
 enum FrameImageCuePaletteMode {
     FrameImageCuePaletteSnapThenReturn,
@@ -34,16 +32,18 @@ public:
     /**
      * Applies startup palette-transition configuration.
      *
-     * @param transitionPolicy Startup scene transition policy.
+     * @param paletteSmoothingChance Probability that palette changes smooth.
+     * @param paletteSmoothSeconds Duration of smoothed palette changes.
      */
-    void configureTransitions(const SceneTransitionPolicy& transitionPolicy);
+    void configureTransitions(double paletteSmoothingChance,
+        int paletteSmoothSeconds);
 
     /**
      * Applies startup quiet-message configuration.
      *
-     * @param messagesConfig Startup message configuration.
+     * @param quietMessageDurationMs Maximum quiet-message display duration.
      */
-    void configureQuietMessages(const MessagesConfig& messagesConfig);
+    void configureQuietMessages(int quietMessageDurationMs);
 
     /**
      * Calculates the palette smoothing duration for a frame budget.

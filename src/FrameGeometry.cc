@@ -2,7 +2,6 @@
 
 #include "FrameGeometry.h"
 
-#include "Configuration.h"
 #include "imath.h"
 
 FrameGeometry::FrameGeometry()
@@ -10,10 +9,6 @@ FrameGeometry::FrameGeometry()
 
 FrameGeometry::FrameGeometry(const PixelSize& size)
     : sizeValue(size) { }
-
-FrameGeometry FrameGeometry::fromDisplayConfig(const DisplayConfig& config) {
-    return FrameGeometry(PixelSize(config.bufferWidth, config.bufferHeight));
-}
 
 PixelSize FrameGeometry::size() const {
     return sizeValue;

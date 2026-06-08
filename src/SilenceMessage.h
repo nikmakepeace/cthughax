@@ -8,7 +8,19 @@
 
 #include <string>
 
-struct MessagesConfig;
+/**
+ * Explicit quiet-message and QOTD settings used by SilenceMessage.
+ */
+struct SilenceMessageConfig {
+    std::string quietMessageFile;
+    int qotdEnabled;
+    int qotdPrefetchTimeoutMs;
+    std::string qotdServer;
+    std::string qotdPort;
+
+    /** Creates disabled quiet-message provider settings. */
+    SilenceMessageConfig();
+};
 
 class SilenceMessage {
     DefaultMessagesProvider defaultMessages;
@@ -26,9 +38,9 @@ public:
     /**
      * Applies startup quiet-message and QOTD configuration.
      *
-     * @param messagesConfig Final message configuration from startup config.
+     * @param config Explicit quiet-message and QOTD settings.
      */
-    void configure(const MessagesConfig& messagesConfig);
+    void configure(const SilenceMessageConfig& config);
 
     /** Initializes built-in/file-backed message providers once. */
     void initialize();

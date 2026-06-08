@@ -10,7 +10,6 @@
 
 class CountdownTimerFactory;
 class QotdMessagesProviderState;
-struct MessagesConfig;
 
 /**
  * Asynchronous Quote-of-the-Day message fetcher.
@@ -25,15 +24,15 @@ public:
     /** Releases provider state. In-flight fetches keep their shared state alive. */
     ~QotdMessagesProvider();
 
-    /** @return Default QOTD server text from message configuration defaults. */
-    static const char* defaultServer();
-
     /**
-     * Applies startup message configuration.
+     * Applies explicit QOTD defaults.
      *
-     * @param config Final message configuration from startup config.
+     * @param server Default QOTD server text.
+     * @param port Default QOTD service port text.
+     * @param prefetchTimeoutMs Timeout used for asynchronous prefetches.
      */
-    void configure(const MessagesConfig& config);
+    void configureDefaults(const std::string& server,
+        const std::string& port, int prefetchTimeoutMs);
 
     /**
      * Installs the timer factory used to bound asynchronous socket fetches.

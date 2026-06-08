@@ -15,9 +15,20 @@ class RandomSource;
 class Scene;
 class SceneGeometry;
 class SilenceMessage;
-struct DisplayConfig;
-struct MessagesConfig;
-struct SceneTransitionPolicy;
+
+/**
+ * Startup settings consumed by FrameGeneratorRuntime.
+ */
+struct FrameGeneratorRuntimeConfig {
+    PixelSize frameSize;
+    double paletteSmoothingChance;
+    int paletteSmoothSeconds;
+    int quietMessageDurationMs;
+    SilenceMessageConfig silenceMessages;
+
+    /** Creates historical default generator settings. */
+    FrameGeneratorRuntimeConfig();
+};
 
 /**
  * Application-owned root for indexed frame generation.
@@ -51,15 +62,11 @@ public:
     ~FrameGeneratorRuntime();
 
     /**
-     * Applies startup display and frame-transition configuration.
+     * Applies startup frame-generator settings.
      *
-     * @param display Display startup config containing buffer dimensions.
-     * @param transitionPolicy Palette transition policy.
-     * @param messagesConfig Quiet-message policy and providers.
+     * @param config Explicit generator settings translated by Application.
      */
-    void configure(const DisplayConfig& display,
-        const SceneTransitionPolicy& transitionPolicy,
-        const MessagesConfig& messagesConfig);
+    void configure(const FrameGeneratorRuntimeConfig& config);
 
     /** @return Current frame geometry. */
     const FrameGeometry& geometry() const;

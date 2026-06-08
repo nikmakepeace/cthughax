@@ -542,8 +542,28 @@ int Application::initialize() {
     configureTranslationOptions(startupConfigValue.effectPolicy);
     configureWaveOptions(startupConfigValue.effectPolicy);
     configurePaletteOptions(startupConfigValue.effectPolicy);
-    frameGeneratorValue.configure(startupConfigValue.display,
-        startupConfigValue.sceneTransition, startupConfigValue.messages);
+
+    FrameGeneratorRuntimeConfig frameGeneratorConfig;
+    frameGeneratorConfig.frameSize = PixelSize(
+        startupConfigValue.display.bufferWidth,
+        startupConfigValue.display.bufferHeight);
+    frameGeneratorConfig.paletteSmoothingChance
+        = startupConfigValue.sceneTransition.paletteSmoothingChance;
+    frameGeneratorConfig.paletteSmoothSeconds
+        = startupConfigValue.sceneTransition.paletteSmoothSeconds;
+    frameGeneratorConfig.quietMessageDurationMs
+        = startupConfigValue.messages.quietMessageDurationMs;
+    frameGeneratorConfig.silenceMessages.quietMessageFile
+        = startupConfigValue.messages.quietMessageFile;
+    frameGeneratorConfig.silenceMessages.qotdEnabled
+        = startupConfigValue.messages.qotdEnabled;
+    frameGeneratorConfig.silenceMessages.qotdPrefetchTimeoutMs
+        = startupConfigValue.messages.qotdPrefetchTimeoutMs;
+    frameGeneratorConfig.silenceMessages.qotdServer
+        = startupConfigValue.messages.qotdServer;
+    frameGeneratorConfig.silenceMessages.qotdPort
+        = startupConfigValue.messages.qotdPort;
+    frameGeneratorValue.configure(frameGeneratorConfig);
     quietMessageOptionValue->setValue(startupConfigValue.messages.quietMessageMs);
 
     remove_continuation_ini(startupConfigValue.paths, logSinkValue);

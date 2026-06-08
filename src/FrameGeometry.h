@@ -6,8 +6,6 @@
 #include "DisplayGeometry.h"
 #include "SceneGeometry.h"
 
-struct DisplayConfig;
-
 /**
  * Logical indexed-frame geometry owned by the Frame Generator module.
  *
@@ -28,14 +26,6 @@ public:
      * @param size Visible indexed-frame dimensions.
      */
     explicit FrameGeometry(const PixelSize& size);
-
-    /**
-     * Creates geometry from startup display configuration.
-     *
-     * @param config Startup display/buffer configuration.
-     * @return Geometry using configured buffer width and height.
-     */
-    static FrameGeometry fromDisplayConfig(const DisplayConfig& config);
 
     /** @return Visible indexed-frame dimensions. */
     PixelSize size() const;

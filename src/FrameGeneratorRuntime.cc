@@ -7,6 +7,13 @@
 #include "ProcessServices.h"
 #include "SceneGeometry.h"
 
+FrameGeneratorRuntimeConfig::FrameGeneratorRuntimeConfig()
+    : frameSize(160, 100)
+    , paletteSmoothingChance(0.0)
+    , paletteSmoothSeconds(1)
+    , quietMessageDurationMs(0)
+    , silenceMessages() { }
+
 FrameGeneratorRuntime::FrameGeneratorRuntime(RandomSource& randomSource,
     CountdownTimerFactory& timerFactory, LogSink& log)
     : randomSourceValue(randomSource)
@@ -22,14 +29,15 @@ FrameGeneratorRuntime::~FrameGeneratorRuntime() {
     unbindScene();
 }
 
-void FrameGeneratorRuntime::configure(const DisplayConfig& display,
-    const SceneTransitionPolicy& transitionPolicy,
-    const MessagesConfig& messagesConfig) {
-    geometryValue = FrameGeometry::fromDisplayConfig(display);
+void FrameGeneratorRuntime::configure(
+    const FrameGeneratorRuntimeConfig& config) {
+    geometryValue = FrameGeometry(config.frameSize);
     frameStoreValue.resize(geometryValue);
-    transitionControllerValue.configureTransitions(transitionPolicy);
-    transitionControllerValue.configureQuietMessages(messagesConfig);
-    sceneBindingValue.silenceMessages().configure(messagesConfig);
+    transitionControllerValue.configureTransitions(
+        config.paletteSmoothingChance, config.paletteSmoothSeconds);
+    transitionControllerValue.configureQuietMessages(
+        config.quietMessageDurationMs);
+    sceneBindingValue.silenceMessages().configure(config.silenceMessages);
 }
 
 const FrameGeometry& FrameGeneratorRuntime::geometry() const {

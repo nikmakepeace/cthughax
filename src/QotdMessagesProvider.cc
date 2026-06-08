@@ -1,5 +1,4 @@
 #include "cthugha.h"
-#include "Configuration.h"
 #include "MessageFormatValidator.h"
 #include "ProcessServices.h"
 #include "QotdMessagesProvider.h"
@@ -312,16 +311,12 @@ QotdMessagesProvider::QotdMessagesProvider()
 
 QotdMessagesProvider::~QotdMessagesProvider() { }
 
-const char* QotdMessagesProvider::defaultServer() {
-    static const MessagesConfig defaultConfig;
-    return defaultConfig.qotdServer.c_str();
-}
-
-void QotdMessagesProvider::configure(const MessagesConfig& config) {
+void QotdMessagesProvider::configureDefaults(const std::string& server,
+    const std::string& port, int prefetchTimeoutMs) {
     std::lock_guard<std::mutex> lock(state->mutex);
-    state->defaultServer = config.qotdServer;
-    state->defaultPort = config.qotdPort;
-    state->prefetchTimeoutMs = config.qotdPrefetchTimeoutMs;
+    state->defaultServer = server;
+    state->defaultPort = port;
+    state->prefetchTimeoutMs = prefetchTimeoutMs;
     if (state->server.empty())
         state->server = state->defaultServer;
 }

@@ -1305,8 +1305,37 @@ static void testApplicationProvidesStartupConfigSlices() {
     assertSourceContains("src/Application.cc",
         "audioProcessingSelectorValue->configureStartup(startupConfigValue.scene)");
     assertSourceContains("src/Application.cc",
-        "frameGeneratorValue.configure(startupConfigValue.display,\n"
-        "        startupConfigValue.sceneTransition, startupConfigValue.messages)");
+        "FrameGeneratorRuntimeConfig frameGeneratorConfig");
+    assertSourceContains("src/Application.cc",
+        "frameGeneratorConfig.frameSize = PixelSize");
+    assertSourceContains("src/Application.cc",
+        "frameGeneratorConfig.paletteSmoothingChance\n"
+        "        = startupConfigValue.sceneTransition.paletteSmoothingChance");
+    assertSourceContains("src/Application.cc",
+        "frameGeneratorConfig.silenceMessages.qotdPrefetchTimeoutMs\n"
+        "        = startupConfigValue.messages.qotdPrefetchTimeoutMs");
+    assertSourceContains("src/Application.cc",
+        "frameGeneratorValue.configure(frameGeneratorConfig)");
+    assertSourceContains("src/FrameGeneratorRuntime.h",
+        "void configure(const FrameGeneratorRuntimeConfig& config)");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "DisplayConfig");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "MessagesConfig");
+    assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",
+        "SceneTransitionPolicy");
+    assertSourceDoesNotContain("src/FrameTransitionController.h",
+        "MessagesConfig");
+    assertSourceDoesNotContain("src/FrameTransitionController.cc",
+        "#include \"Configuration.h\"");
+    assertSourceDoesNotContain("src/FrameGeometry.cc",
+        "#include \"Configuration.h\"");
+    assertSourceDoesNotContain("src/SilenceMessage.h", "MessagesConfig");
+    assertSourceDoesNotContain("src/SilenceMessage.cc",
+        "#include \"Configuration.h\"");
+    assertSourceDoesNotContain("src/QotdMessagesProvider.h", "MessagesConfig");
+    assertSourceDoesNotContain("src/QotdMessagesProvider.cc",
+        "#include \"Configuration.h\"");
     assertSourceContains("src/SceneRuntime.h",
         "void applyStartupConfig(const SceneConfig& config)");
     assertSourceContains("src/SceneRuntime.cc",
