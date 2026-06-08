@@ -496,9 +496,11 @@ automatic scene-change policy are all owned by Scene-facing types.
 The remaining Scene-facing debt is intentionally quarantined in `LegacyScene*`
 adapters:
 
-- `Application` still creates `createLegacySceneVisualCatalogFactory(...)` from
-  global visual `EffectControl`/option objects such as `flame`, `wave`,
-  `translation`, `palette`, `border`, and `flashlight`.
+- `Application` still creates `createLegacySceneVisualCatalogFactory(...)`, but
+  now passes only the generator-owned image option. The legacy factory
+  implementation still reaches through global visual `EffectControl`/option
+  objects such as `flame`, `wave`, `translation`, `palette`, `border`, and
+  `flashlight`.
 - `LegacySceneSelectionAdapters`, `LegacySceneVisualCatalogs`, and
   `LegacySceneEffectControlCatalog` translate those legacy controls into
   `SceneVisualSelections`, `SceneVisualCatalogs`, and runtime effect-control
@@ -816,9 +818,11 @@ change so it can disappear, and the completion gate:
 
 1. **Move visual catalogs and selections off global `EffectControl` objects.**
    This compatibility surface is for making explicit Scene selections coexist
-   with legacy visual catalogs. `LegacyScene*` adapters translate Scene choices
-   to global `EffectControl` and `EffectChoiceList` objects for flames, waves,
-   translations, palettes, images, border, and flashlight.
+   with legacy visual catalogs. `LegacySceneVisualCatalogs.cc` now quarantines
+   the remaining global visual option wiring, and `LegacyScene*` adapters
+   translate Scene choices to global `EffectControl` and `EffectChoiceList`
+   objects for flames, waves, translations, palettes, images, border, and
+   flashlight.
 
    There is no need for the compatibility surface once visual catalogs,
    selections, runtime commands, and config serialization are owned by native
@@ -832,17 +836,18 @@ change so it can disappear, and the completion gate:
      global `EffectControl` instances.
    - Expose typed Scene selection ports and runtime-command targets for those
      owners, including save/restore and random/change-one/change-all behavior.
-   - Update `SceneRuntime` construction so it receives native visual catalogs
-     instead of `createLegacySceneVisualCatalogFactory(...)`.
+   - Replace `createLegacySceneVisualCatalogFactory(...)` in `Application` with
+     a native visual catalog factory so production wiring no longer needs the
+     legacy global reach-through.
    - Move ini serialization and runtime config contribution from legacy
      adapters to the native catalog/selection owners.
    - Delete `LegacySceneVisualCatalogs`, `LegacySceneSelectionAdapters`, and
      related legacy effect-control adapters once no production path uses them.
 
-   Completion gate: Application no longer passes global visual options into
-   Scene setup; `LegacyScene*` files are gone; and boundary tests block Scene
-   and Frame Generator from depending on global `EffectControl` visual
-   selections.
+   Completion gate: no production path creates
+   `createLegacySceneVisualCatalogFactory(...)`; `LegacyScene*` files are gone;
+   and boundary tests block Scene and Frame Generator from depending on global
+   `EffectControl` visual selections.
 
 Related Display follow-up: **Finish the separate Display cleanup that remains
 outside Frame Generator.**

@@ -9,7 +9,7 @@
 
 #include <memory>
 
-class EffectControl;
+class ImageOption;
 
 /**
  * Compatibility visual catalog adapter over legacy global EffectControls.
@@ -56,10 +56,18 @@ public:
         SceneSelectionState& selectionState);
 };
 
+/**
+ * Creates the temporary legacy visual catalog factory.
+ *
+ * The caller supplies only the non-global image option owned by the Frame
+ * Generator. The factory implementation quarantines the remaining global
+ * EffectControl-backed visual catalogs until native Scene visual catalogs
+ * replace them.
+ *
+ * @param images Image option owned by FrameGeneratorRuntime scene binding.
+ * @return Scene visual catalog factory for the current legacy catalogs.
+ */
 std::unique_ptr<SceneVisualCatalogFactory> createLegacySceneVisualCatalogFactory(
-    EffectControl& flame, EffectControl& generalFlame, EffectControl& wave,
-    EffectControl& waveScale, EffectControl& table, EffectControl& object,
-    EffectControl& translation, EffectControl& palette, EffectControl& border,
-    EffectControl& flashlight, EffectControl& images);
+    ImageOption& images);
 
 #endif

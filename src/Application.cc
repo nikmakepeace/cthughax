@@ -160,9 +160,8 @@ Application::Application(int argc, char* argv[])
     , shutdownComplete(0) {
     cthugha_install_logging_runtime(loggingRuntimeValue);
     sceneVisualCatalogFactoryValue
-        = createLegacySceneVisualCatalogFactory(flame, flameGeneral, wave,
-            waveScale, table, object, translation, palette, border,
-            flashlight, frameGeneratorValue.imageOption());
+        = createLegacySceneVisualCatalogFactory(
+            frameGeneratorValue.imageOption());
     sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
         *sceneVisualCatalogFactoryValue, randomSourceValue));
     interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));
@@ -190,9 +189,8 @@ Application::Application(int argc, char* argv[],
     , shutdownComplete(0) {
     cthugha_install_logging_runtime(loggingRuntimeValue);
     sceneVisualCatalogFactoryValue
-        = createLegacySceneVisualCatalogFactory(flame, flameGeneral, wave,
-            waveScale, table, object, translation, palette, border,
-            flashlight, frameGeneratorValue.imageOption());
+        = createLegacySceneVisualCatalogFactory(
+            frameGeneratorValue.imageOption());
     sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
         *sceneVisualCatalogFactoryValue, randomSourceValue));
     interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));

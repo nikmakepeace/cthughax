@@ -1264,12 +1264,15 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceDoesNotContain("src/Application.cc",
         "sceneGeometryValue");
     assertSourceContains("src/Application.cc",
-        "createLegacySceneVisualCatalogFactory(flame, flameGeneral, wave");
+        "createLegacySceneVisualCatalogFactory(\n"
+        "            frameGeneratorValue.imageOption())");
+    assertSourceDoesNotContain("src/Application.cc",
+        "createLegacySceneVisualCatalogFactory(flame");
     assertSourceDoesNotContain("src/Application.cc",
         "sceneVisualSelectionsValue = createLegacySceneSelectionAdapters");
     assertSourceDoesNotContain("src/Application.cc",
         "#include \"LegacySceneSelectionAdapters.h\"");
-    assertSourceContains("src/Application.cc",
+    assertSourceDoesNotContain("src/Application.cc",
         "flameGeneral, wave,\n"
         "            waveScale, table, object");
     assertSourceContains("src/Application.cc",
@@ -1353,22 +1356,28 @@ static void testSceneStartupUsesSceneConfig() {
         "std::unique_ptr<SceneVisualSelections> ownedSelections");
     assertSourceContains("src/LegacySceneVisualCatalogs.h",
         "std::unique_ptr<SceneVisualCatalogFactory> createLegacySceneVisualCatalogFactory");
+    assertSourceContains("src/LegacySceneVisualCatalogs.h",
+        "ImageOption& images");
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
+        "class EffectControl;");
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h",
+        "EffectControl&");
     assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "createLegacySceneVisualCatalogFactory");
     assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "createLegacySceneSelectionAdapters(\n"
-        "            flame, generalFlame, wave, waveScale, table, object");
-    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+        "            flame, flameGeneral, wave, waveScale, table, object");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "#include \"display.h\"");
-    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "#include \"flames.h\"");
-    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "#include \"waves.h\"");
-    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "#include \"Border.h\"");
-    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "#include \"Flashlight.h\"");
-    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "#include \"TranslationOptions.h\"");
     assertSourceContains("src/LegacySceneSelectionAdapters.h",
         "std::unique_ptr<SceneVisualSelections> createLegacySceneSelectionAdapters");
@@ -1403,7 +1412,6 @@ static void testSceneStartupUsesSceneConfig() {
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h", "WaveOption&");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h", "TranslateOption&");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h", "PaletteOption&");
-    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.h", "ImageOption&");
     assertSourceDoesNotContain("src/SceneRuntime.h", "FlameOption");
     assertSourceDoesNotContain("src/SceneRuntime.h", "GeneralFlameOption");
     assertSourceDoesNotContain("src/SceneRuntime.h", "WaveOption");
@@ -2295,8 +2303,11 @@ static void testGeneralFlameUsesInjectedRandomSource() {
     assertSourceContains("src/Scene.h", "RandomSource& randomSource");
     assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "palette, border, flashlight, images)");
-    assertSourceContains("src/Application.cc",
+    assertSourceDoesNotContain("src/Application.cc",
         "flashlight, frameGeneratorValue.imageOption());");
+    assertSourceContains("src/Application.cc",
+        "createLegacySceneVisualCatalogFactory(\n"
+        "            frameGeneratorValue.imageOption())");
     assertSourceContains("src/Application.cc",
         "*sceneVisualCatalogFactoryValue, randomSourceValue)");
     assertSourceContains("src/SceneRuntime.cc",

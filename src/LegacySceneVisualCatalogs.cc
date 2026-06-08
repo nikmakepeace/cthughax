@@ -3,10 +3,17 @@
 #include "LegacySceneVisualCatalogs.h"
 
 #include "Configuration.h"
+#include "Border.h"
 #include "Flame.h"
+#include "Flashlight.h"
+#include "Image.h"
 #include "LegacySceneCatalogAdapters.h"
 #include "LegacySceneEffectControlCatalog.h"
 #include "LegacySceneSelectionAdapters.h"
+#include "TranslationOptions.h"
+#include "display.h"
+#include "flames.h"
+#include "waves.h"
 
 #include <utility>
 
@@ -213,12 +220,9 @@ SceneVisualCatalogFactoryResult LegacySceneVisualCatalogFactory::create(
 }
 
 std::unique_ptr<SceneVisualCatalogFactory> createLegacySceneVisualCatalogFactory(
-    EffectControl& flame, EffectControl& generalFlame, EffectControl& wave,
-    EffectControl& waveScale, EffectControl& table, EffectControl& object,
-    EffectControl& translation, EffectControl& palette, EffectControl& border,
-    EffectControl& flashlight, EffectControl& images) {
+    ImageOption& images) {
     return std::unique_ptr<SceneVisualCatalogFactory>(
         new LegacySceneVisualCatalogFactory(createLegacySceneSelectionAdapters(
-            flame, generalFlame, wave, waveScale, table, object, translation,
+            flame, flameGeneral, wave, waveScale, table, object, translation,
             palette, border, flashlight, images)));
 }
