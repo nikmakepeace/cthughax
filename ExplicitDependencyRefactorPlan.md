@@ -1006,6 +1006,9 @@ surface can disappear, and whether that work is already complete.
    - The remaining bridge is one-way: it pushes native selection values back to
      temporary legacy controls and is passed explicitly instead of discovered
      through RTTI or selection-side identity lookup.
+   - Scene settings reads no longer unconditionally sync the temporary legacy
+     controls; lock/use mutations sync at the command edge, and settings reads
+     only sync when they auto-advance a wave selection to a runnable wave.
 
    Completion gate: no production command, config, startup-sync, save/restore,
    preset, or serialization path uses `LegacyScene*` or visual

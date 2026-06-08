@@ -2643,6 +2643,25 @@ static void testEffectControlUsesInjectedRandomSource() {
     assertSourceContains("src/LegacySceneVisualCatalogs.cc",
         "syncLegacyControlsAndReturn(controlMirror, result)");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
+        "settings.wave = selectRunnableWave(settings.waveConfig);\n"
+        "    syncLegacyControlsFromSelections(controlMirror);");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "int waveSelectionChanged = 0;\n"
+        "    settings.wave = selectRunnableWave(\n"
+        "        settings.waveConfig, waveSelectionChanged);");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "if (waveSelectionChanged)\n"
+        "        syncLegacyControlsFromSelections(controlMirror);");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "void LegacySceneVisualCatalogs::toggleLock(SceneSelectionTarget target) {\n"
+        "    sceneSelectionForTarget(selections, target).toggleLock();\n"
+        "    syncLegacyControlsFromSelections(controlMirror);");
+    assertSourceContains("src/LegacySceneVisualCatalogs.cc",
+        "void LegacySceneVisualCatalogs::toggleChoiceUse(\n"
+        "    SceneSelectionTarget target, int index) {\n"
+        "    sceneSelectionForTarget(selections, target).toggleChoiceUse(index);\n"
+        "    syncLegacyControlsFromSelections(controlMirror);");
+    assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
         "registerSelection(registry");
     assertSourceDoesNotContain("src/LegacySceneVisualCatalogs.cc",
         "registerControl(registry)");

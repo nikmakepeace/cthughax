@@ -22,7 +22,7 @@ class LegacySceneVisualCatalogs : public SceneVisualCatalogs {
     LegacySceneControlMirror& controlMirror;
     ScenePaletteRandomizer& paletteRandomizer;
 
-    Wave* selectRunnableWave(const WaveConfig& config);
+    Wave* selectRunnableWave(const WaveConfig& config, int& selectionChanged);
 
 public:
     LegacySceneVisualCatalogs(SceneSelectionState& selectionState_,

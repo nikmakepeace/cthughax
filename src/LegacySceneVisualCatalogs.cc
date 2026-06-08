@@ -87,7 +87,8 @@ LegacySceneVisualCatalogs::LegacySceneVisualCatalogs(
     , controlMirror(controlMirror_)
     , paletteRandomizer(paletteRandomizer_) { }
 
-Wave* LegacySceneVisualCatalogs::selectRunnableWave(const WaveConfig& config) {
+Wave* LegacySceneVisualCatalogs::selectRunnableWave(
+    const WaveConfig& config, int& selectionChanged) {
     int nEntries = selections.wave().entryCount();
 
     for (int i = 0; i < nEntries; i++) {
@@ -96,6 +97,7 @@ Wave* LegacySceneVisualCatalogs::selectRunnableWave(const WaveConfig& config) {
             return selectedWave;
 
         selections.wave().change(+1);
+        selectionChanged = 1;
     }
 
     return 0;
@@ -114,8 +116,11 @@ const SceneSettings& LegacySceneVisualCatalogs::currentSettings(
         selections.table().currentValue(),
         currentSceneWaveObject(selections.object()),
         geometry.width(), geometry.height());
-    settings.wave = selectRunnableWave(settings.waveConfig);
-    syncLegacyControlsFromSelections(controlMirror);
+    int waveSelectionChanged = 0;
+    settings.wave = selectRunnableWave(
+        settings.waveConfig, waveSelectionChanged);
+    if (waveSelectionChanged)
+        syncLegacyControlsFromSelections(controlMirror);
     settings.waveName = (settings.wave != 0) ? settings.wave->name() : "unknown";
     settings.waveScaleName = selections.waveScale().currentName();
     settings.tableName = selections.table().currentName();
@@ -274,11 +279,13 @@ unsigned int LegacySceneVisualCatalogs::activate(
 
 void LegacySceneVisualCatalogs::toggleLock(SceneSelectionTarget target) {
     sceneSelectionForTarget(selections, target).toggleLock();
+    syncLegacyControlsFromSelections(controlMirror);
 }
 
 void LegacySceneVisualCatalogs::toggleChoiceUse(
     SceneSelectionTarget target, int index) {
     sceneSelectionForTarget(selections, target).toggleChoiceUse(index);
+    syncLegacyControlsFromSelections(controlMirror);
 }
 
 unsigned int LegacySceneVisualCatalogs::randomPalette(RandomSource& randomSource) {
