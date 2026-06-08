@@ -1018,6 +1018,10 @@ from this plan.
      `BorderOption` and `FlashlightOption` compatibility headers, while frame
      filters use the separate renderer ports and the global visual selection
      bridge avoids the renderer umbrellas.
+   - Flame, wave, and translation legacy option globals live behind
+     `FlameOptions`, `WaveOptions`, and `TranslationOption` compatibility
+     headers. The global visual selection bridge and list interface use those
+     headers instead of the broader generation/renderer umbrellas.
    - `Application` creates the temporary visual factory and `SceneRuntime`
      after built-in/file-backed visual catalog loading, so copied Scene
      catalogs see loaded object, translation, palette, and image entries.

@@ -4,12 +4,12 @@
 
 #include "BorderOption.h"
 #include "FlashlightOption.h"
+#include "FlameOptions.h"
 #include "Image.h"
 #include "LegacySceneSelectionAdapters.h"
 #include "PaletteOption.h"
-#include "TranslationOptions.h"
-#include "flames.h"
-#include "waves.h"
+#include "TranslationOption.h"
+#include "WaveOptions.h"
 
 std::unique_ptr<LegacySceneSelectionAdapterSet>
 createLegacyGlobalSceneSelectionAdapters(

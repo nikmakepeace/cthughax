@@ -1,18 +1,19 @@
 #include "cthugha.h"
 #include "Interface.h"
 #include "InterfaceRuntime.h"
-#include "display.h"
 #include "imath.h"
 #include "BorderOption.h"
 #include "DisplayDevice.h"
 #include "FlashlightOption.h"
+#include "FlameOptions.h"
 #include "RuntimeCommandSink.h"
 #include "Scene.h"
+#include "Screen.h"
 #include "Image.h"
-#include "flames.h"
 #include "keymap.h"
-#include "TranslationOptions.h"
-#include "waves.h"
+#include "PaletteOption.h"
+#include "TranslationOption.h"
+#include "WaveOptions.h"
 
 //
 // ERROR:

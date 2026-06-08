@@ -1510,10 +1510,18 @@ static void testSceneStartupUsesSceneConfig() {
         "#include \"display.h\"");
     assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
         "#include \"PaletteOption.h\"");
-    assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
+    assertSourceDoesNotContain("src/LegacyGlobalSceneSelectionFactory.cc",
         "#include \"flames.h\"");
-    assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
+    assertSourceDoesNotContain("src/LegacyGlobalSceneSelectionFactory.cc",
         "#include \"waves.h\"");
+    assertSourceDoesNotContain("src/LegacyGlobalSceneSelectionFactory.cc",
+        "#include \"TranslationOptions.h\"");
+    assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
+        "#include \"FlameOptions.h\"");
+    assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
+        "#include \"WaveOptions.h\"");
+    assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
+        "#include \"TranslationOption.h\"");
     assertSourceDoesNotContain("src/LegacyGlobalSceneSelectionFactory.cc",
         "#include \"Border.h\"");
     assertSourceDoesNotContain("src/LegacyGlobalSceneSelectionFactory.cc",
@@ -1531,8 +1539,14 @@ static void testSceneStartupUsesSceneConfig() {
         "#include \"FlashlightOption.h\"");
     assertSourceContains("src/Flashlight.h",
         "#include \"FlashlightRenderer.h\"");
-    assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
-        "#include \"TranslationOptions.h\"");
+    assertSourceContains("src/flames.h", "#include \"FlameOptions.h\"");
+    assertSourceContains("src/waves.h", "#include \"WaveOptions.h\"");
+    assertSourceContains("src/TranslationOptions.h",
+        "#include \"TranslationOption.h\"");
+    assertSourceContains("src/FlameOptions.h", "extern FlameOption flame");
+    assertSourceContains("src/WaveOptions.h", "extern WaveOption wave");
+    assertSourceContains("src/TranslationOption.h",
+        "extern TranslateOption translation");
     assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
         "createLegacySceneSelectionAdapters(flame, flameGeneral, wave");
     assertSourceContains("src/LegacyGlobalSceneSelectionFactory.cc",
@@ -1978,6 +1992,23 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "#include \"waves.h\"");
     assertSourceDoesNotContain("src/Interface.cc",
         "#include \"TranslationOptions.h\"");
+    assertSourceDoesNotContain("src/InterfaceList.cc",
+        "#include \"display.h\"");
+    assertSourceDoesNotContain("src/InterfaceList.cc",
+        "#include \"flames.h\"");
+    assertSourceDoesNotContain("src/InterfaceList.cc",
+        "#include \"waves.h\"");
+    assertSourceDoesNotContain("src/InterfaceList.cc",
+        "#include \"TranslationOptions.h\"");
+    assertSourceContains("src/InterfaceList.cc", "#include \"Screen.h\"");
+    assertSourceContains("src/InterfaceList.cc",
+        "#include \"PaletteOption.h\"");
+    assertSourceContains("src/InterfaceList.cc",
+        "#include \"FlameOptions.h\"");
+    assertSourceContains("src/InterfaceList.cc",
+        "#include \"WaveOptions.h\"");
+    assertSourceContains("src/InterfaceList.cc",
+        "#include \"TranslationOption.h\"");
     assertSourceContains("src/keymap.cc",
         "RuntimeCommand::changeSceneBy(RuntimeSceneFlame");
     assertSourceContains("src/keymap.cc",
@@ -2660,7 +2691,7 @@ static void testGeneralFlameUsesInjectedRandomSource() {
         "generalFlameOption.changeRandom(randomSource, 0)");
     assertSourceContains("src/SceneVisualCatalogService.cc",
         "selections.generalFlame(), config.generalFlame");
-    assertSourceContains("src/flames.h",
+    assertSourceContains("src/FlameOptions.h",
         "void changeRandom(RandomSource& randomSource, int doSave = 1)");
     assertSourceContains("src/flames.cc",
         "randomSource.uniformInt(generalFlameStates)");
