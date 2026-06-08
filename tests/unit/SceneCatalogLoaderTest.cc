@@ -63,6 +63,14 @@ IndexedImage* read_png_indexed_image(FILE*, const char*, const char*,
     return 0;
 }
 
+PaletteEntry* read_palette_entry(FILE*, const char* name, const char*,
+    const char*) {
+    PaletteEntry* palette = new PaletteEntry(name, "");
+    palette->colors().setColor(0, 255, 255, 255);
+    palette->colors().setColor(2, 40, 50, 60);
+    return palette;
+}
+
 class SilentLogSink : public LogSink {
 public:
     virtual int enabled(int) const { return 0; }
@@ -155,6 +163,31 @@ static void removeTemporaryImageRoot(const std::string& root) {
     rmdir(root.c_str());
 }
 
+static std::string createTemporaryPaletteRoot() {
+    char pathTemplate[] = "/tmp/cthughanix-scene-palettes-XXXXXX";
+    char* path = mkdtemp(pathTemplate);
+    assert(path != 0);
+
+    std::string root(path);
+    std::string paletteDir = root + "/map";
+    assert(mkdir(paletteDir.c_str(), 0700) == 0);
+    return root;
+}
+
+static void writePaletteFile(const std::string& root, const char* name) {
+    std::string path = root + "/map/" + name;
+    FILE* file = fopen(path.c_str(), "w");
+    assert(file != 0);
+    assert(fputs("stub palette\n", file) >= 0);
+    fclose(file);
+}
+
+static void removeTemporaryPaletteRoot(const std::string& root) {
+    unlink((root + "/map/fixture-scene-palette.map").c_str());
+    rmdir((root + "/map").c_str());
+    rmdir(root.c_str());
+}
+
 static void testLoadsWaveObjectsFromPathConfig() {
     std::string root = createTemporaryObjectRoot();
     writeObjectFile(root, "fixture.obj");
@@ -214,27 +247,33 @@ static void testLoadsImagesFromPathConfig() {
     removeTemporaryImageRoot(root);
 }
 
-static void testCopiesPalettesFromEffectControl() {
-    EffectChoiceList paletteEntries;
-    EffectControl paletteOption(-1, "palette-test", paletteEntries);
-    PaletteEntry* entry = new PaletteEntry("fixture-palette", "");
-    entry->colors().setColor(2, 40, 50, 60);
-    paletteOption.add(entry);
+static void testLoadsPalettesFromPathConfig() {
+    std::string root = createTemporaryPaletteRoot();
+    writePaletteFile(root, "fixture-scene-palette.map");
 
+    PathConfig pathConfig;
+    pathConfig.extraLibraryPath = root;
+    SilentLogSink log;
     ScenePaletteCatalog catalog;
-    copyScenePaletteCatalogFromEffectControl(paletteOption, catalog);
 
-    int index = catalogIndexByName(catalog, "fixture-palette");
+    loadScenePaletteCatalog(catalog, pathConfig, "", log);
+
+    int generalIndex = catalogIndexByName(catalog, "general");
+    assert(generalIndex >= 0);
+
+    int index = catalogIndexByName(catalog, "fixture-scene-palette");
     assert(index >= 0);
     assert(catalog.inUseAt(index) == 1);
     assert(catalog.paletteAt(index)->colors().component(2, 0) == 40);
     assert(catalog.paletteAt(index)->colors().component(2, 1) == 50);
     assert(catalog.paletteAt(index)->colors().component(2, 2) == 60);
+
+    removeTemporaryPaletteRoot(root);
 }
 
 int main() {
     testLoadsWaveObjectsFromPathConfig();
     testLoadsImagesFromPathConfig();
-    testCopiesPalettesFromEffectControl();
+    testLoadsPalettesFromPathConfig();
     return 0;
 }

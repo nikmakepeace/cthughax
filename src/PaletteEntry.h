@@ -7,10 +7,26 @@
 #include "ColorPalette.h"
 #include "EffectControl.h"
 
+#include <stdio.h>
+
 class RandomSource;
 
 const int PALETTE_METADATA_MAX_VALUES = 16;
 const int PALETTE_METADATA_VALUE_SIZE = 64;
+
+class PaletteEntry;
+
+/**
+ * Reads a .map palette file into an owned palette entry.
+ *
+ * @param file Open palette file positioned at the beginning.
+ * @param name Palette option/display name.
+ * @param dir Directory containing the palette, for diagnostics.
+ * @param totalName Full palette path, stored as source metadata.
+ * @return Newly allocated palette entry, or NULL on invalid/empty input.
+ */
+PaletteEntry* read_palette_entry(FILE* file, const char* name, const char* dir,
+    const char* totalName);
 
 /**
  * Runtime palette catalog entry with optional file-backed metadata.

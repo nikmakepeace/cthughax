@@ -493,18 +493,18 @@ also has a cleaner setup port.
 commands, selection history, presets, startup effect policy, serialization, and
 automatic scene-change policy are all owned by Scene-facing types.
 
-The remaining Scene-facing debt is intentionally quarantined in compatibility
-catalog loaders:
+The remaining Scene-facing debt is intentionally quarantined in legacy
+list/interface compatibility:
 
 - `Application` creates the native
   `createSceneVisualCatalogServiceFactory(...)` from native
   `SceneVisualSelectionSeeds`; startup names are applied through
   `SceneRuntime::applyStartupConfig(...)`.
-- `ScenePaletteCatalogLoader` still copies data loaded by compatibility visual
-  option/catalog code into a native Scene catalog.
-- These loaders remain temporary until the visual catalog/filterchain side
-  owns flames, waves, palettes, images, translation tables, and frame geometry
-  without `CthughaBuffer::buffer` or process-wide option catalogs.
+- `SceneWaveObjectCatalogLoader`, `SceneImageCatalogLoader`, and
+  `ScenePaletteCatalogLoader` load directly into native Scene catalogs instead
+  of copying data from compatibility visual option lists.
+- Legacy visual option lists still exist for non-Scene Display/UI paths until
+  those paths read Scene visual choices directly.
 
 #### Services Needed
 
@@ -512,8 +512,8 @@ catalog loaders:
   image, border, and flashlight choices, including allowed-choice metadata.
 - `FrameGeometry` from Frame Generator so Scene and visual catalogs do not depend
   on `VideoDirector`/`CthughaBuffer` as geometry providers.
-- Removal-condition tests for deleting the remaining compatibility copy loaders
-  once native visual loaders own object, palette, and image catalogs.
+- Boundary tests that keep native visual loaders from depending on
+  compatibility `EffectControl`/`ImageOption` catalogs.
 
 #### API Surface
 
@@ -692,8 +692,7 @@ can publish an `IndexedFrame` for
 
 The remaining compatibility surfaces are:
 
-- Scene catalog copy loaders that still read `EffectControl`/`ImageOption`
-  entries populated by compatibility visual loaders;
+- Legacy visual option/list surfaces still used by non-Scene Display/UI paths;
 - Display compatibility aliases and `display.cc` renderer statics, which are
   tracked as Display follow-up because generated frames are already handed to
   Display explicitly.
@@ -980,12 +979,12 @@ from this plan.
    - The temporary legacy `ImageOption` is owned by `Application` for loading,
      Display/interface compatibility, and legacy adapter wiring; public Frame
      Generator APIs no longer expose `ImageOption` or include `Image.h`.
-   - Palette entries are copied into native `ScenePaletteCatalog` ownership
-     after the legacy palette loader runs, and initial Scene palette selections
-     use that native catalog. Random/add-random palette mutation now uses
-     `ScenePaletteRandomizer`, which appends or replaces Scene-owned palette
-     entries and persists generated random.N files without reading the global
-     `palette` option.
+   - Palette entries load directly into native `ScenePaletteCatalog` ownership
+     through `ScenePaletteCatalogLoader`, and initial Scene palette selections
+     use that native catalog without copying from the global `palette` option.
+     Random/add-random palette mutation now uses `ScenePaletteRandomizer`,
+     which appends or replaces Scene-owned palette entries and persists
+     generated random.N files without reading the global `palette` option.
    - Scene visual settings construction, startup choice application, typed
      selection mutation, and random-palette mutation now live in
      `SceneVisualCatalogService` instead of a `LegacySceneVisualCatalogs`
@@ -1020,19 +1019,13 @@ from this plan.
      renderer ports instead of including global visual option headers.
 
 6. **Delete legacy visual startup and catalog bridges. Status: remaining.**
-   Remaining compatibility surface: `ScenePaletteCatalogLoader`.
+   Native object, image, and palette Scene catalog loaders are in place.
    `LegacySceneSelectionAdapters`, `LegacySceneSelectionFactory`,
    `LegacyScenePaletteRandomizer`, `LegacySceneVisualCatalogFactory`, and
    `LegacyGlobalSceneSelectionFactory` are deleted; native selections are no
    longer mirrored back into visual `EffectControl` globals.
 
    What remains:
-   - Replace the remaining compatibility palette copy loader with a native
-     visual loader.
-     This is complete when palettes load directly into owned Scene/visual
-     catalogs without first populating `EffectChoice` lists, Application no
-     longer copies the palette catalog from `EffectControl`, and CMake/boundary
-     tests assert the compatibility loader files are absent.
    - Retire any pre-startup or non-Scene UI fallback that still displays Scene
      visual choices through legacy `EffectControl` lists. This is complete when
      F2 lists, X11 menus, keymap actions, and runtime config display code all
@@ -1383,9 +1376,8 @@ The next high-value module is Frame Generator / frame filterchain.
 
 Scene's runtime boundary is explicit now. The remaining Scene-facing
 compatibility code is the visual loader/list surface, which exists because
-production visual catalogs still flow through `EffectControl`/`ImageOption`
-lists and some Display/UI paths still expose those lists. Deglobalizing native
-visual loaders should make the compatibility copy loaders fall away naturally.
+some Display/UI paths still expose legacy `EffectControl`/`ImageOption` lists.
+Native Scene visual loaders now own object, image, and palette startup data.
 
 Recommended Frame/Visual order:
 
@@ -1397,10 +1389,10 @@ Recommended Frame/Visual order:
    explicit geometry values.
 4. Introduce native visual catalogs/selections for flames, waves, translations,
    palettes, images, border, and flashlight.
-5. Replace `copyScene*CatalogFrom*Option(...)` compatibility copy calls with
-   native visual loaders.
-6. Delete compatibility copy loaders once no production path needs legacy visual
-   `EffectControl&` adapters.
+5. Point non-Scene visual lists, menus, and runtime config display code at
+   native visual catalog data instead of legacy visual option lists.
+6. Delete remaining compatibility list surfaces once no production path needs
+   legacy visual `EffectControl&` adapters.
 
 ## Cross-Cutting Guard Rails
 

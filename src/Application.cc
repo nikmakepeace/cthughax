@@ -259,8 +259,10 @@ void Application::initSceneRuntime() {
     }
     if (scenePaletteCatalogValue.get() == NULL) {
         scenePaletteCatalogValue.reset(new ScenePaletteCatalog());
-        copyScenePaletteCatalogFromEffectControl(
-            palette, *scenePaletteCatalogValue);
+        loadScenePaletteCatalog(*scenePaletteCatalogValue,
+            startupConfigValue.paths,
+            startupConfigValue.effectPolicy.paletteSetFilterText.c_str(),
+            logSinkValue);
     }
     if (sceneVisualCatalogFactoryValue.get() == NULL) {
         SceneVisualSelectionSeeds sceneVisualSelectionSeeds;
@@ -814,7 +816,8 @@ static int initializeVisualCatalogs(const FrameGeometry& geometry,
 
     if (load_palettes(pathConfig))
         return 1;
-    copyScenePaletteCatalogFromEffectControl(palette, palettes);
+    loadScenePaletteCatalog(palettes, pathConfig,
+        effectPolicy.paletteSetFilterText.c_str(), log);
 
     return 0;
 }
