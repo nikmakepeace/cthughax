@@ -2009,6 +2009,18 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "#include \"WaveOptions.h\"");
     assertSourceContains("src/InterfaceList.cc",
         "#include \"TranslationOption.h\"");
+    assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc",
+        "#include \"flames.h\"");
+    assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc",
+        "#include \"waves.h\"");
+    assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc",
+        "#include \"TranslationOptions.h\"");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "#include \"FlameOptions.h\"");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "#include \"WaveOptions.h\"");
+    assertSourceContains("src/DisplayDeviceX11-Panel.cc",
+        "#include \"TranslationOption.h\"");
     assertSourceContains("src/keymap.cc",
         "RuntimeCommand::changeSceneBy(RuntimeSceneFlame");
     assertSourceContains("src/keymap.cc",

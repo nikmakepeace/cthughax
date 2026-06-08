@@ -9,15 +9,15 @@
 #include "Interface.h"
 #include "Image.h"
 #include "FramePalette.h"
+#include "FlameOptions.h"
 #include "RuntimeConfigRegistry.h"
 #include "RuntimeConfigSelection.h"
 #include "RuntimeCommandSink.h"
 #include "RuntimeCommandTargets.h"
 #include "cth_buffer.h"
-#include "flames.h"
 #include "Scene.h"
-#include "TranslationOptions.h"
-#include "waves.h"
+#include "TranslationOption.h"
+#include "WaveOptions.h"
 
 #include <unistd.h>
 #include <X11/Shell.h>

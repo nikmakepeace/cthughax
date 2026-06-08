@@ -1067,8 +1067,9 @@ from this plan.
    Current progress toward that gate:
    - Scene commands expose typed activation, lock, and choice-use operations.
    - F2 visual rows and X11 panel visual menus dispatch typed Scene commands.
-   - Keymap visual actions and F2 visual rows dispatch typed Scene commands
-     without including flame, wave, or translation option globals.
+   - Keymap visual actions, F2 visual rows, and X11 panel visual menus dispatch
+     typed Scene commands without including the broad flame, wave, or
+     translation umbrellas.
    - `RuntimeEffectControlOwner`, `LegacySceneEffectControlTarget`,
      `LegacySceneEffectControlBindings`, and
      `LegacySceneEffectControlCatalog` are deleted.
