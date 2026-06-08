@@ -102,10 +102,20 @@ RuntimeChangeSet RoutedRuntimeEffectControlTarget::activate(int index) {
 }
 
 void RoutedRuntimeEffectControlTarget::toggleLock() {
+    if (effectControlOwner.ownsEffectControl(control)) {
+        effectControlOwner.toggleEffectControlLock(control);
+        return;
+    }
+
     effectControls.toggleEffectControlLock(control);
 }
 
 void RoutedRuntimeEffectControlTarget::toggleChoiceUse(int index) {
+    if (effectControlOwner.ownsEffectControl(control)) {
+        effectControlOwner.toggleEffectChoiceUse(control, index);
+        return;
+    }
+
     effectControls.toggleEffectChoiceUse(control, index);
 }
 

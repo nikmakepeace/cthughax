@@ -172,6 +172,14 @@ public:
     virtual void activateEffectControl(EffectControl& option, int index) {
         recordSceneCommand("activate", index, 0, &option);
     }
+
+    virtual void toggleEffectControlLock(EffectControl& option) {
+        recordSceneCommand("toggle-lock", 0, 0, &option);
+    }
+
+    virtual void toggleEffectChoiceUse(EffectControl& option, int index) {
+        recordSceneCommand("toggle-use", index, 0, &option);
+    }
 };
 
 class RecordingPaletteMetadataTarget : public RuntimePaletteMetadataTarget {
@@ -889,6 +897,17 @@ static void testEffectControlCommandsRouteByOwner() {
     assert(sceneRecord.option == &effect);
     assert(sceneRecord.value == 1);
     assert(harness.effectControls.activateCalls == 1);
+
+    harness.targetRouter.toggleEffectControlLock(effect);
+    assert(strcmp(sceneRecord.name, "toggle-lock") == 0);
+    assert(sceneRecord.option == &effect);
+    assert(harness.effectControls.lockToggles == 0);
+
+    harness.targetRouter.toggleEffectChoiceUse(effect, 1);
+    assert(strcmp(sceneRecord.name, "toggle-use") == 0);
+    assert(sceneRecord.option == &effect);
+    assert(sceneRecord.value == 1);
+    assert(harness.effectControls.choiceUseToggles == 0);
 
     currentSceneOption = 0;
 }

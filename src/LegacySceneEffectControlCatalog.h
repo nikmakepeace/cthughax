@@ -24,6 +24,13 @@ public:
     virtual unsigned int change(EffectControl& option, const char* to,
         RandomSource& randomSource) = 0;
     virtual unsigned int activate(EffectControl& option, int index) = 0;
+
+    /** Toggles the Scene-owned lock corresponding to a legacy control. */
+    virtual void toggleLock(EffectControl& option) = 0;
+
+    /** Toggles Scene-owned choice availability for a legacy control. */
+    virtual void toggleChoiceUse(EffectControl& option, int index) = 0;
+
     virtual RuntimeEffectControlOwner* createEffectControlOwner(
         SceneCommands& sceneCommands, SceneEffectRegistry& effectRegistry,
         RandomSource& randomSource);

@@ -47,3 +47,13 @@ void SceneCommandsEffectControlOwner::activateEffectControl(
     sceneCommands.refreshFromOptionsAndMaybeCueImage(
         effectControls.activate(option, index));
 }
+
+void SceneCommandsEffectControlOwner::toggleEffectControlLock(
+    EffectControl& option) {
+    effectControls.toggleLock(option);
+}
+
+void SceneCommandsEffectControlOwner::toggleEffectChoiceUse(
+    EffectControl& option, int index) {
+    effectControls.toggleChoiceUse(option, index);
+}

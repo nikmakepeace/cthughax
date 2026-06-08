@@ -104,6 +104,12 @@ public:
 
     /** Activates one choice through the owning subsystem. */
     virtual void activateEffectControl(EffectControl& control, int index) = 0;
+
+    /** Toggles the owned control lock through the owning subsystem. */
+    virtual void toggleEffectControlLock(EffectControl& control) = 0;
+
+    /** Toggles owned choice use through the owning subsystem. */
+    virtual void toggleEffectChoiceUse(EffectControl& control, int index) = 0;
 };
 
 /**

@@ -231,6 +231,8 @@ public:
     virtual unsigned int activate(EffectControl&, int) {
         return SceneNoChange;
     }
+    virtual void toggleLock(EffectControl&) { }
+    virtual void toggleChoiceUse(EffectControl&, int) { }
 };
 
 class RecordingEffectRegistry : public SceneEffectRegistry {

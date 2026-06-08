@@ -28,6 +28,12 @@ public:
     virtual void changeEffectControlTo(
         EffectControl& option, const char* to, int doSave = 0);
     virtual void activateEffectControl(EffectControl& option, int index);
+
+    /** Toggles Scene-owned lock state for a migrated visual control. */
+    virtual void toggleEffectControlLock(EffectControl& option);
+
+    /** Toggles Scene-owned choice availability for a migrated visual control. */
+    virtual void toggleEffectChoiceUse(EffectControl& option, int index);
 };
 
 #endif

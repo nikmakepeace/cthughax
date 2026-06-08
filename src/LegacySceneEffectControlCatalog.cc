@@ -128,6 +128,20 @@ public:
             selection->activate(index);
         return changeForSelection(selection, previousImageValue);
     }
+
+    virtual void toggleLock(EffectControl& option) {
+        if (selectionFor(option) != 0)
+            option.lock.change(+1);
+    }
+
+    virtual void toggleChoiceUse(EffectControl& option, int index) {
+        if (selectionFor(option) == 0)
+            return;
+        if ((index < 0) || (index >= option.getNEntries()))
+            return;
+
+        option[index]->setUse(!option[index]->inUse());
+    }
 };
 
 }
