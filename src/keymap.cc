@@ -1,25 +1,17 @@
 #include "cthugha.h"
-#include "defaults.h"
+#include "Configuration.h"
 #include "keymap.h"
+#include "InterfaceRuntime.h"
 #include "Interface.h"
 #include "keys.h"
-#include "AudioFrame.h"
 #include "display.h"
 #include "disp-sys.h"
-#include "options.h"
-#include "AutoChanger.h"
-#include "AudioProcessor.h"
-#include "AudioAnalyzer.h"
-#include "Border.h"
-#include "CthughaBuffer.h"
-#include "Flashlight.h"
-#include "VideoDirector.h"
-#include "flames.h"
-#include "waves.h"
 #include "imath.h"
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
 #include "Scene.h"
+#include "RuntimeCommandSink.h"
+#include "RuntimeCommandTargets.h"
 
 #include <ctype.h>
 #include <string.h>
@@ -54,11 +46,6 @@ static int keymapFeatureValue(const char* name, int& known) {
     if (strcasecmp(name, "WITH_MINIMP3") == 0)
         return WITH_MINIMP3;
 #endif
-#ifdef USE_XPM
-    if (strcasecmp(name, "USE_XPM") == 0)
-        return USE_XPM;
-#endif
-
     known = 0;
     return 0;
 }
@@ -216,21 +203,283 @@ public:
     }
 };
 
-char Keymap::keymapFile[PATH_MAX] = DEFAULT_KEYMAP_FILE_PATH;
-
-Action* Action::head = NULL;
-
-Keymap* Keymap::first = NULL;
-Keymap* Keymap::current = NULL;
-
 Keymap::Keymap(const char* n)
-    : next(first)
-    , name(n)
+    : next(NULL)
+    , name(NULL)
     , bindingList(NULL) {
-    first = this;
+    name = new char[strlen(n) + 1];
+    strcpy(name, n);
 }
 
-void Keymap::readFile(const char* fileName) {
+Keymap::~Keymap() {
+    delete[] name;
+
+    while (bindingList != NULL) {
+        BindingList* binding = bindingList;
+        bindingList = bindingList->next;
+
+        Binding::ActionList* action = binding->actionList;
+        while (action != NULL) {
+            Binding::ActionList* nextAction = action->next;
+            delete[] action->actionName;
+            delete[] action->param;
+            delete action;
+            action = nextAction;
+        }
+
+        delete binding;
+    }
+}
+
+CommandContext::CommandContext(InterfaceRuntime& runtime,
+    RuntimeCommandSink* runtimeCommandSink,
+    RuntimeCommandTargetRouter* commandRouter)
+    : runtimeValue(&runtime)
+    , runtimeCommandSinkValue(runtimeCommandSink)
+    , commandRouterValue(commandRouter)
+    , optionValue(NULL)
+    , effectControlValue(NULL)
+    , sceneTargetValue(RuntimeSceneFlame)
+    , hasSceneTargetValue(0)
+    , optionElementValue(NULL)
+    , effectChoiceIndexValue(-1) { }
+
+InterfaceRuntime& CommandContext::runtime() const {
+    return *runtimeValue;
+}
+
+RuntimeCommandSink* CommandContext::runtimeCommandSink() const {
+    return runtimeCommandSinkValue;
+}
+
+RuntimeCommandTargetRouter* CommandContext::commandRouter() const {
+    return commandRouterValue;
+}
+
+void CommandContext::targetOption(Option& option,
+    InterfaceElementOption& element) {
+    optionValue = &option;
+    effectControlValue = NULL;
+    hasSceneTargetValue = 0;
+    optionElementValue = &element;
+    effectChoiceIndexValue = -1;
+}
+
+void CommandContext::targetEffectControl(EffectControl& effectControl,
+    InterfaceElementOption& element) {
+    optionValue = &effectControl;
+    effectControlValue = &effectControl;
+    hasSceneTargetValue = 0;
+    optionElementValue = &element;
+    effectChoiceIndexValue = -1;
+}
+
+void CommandContext::targetEffectChoice(EffectControl& effectControl,
+    Option& option, int selectedIndex) {
+    optionValue = &option;
+    effectControlValue = &effectControl;
+    hasSceneTargetValue = 0;
+    optionElementValue = NULL;
+    effectChoiceIndexValue = selectedIndex;
+}
+
+void CommandContext::targetSceneSelection(RuntimeSceneTarget sceneTarget,
+    InterfaceElementOption& element) {
+    optionValue = NULL;
+    effectControlValue = NULL;
+    sceneTargetValue = sceneTarget;
+    hasSceneTargetValue = 1;
+    optionElementValue = &element;
+    effectChoiceIndexValue = -1;
+}
+
+void CommandContext::targetSceneChoice(
+    RuntimeSceneTarget sceneTarget, int selectedIndex) {
+    optionValue = NULL;
+    effectControlValue = NULL;
+    sceneTargetValue = sceneTarget;
+    hasSceneTargetValue = 1;
+    optionElementValue = NULL;
+    effectChoiceIndexValue = selectedIndex;
+}
+
+static int commandContextIncrement(const InterfaceElementOption& element,
+    int incrementIndex) {
+    switch (incrementIndex) {
+    case 1:
+        return element.inc1;
+    case 2:
+        return element.inc2;
+    case 3:
+        return element.inc3;
+    default:
+        return 0;
+    }
+}
+
+void CommandContext::changeValueByElementIncrement(int incrementIndex,
+    double value) {
+    if (optionElementValue == NULL)
+        return;
+
+    int increment = commandContextIncrement(*optionElementValue,
+        incrementIndex);
+    if (increment == 0)
+        return;
+
+    int step = int(value * increment);
+    if ((hasSceneTargetValue != 0) && (runtimeCommandSinkValue != NULL)) {
+        runtimeCommandSinkValue->apply(
+            RuntimeCommand::changeSceneBy(sceneTargetValue, step));
+    } else if ((effectControlValue != NULL) && (commandRouterValue != NULL)) {
+        commandRouterValue->changeEffectControlBy(*effectControlValue, step);
+    } else if ((optionValue != NULL) && (commandRouterValue != NULL)) {
+        commandRouterValue->changeOptionBy(*optionValue, step);
+    }
+}
+
+void CommandContext::setValueFromElement(double value) {
+    if (optionElementValue == NULL)
+        return;
+
+    char text[128];
+    snprintf(text, sizeof(text), "%d", int(value * optionElementValue->inc1));
+
+    if ((hasSceneTargetValue != 0) && (runtimeCommandSinkValue != NULL)) {
+        runtimeCommandSinkValue->apply(
+            RuntimeCommand::changeSceneTo(sceneTargetValue, text));
+    } else if ((effectControlValue != NULL) && (commandRouterValue != NULL)) {
+        commandRouterValue->changeEffectControlTo(*effectControlValue, text);
+        commandRouterValue->changeEffectControlBy(*effectControlValue, 0);
+    } else if ((optionValue != NULL) && (commandRouterValue != NULL)) {
+        commandRouterValue->changeOptionTo(*optionValue, text);
+        commandRouterValue->changeOptionBy(*optionValue, 0);
+    }
+}
+
+void CommandContext::toggleEffectControlLock() {
+    if ((hasSceneTargetValue != 0) && (runtimeCommandSinkValue != NULL)) {
+        runtimeCommandSinkValue->apply(
+            RuntimeCommand::toggleSceneLock(sceneTargetValue));
+    } else if ((effectControlValue != NULL) && (commandRouterValue != NULL)) {
+        commandRouterValue->toggleEffectControlLock(*effectControlValue);
+    }
+}
+
+void CommandContext::toggleEffectChoiceUse() {
+    if ((hasSceneTargetValue != 0) && (effectChoiceIndexValue >= 0)
+        && (runtimeCommandSinkValue != NULL)) {
+        runtimeCommandSinkValue->apply(RuntimeCommand::toggleSceneChoiceUse(
+            sceneTargetValue, effectChoiceIndexValue));
+    } else if ((effectControlValue != NULL) && (effectChoiceIndexValue >= 0)
+        && (commandRouterValue != NULL)) {
+        commandRouterValue->toggleEffectChoiceUse(*effectControlValue,
+            effectChoiceIndexValue);
+    }
+}
+
+void CommandContext::activateEffectChoice() {
+    if ((hasSceneTargetValue != 0) && (effectChoiceIndexValue >= 0)
+        && (runtimeCommandSinkValue != NULL)) {
+        runtimeCommandSinkValue->apply(RuntimeCommand::activateScene(
+            sceneTargetValue, effectChoiceIndexValue));
+    } else if ((effectControlValue != NULL) && (optionValue != NULL)
+        && (effectChoiceIndexValue >= 0) && (commandRouterValue != NULL)) {
+        commandRouterValue->activateEffectControl(*effectControlValue,
+            effectChoiceIndexValue);
+        commandRouterValue->changeOptionBy(*optionValue, 0);
+    }
+}
+
+int CommandDispatcher::dispatch(
+    const std::vector<ActionInvocation>& invocations,
+    CommandContext& context) const {
+    for (std::vector<ActionInvocation>::const_iterator it = invocations.begin();
+         it != invocations.end(); ++it)
+        it->target->act(*it, context);
+
+    return invocations.empty() ? 1 : 0;
+}
+
+int CommandDispatcher::dispatchKeymap(KeymapRegistry& keymaps,
+    CommandRegistry& commands, const char* keymapName, int key,
+    CommandContext& context) const {
+    std::vector<ActionInvocation> invocations;
+    int result = keymaps.actionsFor(keymapName, key, commands, invocations);
+    if (result != 0)
+        return result;
+
+    return dispatch(invocations, context);
+}
+
+CommandRegistry::CommandRegistry()
+    : firstValue(NULL) { }
+
+CommandRegistry::~CommandRegistry() {
+    while (firstValue != NULL) {
+        Action* action = firstValue;
+        firstValue = firstValue->next;
+        delete action;
+    }
+}
+
+void CommandRegistry::registerAction(Action* action) {
+    if (action == NULL)
+        return;
+
+    for (Action* existing = firstValue; existing != NULL;
+         existing = existing->next) {
+        if (strcasecmp(existing->name, action->name) == 0) {
+            delete action;
+            return;
+        }
+    }
+
+    action->next = firstValue;
+    firstValue = action;
+}
+
+Action* CommandRegistry::find(const char* name) const {
+    if (name == NULL)
+        return NULL;
+
+    for (Action* action = firstValue; action != NULL;
+         action = action->next) {
+        if (strcasecmp(action->name, name) == 0)
+            return action;
+    }
+
+    return NULL;
+}
+
+Action* CommandRegistry::findLongestPrefix(const char* text) const {
+    Action* found = NULL;
+    int length = -1;
+
+    for (Action* action = firstValue; action != NULL;
+         action = action->next) {
+        if (((*action) == text) && (action->length() > length)) {
+            found = action;
+            length = action->length();
+        }
+    }
+
+    return found;
+}
+
+KeymapRegistry::KeymapRegistry()
+    : firstValue(NULL) { }
+
+KeymapRegistry::~KeymapRegistry() {
+    while (firstValue != NULL) {
+        Keymap* keymap = firstValue;
+        firstValue = firstValue->next;
+        delete keymap;
+    }
+}
+
+void KeymapRegistry::readFile(const char* fileName,
+    CommandRegistry& commands) {
     FILE* file = fopen(fileName, "r");
     if (file == NULL) {
         CTH_ERRNO(errno, "Can not open keymap file '%s'.", fileName);
@@ -241,7 +490,7 @@ void Keymap::readFile(const char* fileName) {
 
     int lineNr = 0;
     char line[4096];
-    Keymap* keymap = find("default");
+    Keymap* keymap = find("default", 1);
     KeymapConditionState conditions;
 
     while (fgets(line, 4096, file) != NULL) {
@@ -265,7 +514,7 @@ void Keymap::readFile(const char* fileName) {
 
             CTH_DEBUG("      defining keymap '%s'.\n", keymap->name);
         } else {
-            keymap->add(line);
+            keymap->add(line, commands);
         }
     }
 
@@ -281,12 +530,12 @@ void Keymap::readFile(const char* fileName) {
     fclose(file);
 }
 
-void Keymap::addList(int dummy, ...) {
+void KeymapRegistry::addList(CommandRegistry& commands, int dummy, ...) {
 
     va_list ap;
     va_start(ap, dummy); /* Initialize the argument list. */
 
-    Keymap* keymap = find("default");
+    Keymap* keymap = find("default", 1);
     KeymapConditionState conditions;
 
     const char* line = va_arg(ap, const char*);
@@ -306,11 +555,11 @@ void Keymap::addList(int dummy, ...) {
         if (strncasecmp("#keymap", line, 7) == 0) {
             lineP = line + 7;
             skipSpace(lineP);
-            keymap = find(lineP);
+            keymap = find(lineP, 1);
 
             CTH_DEBUG("      defining keymap '%s'.\n", keymap->name);
         } else {
-            keymap->add(line);
+            keymap->add(line, commands);
         }
 
         line = va_arg(ap, const char*);
@@ -321,8 +570,8 @@ void Keymap::addList(int dummy, ...) {
     va_end(ap);
 }
 
-Keymap* Keymap::find(const char* name, int create) {
-    for (Keymap* k = first; k; k = k->next) {
+Keymap* KeymapRegistry::find(const char* name, int create) {
+    for (Keymap* k = firstValue; k; k = k->next) {
         if (strcasecmp(name, k->name) == 0) {
             return k;
         }
@@ -330,12 +579,13 @@ Keymap* Keymap::find(const char* name, int create) {
 
     if (create) {
         CTH_DEBUG("      adding new keymap '%s'.\n", name);
-        char* n = new char[strlen(name) + 1];
-        strcpy(n, name);
-        return new Keymap(n);
+        Keymap* keymap = new Keymap(name);
+        keymap->next = firstValue;
+        firstValue = keymap;
+        return keymap;
     } else {
         CTH_ERROR("Could not find keymap '%s'.\n", name);
-        return first;
+        return firstValue;
     }
 }
 
@@ -355,7 +605,8 @@ void Keymap::add(Binding& b) {
     bindingList = new BindingList(b, bindingList);
 }
 
-Keymap::Binding Keymap::parseBinding(const char* line) {
+Keymap::Binding Keymap::parseBinding(const char* line,
+    CommandRegistry& commands) {
     const char* fullLine = line;
     Binding b;
 
@@ -382,12 +633,12 @@ Keymap::Binding Keymap::parseBinding(const char* line) {
     if ((*line != '\0') && !isspace(*line)) { // a multi-character thing
         line--;
 
-        for (int i = 0; i < nKeyAssoc; i++)
-            if (strncasecmp(keyAssoc[i].name, line, strlen(keyAssoc[i].name)) == 0) {
-                b.key = keyAssoc[i].keyValue;
-                line += strlen(keyAssoc[i].name);
-                i = nKeyAssoc + 1;
-            }
+        int consumed = 0;
+        int namedKey = keyCodeForNamePrefix(line, &consumed);
+        if (consumed > 0) {
+            b.key = namedKey;
+            line += consumed;
+        }
 
         if ((*line != '\0') && !isspace(*line)) {
             CTH_ERROR("Unknown key symbol in keymap line: '%s'\n", fullLine);
@@ -401,16 +652,9 @@ Keymap::Binding Keymap::parseBinding(const char* line) {
     while ((*line) != '\0') {
 
         // try to match an action
-        Action* A = NULL;
-        int l = -1; // find longest match
-        for (Action* a = Action::head; a != NULL; a = a->next) {
-            if (((*a) == line) && (a->nameLen > l)) {
-                A = a;
-                l = a->nameLen;
-            }
-        }
+        Action* A = commands.findLongestPrefix(line);
         if (A) { // found some match
-            line += A->nameLen; // skip command name
+            line += A->length(); // skip command name
 
             skipSpace(line);
 
@@ -434,8 +678,12 @@ Keymap::Binding Keymap::parseBinding(const char* line) {
 
             line += n + 1; // skip parameter and ')'
 
+            char* actionName = new char[strlen(A->name) + 1];
+            strcpy(actionName, A->name);
+
             // add new action to List
-            b.actionList = new Binding::ActionList(A, p, b.actionList);
+            b.actionList = new Binding::ActionList(actionName, p,
+                b.actionList);
         } else {
             CTH_ERROR("Error in keymap. Unknown command: '%s'\n", line);
             b.key = 0;
@@ -447,17 +695,26 @@ Keymap::Binding Keymap::parseBinding(const char* line) {
     return b;
 }
 
-int Keymap::action(int key) {
+int Keymap::actionsFor(int key, CommandRegistry& commands,
+    std::vector<ActionInvocation>& invocations) const {
 
     BindingList* l = bindingList;
     while (l) {
         if (l->key == key) {
             for (Binding::ActionList* a = l->actionList; a != NULL; a = a->next) {
-                double value;
+                Action* action = commands.find(a->actionName);
+                if (action == NULL) {
+                    CTH_ERROR("Unknown command '%s' in keymap binding.\n",
+                        a->actionName);
+                    return 1;
+                }
+
+                double value = 0.0;
                 if (a->param)
                     sscanf(a->param, "%lf", &value);
 
-                a->action->act(a->param, value);
+                invocations.push_back(ActionInvocation(action, a->actionName,
+                    a->param, value));
             }
             return 0;
         }
@@ -466,126 +723,168 @@ int Keymap::action(int key) {
     return 1;
 }
 
-int Keymap::action(const char* keymap, int key) {
+int KeymapRegistry::actionsFor(const char* keymap, int key,
+    CommandRegistry& commands,
+    std::vector<ActionInvocation>& invocations) const {
 
-    for (Keymap* k = first; k; k = k->next) {
+    for (Keymap* k = firstValue; k; k = k->next) {
         if (strcasecmp(keymap, k->name) == 0) {
-            return k->action(key);
+            return k->actionsFor(key, commands, invocations);
         }
     }
     return 1;
 }
 
-void Keymap::add(const char* line) {
-    Binding b = parseBinding(line);
+void Keymap::add(const char* line, CommandRegistry& commands) {
+    Binding b = parseBinding(line, commands);
     if (b.key != 0)
         add(b);
-}
-
-void Keymap::set(const char* name) {
-
-    Keymap* k = first;
-    while (k) {
-        if (strcasecmp(name, k->name) == 0) {
-            current = k;
-            return;
-        }
-        k = k->next;
-    }
 }
 
 //
 // intializiation of the default keymaps
 //
-void Keymap::init() {
+void KeymapRegistry::init(const InputConfig& config,
+    CommandRegistry& commands) {
 
-    static Keymap defaultKM("default");
-    static Keymap mainKM("main");
-    static Keymap helpKM("Help");
-    static Keymap soundKM("sound");
-    static Keymap serverKM("server");
-    static Keymap playListKM("playList");
-    static Keymap optionsKM("Options");
-    static Keymap effectControlionsKM("EffectControls");
-    static Keymap listKM("list");
-
-    Keymap::addList(0,
+    addList(commands, 0,
 #include <default.keymap.str>
         NULL);
 
-    if (keymapFile[0] != '\0')
-        readFile(keymapFile);
+    if (!config.keymapFile.empty())
+        readFile(config.keymapFile.c_str(), commands);
 }
 
 //
 // all the actions implemented
 //
 
-ACTION(quit) { cthugha_close++; }
-ACTION(stopAndContinue) {
-    if (write_continuation_ini() == 0)
-        cthugha_close++;
+static void applyRuntimeCommand(const RuntimeCommand& command,
+    CommandContext& context) {
+    RuntimeCommandSink* sink = context.runtimeCommandSink();
+    if (sink != NULL)
+        sink->apply(command);
 }
 
-ACTION(screenChg) { screen.change(int(v), 0); }
-ACTION(zoomChg) { zoom.change(int(v)); }
-ACTION(flameChg) { sceneCommandsForLegacyCallbacks()->changeFlame(int(v)); }
-ACTION(flameGeneral) { sceneCommandsForLegacyCallbacks()->changeGeneralFlame(); }
-ACTION(waveChg) { sceneCommandsForLegacyCallbacks()->changeWave(int(v)); }
-ACTION(waveScaleChg) { sceneCommandsForLegacyCallbacks()->changeWaveScale(int(v)); }
-ACTION(objectChg) { sceneCommandsForLegacyCallbacks()->changeObject(int(v)); }
-ACTION(translateChg) { sceneCommandsForLegacyCallbacks()->changeTranslation(int(v)); }
-ACTION(soundProcessChg) { audioProcessing.change(int(v)); }
-ACTION(borderChg) { sceneCommandsForLegacyCallbacks()->changeBorder(int(v)); }
-ACTION(flashlightChg) { sceneCommandsForLegacyCallbacks()->changeFlashlight(int(v)); }
-ACTION(paletteChg) { sceneCommandsForLegacyCallbacks()->changePalette(int(v)); }
-ACTION(tableChg) { sceneCommandsForLegacyCallbacks()->changeTable(int(v)); }
-ACTION(imageChg) { sceneCommandsForLegacyCallbacks()->changeImage(int(v)); }
-ACTION(lockChg) { lock.change(+1); }
+ACTION(quit) { applyRuntimeCommand(RuntimeCommand::requestClose(), context); }
+ACTION(stopAndContinue) {
+    applyRuntimeCommand(RuntimeCommand::stopAndContinue(), context);
+}
 
-ACTION(screen) { screen.change(p, 0); }
-ACTION(zoom) { zoom.change(p); }
-ACTION(flame) { sceneCommandsForLegacyCallbacks()->changeFlame(p); }
-ACTION(wave) { sceneCommandsForLegacyCallbacks()->changeWave(p); }
-ACTION(waveScale) { sceneCommandsForLegacyCallbacks()->changeWaveScale(p); }
-ACTION(object) { sceneCommandsForLegacyCallbacks()->changeObject(p); }
-ACTION(translate) { sceneCommandsForLegacyCallbacks()->changeTranslation(p); }
-ACTION(soundProcess) { audioProcessing.change(p); }
-ACTION(border) { sceneCommandsForLegacyCallbacks()->changeBorder(p); }
-ACTION(flashlight) { sceneCommandsForLegacyCallbacks()->changeFlashlight(p); }
-ACTION(palette) { sceneCommandsForLegacyCallbacks()->changePalette(p); }
-ACTION(table) { sceneCommandsForLegacyCallbacks()->changeTable(p); }
-ACTION(image) { sceneCommandsForLegacyCallbacks()->changeImage(p); }
-ACTION(lock) { lock.change(+1); }
+ACTION(screenChg) { applyRuntimeCommand(RuntimeCommand::changeScreenBy(int(invocation.value)), context); }
+ACTION(zoomChg) { applyRuntimeCommand(RuntimeCommand::changeZoomBy(int(invocation.value)), context); }
+ACTION(flameChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneFlame, int(invocation.value)), context); }
+ACTION(flameGeneral) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneGeneralFlame, 0), context); }
+ACTION(waveChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneWave, int(invocation.value)), context); }
+ACTION(waveScaleChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneWaveScale, int(invocation.value)), context); }
+ACTION(objectChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneObject, int(invocation.value)), context); }
+ACTION(translateChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneTranslation, int(invocation.value)), context); }
+ACTION(soundProcessChg) { applyRuntimeCommand(RuntimeCommand::changeSoundProcessingBy(int(invocation.value)), context); }
+ACTION(borderChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneBorder, int(invocation.value)), context); }
+ACTION(flashlightChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneFlashlight, int(invocation.value)), context); }
+ACTION(paletteChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeScenePalette, int(invocation.value)), context); }
+ACTION(tableChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneTable, int(invocation.value)), context); }
+ACTION(imageChg) { applyRuntimeCommand(RuntimeCommand::changeSceneBy(RuntimeSceneImage, int(invocation.value)), context); }
+ACTION(lockChg) { applyRuntimeCommand(RuntimeCommand::toggleAutoChangeLock(), context); }
 
-ACTION(writeIni) { write_ini(); } // when net-sound: re-sent request to server
-ACTION(soundReset) { audioFrameChange(); }
-ACTION(printScreen) { displayDevice->printScreen(); }
+ACTION(screen) { applyRuntimeCommand(RuntimeCommand::changeScreenTo(invocation.param), context); }
+ACTION(zoom) { applyRuntimeCommand(RuntimeCommand::changeZoomTo(invocation.param), context); }
+ACTION(flame) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneFlame, invocation.param), context); }
+ACTION(wave) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneWave, invocation.param), context); }
+ACTION(waveScale) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneWaveScale, invocation.param), context); }
+ACTION(object) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneObject, invocation.param), context); }
+ACTION(translate) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneTranslation, invocation.param), context); }
+ACTION(soundProcess) { applyRuntimeCommand(RuntimeCommand::changeSoundProcessingTo(invocation.param), context); }
+ACTION(border) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneBorder, invocation.param), context); }
+ACTION(flashlight) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneFlashlight, invocation.param), context); }
+ACTION(palette) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeScenePalette, invocation.param), context); }
+ACTION(table) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneTable, invocation.param), context); }
+ACTION(image) { applyRuntimeCommand(RuntimeCommand::changeSceneTo(RuntimeSceneImage, invocation.param), context); }
+ACTION(lock) { applyRuntimeCommand(RuntimeCommand::toggleAutoChangeLock(), context); }
 
-ACTION(restore) { sceneCommandsForLegacyCallbacks()->restore(); }
-ACTION(toggleSave) { Interface::saveToPreset = 1 - Interface::saveToPreset; }
-ACTION(save) { sceneCommandsForLegacyCallbacks()->savePreset(int(v)); }
+ACTION(writeIni) { applyRuntimeCommand(RuntimeCommand::writeIni(), context); }
+
+ACTION(restore) { applyRuntimeCommand(RuntimeCommand::restoreScene(), context); }
+ACTION(toggleSave) {
+    context.runtime().toggleSaveToPreset();
+}
+ACTION(save) { applyRuntimeCommand(RuntimeCommand::savePreset(int(invocation.value)), context); }
 ACTION(saveOrRestore) {
-    if (Interface::saveToPreset) {
-        sceneCommandsForLegacyCallbacks()->savePreset(int(v));
-        Interface::saveToPreset = 0;
+    if (context.runtime().saveToPreset()) {
+        applyRuntimeCommand(RuntimeCommand::savePreset(int(invocation.value)), context);
+        context.runtime().clearSaveToPreset();
     } else {
-        sceneCommandsForLegacyCallbacks()->restorePreset(int(v));
+        applyRuntimeCommand(RuntimeCommand::restorePreset(int(invocation.value)), context);
     }
 }
 
-ACTION(toggleStatus) { Interface::showStatus = 1 - Interface::showStatus; }
-ACTION(toggleFPS) { showFPS.change(+1); }
+ACTION(toggleStatus) {
+    context.runtime().toggleStatus();
+}
+ACTION(toggleFPS) { applyRuntimeCommand(RuntimeCommand::toggleShowFps(), context); }
 
-ACTION(changeAll) { sceneCommandsForLegacyCallbacks()->changeAll(); }
-ACTION(changeOne) { sceneCommandsForLegacyCallbacks()->changeOne(); }
+ACTION(changeAll) { applyRuntimeCommand(RuntimeCommand::changeAll(), context); }
+ACTION(changeOne) { applyRuntimeCommand(RuntimeCommand::changeOne(), context); }
 
-ACTION(credits) { Interface::set("credits"); }
-ACTION(setInterface) { Interface::set(p); }
+ACTION(credits) {
+    context.runtime().set("credits");
+}
+ACTION(setInterface) {
+    context.runtime().set(invocation.param);
+}
 
 ACTION(randomPalette) {
-    sceneCommandsForLegacyCallbacks()->randomPalette();
+    applyRuntimeCommand(RuntimeCommand::randomPalette(), context);
 }
 ACTION(newRandomPalette) {
-    sceneCommandsForLegacyCallbacks()->addRandomPalette();
+    applyRuntimeCommand(RuntimeCommand::addRandomPalette(), context);
+}
+
+void registerDefaultKeyActions(CommandRegistry& registry) {
+#define REGISTER_ACTION(a) registry.registerAction(new a##Action())
+    REGISTER_ACTION(quit);
+    REGISTER_ACTION(stopAndContinue);
+    REGISTER_ACTION(screenChg);
+    REGISTER_ACTION(zoomChg);
+    REGISTER_ACTION(flameChg);
+    REGISTER_ACTION(flameGeneral);
+    REGISTER_ACTION(waveChg);
+    REGISTER_ACTION(waveScaleChg);
+    REGISTER_ACTION(objectChg);
+    REGISTER_ACTION(translateChg);
+    REGISTER_ACTION(soundProcessChg);
+    REGISTER_ACTION(borderChg);
+    REGISTER_ACTION(flashlightChg);
+    REGISTER_ACTION(paletteChg);
+    REGISTER_ACTION(tableChg);
+    REGISTER_ACTION(imageChg);
+    REGISTER_ACTION(lockChg);
+    REGISTER_ACTION(screen);
+    REGISTER_ACTION(zoom);
+    REGISTER_ACTION(flame);
+    REGISTER_ACTION(wave);
+    REGISTER_ACTION(waveScale);
+    REGISTER_ACTION(object);
+    REGISTER_ACTION(translate);
+    REGISTER_ACTION(soundProcess);
+    REGISTER_ACTION(border);
+    REGISTER_ACTION(flashlight);
+    REGISTER_ACTION(palette);
+    REGISTER_ACTION(table);
+    REGISTER_ACTION(image);
+    REGISTER_ACTION(lock);
+    REGISTER_ACTION(writeIni);
+    REGISTER_ACTION(restore);
+    REGISTER_ACTION(toggleSave);
+    REGISTER_ACTION(save);
+    REGISTER_ACTION(saveOrRestore);
+    REGISTER_ACTION(toggleStatus);
+    REGISTER_ACTION(toggleFPS);
+    REGISTER_ACTION(changeAll);
+    REGISTER_ACTION(changeOne);
+    REGISTER_ACTION(credits);
+    REGISTER_ACTION(setInterface);
+    REGISTER_ACTION(randomPalette);
+    REGISTER_ACTION(newRandomPalette);
+#undef REGISTER_ACTION
 }

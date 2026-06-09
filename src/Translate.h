@@ -5,8 +5,8 @@
 
 #include "TranslationTable.h"
 
-class CthughaBuffer;
-class VideoFrameContext;
+class FrameRenderTarget;
+class FrameGeneratorContext;
 
 /**
  * Runtime executor for one translation table.
@@ -39,9 +39,9 @@ public:
      *
      * @param buffer Active/passive indexed pixel buffer. Dimensions must match
      *        the translation table.
-     * @param context Current video frame context; currently unused by translate.
+     * @param context Current frame render context; currently unused by translate.
      */
-    void execute(CthughaBuffer& buffer, const VideoFrameContext& context) const;
+    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context) const;
 };
 
 #endif

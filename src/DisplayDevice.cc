@@ -1,31 +1,9 @@
 #include "cthugha.h"
 #include "DisplayDevice.h"
 #include "CthughaDisplay.h"
+#include "Configuration.h"
 #include "FramePalette.h"
-#include "defaults.h"
 #include "imath.h"
-
-#if HAVE_NCURSES == 1
-#if HAVE_NCURSES_H
-#include <ncurses.h>
-#else
-#if HAVE_NCURSES_NCURSES_H
-#include <ncurses/ncurses.h>
-#else
-#if HAVE_CURSES_H
-#include <curses.h>
-#else
-#if HAVE_NCURSES_CURSES_H
-#include <ncurses/curses.h>
-#endif
-#endif
-#endif
-#endif
-#endif
-
-DisplayDevice* displayDevice = NULL;
-
-int display_mode = DEFAULT_DISPLAY_MODE; /* predefined graphic mode to use */
 
 int bypp = 1; /* bytes per pixel */
 int bytes_per_line = 0;
@@ -74,8 +52,6 @@ int DisplayDevice::textColorRGB[][3] = {
 int DisplayDevice::textColor[3];
 int DisplayDevice::textColors = 3;
 
-int DisplayDevice::text_on_term = DEFAULT_DISPLAY_TEXT_ON_TERM;
-
 xy text_size(0, 0);
 
 xy fontSize(8, 8);
@@ -83,19 +59,9 @@ xy fontSize(8, 8);
 void DisplayDevice::prePrint() {
 
     textOnScreen = 0;
-#if HAVE_NCURSES == 1
-    if (text_on_term)
-        erase();
-#endif
 }
 
-void DisplayDevice::postPrint() {
-
-#if HAVE_NCURSES == 1
-    if (text_on_term)
-        refresh();
-#endif
-}
+void DisplayDevice::postPrint() { }
 
 void DisplayDevice::printString(
     int /*x*/, int /*y*/, const char* /*tex*/, int /*color*/, int /*len*/, int /*noDarken */) { }
@@ -103,18 +69,8 @@ void DisplayDevice::printString(
 double DisplayDevice::print(const char* text, double y, int justify, int color, int noDarken) {
 
     if (text_size.x == 0) {
-        if (text_on_term) {
-#if HAVE_NCURSES == 1
-            text_size.x = COLS;
-            text_size.y = LINES;
-#else
-            text_size.x = disp_size.x / fontSize.x;
-            text_size.y = disp_size.y / fontSize.y;
-#endif
-        } else {
-            text_size.x = disp_size.x / fontSize.x;
-            text_size.y = disp_size.y / fontSize.y;
-        }
+        text_size.x = disp_size.x / fontSize.x;
+        text_size.y = disp_size.y / fontSize.y;
     }
 
     const char* lineStart = text;
@@ -142,19 +98,8 @@ double DisplayDevice::print(const char* text, double y, int justify, int color, 
             x = 0;
         }
 
-        if (text_on_term) {
-#if HAVE_NCURSES == 1
-            attrset(color ? A_BOLD : A_NORMAL);
-            mvaddnstr(
-                (y >= 0) ? int(y) : int(text_size.y + y), x / fontSize.x, (char*)lineStart, len);
-#else
-            printString(x, (y >= 0) ? int(y * fontSize.y) : int(fontSize.y * (text_size.y + y)),
-                lineStart, color, len, noDarken);
-#endif
-        } else {
-            printString(x, (y >= 0) ? int(y * fontSize.y) : int(fontSize.y * (text_size.y + y)),
-                lineStart, color, len, noDarken);
-        }
+        printString(x, (y >= 0) ? int(y * fontSize.y) : int(fontSize.y * (text_size.y + y)),
+            lineStart, color, len, noDarken);
 
         lineStart = lineEnd + 1; // go to next line
         y += 1;

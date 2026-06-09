@@ -6,6 +6,7 @@
 #include <vector>
 
 class EffectControl;
+class EffectRegistry;
 
 class EffectPresetSlot {
     struct Value {
@@ -24,26 +25,28 @@ class EffectPresetSlot {
 public:
     void setValue(EffectControl& option, int selection);
     int value(const EffectControl& option) const;
-    void saveCurrentValues();
-    void restoreValues();
+    void saveCurrentValues(const EffectRegistry& registry);
+    void restoreValues(const EffectRegistry& registry);
 };
 
 class EffectPresetCatalog {
     static const int PresetSlotCount = 10;
 
+    EffectRegistry& registry;
     EffectPresetSlot slots[PresetSlotCount];
 
     int validSlot(int slot) const;
 
 public:
+    explicit EffectPresetCatalog(EffectRegistry& registry_);
+    virtual ~EffectPresetCatalog();
+
     int slotCount() const;
 
-    void save(int slot);
-    void restore(int slot);
-    void setValue(int slot, EffectControl& option, int selection);
-    int value(int slot, const EffectControl& option) const;
+    virtual void save(int slot);
+    virtual void restore(int slot);
+    virtual void setValue(int slot, EffectControl& option, int selection);
+    virtual int value(int slot, const EffectControl& option) const;
 };
-
-extern EffectPresetCatalog effectPresetCatalog;
 
 #endif

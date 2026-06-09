@@ -2,89 +2,93 @@
 #include "CthughaDisplay.h"
 #include "display.h"
 #include "DisplayDevice.h"
-#include "cth_buffer.h"
 #include "imath.h"
 #include "Interface.h"
+#include "InterfaceRuntime.h"
 #include "IndexedFrame.h"
+#include "DisplayPresentationOptions.h"
 #include "DisplayRuntime.h"
 #include "FpsOverlay.h"
 #include "OverlaySource.h"
+#include "ProcessServices.h"
 
 #include <stdint.h>
 
-class RecordingOverlayDisplayDevice : public DisplayDevice {
-    OverlaySink& sink;
-
-public:
-    explicit RecordingOverlayDisplayDevice(OverlaySink& sink_)
-        : DisplayDevice()
-        , sink(sink_) {
-    }
-
-    virtual double print(const char* text, double y, int justification,
-        int color, int noDarken = 0) {
-        return sink.printText(text, y, justification, color, noDarken);
-    }
-};
-
-class ScopedOverlayDisplayDevice {
-    DisplayDevice* previous;
-    RecordingOverlayDisplayDevice recorder;
-
-public:
-    explicit ScopedOverlayDisplayDevice(OverlaySink& sink)
-        : previous(displayDevice)
-        , recorder(sink) {
-        displayDevice = &recorder;
-    }
-
-    ~ScopedOverlayDisplayDevice() {
-        displayDevice = previous;
-    }
-};
-
 class CurrentInterfaceOverlayProducer : public OverlayProducer {
+    InterfaceRuntime& runtime;
+    OverlayLayout layout;
+    DisplayStatusSnapshot status;
+
 public:
+    CurrentInterfaceOverlayProducer(InterfaceRuntime& runtime_,
+        const OverlayLayout& layout_, const DisplayStatusSnapshot& status_)
+        : runtime(runtime_)
+        , layout(layout_)
+        , status(status_) {
+    }
+
     virtual void produceOverlay(OverlaySink& sink) {
-        Interface* currentInterface = Interface::current;
+        Interface* currentInterface = runtime.current();
         if (currentInterface == 0)
             return;
 
-        ScopedOverlayDisplayDevice scope(sink);
-        currentInterface->display();
+        OverlayRenderContext overlay(sink, layout, status);
+        currentInterface->display(runtime, overlay);
     }
 };
 
 class ErrorMessagesOverlayProducer : public OverlayProducer {
     ErrorMessages& errorMessages;
+    InterfaceRuntime& runtime;
+    OverlayLayout layout;
+    DisplayStatusSnapshot status;
 
 public:
-    explicit ErrorMessagesOverlayProducer(ErrorMessages& errorMessages_)
-        : errorMessages(errorMessages_) {
+    ErrorMessagesOverlayProducer(ErrorMessages& errorMessages_,
+        InterfaceRuntime& runtime_, const OverlayLayout& layout_,
+        const DisplayStatusSnapshot& status_)
+        : errorMessages(errorMessages_)
+        , runtime(runtime_)
+        , layout(layout_)
+        , status(status_) {
     }
 
     virtual void produceOverlay(OverlaySink& sink) {
-        ScopedOverlayDisplayDevice scope(sink);
-        errorMessages.display();
+        OverlayRenderContext overlay(sink, layout, status);
+        errorMessages.display(runtime, overlay);
     }
 };
 
-static OverlayCommands collectDisplayOverlays(double framesPerSecond) {
-    CurrentInterfaceOverlayProducer interfaceProducer;
-    ErrorMessagesOverlayProducer errorProducer(errors);
+static OverlayCommands collectDisplayOverlays(double framesPerSecond,
+    InterfaceRuntime& runtime, ErrorMessages& errorMessages,
+    const OverlayLayout& layout, const DisplayStatusSnapshot& status,
+    DisplayPresentationSettings& settings) {
+    CurrentInterfaceOverlayProducer interfaceProducer(runtime, layout, status);
+    ErrorMessagesOverlayProducer errorProducer(errorMessages, runtime, layout,
+        status);
     OverlaySource source(&interfaceProducer, &errorProducer);
     OverlayCommands overlays = source.collect();
-    FpsOverlay::append(overlays, framesPerSecond, int(showFPS));
+    FpsOverlay::append(overlays, framesPerSecond, int(settings.showFPS));
     return overlays;
 }
 
 std::unique_ptr<CthughaDisplay> newCthughaDisplay(
-    DisplayDevice& device, DisplayRuntime& runtime) {
-    return std::unique_ptr<CthughaDisplay>(new CthughaDisplayX11(device, runtime));
+    DisplayDevice& device, DisplayRuntime& runtime, SecondsClock& clock,
+    DisplayPresentationSettings& settings, InterfaceRuntime& interfaceRuntime,
+    ErrorMessages& errorMessages) {
+    return std::unique_ptr<CthughaDisplay>(
+        new CthughaDisplayX11(device, runtime, clock, settings,
+            interfaceRuntime, errorMessages));
 }
 
-CthughaDisplayX11::CthughaDisplayX11(DisplayDevice& device, DisplayRuntime& runtime)
-    : CthughaDisplay(device, runtime) {
+CthughaDisplayX11::CthughaDisplayX11(DisplayDevice& device,
+    DisplayRuntime& runtime, SecondsClock& clock_,
+    DisplayPresentationSettings& settings_, InterfaceRuntime& interfaceRuntime_,
+    ErrorMessages& errorMessages_)
+    : CthughaDisplay(device, runtime, clock_, settings_)
+    , clock(clock_)
+    , interfaceRuntime(interfaceRuntime_)
+    , errorMessages(errorMessages_) {
 }
 
 CthughaDisplayX11::~CthughaDisplayX11() {
@@ -96,7 +100,7 @@ void CthughaDisplayX11::operator()() {
     int traceDisplayTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
     double displayTiming[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     if (traceDisplayTiming)
-        displayTiming[0] = getTime();
+        displayTiming[0] = clock.nowSeconds();
 
     /*
      * Sync the palette before indexed pixels are expanded or copied. Waiting
@@ -105,18 +109,18 @@ void CthughaDisplayX11::operator()() {
      */
     target.setGlobalPalette();
     if (traceDisplayTiming)
-        displayTiming[1] = getTime();
+        displayTiming[1] = clock.nowSeconds();
 
     composePresentationFrame();
     if (traceDisplayTiming)
-        displayTiming[2] = getTime();
+        displayTiming[2] = clock.nowSeconds();
 
     /*
      * prepare the display device
      */
     target.preDraw();
     if (traceDisplayTiming)
-        displayTiming[3] = getTime();
+        displayTiming[3] = clock.nowSeconds();
 
     /*
      * The composer has already produced completed indexed pixels.  From this
@@ -127,7 +131,7 @@ void CthughaDisplayX11::operator()() {
 
     checkZoom();
     if (traceDisplayTiming)
-        displayTiming[4] = getTime();
+        displayTiming[4] = clock.nowSeconds();
 
     /*
      * clear the border around the image
@@ -135,9 +139,13 @@ void CthughaDisplayX11::operator()() {
     int borderClearRequested = target.textOnScreen || needsClear;
     clearBorder();
 
-    OverlayCommands overlays = collectDisplayOverlays(fps);
+    OverlayLayout overlayLayout(text_size.x, text_size.y, fontSize.x,
+        fontSize.y);
+    DisplayStatusSnapshot overlayStatus(status(), currentFrameDeltaSeconds());
+    OverlayCommands overlays = collectDisplayOverlays(fps, interfaceRuntime,
+        errorMessages, overlayLayout, overlayStatus, settings());
     if (traceDisplayTiming)
-        displayTiming[5] = getTime();
+        displayTiming[5] = clock.nowSeconds();
 
     /*
      * Transfer indexed pixels to backend-native display memory.
@@ -145,14 +153,14 @@ void CthughaDisplayX11::operator()() {
     stage.present(indexedDisplayFrameValue, displayViewport(),
         target.needsFullCopy, borderClearRequested, overlays);
     if (traceDisplayTiming)
-        displayTiming[6] = getTime();
+        displayTiming[6] = clock.nowSeconds();
 
     /*
      * make sure everything is really copied to the screen
      */
     target.postDraw();
     if (traceDisplayTiming) {
-        displayTiming[7] = getTime();
+        displayTiming[7] = clock.nowSeconds();
         const DisplayViewport& viewport = displayViewport();
         CTH_TRACE("x11 frame-ms=%.3f palette-ms=%.3f compose-ms=%.3f prepare-ms=%.3f viewport-ms=%.3f overlay-ms=%.3f transfer-clear-ms=%.3f post-ms=%.3f size=%dx%d draw=%dx%d\n",
             "display timing",

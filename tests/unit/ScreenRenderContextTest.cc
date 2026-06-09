@@ -1,26 +1,9 @@
+#include "AudioFrame.h"
 #include "IndexedFrameTestFixtures.h"
 #include "ScreenRenderContext.h"
+#include "FrameRenderContext.h"
 
 #include <assert.h>
-
-class CountingSelectionController : public ScreenSelectionController {
-public:
-    int calls;
-    int by;
-    int doSave;
-
-    CountingSelectionController()
-        : calls(0)
-        , by(0)
-        , doSave(0) {
-    }
-
-    virtual void change(int by_, int doSave_) {
-        calls++;
-        by = by_;
-        doSave = doSave_;
-    }
-};
 
 static void testRowAccessorsHonorSourceAndDestinationPitch() {
     IndexedFrameFixture source(5, 3, 8);
@@ -57,35 +40,53 @@ static void testFrameTimingValuesAreCopied() {
     assert(context.framesPerSecond() == 59.5);
 }
 
-static void testSelectionControllerReceivesRetryRequest() {
-    IndexedFrameFixture source(5, 3, 8);
-    IndexedDisplayFrame destination;
-    preparePaddedDestination(destination, 4, 2, 7, 0x5a);
-    CountingSelectionController controller;
-
-    ScreenRenderContext context(source.frame(), destination, 12.5, 0.125, 59.5,
-        &controller);
-
-    assert(context.requestScreenChange(+1, 0));
-    assert(controller.calls == 1);
-    assert(controller.by == +1);
-    assert(controller.doSave == 0);
-}
-
-static void testMissingSelectionControllerRejectsRetryRequest() {
+static void testAudioInputsDefaultToAbsent() {
     IndexedFrameFixture source(5, 3, 8);
     IndexedDisplayFrame destination;
     preparePaddedDestination(destination, 4, 2, 7, 0x5a);
 
     ScreenRenderContext context(source.frame(), destination, 12.5, 0.125, 59.5);
 
-    assert(!context.requestScreenChange(+1, 0));
+    assert(context.audioFrame() == 0);
+    assert(context.rawAudioData() == 0);
+    assert(context.processedWaveData() == 0);
+    assert(context.audioMetrics() == 0);
+    assert(context.acousticContext() == 0);
+}
+
+static void testAudioInputsAreBorrowedFromFrameRenderContext() {
+    IndexedFrameFixture source(5, 3, 8);
+    IndexedDisplayFrame destination;
+    preparePaddedDestination(destination, 4, 2, 7, 0x5a);
+    AudioFrame frame;
+    frame.raw[0][0] = 12;
+    frame.processedWaveData[0][0] = 34;
+    frame.metrics.amplitude = 56;
+
+    FrameRenderContext frameContext;
+    frameContext.audioFrame = &frame;
+    frameContext.rawAudioData = frame.raw;
+    frameContext.processedWaveData = frame.processedWaveData;
+    frameContext.audioMetrics = &frame.metrics;
+    frameContext.acousticContext = (const AcousticContext*)0x1234;
+
+    ScreenRenderContext context(source.frame(), destination, 12.5, 0.125, 59.5,
+        frameContext);
+
+    assert(context.audioFrame() == &frame);
+    assert(context.rawAudioData() == frame.raw);
+    assert(context.processedWaveData() == frame.processedWaveData);
+    assert(context.audioMetrics() == &frame.metrics);
+    assert(context.rawAudioData()[0][0] == 12);
+    assert(context.processedWaveData()[0][0] == 34);
+    assert(context.audioMetrics()->amplitude == 56);
+    assert(context.acousticContext() == (const AcousticContext*)0x1234);
 }
 
 int main() {
     testRowAccessorsHonorSourceAndDestinationPitch();
     testFrameTimingValuesAreCopied();
-    testSelectionControllerReceivesRetryRequest();
-    testMissingSelectionControllerRejectsRetryRequest();
+    testAudioInputsDefaultToAbsent();
+    testAudioInputsAreBorrowedFromFrameRenderContext();
     return 0;
 }

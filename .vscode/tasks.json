@@ -28,13 +28,13 @@
         ],
         "options": {
             "cwd": "${workspaceFolder}"
-        },
+        }, 
         "dependsOn": "CMake: configure",
         "group": {
             "kind": "build",
             "isDefault": true
         },
-        "problemMatcher": "$gcc"
+        "problemMatcher": "$msCompile"
     },
     {
         "label": "CMake: configure benchmarks",
@@ -68,7 +68,7 @@
             "cwd": "${workspaceFolder}"
         },
         "dependsOn": "CMake: configure benchmarks",
-        "problemMatcher": "$gcc"
+        "problemMatcher": "$msCompile"
     },
     {
         "label": "Benchmarks: run audio pipeline report",
@@ -84,7 +84,7 @@
             "cwd": "${workspaceFolder}"
         },
         "dependsOn": "CMake: configure benchmarks",
-        "problemMatcher": "$gcc"
+        "problemMatcher": "$msCompile"
     },
     {
         "label": "Benchmarks: quick audio pipeline report",
@@ -121,7 +121,7 @@
         "options": {
             "cwd": "${workspaceFolder}"
         },
-        "problemMatcher": "$gcc"
+        "problemMatcher": "$msCompile"
     },
     {
         "label": "Run xcthugha",

@@ -1,6 +1,7 @@
 #include "cthugha.h"
 #include "DefaultMessagesProvider.h"
 #include "MessageFormatValidator.h"
+#include "ProcessServices.h"
 
 static const char* defaultSilenceMessages[] = {
     "Where is the music?",
@@ -47,10 +48,11 @@ int DefaultMessagesProvider::count() const {
     return int(messages.size());
 }
 
-int DefaultMessagesProvider::randomMessage(std::string& message) const {
+int DefaultMessagesProvider::randomMessage(RandomSource& randomSource,
+    std::string& message) const {
     if (messages.empty())
         return 0;
 
-    message = messages[rand() % messages.size()];
+    message = messages[randomSource.uniformInt(int(messages.size()))];
     return 1;
 }

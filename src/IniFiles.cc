@@ -1,642 +1,333 @@
-#include "cthugha.h"
-#include "options.h"
-#include "display.h"
-#include "TranslationOptions.h"
-#include "information.h"
-#include "display.h"
-#include "EffectControlIni.h"
-#include "keys.h"
-#include "AutoChanger.h"
-#include "AudioProcessor.h"
-#include "CthughaBuffer.h"
-#include "CthughaDisplay.h"
-#include "VideoDirector.h"
-#include "defaults.h"
+/** @file
+ * Runtime ini persistence and continuation ini adapters.
+ */
 
-#include <unistd.h>
-#include <ctype.h>
+#include "IniFiles.h"
+
+#include "ProcessServices.h"
+
+#include <sstream>
 #include <string>
+#include <unistd.h>
 
-char extra_lib_path[PATH_MAX] = DEFAULT_EXTRA_LIBRARY_PATH; /* extra path to search for
-                                                               image, tab, map and ini */
-char ini_file_override[PATH_MAX] = DEFAULT_INI_FILE_OVERRIDE_PATH;
-
-FILE* ini_file = NULL; /* the currently open ini-file */
-static int ini_nr = -1;
-static char ini_file_path[PATH_MAX] = "";
-
-static const char* continuation_ini_file_name() {
-    static std::string fname;
+static std::string home_ini_file_name(const char* fileName) {
     const char* home = getenv("HOME");
 
     if (home == NULL)
-        return NULL;
+        return std::string();
 
-    fname = std::string(home) + "/.cthugha.continue";
-    return fname.c_str();
+    return std::string(home) + "/" + fileName;
 }
 
-/*
- * create the name of an ini file
- */
-const char* ini_file_name(int ini_nr) {
-    static std::string fname;
-    const char* var;
-
-    switch (ini_nr) {
-    case 0:
-        return (CTH_LIBDIR "/cthugha.ini");
-    case -1:
-    case 1:
-        if ((var = getenv("HOME")) == NULL)
-            return NULL;
-        fname = std::string(var) + "/.cthugha.auto";
-        return fname.c_str();
-    case 2:
-        if ((var = getenv("HOME")) == NULL)
-            return NULL;
-        fname = std::string(var) + "/.cthugha.ini";
-        return fname.c_str();
-    case 3:
-        return ("./cthugha.ini");
-        break;
-    case 4:
-        if (extra_lib_path[0] == '\0')
-            return NULL;
-        fname = std::string(extra_lib_path) + "cthugha.ini";
-        return fname.c_str();
-    default:
-        return NULL;
-    }
+static std::string automatic_ini_file_name() {
+    return home_ini_file_name(".cthugha.auto");
 }
 
-int open_ini_start() {
-    ini_nr = -1;
-    return 0;
+static std::string continuation_ini_file_name() {
+    return home_ini_file_name(".cthugha.continue");
 }
 
-/*
- * open the next ini file
- *returns:
- * 0 -> OK, 1 -> error
- */
-int open_ini_file() {
-    const char* fname;
+ContinuationIniConfig::ContinuationIniConfig()
+    : scene()
+    , showFpsEnabled(0) { }
 
-    ini_file_path[0] = '\0';
+class IniWriter {
+    FILE* fileValue;
 
-    if (ini_file_override[0] != '\0') {
-        if (ini_nr == -1) {
-            ini_nr = 0;
-            ini_file = fopen(ini_file_override, "r");
-            if (ini_file) {
-                strncpy(ini_file_path, ini_file_override, PATH_MAX);
-                ini_file_path[PATH_MAX - 1] = '\0';
-                return 0;
-            }
+public:
+    explicit IniWriter(FILE* file)
+        : fileValue(file) { }
 
-            CTH_ERRNO(errno, "Can not open ini file `%s'.", ini_file_override);
-        }
-        return 1;
+    void section(const char* text) {
+        fprintf(fileValue, "%s", text);
     }
 
-    for (ini_nr++; ini_nr < 6; ini_nr++) {
-        if (ini_nr == 5) {
-            ini_file = NULL;
-            return open_ini_sys();
-        }
-
-        fname = ini_file_name(ini_nr);
-        if (fname)
-            ini_file = fopen(fname, "r");
-        if (ini_file) {
-            strncpy(ini_file_path, fname, PATH_MAX);
-            ini_file_path[PATH_MAX - 1] = '\0';
-            return 0;
-        }
-    }
-    return 1;
-}
-
-static int ini_entry_name(const char* line, char* entry, int entry_size, int* malformed) {
-    const char* linep = line;
-    const char* colon;
-    const char* end;
-    int len;
-
-    *malformed = 0;
-
-    while (isspace(*linep))
-        linep++;
-
-    switch (*linep) {
-    case '#':
-    case '!':
-    case '\0':
-        return 0;
-    }
-
-    if (strncasecmp(linep, "cthugha.", 8) != 0)
-        return 0;
-
-    linep += 8;
-    colon = strchr(linep, ':');
-    if (colon == NULL) {
-        *malformed = 1;
-        strncpy(entry, linep, entry_size);
-        entry[entry_size - 1] = '\0';
-        return 1;
-    }
-
-    end = colon;
-    while ((end > linep) && isspace(end[-1]))
-        end--;
-
-    len = end - linep;
-    if (len >= entry_size)
-        len = entry_size - 1;
-
-    strncpy(entry, linep, len);
-    entry[len] = '\0';
-
-    return 1;
-}
-
-static const char* canonical_long_option_name(const struct option* opt) {
-    struct option* other;
-
-    for (other = long_options; other->name != NULL; other++) {
-        if ((other->flag == opt->flag) && (other->val == opt->val)
-            && (other->has_arg == opt->has_arg)) {
-            return other->name;
-        }
-    }
-
-    return opt->name;
-}
-
-static int is_long_option_ini_entry(const char* entry, const char** canonical) {
-    struct option* opt;
-
-    for (opt = long_options; opt->name != NULL; opt++) {
-        if (strcasecmp(entry, opt->name) == 0) {
-            *canonical = canonical_long_option_name(opt);
-            return strcasecmp(entry, *canonical) == 0;
-        }
-    }
-
-    *canonical = NULL;
-    return 0;
-}
-
-static void warn_unknown_ini_entries() {
-    int line_nr = 0;
-
-    if (ini_file == NULL)
-        return;
-
-    rewind(ini_file);
-
-    while (!feof(ini_file)) {
-        char line[256];
-        char entry[256];
-        const char* canonical;
-        int malformed;
-
-        line_nr++;
-        line[0] = '\0';
-        fgets(line, 256, ini_file);
-
-        if (!ini_entry_name(line, entry, sizeof(entry), &malformed))
-            continue;
-
-        if (malformed) {
-            CTH_WARN("Malformed ini directive `%s' in `%s' line %d.\n",
-                entry, ini_file_path, line_nr);
-            continue;
-        }
-
-        if (!is_long_option_ini_entry(entry, &canonical)) {
-            if (canonical) {
-                CTH_WARN("Unsupported ini directive `cthugha.%s' in `%s' line %d; use `cthugha.%s' instead.\n",
-                    entry, ini_file_path, line_nr, canonical);
-                continue;
-            }
-        } else {
-            continue;
-        }
-
-        if (!effectControlIsIniEntry(entry)) {
-            CTH_WARN("Unknown ini directive `cthugha.%s' in `%s' line %d.\n",
-                entry, ini_file_path, line_nr);
-        }
-    }
-}
-
-//
-// get a ini entry from the current in file
-//
-int getini(const char* entry, char* value) {
-    std::string name;
-    int line_nr;
-
-    /* build up name and class */
-    name = std::string("cthugha.") + entry;
-
-    if (ini_file == NULL) {
-        return get_ini_str_sys(name.c_str(), value);
-    }
-
-    rewind(ini_file);
-
-    line_nr = 0;
-
-    while (!feof(ini_file)) {
-        char line[256];
-        char* linep = line;
-        const char* namep = name.c_str();
-
-        line_nr++;
-        line[0] = '\0';
-
-        fgets(line, 256, ini_file); /* get one line */
-
-        while (isspace(*linep)) /* skip whitespace */
-            linep++;
-
-        switch (*linep) {
-        case '#':
-        case '!':
-        case '\0': /* comment or empty */
-            break;
-        default:
-            /* compare word by word */
-            while (((toupper(*namep) == toupper(*linep)) || (*linep == '?')) && (*namep != '\0')) {
-                if (*linep == '?') { /* wildcard */
-                    while ((*namep != '.') && (*namep != '\0'))
-                        namep++;
-                    linep++;
-                } else { /* compare word */
-                    namep++, linep++;
-                }
-            }
-
-            while (isspace(*linep)) /* skip whitespace */
-                linep++;
-
-            if ((*namep == '\0') && (*linep == ':')) { /* found entry */
-                linep++;
-                while (isspace(*linep)) /* skip whitespace */
-                    linep++;
-
-                if ((*linep != '\0') && (*linep != '!') && (*linep != '#')) { /* value is given */
-                    // copy everything till end of line or beginn of comment
-                    while ((*linep != '\0') && (*linep != '!') && (*linep != '#')) {
-                        *value = *linep;
-                        linep++;
-                        value++;
-                    }
-                    *value = '\0'; // set the last char to 0
-                    value--; // might be ! or # and step one left
-                    while (isspace(*value)) { // remove all trailing white spaces
-                        *value = '\0';
-                        value--;
-                    }
-                    return 0;
-                } else /* no value */
-                    return 1;
-            }
-        }
-    }
-
-    return 1;
-}
-int getini(const char* entry, int* value) {
-    char* pos;
-    char str[512];
-
-    if (getini(entry, str)) // get the entry
-        return 1;
-
-    /* try to read as number */
-    int tvalue = strtol(str, &pos, 0);
-    if (str == pos) { // not a number
-        CTH_ERROR("Not a number `%s' for entry `%s'.\n", str, entry);
-        return 1;
-    }
-
-    *value = tvalue;
-
-    return 0;
-}
-int getini_yesno(const char* entry, int* value) {
-    char str[512];
-
-    if (getini(entry, str))
-        return 1;
-
-    if (!strncasecmp("yes", str, 3))
-        *value = 1;
-    else if (!strncasecmp("on", str, 2))
-        *value = 1;
-    else if (!strncasecmp("1", str, 1))
-        *value = 1;
-    else if (!strncasecmp("no", str, 2))
-        *value = 0;
-    else if (!strncasecmp("off", str, 3))
-        *value = 0;
-    else if (!strncasecmp("0", str, 1))
-        *value = 0;
-    else if (!strncasecmp("disable", str, 7))
-        *value = 2;
-    else {
-        CTH_ERROR("Illegal value `%s' for entry `%s'.\n", str, entry);
-    }
-
-    return 0;
-}
-
-int getini(EffectControl& opt) {
-    char str[512];
-
-    if (getini(opt.name(), str))
-        return 1;
-
-    opt.setInitialEntry(str);
-    return 0;
-}
-
-/*
- * write a ini entry
- */
-int putini(const char* entry, const char* value) {
-    fprintf(ini_file, "Cthugha.%s: %s\n", entry, value);
-    return 0;
-}
-int putini(const Option& opt) { return putini(opt.name(), opt.text()); }
-
-/*
- *  Read settings from ini-file's
- */
-static void read_current_ini_initials() {
-    char str[256];
-    struct option* opt;
-
-    for (opt = long_options; opt->name != NULL; opt++) {
-        if (strcasecmp(opt->name, canonical_long_option_name(opt)) != 0)
-            continue;
-
-        if ((opt->flag == 0) || // no variable, must pass it to do_param
-            (opt->has_arg != 0)) { // has argument, must pass it to do_param
-            if (getini(opt->name, str) == 0) { // there is an entry in the ini-file
-                if ((strcasecmp(opt->name, "ini-file") == 0) && (ini_file != NULL)) {
-                    CTH_WARN("Ignoring `cthugha.ini-file' in `%s'; ini-file chaining is not supported. Use --ini-file on the command line.\n",
-                        ini_file_path);
-                    continue;
-                }
-                do_param(opt->val, atoi(str), str);
-            }
-        } else { // variable given, we must take care
-            getini_yesno(opt->name, opt->flag);
-        }
-    }
-
-    effectControlGetIniInitials();
-    warn_unknown_ini_entries();
-}
-
-static int read_continuation_ini() {
-    const char* fname = continuation_ini_file_name();
-    if (fname == NULL)
-        return 0;
-
-    ini_file = fopen(fname, "r");
-    if (ini_file == NULL)
-        return 0;
-
-    strncpy(ini_file_path, fname, PATH_MAX);
-    ini_file_path[PATH_MAX - 1] = '\0';
-
-    CTH_INFO("Loading continuation state from `%s'.\n", ini_file_path);
-    read_current_ini_initials();
-
-    fclose(ini_file);
-    ini_file = NULL;
-
-    if (unlink(fname) != 0) {
-        CTH_ERRNO(errno, "Can not remove continuation ini `%s'.", fname);
-        return 0;
-    }
-
-    CTH_DEBUG("Removed continuation ini `%s'.\n", fname);
-    return 0;
-}
-
-int read_ini() {
-    open_ini_start();
-    while (open_ini_file() == 0) {
-        read_current_ini_initials();
-
-        if (ini_file)
-            fclose(ini_file);
-    }
-
-    return read_continuation_ini();
-}
-
-/*
- * read per-entry usage flags and preset slots after effect catalogs exist
- */
-int read_effect_control_usage_and_presets() {
-
-    open_ini_start();
-    while (open_ini_file() == 0) {
-
-        effectControlGetIniUsages();
-        effectControlGetPresetIni();
-
-        /* close the ini-file */
-        if (ini_file)
-            fclose(ini_file);
-    }
-    return 0;
-}
-
-/*
- * move old ini-file to backup file
- * ~/.cthugha.auto -> ~/.cthugha.auto.old
- */
-static int move(const char* src, const char* dst) {
-
-    unlink(dst);
-
-    if (link(src, dst)) {
-        CTH_ERRNO(errno, "Can not make backup of %s", src);
-        return 1;
-    }
-
-    if (unlink(src)) {
-        CTH_ERRNO(errno, "Can not remove original %s", src);
-        return 1;
-    }
-    return 0;
-}
-
-static int is_in_ini(char* line) {
-    char* ptr;
-    int len;
-
-    /* only lines with values are interresting */
-    if ((ptr = strchr(line, ':')) == NULL)
-        return 1;
-
-    len = ptr - line;
-
-    rewind(ini_file);
-    while (!feof(ini_file)) {
-        char line2[256];
-
-        fgets(line2, 256, ini_file);
-        if (strncmp(line, line2, len) == 0) {
+    int put(const char* entry, const char* value) {
+        if (fileValue == NULL)
             return 1;
-        }
+
+        fprintf(fileValue, "Cthugha.%s: %s\n", entry, value);
+        return 0;
     }
+
+    FILE* file() const {
+        return fileValue;
+    }
+};
+
+int remove_continuation_ini(const PathConfig& paths, LogSink& log) {
+    if (paths.continuationIniFile.empty())
+        return 0;
+
+    if (unlink(paths.continuationIniFile.c_str()) == 0) {
+        log.debug("Removed continuation ini `%s'.\n",
+            paths.continuationIniFile.c_str());
+        return 0;
+    }
+
+    if (errno != ENOENT)
+        log.errorErrno(errno, "Can not remove continuation ini `%s'.",
+            paths.continuationIniFile.c_str());
+
     return 0;
 }
 
-/*
- *  Create the automatic ini-file
- */
-int write_ini() {
-    const char* fname = ini_file_name(-1);
-    std::string fnameDst;
-    FILE* f;
+static const char* yes_no(int value) {
+    return value ? "yes" : "no";
+}
 
-    fnameDst = std::string(fname) + ".old";
+static std::string integer_text(int value) {
+    char text[64];
+    snprintf(text, sizeof(text), "%d", value);
+    return text;
+}
 
-    /* make sure file exists */
-    if ((f = fopen(fname, "a")) == NULL) {
-        CTH_ERROR("Can not open ini file.");
+static std::string double_text(double value) {
+    std::ostringstream out;
+    out.precision(12);
+    out << value;
+    return out.str();
+}
+
+static std::string dimensions_text(int width, int height) {
+    return integer_text(width) + "x" + integer_text(height);
+}
+
+static void putini_int(IniWriter& writer, const char* entry, int value) {
+    std::string text = integer_text(value);
+    writer.put(entry, text.c_str());
+}
+
+static void putini_bool(IniWriter& writer, const char* entry, int value) {
+    writer.put(entry, yes_no(value));
+}
+
+static void putini_double(IniWriter& writer, const char* entry, double value) {
+    std::string text = double_text(value);
+    writer.put(entry, text.c_str());
+}
+
+static void putini_text_if_set(IniWriter& writer, const char* entry,
+    const std::string& value) {
+    if (!value.empty())
+        writer.put(entry, value.c_str());
+}
+
+static int begin_ini_output(const std::string& fname, const char* label,
+    std::string* tmpName, FILE** outFile, LogSink& log) {
+    if (fname.empty()) {
+        log.error("Can not create %s: HOME is not set.\n", label);
         return 1;
     }
-    fclose(f);
 
-    if (move(fname, fnameDst.c_str()))
+    *tmpName = fname + ".tmp";
+    FILE* out = fopen(tmpName->c_str(), "w");
+    if (out == NULL) {
+        log.errorErrno(errno, "Can not create %s `%s'.", label,
+            tmpName->c_str());
         return 1;
+    }
 
-    if ((ini_file = fopen(fname, "w+")) == NULL)
+    *outFile = out;
+    return 0;
+}
+
+static int finish_ini_output(const std::string& fname, const char* label,
+    const std::string& tmpName, FILE* outFile, LogSink& log) {
+    int write_error = ferror(outFile);
+    int close_error = fclose(outFile);
+
+    if (write_error || close_error) {
+        unlink(tmpName.c_str());
+        log.error("Can not write %s `%s'.\n", label, tmpName.c_str());
         return 1;
+    }
 
-    /* write header */
-    fprintf(ini_file,
+    if (rename(tmpName.c_str(), fname.c_str()) != 0) {
+        unlink(tmpName.c_str());
+        log.errorErrno(errno, "Can not install %s `%s'.", label,
+            fname.c_str());
+        return 1;
+    }
+
+    return 0;
+}
+
+static void write_scene_config_ini(IniWriter& writer, const SceneConfig& scene) {
+    writer.section(
+        "#\n"
+        "# Scene Controls\n"
+        "#\n");
+    putini_text_if_set(writer, "flame", scene.flame);
+    putini_text_if_set(writer, "flame-general", scene.generalFlame);
+    putini_text_if_set(writer, "wave", scene.wave);
+    putini_text_if_set(writer, "wave-scale", scene.waveScale);
+    putini_text_if_set(writer, "object", scene.object);
+    putini_text_if_set(writer, "translation", scene.translation);
+    putini_text_if_set(writer, "palette", scene.palette);
+    putini_text_if_set(writer, "border", scene.border);
+    putini_text_if_set(writer, "flashlight", scene.flashlight);
+    putini_text_if_set(writer, "table", scene.table);
+    putini_text_if_set(writer, "image", scene.image);
+    putini_text_if_set(writer, "display", scene.presentation);
+    putini_text_if_set(writer, "sound-processing", scene.audioProcessing);
+}
+
+static void write_transition_policy_ini(IniWriter& writer,
+    const SceneTransitionPolicy& policy) {
+    writer.section(
+        "#\n"
+        "# Scene Transition Policy\n"
+        "#\n");
+    putini_double(writer, "palette-smoothing", policy.paletteSmoothingChance);
+    putini_int(writer, "palette-smooth-seconds", policy.paletteSmoothSeconds);
+}
+
+static void write_audio_analysis_config_ini(IniWriter& writer,
+    const AudioAnalysisConfig& audioAnalysis) {
+    writer.section(
+        "#\n"
+        "# Audio Analysis\n"
+        "#\n");
+    putini_int(writer, "min-noise", audioAnalysis.minNoise);
+}
+
+static void write_auto_change_config_ini(IniWriter& writer,
+    const AutoChangeConfig& autoChange) {
+    writer.section(
+        "#\n"
+        "# Timing/Automatic Changer Options\n"
+        "#\n");
+    putini_int(writer, "min-time", autoChange.waitMinMs);
+    putini_int(writer, "random-time", autoChange.waitRandomMs);
+    putini_int(writer, "quiet-change", autoChange.quietMs);
+    putini_int(writer, "cumulative-fire-level",
+        autoChange.cumulativeFireLevel);
+    putini_bool(writer, "lock", autoChange.locked);
+    putini_bool(writer, "little", autoChange.changeLittle);
+}
+
+static void write_messages_config_ini(IniWriter& writer,
+    const MessagesConfig& messages) {
+    writer.section(
+        "#\n"
+        "# Messages\n"
+        "#\n");
+    putini_int(writer, "change-msg-time", messages.quietMessageMs);
+    putini_int(writer, "quiet-message-duration-ms",
+        messages.quietMessageDurationMs);
+    putini_text_if_set(writer, "quiet-file", messages.quietMessageFile);
+    putini_bool(writer, "qotd", messages.qotdEnabled);
+    putini_int(writer, "qotd-prefetch-timeout-ms",
+        messages.qotdPrefetchTimeoutMs);
+    putini_text_if_set(writer, "qotd-server", messages.qotdServer);
+    putini_text_if_set(writer, "qotd-port", messages.qotdPort);
+}
+
+static void write_display_config_ini(IniWriter& writer,
+    const DisplayConfig& display) {
+    writer.section(
+        "#\n"
+        "# Display\n"
+        "#\n");
+    if (display.hasCustomDisplaySize)
+        writer.put("disp-mode",
+            dimensions_text(display.displayWidth, display.displayHeight).c_str());
+    else
+        putini_int(writer, "disp-mode", display.displayMode);
+
+    writer.put("buff-size",
+        dimensions_text(display.bufferWidth, display.bufferHeight).c_str());
+    putini_int(writer, "max-fps", display.maxFramesPerSecond);
+    putini_bool(writer, "show-fps", display.showFpsEnabled);
+    putini_int(writer, "zoom", display.zoomMode);
+}
+
+static void write_effect_policy_ini(IniWriter& writer,
+    const EffectPolicy& policy) {
+    writer.section(
+        "#\n"
+        "# Effect Policy\n"
+        "#\n");
+    putini_bool(writer, "images", policy.imageFilesEnabled);
+    putini_text_if_set(writer, "palette-set", policy.paletteSetFilterText);
+    putini_bool(writer, "trans", policy.useTranslatesEnabled);
+    putini_bool(writer, "use-objects", policy.useObjectsEnabled);
+
+    for (std::vector<EffectChoicePolicy>::const_iterator it
+             = policy.allowedChoices.begin();
+         it != policy.allowedChoices.end(); ++it) {
+        putini_bool(writer, it->catalogEntryKey.c_str(), it->enabled);
+    }
+
+    writer.section(
+        "#\n"
+        "# Effect Control Preset Slots\n"
+        "#\n");
+    for (std::vector<EffectPresetPolicy>::const_iterator it
+             = policy.presets.begin();
+         it != policy.presets.end(); ++it) {
+        std::string key = "preset." + integer_text(it->slot) + "."
+            + it->catalogName;
+        writer.put(key.c_str(), it->choiceText.c_str());
+    }
+}
+
+int write_ini(const Config& config, LogSink& log) {
+    std::string fname = automatic_ini_file_name();
+    std::string tmpName;
+    FILE* outFile = NULL;
+    if (begin_ini_output(fname, "automatic ini", &tmpName, &outFile, log))
+        return 1;
+    IniWriter writer(outFile);
+
+    writer.section(
         "#\n"
         "# .cthugha.auto\n"
         "#\n"
         "# This file was created automatically, please do not edit.\n"
         "#\n");
 
-    fprintf(ini_file,
-        "#\n"
-        "# Effect Controls\n"
-        "#\n");
-    effectControlPutIniInitials();
-    putini(audioProcessing);
+    write_scene_config_ini(writer, config.scene);
+    write_transition_policy_ini(writer, config.sceneTransition);
+    write_audio_analysis_config_ini(writer, config.audioAnalysis);
+    write_auto_change_config_ini(writer, config.autoChange);
+    write_messages_config_ini(writer, config.messages);
+    write_display_config_ini(writer, config.display);
+    write_effect_policy_ini(writer, config.effectPolicy);
 
-    fprintf(ini_file,
-        "#\n"
-        "# Timing/Automatic changer Options\n"
-        "#\n");
-    putini(changeWaitMin);
-    putini(changeWaitRandom);
-    putini(changeCumulativeFireLevel);
-    putini(changeQuiet);
-    putini(changeMsgTime);
-
-    putini(lock);
-    putini(change_little);
-    putini(showFPS);
-
-    fprintf(ini_file,
-        "#\n"
-        "# Effect Control usage options\n"
-        "#\n");
-    effectControlPutIniUsages();
-
-    fprintf(ini_file,
-        "#\n"
-        "# Effect Control preset slots\n"
-        "#\n");
-    effectControlPutPresetIni();
-
-    /*
-     * copy old settings
-     */
-    if ((f = fopen(fnameDst.c_str(), "r")) == NULL) {
-        CTH_ERROR("Can not open backup file");
+    if (finish_ini_output(fname, "automatic ini", tmpName, outFile, log))
         return 1;
-    }
 
-    /* check for all files, if they are in the ini file */
-    while (!feof(f)) {
-        char line[PATH_MAX];
-
-        fgets(line, PATH_MAX, f);
-        if (!is_in_ini(line)) {
-            fseek(ini_file, 0, SEEK_END);
-            fputs(line, ini_file);
-        }
-    }
-
-    fclose(f);
-    fclose(ini_file);
-
+    log.info("Saved startup configuration to `%s'.\n", fname.c_str());
     return 0;
 }
 
-int write_continuation_ini() {
-    const char* fname = continuation_ini_file_name();
-    if (fname == NULL) {
-        CTH_ERROR("Can not create continuation ini: HOME is not set.\n");
+int write_continuation_ini(const ContinuationIniConfig& config, LogSink& log) {
+    std::string fname = continuation_ini_file_name();
+    std::string tmpName;
+    FILE* outFile = NULL;
+    if (begin_ini_output(fname, "continuation ini", &tmpName, &outFile, log))
         return 1;
-    }
+    IniWriter writer(outFile);
 
-    std::string tmpName = std::string(fname) + ".tmp";
-    FILE* previous_ini_file = ini_file;
-    FILE* out = fopen(tmpName.c_str(), "w");
-    if (out == NULL) {
-        CTH_ERRNO(errno, "Can not create continuation ini `%s'.", tmpName.c_str());
-        return 1;
-    }
-
-    ini_file = out;
-    fprintf(ini_file,
+    writer.section(
         "#\n"
         "# .cthugha.continue\n"
         "#\n"
         "# One-shot stop-and-continue state. Cthugha deletes this file after startup.\n"
-        "#\n"
-        "# Effect Controls\n"
         "#\n");
-    effectControlPutIniInitials();
-    putini(audioProcessing);
-    putini(showFPS);
 
-    int write_error = ferror(ini_file);
-    int close_error = fclose(ini_file);
-    ini_file = previous_ini_file;
+    write_scene_config_ini(writer, config.scene);
+    writer.section(
+        "#\n"
+        "# Display\n"
+        "#\n");
+    putini_bool(writer, "show-fps", config.showFpsEnabled);
 
-    if (write_error || close_error) {
-        unlink(tmpName.c_str());
-        CTH_ERROR("Can not write continuation ini `%s'.\n", tmpName.c_str());
+    if (finish_ini_output(fname, "continuation ini", tmpName, outFile, log))
         return 1;
-    }
 
-    if (rename(tmpName.c_str(), fname) != 0) {
-        unlink(tmpName.c_str());
-        CTH_ERRNO(errno, "Can not install continuation ini `%s'.", fname);
-        return 1;
-    }
-
-    CTH_INFO("Saved continuation state to `%s'.\n", fname);
+    log.info("Saved continuation state to `%s'.\n", fname.c_str());
     return 0;
 }

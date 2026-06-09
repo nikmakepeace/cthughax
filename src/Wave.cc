@@ -1,45 +1,46 @@
 // Wave catalog entries, runtime facade, and shared lookup tables.
 
 #include "Wave.h"
-#include "VideoFilterchain.h"
+#include "ProcessServices.h"
+#include "FrameGeneratorContext.h"
 
 #include <math.h>
 
-void wave_dotHor(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_dotVert(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_lineHor(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_lineVert(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_spike(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_spikeH(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_buff9(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_buff10(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_buff11(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_buff14(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_buff15(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_buff16(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_pete0(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_pete1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_pete2(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_fract1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_fract2(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_test(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_aaron(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_wire1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_wire1dot5(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_wire1dot55(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_wire1dot6(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_wire2(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_wire2dot1(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_lineHLdiff(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_spiral(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_pyro(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_warp(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_laser(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_corner(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_jump(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_sticks(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_grid(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
-void wave_none(CthughaBuffer& buffer, const VideoFrameContext& context, WaveRuntime& runtime);
+void wave_dotHor(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_dotVert(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_lineHor(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_lineVert(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_spike(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_spikeH(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff9(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff10(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff11(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff14(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff15(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff16(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pete0(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pete1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pete2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_test(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_aaron(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1dot5(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1dot55(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1dot6(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire2dot1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_lineHLdiff(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_spiral(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pyro(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_warp(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_laser(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_corner(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_jump(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_sticks(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_grid(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_none(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
 
 static int waveCanAlwaysRun(const WaveConfig& config) {
     (void)config;
@@ -97,11 +98,46 @@ const int* WaveLookupTables::sineForWidth(int width) {
     return &sineValues[0];
 }
 
+int WaveLookupTables::legacySine(int index) {
+    if (legacySineValues.empty()) {
+        legacySineValues.resize(320);
+        for (int i = 0; i < 320; i++)
+            legacySineValues[i] = (int)(128 * sin((double)i * 0.03927));
+    }
+
+    index %= 320;
+    if (index < 0)
+        index += 320;
+
+    return legacySineValues[index];
+}
+
+double WaveLookupTables::sineDegrees(int degrees) {
+    if (degreeSineValues.empty()) {
+        degreeSineValues.resize(360);
+        for (int i = 0; i < 360; i++)
+            degreeSineValues[i] = sin((double)i * (2.0 * M_PI / 360.0));
+    }
+
+    degrees %= 360;
+    if (degrees < 0)
+        degrees += 360;
+
+    return degreeSineValues[degrees];
+}
+
+double WaveLookupTables::cosineDegrees(int degrees) {
+    return sineDegrees(degrees + 90);
+}
+
 WaveRuntime::WaveRuntime(const WaveConfig& config, int needsConfiguration_,
-    WaveState& state_, WaveLookupTables& lookupTables_, int fireBudget)
+    WaveState& state_, WaveLookupTables& lookupTables_, RandomSource& randomSource_,
+    LogSink& log, int fireBudget)
     : needsConfigurationValue(needsConfiguration_)
     , stateValue(state_)
     , lookupTables(lookupTables_)
+    , randomSource(randomSource_)
+    , logValue(log)
     , fireBudgetValue(fireBudget)
     , waveScale(config.waveScale)
     , table(config.table)
@@ -130,6 +166,35 @@ const int* WaveRuntime::sineForWidth(int width) {
     return lookupTables.sineForWidth(width);
 }
 
+int WaveRuntime::legacySine(int index) {
+    return lookupTables.legacySine(index);
+}
+
+double WaveRuntime::sineDegrees(int degrees) const {
+    return lookupTables.sineDegrees(degrees);
+}
+
+double WaveRuntime::cosineDegrees(int degrees) const {
+    return lookupTables.cosineDegrees(degrees);
+}
+
+int WaveRuntime::randomInt(int exclusiveMax) {
+    return randomSource.uniformInt(exclusiveMax);
+}
+
+int WaveRuntime::randomCenteredInt(int magnitude) {
+    return randomInt(magnitude * 2 + 1) - magnitude;
+}
+
+double WaveRuntime::randomUnit() {
+    static const int scale = 0x1000000;
+    return double(randomInt(scale)) / double(scale - 1);
+}
+
+LogSink& WaveRuntime::log() const {
+    return logValue;
+}
+
 Wave::Wave(Function function, const char* name, const char* description,
     CanRunFunction canRunFunction)
     : functionValue(function)
@@ -149,13 +214,14 @@ int Wave::canRun(const WaveConfig& config) const {
     return (*canRunFunctionValue)(config);
 }
 
-void Wave::execute(CthughaBuffer& buffer, const VideoFrameContext& context,
+void Wave::execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
     const WaveConfig& config, int needsConfiguration, WaveState& state,
-    WaveLookupTables& lookupTables) const {
+    WaveLookupTables& lookupTables, RandomSource& randomSource,
+    LogSink& log) const {
     if (functionValue != 0) {
-        int fireBudget = (context.acousticContext != 0) ? context.acousticContext->fire() : 0;
+        int fireBudget = context.audioAnalysis().fire();
         WaveRuntime runtime(config, needsConfiguration, state,
-            lookupTables, fireBudget);
+            lookupTables, randomSource, log, fireBudget);
         (*functionValue)(buffer, context, runtime);
     }
 }

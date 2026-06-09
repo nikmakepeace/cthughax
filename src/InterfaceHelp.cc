@@ -1,52 +1,55 @@
 #include "cthugha.h"
 #include "Interface.h"
+#include "InterfaceRuntime.h"
 #include "display.h"
 #include "keys.h"
-#include "CthughaDisplay.h"
-#include "DisplayDevice.h"
+#include "OverlaySource.h"
+#include "keymap.h"
 
 class InterfaceHelp : public Interface {
     static const char* text[];
     static int nLines;
-    double pos;
-    int scrolling;
 
 public:
     InterfaceHelp()
-        : Interface("help", "Cthugha Help", NULL)
-        , pos(0)
-        , scrolling(0) { };
-    virtual void display() {
-        Interface::display();
+        : Interface("help", "Cthugha Help", NULL) { };
+    virtual void display(InterfaceRuntime& runtime,
+        OverlayRenderContext& overlay) {
+        Interface::display(runtime, overlay);
 
-        if (scrolling) {
-            pos = pos + deltaT * 4.0;
+        if (runtime.helpScrolling()) {
+            runtime.advanceHelpScroll(
+                overlay.status().frameDeltaSeconds() * 4.0);
         }
 
-        for (int i = 0; i < (text_size.y - 2); i++) {
+        const double pos = runtime.helpScrollPosition();
+        for (int i = 0; i < (overlay.textRows() - 2); i++) {
             int L = (int(pos) + i) % nLines;
             if (L < 0)
                 continue;
-            displayDevice->print(text[L] + 1, 3 - pos + int(pos) + i, 'l', text[L][0]);
+            overlay.printText(text[L] + 1, 3 - pos + int(pos) + i, 'l',
+                text[L][0]);
         }
     }
 
-    friend class toggleScrollingAction;
-    friend class scrollUpAction;
-    friend class scrollDownAction;
+    static int lineCount() { return nLines; }
 
-} interfaceHelp;
+};
 
-ACTION(toggleScrolling) { interfaceHelp.scrolling = !interfaceHelp.scrolling; }
+ACTION(toggleScrolling) { context.runtime().toggleHelpScrolling(); }
 ACTION(scrollUp) {
-    interfaceHelp.pos -= 1;
-    if (interfaceHelp.pos < 0)
-        interfaceHelp.pos += interfaceHelp.nLines;
-    interfaceHelp.scrolling = 0;
+    context.runtime().scrollHelpBy(-1.0, InterfaceHelp::lineCount());
 }
 ACTION(scrollDown) {
-    interfaceHelp.pos += 1;
-    interfaceHelp.scrolling = 0;
+    context.runtime().scrollHelpBy(1.0, InterfaceHelp::lineCount());
+}
+
+void registerHelpKeyActions(CommandRegistry& registry) {
+#define REGISTER_ACTION(a) registry.registerAction(new a##Action())
+    REGISTER_ACTION(toggleScrolling);
+    REGISTER_ACTION(scrollUp);
+    REGISTER_ACTION(scrollDown);
+#undef REGISTER_ACTION
 }
 
 #define N "\000"
@@ -90,8 +93,8 @@ const char* InterfaceHelp::text[] = {
     N "g/G     : change general flame table   \n",
     N "d/D     : next/prev display            \n",
     N "p/P     : next/prev palette            \n",
-    N "r       : randomize palette            \n",
-    N "R       : add new random palette       \n",
+    N "r       : re-roll current random map   \n",
+    N "R       : add saved random palette     \n",
     N "t/T     : next/prev translate          \n",
     N "x/X     : show current image and change\n",
     N "j/J     : next/prev object (used by some waves)\n",
@@ -117,7 +120,6 @@ const char* InterfaceHelp::text[] = {
     N "n/N     : update sound device          \n",
     N "a/A     : save current setup to        \n",
     N "          ~/.cthugha.auto              \n",
-    N "#       : print screen (without text)  \n",
     N "                                       \n",
     N "q/ESC: Exit                            \n",
     N "                                       \n",
@@ -131,3 +133,7 @@ const char* InterfaceHelp::text[] = {
     N "                                       \n",
 };
 int InterfaceHelp::nLines = sizeof(InterfaceHelp::text) / sizeof(const char*);
+
+void registerHelpInterface(InterfaceRuntime& runtime) {
+    runtime.registerOwnedInterface(new InterfaceHelp());
+}

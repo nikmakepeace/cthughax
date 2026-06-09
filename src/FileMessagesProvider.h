@@ -19,7 +19,7 @@ public:
     double selectionChance() const;
 
     int count() const override;
-    int randomMessage(std::string& message) const override;
+    int randomMessage(RandomSource& randomSource, std::string& message) const override;
 };
 
 #endif

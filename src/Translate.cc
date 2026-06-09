@@ -1,8 +1,7 @@
 // Runtime coordinate remap executor used by TranslateFilter.
 
-#include "cthugha.h"
 #include "Translate.h"
-#include "CthughaBuffer.h"
+#include "FrameRenderTarget.h"
 
 Translate::Translate()
     : tableValue() { }
@@ -18,12 +17,8 @@ int Translate::ready() const {
     return tableValue.ready();
 }
 
-void Translate::execute(CthughaBuffer& buffer, const VideoFrameContext& context) const {
+void Translate::execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context) const {
     (void)context;
-
-    int i;
-    unsigned int* dst;
-    unsigned char* src;
 
     if (!ready())
         return;
@@ -35,35 +30,17 @@ void Translate::execute(CthughaBuffer& buffer, const VideoFrameContext& context)
     const int* trans = tableValue.data();
 
     buffer.swapBuffers();
-    dst = (unsigned int*)buffer.activePixels();
-    src = buffer.passivePixels();
+    unsigned char* src = buffer.passivePixels();
 
     src[0] = 0;
 
-    // thanks to Antonio Schifano (schifano@cli.di.unipi.it)
-    // for finding the endianess bug here
-
-#if (__BYTE_ORDER == __BIG_ENDIAN)
-    /* always write 4 values at once */
-    for (i = tableValue.size() / 4; i != 0; i--) { /* do the translation */
-        unsigned int D = src[*trans++];
-        D <<= 8;
-        D += src[*trans++];
-        D <<= 8;
-        D += src[*trans++];
-        D <<= 8;
-        *dst++ = D + src[*trans++];
+    for (int y = 0; y < buffer.height(); y++) {
+        unsigned char* dst = buffer.activeRow(y);
+        for (int x = 0; x < buffer.width(); x++) {
+            int sourceIndex = *trans++;
+            int sourceX = sourceIndex % buffer.width();
+            int sourceY = sourceIndex / buffer.width();
+            dst[x] = src[buffer.visibleOffset(sourceX, sourceY)];
+        }
     }
-#elif (__BYTE_ORDER == __LITTLE_ENDIAN)
-    for (i = tableValue.size() / 4; i != 0; i--) { /* do the translation */
-        unsigned int D = src[trans[0]];
-        D += src[trans[1]] << 8;
-        D += src[trans[2]] << 16;
-        *dst = D + (src[trans[3]] << 24);
-        trans += 4;
-        dst++;
-    }
-// #elif
-// #error unknown endianess
-#endif
 }

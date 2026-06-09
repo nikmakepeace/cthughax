@@ -1,57 +1,42 @@
 #include "cthugha.h"
 #include "CthughaDisplay.h"
-#include "CthughaBuffer.h"
 #include "display.h"
 #include "DisplayDevice.h"
+#include "DisplayPresentationOptions.h"
 #include "DisplayRuntime.h"
-#include "FrameClock.h"
-#include "cth_buffer.h"
+#include "Configuration.h"
 #include "imath.h"
 #include "Interface.h"
 #include "IndexedFrame.h"
 #include "Screen.h"
+#include "FrameRenderContext.h"
 #include "ViewportPolicy.h"
 #include "ViewportPresentation.h"
 
 #include <stdint.h>
 
-// The active display coordinator.  The selected frontend supplies
-// newCthughaDisplay(), so this points at the X11 display subclass.
-CthughaDisplay* cthughaDisplay = NULL;
-
 CthughaDisplay::~CthughaDisplay() { }
-
-OptionInt maxFramesPerSecond("maxFPS", DEFAULT_MAX_FRAMES_PER_SECOND);
-OptionOnOff showFPS("show-fps", DEFAULT_SHOW_FPS_ENABLED);
-
-OptionInt zoom("zoom", DEFAULT_ZOOM_MODE, ZOOM_MODE_MAX_EXCLUSIVE);
-
-// Frame clock shared by animation, sound processing, and display effects.
-// nextFrame() updates these before the rest of the frame runs.
-double now = 0;
-double deltaT = 0;
-
-static SystemFrameTimeSource systemFrameTimeSource;
-static FrameClock frameClock(systemFrameTimeSource);
 
 class GlobalPresentationScreenSelection : public PresentationScreenSelection {
 public:
     virtual ScreenEntry* current() {
         return (ScreenEntry*)screen.current();
     }
-
-    virtual void change(int by, int doSave) {
-        screen.change(by, doSave);
-    }
 };
 
-CthughaDisplay::CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime)
+CthughaDisplay::CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime,
+    SecondsClock& clock, DisplayPresentationSettings& settings)
     : deviceValue(device)
     , runtimeValue(runtime)
+    , presentationSettingsValue(settings)
     , sourceFrame(0)
+    , presentationContextValue(0)
     , indexedDisplayFrameValue()
     , presentationComposer()
     , displayViewportValue()
+    , frameClockValue(clock)
+    , frameNowValue(0.0)
+    , frameDeltaTValue(0.0)
     , buffer0(0)
     , visualLatencyEstimate(0)
     , buffer(0)
@@ -70,37 +55,54 @@ void CthughaDisplay::present(const IndexedFrame& frame) {
     sourceFrame = &frame;
     if (frame.framePalette != NULL)
         device().setFramePalette(frame.framePalette);
+    presentSourceWithContext(0);
+}
+
+void CthughaDisplay::present(const IndexedFrame& frame,
+    const FrameRenderContext& context) {
+    if (!frame.valid()) {
+        sourceFrame = NULL;
+        return;
+    }
+
+    sourceFrame = &frame;
+    if (frame.framePalette != NULL)
+        device().setFramePalette(frame.framePalette);
+    presentSourceWithContext(&context);
+}
+
+void CthughaDisplay::presentSourceWithContext(const FrameRenderContext* context) {
+    presentationContextValue = context;
     (*this)();
+    presentationContextValue = 0;
 }
 
 const unsigned char* CthughaDisplay::sourcePixels() const {
     if (sourceFrame != NULL && sourceFrame->valid())
         return sourceFrame->pixels;
 
-    // Legacy fallback for code paths that still call operator() without first
-    // publishing an IndexedFrame through present().
-    return CthughaBuffer::current->passivePixels();
+    return NULL;
 }
 
 int CthughaDisplay::sourceWidth() const {
     if (sourceFrame != NULL && sourceFrame->valid())
         return sourceFrame->width;
 
-    return CthughaBuffer::current->width();
+    return 0;
 }
 
 int CthughaDisplay::sourceHeight() const {
     if (sourceFrame != NULL && sourceFrame->valid())
         return sourceFrame->height;
 
-    return CthughaBuffer::current->height();
+    return 0;
 }
 
 int CthughaDisplay::sourcePitch() const {
     if (sourceFrame != NULL && sourceFrame->valid())
         return sourceFrame->pitch;
 
-    return CthughaBuffer::current->width();
+    return 0;
 }
 
 int CthughaDisplay::sourceSize() const {
@@ -141,7 +143,8 @@ const IndexedDisplayFrame& CthughaDisplay::composePresentationFrame(
     IndexedFrame screenSource(sourcePixels(), sourceWidth(), sourceHeight(), sourcePitch(),
         sourceFrame != NULL ? sourceFrame->framePalette : NULL);
     const IndexedDisplayFrame& frame = presentationComposer.compose(screenSource,
-        indexedDisplayFrameValue, screenSelection, now, deltaT, fps, this);
+        indexedDisplayFrameValue, screenSelection, frameNowValue,
+        frameDeltaTValue, fps, this, presentationContextValue);
     buffer0 = indexedDisplayFrameValue.pixels();
     return frame;
 }
@@ -194,13 +197,13 @@ void CthughaDisplay::checkZoom() {
     DisplayViewport previous = displayViewportValue;
     displayViewportValue = policy.viewportFor(
         PixelSize(displayFrameWidth(), displayFrameHeight()),
-        runtime().outputSize(), int(zoom));
+        runtime().outputSize(), int(settings().zoom));
 
     for (int i = 0; i < displayViewportValue.reductionCount; ++i)
         CTH_ERROR("Zoom factor is set too high for current display size. reducing.\n");
 
-    if (displayViewportValue.effectiveZoom != int(zoom))
-        zoom.setValue(displayViewportValue.effectiveZoom);
+    if (displayViewportValue.effectiveZoom != int(settings().zoom))
+        settings().zoom.setValue(displayViewportValue.effectiveZoom);
 
     if (displayViewportValue.requiresBorderClearFrom(previous))
         needsClear = 1;
@@ -214,12 +217,16 @@ DisplayRuntime& CthughaDisplay::runtime() {
     return runtimeValue;
 }
 
+DisplayPresentationSettings& CthughaDisplay::settings() {
+    return presentationSettingsValue;
+}
+
 void CthughaDisplay::updateFPS() {
-    fps = frameClock.framesPerSecond();
-    rollingFps = frameClock.rollingFramesPerSecond();
+    fps = frameClockValue.framesPerSecond();
+    rollingFps = frameClockValue.rollingFramesPerSecond();
 
     CTH_TRACE("updateFPS deltaT-ms=%.3f fps=%.3f rolling-fps=%.3f\n",
-        "frame pacing", deltaT * 1000.0, fps, rollingFps);
+        "frame pacing", frameDeltaTValue * 1000.0, fps, rollingFps);
 }
 
 void CthughaDisplay::observeVisualLatency(double seconds) {
@@ -243,15 +250,24 @@ double CthughaDisplay::visualLatencySeconds() const {
     return visualLatencyEstimate;
 }
 
+double CthughaDisplay::currentFrameTimeSeconds() const {
+    return frameNowValue;
+}
+
+double CthughaDisplay::currentFrameDeltaSeconds() const {
+    return frameDeltaTValue;
+}
+
 // Start a new frame by publishing a stable timestamp for all modules that run
 // during this frame, then update FPS accounting.
 void CthughaDisplay::nextFrame() {
 
-    double previousNow = now;
-    frameClock.beginFrame();
-    frameClock.publish(now, deltaT);
+    double previousNow = frameNowValue;
+    frameClockValue.beginFrame();
+    frameNowValue = frameClockValue.now();
+    frameDeltaTValue = frameClockValue.deltaT();
     CTH_TRACE("nextFrame previous-now=%.6f sampled-now=%.6f raw-delta-ms=%.3f\n",
-        "frame pacing", previousNow, now, deltaT * 1000.0);
+        "frame pacing", previousNow, frameNowValue, frameDeltaTValue * 1000.0);
 
     updateFPS();
 }

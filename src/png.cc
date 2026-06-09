@@ -124,7 +124,7 @@ static unsigned char indexedPngPixel(const unsigned char* row, int x, int bitDep
     }
 }
 
-EffectChoice* read_png_image(
+IndexedImage* read_png_indexed_image(
     FILE* file, const char* name, const char* /* dir */, const char* /*total_name*/,
     const ImageLoadTarget& target) {
     static const unsigned char pngSignature[8] = {
@@ -275,6 +275,17 @@ EffectChoice* read_png_image(
         for (int x = 0; x < width; x++)
             pixels[y * width + x] = indexedPngPixel(row, x, bitDepth);
     }
+
+    return image;
+}
+
+EffectChoice* read_png_image(
+    FILE* file, const char* name, const char* dir, const char* totalName,
+    const ImageLoadTarget& target) {
+    IndexedImage* image = read_png_indexed_image(file, name, dir, totalName,
+        target);
+    if (image == NULL)
+        return NULL;
 
     return new ImageEntry(name, "", image);
 }

@@ -1,13 +1,29 @@
 #include "cthugha.h"
+#include "Configuration.h"
 #include "EffectChoiceLoader.h"
+#include "PaletteRandomGenerator.h"
 #include "display.h"
-#include "defaults.h"
 #include "Interface.h"
 #include "disp-sys.h"
-#include "imath.h"
 #include "CthughaDisplay.h"
 
+#include <algorithm>
 #include <ctype.h>
+
+#if HAVE_DIRENT_H
+#include <dirent.h>
+#else
+#define dirent direct
+#if HAVE_SYS_NDIR_H
+#include <sys/ndir.h>
+#endif
+#if HAVE_SYS_DIR_H
+#include <sys/dir.h>
+#endif
+#if HAVE_NDIR_H
+#include <ndir.h>
+#endif
+#endif
 
 EffectChoiceList paletteEntries;
 PaletteOption palette;
@@ -19,11 +35,12 @@ unsigned long bitmap_colors1[256]; /* "compiled" palette */
 unsigned long bitmap_colors2[256]; /* "compiled" palette */
 unsigned long bitmap_colors3[256]; /* "compiled" palette */
 
-EffectChoice* read_palette(FILE* file, const char* name, const char* dir, const char*);
+EffectChoice* read_palette(FILE* file, const char* name, const char* dir,
+    const char* total_name);
 static const char* palette_path[] = { "./", "./resources/map/", CTH_LIBDIR "/map/", "" };
-static int paletteSetFilterCount = DEFAULT_PALETTE_SET_FILTER_COUNT;
+static int paletteSetFilterCount = 0;
 static char paletteSetFilter[PALETTE_METADATA_MAX_VALUES][PALETTE_METADATA_VALUE_SIZE];
-static char paletteSetFilterText[256] = DEFAULT_PALETTE_SET_FILTER_TEXT;
+static char paletteSetFilterText[256] = "";
 
 static int palette_line_was_truncated(const char* line) {
     size_t len = strlen(line);
@@ -253,6 +270,10 @@ int palette_set_filter(const char* value) {
     return 1;
 }
 
+void configurePaletteOptions(const EffectPolicy& config) {
+    palette_set_filter(config.paletteSetFilterText.c_str());
+}
+
 static int palette_matches_set_filter(PaletteEntry* palette) {
     if (paletteSetFilterCount == 0)
         return 1;
@@ -372,13 +393,14 @@ int colormapped = 1; /* 0 .. True/Direct color
    update to the palette are done immediately without smoothing.
    */
 
-int load_palettes() {
+int load_palettes(const PathConfig& pathConfig) {
     int i, l;
     PaletteEntry* new_pal;
     ColorPalette* colors;
 
     CTH_INFO("  loading palettes...\n");
-    loadEffectChoices(palette, palette_path, "/map/", ".map", read_palette);
+    loadEffectChoices(palette, pathConfig, palette_path, "/map/", ".map",
+        read_palette);
 
     /* create one general palette */
     new_pal = new PaletteEntry("general", "");
@@ -402,7 +424,7 @@ int load_palettes() {
         double P = 0;
 
         for (l = 0; l < 256; l++) {
-            m = max(m, colors.component(l, 0) + colors.component(l, 1)
+            m = std::max(m, colors.component(l, 0) + colors.component(l, 1)
                     + colors.component(l, 2));
         }
         if ((m > 0) && (m < 3 * 255)) {
@@ -426,7 +448,7 @@ int load_palettes() {
  * palettes are 256 entries of 8 bit rgb. Shorter palettes are filled up with black.
  * longer palettes are truncated.
  */
-EffectChoice* read_palette(
+PaletteEntry* read_palette_entry(
     FILE* file, const char* name, const char* /*dir*/, const char* total_name) {
     char line[256];
     int i = 0;
@@ -503,40 +525,129 @@ EffectChoice* read_palette(
     return new_pal;
 }
 
+EffectChoice* read_palette(
+    FILE* file, const char* name, const char* dir, const char* total_name) {
+    return read_palette_entry(file, name, dir, total_name);
+}
+
 int PaletteEntry::lastRandom = -1;
 int PaletteEntry::lastRandomPos = -1; // index of the last random palette
 char PaletteEntry::randomName[PATH_MAX] = "random";
 
-void PaletteEntry::random() {
-    int N = 1 << (1 + ::Random(3));
-    int h = 256 / N;
+static const char* randomPaletteOutputDirectory = "resources/map";
 
-    char P[257][3]; // during generation one extra cell is needed
+static void randomPaletteNameForIndex(int index, char* name, size_t nameSize) {
+    snprintf(name, nameSize, "%s.%d", PaletteEntry::randomName, index);
+}
 
-    for (int c = 0; c < 3; c++) { // R,G,B
+static void randomPaletteFileNameForIndex(
+    int index, char* fileName, size_t fileNameSize) {
+    char name[PATH_MAX];
 
-        for (int i = 0; i <= N; i++) // give values at "Stuetzstellen"
-            P[i * h][c] = ::Random(256); //  (what is the correct enlish word?)
+    randomPaletteNameForIndex(index, name, sizeof(name));
+    snprintf(fileName, fileNameSize, "%s/%s.map", randomPaletteOutputDirectory,
+        name);
+}
 
-        //
-        // do interplation
-        //  this is just linear interpolation, the results are good enough.
-        //  nore complicated interplations, like polynomials or splines are not necessary
-        //
-        for (int i = 0; i < N; i++)
-            for (int j = 0; j < h; j++) {
-                double J = double(j) / double(h);
-                P[i * h + j][c] = int((1.0 - J) * P[i * h][c] + J * P[(i + 1) * h][c]);
-            }
+static int randomPaletteIndexFromName(const char* name, int* index) {
+    size_t prefixLen = strlen(PaletteEntry::randomName);
+    char* end = NULL;
+    long value;
 
-        // copy to real palette
-        for (int i = 0; i < 256; i++)
-            colors().setComponent(i, c, P[i][c]);
+    if (strncasecmp(name, PaletteEntry::randomName, prefixLen) != 0)
+        return 0;
+    if (name[prefixLen] != '.')
+        return 0;
+    if (name[prefixLen + 1] == '\0')
+        return 0;
+
+    errno = 0;
+    value = strtol(name + prefixLen + 1, &end, 10);
+    if ((errno != 0) || (end == name + prefixLen + 1) || (*end != '\0')
+        || (value < 0) || (value > INT_MAX))
+        return 0;
+
+    *index = int(value);
+    return 1;
+}
+
+static int randomPaletteIndexFromMapFileName(const char* fileName, int* index) {
+    char name[PATH_MAX];
+    size_t len = strlen(fileName);
+    static const char extension[] = ".map";
+    size_t extensionLen = sizeof(extension) - 1;
+
+    if ((len <= extensionLen)
+        || (strcasecmp(fileName + len - extensionLen, extension) != 0))
+        return 0;
+    if (len - extensionLen >= sizeof(name))
+        return 0;
+
+    memcpy(name, fileName, len - extensionLen);
+    name[len - extensionLen] = '\0';
+    return randomPaletteIndexFromName(name, index);
+}
+
+static int maxLoadedRandomPaletteIndex() {
+    int maxIndex = -1;
+
+    for (int i = 0; i < palette.getNEntries(); i++) {
+        int index;
+        EffectChoice* entry = palette[i];
+        if ((entry != NULL) && randomPaletteIndexFromName(entry->Name(), &index))
+            maxIndex = std::max(maxIndex, index);
     }
 
-    char str[512];
+    return maxIndex;
+}
+
+static int maxPersistedRandomPaletteIndex() {
+    DIR* directory = opendir(randomPaletteOutputDirectory);
+    int maxIndex = -1;
+
+    if (directory == NULL)
+        return -1;
+
+    while (struct dirent* entry = readdir(directory)) {
+        int index;
+        if (randomPaletteIndexFromMapFileName(entry->d_name, &index))
+            maxIndex = std::max(maxIndex, index);
+    }
+    closedir(directory);
+
+    return maxIndex;
+}
+
+static int nextRandomPaletteIndex() {
+    int maxIndex = std::max(maxLoadedRandomPaletteIndex(),
+        maxPersistedRandomPaletteIndex());
+    maxIndex = std::max(maxIndex, PaletteEntry::lastRandom);
+
+    return maxIndex + 1;
+}
+
+static void randomPaletteOutputPathForEntry(
+    const PaletteEntry& entry, int index, char* fileName, size_t fileNameSize) {
+    if (entry.sourcePath[0] != '\0') {
+        strncpy(fileName, entry.sourcePath, fileNameSize);
+        fileName[fileNameSize - 1] = '\0';
+        return;
+    }
+
+    randomPaletteFileNameForIndex(index, fileName, fileNameSize);
+}
+
+void PaletteEntry::random(RandomSource& randomSource) {
+    int index = lastRandom;
+    if ((index < 0) && !randomPaletteIndexFromName(Name(), &index))
+        index = nextRandomPaletteIndex();
+    lastRandom = index;
+
+    generateRandomPalette(colors(), randomSource);
+
+    char str[PATH_MAX];
     delete[] name;
-    snprintf(str, sizeof(str), "%s.%d", randomName, lastRandom);
+    randomPaletteNameForIndex(lastRandom, str, sizeof(str));
     name = new char[strlen(str) + 1];
     strcpy(name, str);
 
@@ -545,7 +656,7 @@ void PaletteEntry::random() {
     //
     FILE* f;
     char fname[PATH_MAX];
-    snprintf(fname, sizeof(fname), "%s.map", name);
+    randomPaletteOutputPathForEntry(*this, lastRandom, fname, sizeof(fname));
 
     CTH_DEBUG("  saving '%s'.\n", fname);
 
@@ -559,24 +670,34 @@ void PaletteEntry::random() {
         fprintf(f, "%d %d %d\n",
             colors().component(i, 0), colors().component(i, 1), colors().component(i, 2));
     fclose(f);
+    strncpy(sourcePath, fname, sizeof(sourcePath));
+    sourcePath[sizeof(sourcePath) - 1] = '\0';
 }
 
-void PaletteEntry::addRandom() {
-    lastRandom++;
+void PaletteEntry::addRandom(RandomSource& randomSource) {
+    lastRandom = nextRandomPaletteIndex();
 
     PaletteEntry* new_pal = new PaletteEntry("", "random");
-    new_pal->random();
+    new_pal->random(randomSource);
     palette.add(new_pal);
 
     lastRandomPos = palette.getNEntries() - 1;
 
 }
 
-void PaletteEntry::Random() {
-    if (lastRandomPos == -1)
-        addRandom();
+void PaletteEntry::randomizeLast(RandomSource& randomSource) {
+    PaletteEntry* currentEntry = palette.currentPaletteEntry();
+    int currentRandomIndex;
+
+    if ((currentEntry != NULL)
+        && randomPaletteIndexFromName(currentEntry->Name(), &currentRandomIndex)) {
+        lastRandom = currentRandomIndex;
+        lastRandomPos = palette.currentN();
+        currentEntry->random(randomSource);
+    } else if (lastRandomPos == -1)
+        addRandom(randomSource);
     else {
-        ((PaletteEntry*)palette[lastRandomPos])->random();
+        ((PaletteEntry*)palette[lastRandomPos])->random(randomSource);
     }
 
 }

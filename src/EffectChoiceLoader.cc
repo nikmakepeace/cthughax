@@ -3,11 +3,9 @@
 #include "EffectChoiceLoader.h"
 
 #include "cthugha.h"
-#include "options.h"
+#include "Configuration.h"
 
 #include <string>
-
-OptionOnOff double_load("double-load", DEFAULT_DOUBLE_LOAD_ENABLED); // allow double loading of features
 
 // autoconf suggests this
 #if HAVE_DIRENT_H
@@ -33,60 +31,20 @@ static int compareFeatureFileNames(const void* a, const void* b) {
     return folded ? folded : strcmp(left, right);
 }
 
-static int isCompressed(const char* name) {
-    int l = strlen(name);
-    if (l < 3)
-        return 0;
-    if ((name[l - 3] == '.') && (name[l - 2] == 'g') && (name[l - 1] == 'z'))
-        return 1;
-    return 0;
-}
-
 static int hasExtension(const char* name, const char* extension) {
-    const char* pos = NULL;
     size_t name_len = strlen(name);
     size_t extension_len = strlen(extension);
 
     if (name_len < extension_len)
         return 0;
 
-    for (size_t i = 0; i + extension_len <= name_len; i++) {
-        if (strncasecmp(name + i, extension, extension_len) == 0) {
-            pos = name + i;
-            break;
-        }
-    }
-
-    if (pos == NULL)
-        return 0;
-
-    /* check if extension is at end of name, or is followed by a . */
-    if ((pos[extension_len] == '\0') || (pos[extension_len] == '.'))
-        return 1;
-
-    return 0;
+    return strcasecmp(name + name_len - extension_len, extension) == 0;
 }
 
 static EffectChoice* loadEntry(const char* name, char* total_name, const char* dir,
     EffectChoiceLoader loader) {
 
-    int compressed = isCompressed(total_name);
-    FILE* file;
-
-    if (compressed) {
-        /* open with 'gzip' - through pipe */
-        char cmd[PATH_MAX + 16];
-
-        CTH_DEBUG("uncompressing and ");
-
-        snprintf(cmd, sizeof(cmd), "gzip -cd \"%s\"", total_name);
-
-        file = popen(cmd, "r");
-
-    } else {
-        /* normal open - as file */
-        file = fopen(total_name, "r");
-    }
+    FILE* file = fopen(total_name, "r");
 
     CTH_DEBUG("loading: %s", total_name);
 
@@ -99,10 +57,7 @@ static EffectChoice* loadEntry(const char* name, char* total_name, const char* d
             CTH_DEBUG(" ... OK\n");
         }
 
-        if (compressed)
-            pclose(file); /* close pipe */
-        else
-            fclose(file); /* close file */
+        fclose(file);
 
         return entry;
 
@@ -115,23 +70,7 @@ static EffectChoice* loadEntry(const char* name, char* total_name, const char* d
 static EffectChoice* loadEntry(const char* name, char* total_name, const char* dir,
     EffectChoiceContextLoader loader, void* context) {
 
-    int compressed = isCompressed(total_name);
-    FILE* file;
-
-    if (compressed) {
-        /* open with 'gzip' - through pipe */
-        char cmd[PATH_MAX + 16];
-
-        CTH_DEBUG("uncompressing and ");
-
-        snprintf(cmd, sizeof(cmd), "gzip -cd \"%s\"", total_name);
-
-        file = popen(cmd, "r");
-
-    } else {
-        /* normal open - as file */
-        file = fopen(total_name, "r");
-    }
+    FILE* file = fopen(total_name, "r");
 
     CTH_DEBUG("loading: %s", total_name);
 
@@ -144,10 +83,7 @@ static EffectChoice* loadEntry(const char* name, char* total_name, const char* d
             CTH_DEBUG(" ... OK\n");
         }
 
-        if (compressed)
-            pclose(file); /* close pipe */
-        else
-            fclose(file); /* close file */
+        fclose(file);
 
         return entry;
 
@@ -214,14 +150,7 @@ static void loadDir(EffectControl& option, const char* dir, const char* extensio
                 continue;
             }
 
-            /*
-             * Plain and compressed files share the same feature name:
-             * `foo.pcx' and `foo.pcx.gz' both become `foo'. This also
-             * applies to other asset extensions such as `foo.png'. Without
-             * --dbl-load, the alphabetically first filename wins and later
-             * duplicates are skipped.
-             */
-            if (!int(double_load) && option.defined(feat_name)) {
+            if (option.defined(feat_name)) {
                 CTH_DEBUG("already loaded: %s\n", total_name);
             } else if ((fe = loadEntry(feat_name, total_name, dir, loader)) != NULL)
                 option.add(fe);
@@ -289,14 +218,7 @@ static void loadDir(EffectControl& option, const char* dir, const char* extensio
                 continue;
             }
 
-            /*
-             * Plain and compressed files share the same feature name:
-             * `foo.pcx' and `foo.pcx.gz' both become `foo'. This also
-             * applies to other asset extensions such as `foo.png'. Without
-             * --dbl-load, the alphabetically first filename wins and later
-             * duplicates are skipped.
-             */
-            if (!int(double_load) && option.defined(feat_name)) {
+            if (option.defined(feat_name)) {
                 CTH_DEBUG("already loaded: %s\n", total_name);
             } else if ((fe = loadEntry(feat_name, total_name, dir, loader, context)) != NULL)
                 option.add(fe);
@@ -307,8 +229,9 @@ static void loadDir(EffectControl& option, const char* dir, const char* extensio
     }
 }
 
-int loadEffectChoices(EffectControl& option, const char* searchPath[],
-    const char* extraPath, const char* extension, EffectChoiceLoader loader) {
+int loadEffectChoices(EffectControl& option, const PathConfig& pathConfig,
+    const char* searchPath[], const char* extraPath, const char* extension,
+    EffectChoiceLoader loader) {
     int path;
 
     /* load normal search path */
@@ -318,17 +241,17 @@ int loadEffectChoices(EffectControl& option, const char* searchPath[],
         path++;
     }
     /* load from extra path */
-    if (extra_lib_path[0] != '\0') {
-        std::string extraPathDir = std::string(extra_lib_path) + extraPath;
+    if (!pathConfig.extraLibraryPath.empty()) {
+        std::string extraPathDir = pathConfig.extraLibraryPath + extraPath;
         loadDir(option, extraPathDir.c_str(), extension, loader);
     }
 
     return 0;
 }
 
-int loadEffectChoices(EffectControl& option, const char* searchPath[],
-    const char* extraPath, const char* extension, EffectChoiceContextLoader loader,
-    void* context) {
+int loadEffectChoices(EffectControl& option, const PathConfig& pathConfig,
+    const char* searchPath[], const char* extraPath, const char* extension,
+    EffectChoiceContextLoader loader, void* context) {
     int path;
 
     /* load normal search path */
@@ -338,8 +261,8 @@ int loadEffectChoices(EffectControl& option, const char* searchPath[],
         path++;
     }
     /* load from extra path */
-    if (extra_lib_path[0] != '\0') {
-        std::string extraPathDir = std::string(extra_lib_path) + extraPath;
+    if (!pathConfig.extraLibraryPath.empty()) {
+        std::string extraPathDir = pathConfig.extraLibraryPath + extraPath;
         loadDir(option, extraPathDir.c_str(), extension, loader, context);
     }
 

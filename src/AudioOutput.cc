@@ -1,33 +1,51 @@
-// Audio output base class, null output, and output option globals.
+/** @file
+ * Audio output base class and null output backend.
+ */
 
-#include "cthugha.h"
 #include "Audio.h"
 #include "AudioInternal.h"
-#include "defaults.h"
+#include "ProcessServices.h"
 
-char pulse_server[PATH_MAX] = DEFAULT_PULSE_SERVER_TEXT;
-int pulse_latency_msec = DEFAULT_PULSE_LATENCY_MS;
-char audio_output_dump[PATH_MAX] = DEFAULT_AUDIO_OUTPUT_DUMP_PATH;
-char audio_input_file[PATH_MAX] = DEFAULT_AUDIO_INPUT_FILE_PATH;
-
-const char* pulse_server_name() {
-    return (pulse_server[0] != '\0') ? pulse_server : NULL;
-}
-
-const char* pulse_server_display_name() {
-    return pulse_server_name() ? pulse_server_name() : "default";
-}
-
-AudioOutput::AudioOutput()
-    : outputSamplesPerSecond(0)
+AudioOutput::AudioOutput(int targetLatencyMs, AudioOutputDump* outputDump,
+    SecondsClock& clock_, LogSink& log_)
+    : clock(clock_)
+    , log(log_)
+    , outputSamplesPerSecond(0)
     , outputBytesPerSample(1)
+    , outputTargetLatencyMs(targetLatencyMs)
     , outputTargetDelaySamples(0)
-    , outputScratchSamples(0) { }
+    , outputScratchSamples(0)
+    , outputDumpValue(outputDump) { }
 
 AudioOutput::~AudioOutput() { }
 
+double AudioOutput::nowSeconds() const {
+    return clock.nowSeconds();
+}
+
+LogSink& AudioOutput::logSink() const {
+    return log;
+}
+
+int AudioOutput::defaultTargetLatencyMs() const {
+    return outputTargetLatencyMs;
+}
+
 int AudioOutput::timingScratchSamples(int inputChunkSamples, int targetDelaySamples) const {
     return isRealtime() ? targetDelaySamples : inputChunkSamples;
+}
+
+void AudioOutput::dumpSubmittedPcm(const PcmFormat& format, const char* data,
+    int bytes) {
+    if (outputDumpValue != NULL)
+        outputDumpValue->append(format, data, bytes);
+}
+
+void AudioOutput::reportSubmittedPcm(const PcmFormat& format,
+    const char* scratch, int samples, int bytes, int written,
+    int queuedSamples, long long submittedEndSample) {
+    submittedPcmDebugReporterValue.submittedPcm(format, scratch, samples,
+        bytes, written, queuedSamples, submittedEndSample, log);
 }
 
 void AudioOutput::configureTiming(int samplesPerSecond, int bytesPerSample, int inputChunkSamples) {
@@ -54,7 +72,7 @@ void AudioOutput::configureTiming(int samplesPerSecond, int bytesPerSample, int 
     if (outputTargetDelaySamples < 1)
         outputTargetDelaySamples = outputScratchSamples;
 
-    CTH_DEBUG("audio output: configured timing realtime=%d samples-per-second=%d bytes-per-sample=%d input-chunk-samples=%d target-buffer-ms=%d target-buffer-samples=%d scratch-samples=%d\n",
+    log.debug("audio output: configured timing realtime=%d samples-per-second=%d bytes-per-sample=%d input-chunk-samples=%d target-buffer-ms=%d target-buffer-samples=%d scratch-samples=%d\n",
         isRealtime(), outputSamplesPerSecond, outputBytesPerSample,
         inputChunkSamples, targetLatencyMs, outputTargetDelaySamples, outputScratchSamples);
 }
@@ -63,25 +81,40 @@ int AudioOutput::queuedTargetSamples() const {
     return isRealtime() ? outputTargetDelaySamples : outputScratchSamples;
 }
 
-int AudioOutput::playbackComplete(const AudioBuffer& buffer, int inputFinished) const {
-    return inputFinished && (buffer.queuedForOutputSamples() == 0);
+int AudioOutput::playbackComplete(const AudioOutputStream& stream, int inputFinished) const {
+    return inputFinished && (stream.queuedForOutputSamples() == 0);
 }
 
-int AudioNullOutput::defaultTargetLatencyMs() const { return DEFAULT_AUDIO_NULL_TARGET_LATENCY_MS; }
+AudioNullOutput::AudioNullOutput(SecondsClock& clock_, LogSink& log_,
+    const AudioOutputConfig& config,
+    AudioOutputDump* outputDump)
+    : AudioOutput(config.nullOutputTargetLatencyMs, outputDump, clock_, log_) { }
+
+int AudioNullOutput::defaultTargetLatencyMs() const {
+    return AudioOutput::defaultTargetLatencyMs();
+}
+
 int AudioNullOutput::write(const void*, int size) { return size; }
 int AudioNullOutput::isOpen() const { return 1; }
 int AudioNullOutput::isRealtime() const { return 0; }
-int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
+int AudioOutput::service(AudioOutputStream& stream, char* scratch, int scratchSamples,
     int /*inputFinished*/) {
     if ((scratch == NULL) || (scratchSamples <= 0))
         return 0;
 
-    double serviceStart = getTime();
-    int bytesPerSample = buffer.bytesPerSample();
+    double serviceStart = nowSeconds();
+    int bytesPerSample = stream.bytesPerSample();
+    const PcmFormat& format = stream.format();
     if (bytesPerSample <= 0)
         return 0;
 
-    int queuedBefore = buffer.queuedForOutputSamples();
+    int skippedSamples = stream.resyncIfBehind();
+    if (skippedSamples > 0) {
+        log.warn("Audio passthrough fell behind decoded history; skipped %d samples.\n",
+            skippedSamples);
+    }
+
+    int queuedBefore = stream.queuedForOutputSamples();
     if (queuedBefore <= 0)
         return 0;
 
@@ -93,42 +126,45 @@ int AudioOutput::service(AudioBuffer& buffer, char* scratch, int scratchSamples,
     if (samplesWanted <= 0)
         return 0;
 
-    CTH_TRACE("service plan realtime=%d queued-samples=%d scratch-samples=%d requested-samples=%d\n",
-        "audio timing", isRealtime(), queuedBefore, scratchSamples, samplesWanted);
+    log.trace("audio timing",
+        "service plan realtime=%d queued-samples=%d scratch-samples=%d requested-samples=%d\n",
+        isRealtime(), queuedBefore, scratchSamples, samplesWanted);
 
-    double bufferReadStart = getTime();
-    long long startSample = buffer.submittedEndPosition();
-    int samples = buffer.peekForOutput(scratch, samplesWanted);
-    double bufferReadEnd = getTime();
+    double bufferReadStart = nowSeconds();
+    long long startSample = stream.submittedEndPosition();
+    int samples = stream.peekForOutput(scratch, samplesWanted);
+    double bufferReadEnd = nowSeconds();
     if (samples <= 0)
         return 0;
 
     int bytes = pcmBytesForSamples(samples, bytesPerSample);
-    double outputWriteStart = getTime();
+    double outputWriteStart = nowSeconds();
     int written = write(scratch, bytes);
-    double outputWriteEnd = getTime();
+    double outputWriteEnd = nowSeconds();
     int committedSamples = 0;
     int committedBytes = 0;
     if (written > 0) {
-        committedSamples = buffer.commitOutputSamples(written / bytesPerSample);
+        committedSamples = stream.commitOutputSamples(written / bytesPerSample);
         committedBytes = pcmBytesForSamples(committedSamples, bytesPerSample);
     }
     if (committedSamples > 0) {
-        audioOutputDumpSubmittedPcm(scratch, committedBytes);
+        dumpSubmittedPcm(format, scratch, committedBytes);
     }
 
-    audioDebugSubmittedPcm(scratch, committedSamples, committedBytes, written, buffer.queuedForOutputSamples(),
-        buffer.submittedEndPosition());
-    CTH_TRACE("output submitted samples=%d bytes=%d written=%d committed-samples=%d committed-bytes=%d queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld requested-samples=%d\n", "audio runtime",
+    reportSubmittedPcm(format, scratch, committedSamples, committedBytes,
+        written, stream.queuedForOutputSamples(), stream.submittedEndPosition());
+    log.trace("audio runtime",
+        "output submitted samples=%d bytes=%d written=%d committed-samples=%d committed-bytes=%d queued-samples=%d submitted-start-sample=%lld submitted-end-sample=%lld requested-samples=%d\n",
         samples, bytes, written, committedSamples, committedBytes,
-        buffer.queuedForOutputSamples(), startSample, buffer.submittedEndPosition(),
+        stream.queuedForOutputSamples(), startSample, stream.submittedEndPosition(),
         samplesWanted);
-    CTH_TRACE("drain buffer-read-ms=%.3f output-write-ms=%.3f service-ms=%.3f samples=%d bytes=%d written=%d committed-samples=%d queued-samples=%d\n", "audio timing",
+    log.trace("audio timing",
+        "drain buffer-read-ms=%.3f output-write-ms=%.3f service-ms=%.3f samples=%d bytes=%d written=%d committed-samples=%d queued-samples=%d\n",
         (bufferReadEnd - bufferReadStart) * 1000.0,
         (outputWriteEnd - outputWriteStart) * 1000.0,
-        (getTime() - serviceStart) * 1000.0,
+        (nowSeconds() - serviceStart) * 1000.0,
         samples, bytes, written, committedSamples,
-        buffer.queuedForOutputSamples());
+        stream.queuedForOutputSamples());
 
     return committedSamples > 0 ? 1 : 0;
 }

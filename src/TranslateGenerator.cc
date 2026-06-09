@@ -1,9 +1,9 @@
 // Built-in translation table generators.
 
 #include "cthugha.h"
+#include "ProcessServices.h"
 #include "TranslateGenerator.h"
 
-#include <chrono>
 #include <math.h>
 #include <stdint.h>
 
@@ -43,13 +43,11 @@ static int clampInt(int value, int low, int high) {
     return value;
 }
 
-static unsigned int randomSeedBase() {
-    unsigned long long ticks = (unsigned long long)
-        std::chrono::high_resolution_clock::now().time_since_epoch().count();
-    ticks ^= ticks >> 33;
-    ticks *= 0xff51afd7ed558ccdULL;
-    ticks ^= ticks >> 33;
-    return (unsigned int)(ticks ^ (ticks >> 32));
+static unsigned int randomSeedBase(RandomSource& randomSource) {
+    unsigned int high = (unsigned int)randomSource.uniformInt(65536);
+    unsigned int low = (unsigned int)randomSource.uniformInt(65536);
+    unsigned int seed = (high << 16) ^ low;
+    return seed != 0 ? seed : 1;
 }
 
 TranslateGeneratorOptions::TranslateGeneratorOptions()
@@ -86,13 +84,13 @@ void TranslationCatalog::add(const char* id, const char* description,
     entries.push_back(Entry(id, description, generator, options));
 }
 
-void TranslationCatalog::generateAll(int width, int height,
+void TranslationCatalog::generateAll(int width, int height, RandomSource& randomSource,
     std::vector<GeneratedTranslationTable>& tables) const {
     TranslateGenerationTarget target(width, height);
     tables.clear();
     tables.reserve(entries.size());
 
-    unsigned int seedBase = randomSeedBase();
+    unsigned int seedBase = randomSeedBase(randomSource);
 
     for (unsigned int i = 0; i < entries.size(); i++) {
         TranslateGeneratorOptions options = entries[i].options;

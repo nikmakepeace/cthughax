@@ -1,5 +1,6 @@
 #include "WaveObject.h"
 
+#include "EffectControl.h"
 #include "cthugha.h"
 
 namespace {
@@ -89,6 +90,10 @@ WObject letterH[] = {
 EffectChoice* _objects[] = { new ObjectEntry(letterH, "bigH", "Big H") };
 int _nObjects = sizeof(_objects) / sizeof(EffectChoice*);
 
+const WObject* builtInWaveObjectBigH() {
+    return letterH;
+}
+
 WObject* waveObjectEntryObject(EffectChoice* entry) {
     return (entry != NULL) ? asObjectEntry(entry)->obj : NULL;
 }
@@ -97,12 +102,9 @@ int waveObjectEntryOwnsObject(const EffectChoice* entry) {
     return (entry != NULL) ? asObjectEntry(entry)->ownsObject : 0;
 }
 
-EffectChoice* read_object(
-    FILE* file, const char* name, const char* /* dir */, const char* /*total_name*/) {
+WObject* read_wave_object(FILE* file, const char* name) {
     char dummy[256];
     int i, j, nlines, x1, y1, z1, x2, y2, z2, mx, my, mz;
-
-    ObjectEntry* new_obj = new ObjectEntry(name, "");
 
     /* count relevant lines, discarding comment lines and empty lines */
     nlines = 0;
@@ -111,7 +113,7 @@ EffectChoice* read_object(
             nlines++; /* or an empty line, then count it */
     }
 
-    new_obj->setOwnedObject(new WObject[nlines + 1]);
+    WObject* object = new WObject[nlines + 1];
 
     rewind(file);
     i = 1;
@@ -127,13 +129,13 @@ EffectChoice* read_object(
                 CTH_WARN("\n    Can't read at line: %d (%s)", i, name);
                 if (i == 1) { /*  nothing read  */
                     CTH_WARN(" ... skipping file");
-                    delete new_obj;
+                    delete[] object;
                     return NULL;
                 }
             } else {
                 if (j >= nlines) {
                     CTH_ERROR("Error reading object file %s", name);
-                    delete new_obj;
+                    delete[] object;
                     return NULL;
                 }
 
@@ -150,13 +152,13 @@ EffectChoice* read_object(
                 if (z2 < mz)
                     mz = z2;
 
-                new_obj->obj[j][0][0] = x1;
-                new_obj->obj[j][0][1] = y1;
-                new_obj->obj[j][0][2] = z1;
+                object[j][0][0] = x1;
+                object[j][0][1] = y1;
+                object[j][0][2] = z1;
 
-                new_obj->obj[j][1][0] = x2;
-                new_obj->obj[j][1][1] = y2;
-                new_obj->obj[j][1][2] = z2;
+                object[j][1][0] = x2;
+                object[j][1][1] = y2;
+                object[j][1][2] = z2;
                 j++;
             }
         }
@@ -166,17 +168,29 @@ EffectChoice* read_object(
 
     /* align the object up against the axes */
     for (i = 0; i < j; i++) {
-        new_obj->obj[i][0][0] -= mx;
-        new_obj->obj[i][0][1] -= my;
-        new_obj->obj[i][0][2] -= mz;
-        new_obj->obj[i][1][0] -= mx;
-        new_obj->obj[i][1][1] -= my;
-        new_obj->obj[i][1][2] -= mz;
+        object[i][0][0] -= mx;
+        object[i][0][1] -= my;
+        object[i][0][2] -= mz;
+        object[i][1][0] -= mx;
+        object[i][1][1] -= my;
+        object[i][1][2] -= mz;
     }
 
     /* terminate the line list with -1 coordinates */
-    new_obj->obj[j][0][0] = new_obj->obj[j][0][1] = new_obj->obj[j][0][2] = new_obj->obj[j][1][0]
-        = new_obj->obj[j][1][1] = new_obj->obj[j][1][2] = -1;
+    object[j][0][0] = object[j][0][1] = object[j][0][2]
+        = object[j][1][0] = object[j][1][1] = object[j][1][2] = -1;
+
+    return object;
+}
+
+EffectChoice* read_object(
+    FILE* file, const char* name, const char* /* dir */, const char* /*total_name*/) {
+    WObject* object = read_wave_object(file, name);
+    if (object == NULL)
+        return NULL;
+
+    ObjectEntry* new_obj = new ObjectEntry(name, "");
+    new_obj->setOwnedObject(object);
 
     return new_obj;
 }

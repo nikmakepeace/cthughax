@@ -1,4 +1,5 @@
 #include "FrameClock.h"
+#include "ProcessServices.h"
 
 #include <assert.h>
 #include <math.h>
@@ -7,60 +8,53 @@ static void assertNear(double actual, double expected) {
     assert(fabs(actual - expected) < 0.000001);
 }
 
-double getTime() {
-    return -1.0;
-}
-
-class FakeTimeSource : public FrameTimeSource {
+class FakeSecondsClock : public SecondsClock {
 public:
     double value;
-    int calls;
+    mutable int calls;
 
-    explicit FakeTimeSource(double value_)
+    explicit FakeSecondsClock(double value_)
         : value(value_)
         , calls(0) {
     }
 
-    virtual double seconds() {
+    virtual double nowSeconds() const {
         calls++;
         return value;
     }
 };
 
 static void testBeginFramePublishesNowAndDelta() {
-    FakeTimeSource timeSource(10.0);
-    FrameClock clock(timeSource);
+    FakeSecondsClock clockSource(10.0);
+    FrameClock clock(clockSource);
 
     clock.beginFrame();
 
-    assert(timeSource.calls == 1);
+    assert(clockSource.calls == 1);
     assert(clock.now() == 10.0);
     assert(clock.deltaT() == 0.0);
 
-    timeSource.value = 10.25;
+    clockSource.value = 10.25;
     clock.beginFrame();
 
-    assert(timeSource.calls == 2);
+    assert(clockSource.calls == 2);
     assert(clock.now() == 10.25);
     assert(clock.deltaT() == 0.25);
 }
 
-static void testPublishUpdatesLegacyAliases() {
-    FakeTimeSource timeSource(20.0);
-    FrameClock clock(timeSource);
-    double nowAlias = -1.0;
-    double deltaAlias = -1.0;
+static void testAccessorsExposeOwnedFrameTiming() {
+    FakeSecondsClock clockSource(20.0);
+    FrameClock clock(clockSource);
 
     clock.beginFrame();
-    clock.publish(nowAlias, deltaAlias);
 
-    assert(nowAlias == 20.0);
-    assert(deltaAlias == 0.0);
+    assert(clock.now() == 20.0);
+    assert(clock.deltaT() == 0.0);
 }
 
 static void testSampleUsesInjectedTimeSourceWithoutAdvancingFrame() {
-    FakeTimeSource timeSource(30.0);
-    FrameClock clock(timeSource);
+    FakeSecondsClock clockSource(30.0);
+    FrameClock clock(clockSource);
 
     assert(clock.sample() == 30.0);
     assert(clock.now() == 0.0);
@@ -68,19 +62,19 @@ static void testSampleUsesInjectedTimeSourceWithoutAdvancingFrame() {
 }
 
 static void testFrameRateReadoutsComeFromCompletedFrameDurations() {
-    FakeTimeSource timeSource(40.0);
-    FrameClock clock(timeSource);
+    FakeSecondsClock clockSource(40.0);
+    FrameClock clock(clockSource);
 
     clock.beginFrame();
     assertNear(clock.framesPerSecond(), 0.0);
     assertNear(clock.rollingFramesPerSecond(), 0.0);
 
-    timeSource.value = 40.040;
+    clockSource.value = 40.040;
     clock.beginFrame();
     assertNear(clock.framesPerSecond(), 25.0);
     assertNear(clock.rollingFramesPerSecond(), 25.0);
 
-    timeSource.value = 40.090;
+    clockSource.value = 40.090;
     clock.beginFrame();
     assertNear(clock.framesPerSecond(), 20.0);
     assertNear(clock.rollingFramesPerSecond(), 2.0 / 0.090);
@@ -88,7 +82,7 @@ static void testFrameRateReadoutsComeFromCompletedFrameDurations() {
 
 int main() {
     testBeginFramePublishesNowAndDelta();
-    testPublishUpdatesLegacyAliases();
+    testAccessorsExposeOwnedFrameTiming();
     testSampleUsesInjectedTimeSourceWithoutAdvancingFrame();
     testFrameRateReadoutsComeFromCompletedFrameDurations();
     return 0;

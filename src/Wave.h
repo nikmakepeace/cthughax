@@ -3,8 +3,10 @@
 
 #include <vector>
 
-class CthughaBuffer;
-class VideoFrameContext;
+class FrameRenderTarget;
+class RandomSource;
+class FrameGeneratorContext;
+class LogSink;
 
 /**
  * 3D wire object used by object-based wave renderers.
@@ -106,6 +108,8 @@ public:
 class WaveLookupTables {
     int sineWidth;
     std::vector<int> sineValues;
+    std::vector<int> legacySineValues;
+    std::vector<double> degreeSineValues;
 
 public:
     WaveLookupTables();
@@ -117,6 +121,30 @@ public:
      * @return Pointer to width signed values scaled around +/-128, or NULL.
      */
     const int* sineForWidth(int width);
+
+    /**
+     * Returns the historical 320-step sine table value.
+     *
+     * @param index Angle index in the legacy 0..319 circle.
+     * @return Sine value scaled around +/-128.
+     */
+    int legacySine(int index);
+
+    /**
+     * Returns sine for a degree angle.
+     *
+     * @param degrees Angle in degrees.
+     * @return Sine in floating-point units.
+     */
+    double sineDegrees(int degrees);
+
+    /**
+     * Returns cosine for a degree angle.
+     *
+     * @param degrees Angle in degrees.
+     * @return Cosine in floating-point units.
+     */
+    double cosineDegrees(int degrees);
 };
 
 /**
@@ -126,6 +154,8 @@ class WaveRuntime {
     int needsConfigurationValue;
     WaveState& stateValue;
     WaveLookupTables& lookupTables;
+    RandomSource& randomSource;
+    LogSink& logValue;
     int fireBudgetValue;
 
 public:
@@ -143,10 +173,13 @@ public:
      * @param needsConfiguration_ Nonzero when renderer should rebuild config-dependent state.
      * @param state_ Persistent state storage owned by WaveFilter.
      * @param lookupTables_ Shared wave lookup-table cache.
+     * @param randomSource_ Random source owned by the application lifecycle.
+     * @param log Diagnostics sink for this frame render.
      * @param fireBudget Acoustic fire amount for this visual frame.
      */
     WaveRuntime(const WaveConfig& config, int needsConfiguration_, WaveState& state_,
-        WaveLookupTables& lookupTables_, int fireBudget);
+        WaveLookupTables& lookupTables_, RandomSource& randomSource_,
+        LogSink& log, int fireBudget);
 
     /** @return Nonzero when renderer should rebuild configuration-dependent state. */
     int needsConfiguration() const;
@@ -172,6 +205,52 @@ public:
     const int* sineForWidth(int width);
 
     /**
+     * Returns the historical 320-step sine table value.
+     *
+     * @param index Angle index in the legacy 0..319 circle.
+     * @return Sine value scaled around +/-128.
+     */
+    int legacySine(int index);
+
+    /**
+     * Returns sine for a degree angle from generator-owned tables.
+     *
+     * @param degrees Angle in degrees.
+     * @return Sine in floating-point units.
+     */
+    double sineDegrees(int degrees) const;
+
+    /**
+     * Returns cosine for a degree angle from generator-owned tables.
+     *
+     * @param degrees Angle in degrees.
+     * @return Cosine in floating-point units.
+     */
+    double cosineDegrees(int degrees) const;
+
+    /**
+     * Returns a random integer in [0, exclusiveMax).
+     *
+     * @param exclusiveMax Upper exclusive bound. Values <= 1 return 0.
+     * @return Random integer in the requested range.
+     */
+    int randomInt(int exclusiveMax);
+
+    /**
+     * Returns a random integer in [-magnitude, magnitude].
+     *
+     * @param magnitude Maximum absolute value.
+     * @return Random signed integer in the requested symmetric range.
+     */
+    int randomCenteredInt(int magnitude);
+
+    /** @return Random floating-point value in [0.0, 1.0]. */
+    double randomUnit();
+
+    /** @return Diagnostics sink for this wave render. */
+    LogSink& log() const;
+
+    /**
      * Gets or lazily creates wave-specific persistent state.
      *
      * @tparam T State type for the current wave implementation.
@@ -192,11 +271,11 @@ public:
      * Wave renderer function.
      *
      * @param buffer Active indexed pixel buffer to draw into.
-     * @param context Current video frame audio/time context.
+     * @param context Current frame render audio/time context.
      * @param runtime Wave config, state, lookup tables, and fire budget.
      */
-    typedef void (*Function)(CthughaBuffer& buffer,
-        const VideoFrameContext& context, WaveRuntime& runtime);
+    typedef void (*Function)(FrameRenderTarget& buffer,
+        const FrameGeneratorContext& context, WaveRuntime& runtime);
 
     /**
      * Predicate that decides whether a wave can run with a config.
@@ -240,15 +319,18 @@ public:
      * Executes the wave renderer for one visual frame.
      *
      * @param buffer Active indexed pixel buffer to draw into.
-     * @param context Current video frame audio/time context.
+     * @param context Current frame render audio/time context.
      * @param config Wave-scale/table/object/dimension settings.
      * @param needsConfiguration Nonzero when renderer should rebuild state.
      * @param state Persistent state storage for this wave.
      * @param lookupTables Shared lookup-table cache.
+     * @param randomSource Random source used by renderer effects.
+     * @param log Diagnostics sink for this frame render.
      */
-    void execute(CthughaBuffer& buffer, const VideoFrameContext& context,
+    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
         const WaveConfig& config, int needsConfiguration, WaveState& state,
-        WaveLookupTables& lookupTables) const;
+        WaveLookupTables& lookupTables, RandomSource& randomSource,
+        LogSink& log) const;
 };
 
 /** Built-in wave renderer catalog used by WaveOption. */

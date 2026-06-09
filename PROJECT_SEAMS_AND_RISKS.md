@@ -39,8 +39,8 @@ enabled.
 
 ### Add an Indexed Image
 
-Drop `.pcx`, `.pcx.gz`, indexed `.png`, or `.png.gz` into `resources/img/`,
-current directory, installed `CTH_LIBDIR/img/`, or `--path DIR/img/`.
+Drop uncompressed `.pcx` or indexed `.png` files into `resources/img/`, current
+directory, installed `CTH_LIBDIR/img/`, or `--path DIR/img/`.
 
 Loaders: `src/pcx.cc` and `src/png.cc`.
 
@@ -218,13 +218,11 @@ Do not assume this is full inversion of control yet. The display path consumes
 `IndexedFrame`, but X11-era globals still own backend memory layout, frame
 scratch allocation, and event-loop handoff.
 
-### Build Wrappers Include `.cc` Files
+### Frontend Key Wrapper Includes `.cc`
 
-Files such as `xwin_options.cc` define a macro and include `options.cc`.
-Similarly, `xwin_keys.cc` includes `keys.cc`.
-
-Any build-system rewrite must preserve separate compile units for those
-wrappers, not simply compile every `.cc` file once.
+`xwin_keys.cc` includes `keys.cc` with X11-specific definitions. Any
+build-system rewrite must preserve that compile unit until key handling no
+longer needs a macro-specialized wrapper.
 
 ### Buffer Size Affects Asset Semantics
 
@@ -247,8 +245,9 @@ than inside `flames.cc`.
 ### Display Functions May Self-Reject
 
 Some screen functions return nonzero when the buffer aspect ratio is unsuitable.
-`CthughaDisplayX11` calls `while (screen())` so the current display option
-advances until something works.
+That is only a render rejection, not a request to change the selected display
+option. `PresentationComposer` handles fallback frame-locally by trying the last
+successfully rendered screen and then the safe `Up` screen.
 
 ### Palette Handling Depends on Frontend Color Mode
 
@@ -307,6 +306,15 @@ The `Option` and `EffectControl` model is workable but stringly typed. A modern 
 should treat current option entries as the domain model, then gradually wrap them
 with safer metadata.
 
+`RuntimeCommandSink` / `RuntimeChangeMediator` is the current small
+runtime-change seam. Keymap/interface code, X11 panel callbacks, and
+AutoChanger issue typed `RuntimeCommand` values through the sink; credits input
+and file-playback completion use it for close requests. X11 palette metadata
+save/revert callbacks use it for panel-local persistence and editor state. The
+mediator delegates to existing owners, handles save-and-continue persistence,
+and returns a `RuntimeChangeSet`. It is intentionally a boundary around today's
+globals rather than a complete ownership rewrite.
+
 ## Risk Register
 
 ### High Risk
@@ -314,9 +322,8 @@ with safer metadata.
 - X11/MIT-SHM startup and image paths are platform-sensitive, though X11
   initialization is now deferred until display startup and command-line help
   exits before X is touched.
-- External command execution remains: `EffectControl::load()` uses `gzip -cd` for
-  compressed assets. Silence messages no longer execute `fortune`; opt-in QOTD
-  input is public network text and must stay strictly validated and bounded.
+- Silence messages no longer execute `fortune`; opt-in QOTD input is public
+  network text and must stay strictly validated and bounded.
 - OSS audio and mixer paths are Linux-specific, obsolete, and hard to test on
   modern systems.
 

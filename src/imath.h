@@ -10,16 +10,8 @@
 #define M_PI2 6.2831385307
 #endif
 
-int init_imath();
-
-extern int sine[320];
-
-int Random(int range);
 long longSqrt(long x);
 int ilog2(int n);
-
-double isin(int deg); /* argument in degrees! */
-#define icos(deg) isin((deg) + 90)
 
 static inline int max(int a, int b) { return (a < b) ? b : a; }
 static inline int min(int a, int b) { return (a < b) ? a : b; }

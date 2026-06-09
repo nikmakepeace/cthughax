@@ -51,14 +51,12 @@ deferred suspend handling
 
 ## Current Project Shape
 
-- `src/` contains the application source: 62 top-level `.cc` files and 54
-  top-level headers.
+- `src/` contains the application source: 96 `.cc` files and 90 headers.
 - Built-in translation generators live in `src/TranslateGenerator.*`.
 - `resources/map/` contains 100 `.map` palettes; palette previews are rendered
   directly from palette data.
-- `resources/img/` contains classic indexed image assets: currently 6
-  gzip-compressed `.pcx` files and 1 `.png` image. The same loader path accepts
-  indexed PNGs, including `.png.gz`.
+- `resources/img/` contains classic indexed image assets: currently 6 `.pcx`
+  files and 1 indexed `.png` image.
 - `external/minimp3/` is the embedded MP3 decoder used by the modern audio path.
 - `external/cthugha-js/` is a separate JavaScript port/reference tree.
 - `tests/headers/` contains the current local verification script for checking
@@ -80,7 +78,9 @@ registry for selectable visual entries. The current active categories include:
 Audio and visual control are separated:
 
 - `AudioRuntime`, `RuntimeFactory`, `PcmSourceFactory`, and `Audio` classes own
-  modern source/output composition.
+  modern source/output composition. File-playback completion requests program
+  close by issuing a runtime command through the audio runtime's configured
+  command sink.
 - `AudioFrame` is the facade used by visual code to get the current raw and
   processed 1024-sample window.
 - `AudioProcessor` implements `none`, `Filter1`, `Filter2`, and `FFT` for the
@@ -90,7 +90,17 @@ Audio and visual control are separated:
 - `AudioVisualBridge` runs processing, analysis, and `AutoChanger` policy before
   visual mutation. `AutoChanger` reports quiet intervals to `VideoDirector`;
   `VideoDirector` uses `SilenceMessage` to choose text, asks `Scene` to emit a
-  text cue, then observes that cue to arm `TextInjectionFilter`.
+  text cue, then observes that cue to arm `TextInjectionFilter`. Automatic scene
+  changes are issued as `RuntimeCommand::changeOne()` or
+  `RuntimeCommand::changeAll()` through the runtime command sink; concrete
+  effect selection remains owned by `SceneCommands`/`EffectControl`.
+- `RuntimeCommandSink` is the narrow live-change input contract used by keymap,
+  generic interface actions, X11 panel callbacks, including palette metadata
+  save/revert, credits input, playback completion, and AutoChanger.
+  `RuntimeChangeMediator` implements it: it accepts `RuntimeCommand` values,
+  delegates to current scene/audio/display/lifecycle/panel owners, handles
+  save-and-continue and palette metadata persistence, and returns a
+  `RuntimeChangeSet` describing what kind of state was touched.
 - `VideoFilterchain` is the visual-stage executor. One-shot indexed image
   overlay, border, flame, translate, wave, text injection, frame commit, palette
   smoothing, flashlight, and indexed-frame export run as explicit filters.
@@ -117,11 +127,12 @@ Audio and visual control are separated:
   `Flame`/`Translate`/`Wave` domain objects.
 - Display frontend seam: `DisplayDevice` plus the X11 `CthughaDisplay`
   subclass.
-- Asset seams: `.map` palettes, `.pcx`/`.pcx.gz`/indexed `.png` images, and
+- Asset seams: `.map` palettes, uncompressed `.pcx`/indexed `.png` images, and
   optional `.obj` line objects.
-- Control seam: `Keymap` action registry and `Interface` screens.
-- Build seam: wrapper source files such as `xwin_options.cc` compile shared
-  implementations with target-specific macros.
+- Control seam: `RuntimeCommandSink` / `RuntimeChangeMediator`, `Keymap` action
+  registry, X11 panel callbacks, and `Interface` screens.
+- Build seam: CMake owns target composition; `xwin_keys.cc` remains the X11 key
+  wrapper.
 
 ## Current State Notes
 

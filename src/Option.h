@@ -109,9 +109,4 @@ public:
 };
 extern OptionDummy optionDummy;
 
-extern OptionOnOff options_save; // save options (and buffer) at end
-extern OptionOnOff double_load; // allow double loading
-
-extern OptionInt cthugha_verbose; // verbose level
-
 #endif

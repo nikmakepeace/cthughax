@@ -13,9 +13,6 @@ static const unsigned char kDestinationSentinel = 0xa5;
 double now = 0.0;
 double deltaT = 0.0;
 
-AudioMetrics audioMetrics;
-AcousticContext acousticContext;
-
 AudioMetrics::AudioMetrics()
     : amplitude(0)
     , amplitudeLeft(0)
@@ -23,8 +20,9 @@ AudioMetrics::AudioMetrics()
     , noisy(0) {
 }
 
-AcousticContext::AcousticContext()
-    : intensityValue(0.0)
+AcousticContext::AcousticContext(LogSink* log_)
+    : log(log_)
+    , intensityValue(0.0)
     , lastAmplitudeValue(0)
     , attackLevelValue(0)
     , fireValue(0)
@@ -33,31 +31,6 @@ AcousticContext::AcousticContext()
 
 double AcousticContext::intensity() const {
     return intensityValue;
-}
-
-class CountingSelectionController : public ScreenSelectionController {
-public:
-    int calls;
-    int by;
-    int doSave;
-
-    CountingSelectionController()
-        : calls(0)
-        , by(0)
-        , doSave(0) {
-    }
-
-    virtual void change(int by_, int doSave_) {
-        calls++;
-        by = by_;
-        doSave = doSave_;
-    }
-};
-
-static char2 emptyProcessedWaveData[1024];
-
-char2* audioFrameProcessedWaveData() {
-    return emptyProcessedWaveData;
 }
 
 int cth_log_enabled(int /*lvl*/) {
@@ -337,31 +310,26 @@ static void testFourKaleidoscopeUsesCurrentQuadrantMapping() {
     assertDestinationRemainderUnchanged(destination, source.width(), source.height());
 }
 
-static void assertRetryRequest(ScreenEntry& entry) {
+static void assertGeometryRejection(ScreenEntry& entry) {
     IndexedFrameFixture source(8, 3, 11);
     IndexedDisplayFrame destination;
     xy output = entry.outputSize(source.width(), source.height());
     preparePaddedDestination(destination, output.x, output.y, output.x + 3,
         kDestinationSentinel);
 
-    CountingSelectionController controller;
-    ScreenRenderContext context(source.frame(), destination, now, deltaT, 60.0,
-        &controller);
+    ScreenRenderContext context(source.frame(), destination, now, deltaT, 60.0);
     screen.change("2verd", 0);
 
     int result = entry.render(context);
 
     assert(result == 1);
-    assert(controller.calls == 1);
-    assert(controller.by == +1);
-    assert(controller.doSave == 0);
     assertDestinationRemainderUnchanged(destination, 0, 0);
 }
 
-static void testGeometryRetryRequestsUseSelectionController() {
-    assertRetryRequest(requiredScreenEntry(5, "2verd"));
-    assertRetryRequest(requiredScreenEntry(6, "r2verd"));
-    assertRetryRequest(requiredScreenEntry(7, "4kal"));
+static void testGeometryRejectionDoesNotChooseReplacement() {
+    assertGeometryRejection(requiredScreenEntry(5, "2verd"));
+    assertGeometryRejection(requiredScreenEntry(6, "r2verd"));
+    assertGeometryRejection(requiredScreenEntry(7, "4kal"));
 }
 
 static void testScreenEntryRenderUsesExplicitContext() {
@@ -406,7 +374,7 @@ int main() {
     testScaleXRendererMatchesUpBeforeCompletion();
     testFourHorizontalKaleidoscopeUsesCurrentLowerHalfMapping();
     testFourKaleidoscopeUsesCurrentQuadrantMapping();
-    testGeometryRetryRequestsUseSelectionController();
+    testGeometryRejectionDoesNotChooseReplacement();
     testScreenEntryRenderUsesExplicitContext();
     testHeightfieldUsesContextDeltaTime();
     return 0;

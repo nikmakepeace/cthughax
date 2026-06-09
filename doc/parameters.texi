@@ -354,10 +354,6 @@ Set the position of the Cthugha window. Use for example as
 @code{--position +10+20}. The normal @code{-geometry} option is not
 working (it sets the position of the control panel).
 
-@item --text-on-term
-Display all text messages in the calling xterm or print all text
-messages over the buffer or into the control panel.
-
 @item --no-decorate
 Do not decoreate the window (set is Cthugha sets the override_redirect
 flag). 
@@ -381,18 +377,6 @@ image files. Cthugha also searches for an ini file
 
 @item --keymap KEYMAP
 Load extra keyboard bindings from @code{KEYMAP}.
-
-
-@item --dbl-load
-Allow loading of 2 or more palettes, translation tables or indexed images with
-the same name. 
-
-@item --prt-file FILE
-File used to save screen at PrintScreen. 
-The extensions and a number are appended automatically.
-So the first saved file is @code{FILE.pcx}, the second is @code{FILE.1.pcx}, the
-third is @code{FILE.2.pcx} and so on. When saving under @code{xcthugha}
-the images are in Xpm format.
 
 
 @item --no-esc

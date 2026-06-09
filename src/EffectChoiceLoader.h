@@ -5,6 +5,8 @@
 
 #include "EffectControl.h"
 
+struct PathConfig;
+
 #include <stdio.h>
 
 typedef EffectChoice* (*EffectChoiceLoader)(FILE*, const char*, const char*, const char*);
@@ -21,16 +23,17 @@ typedef EffectChoice* (*EffectChoiceContextLoader)(
  * @param loader File parser returning a new EffectChoice, or NULL to skip.
  * @return Zero after scanning configured paths.
  */
-int loadEffectChoices(EffectControl& option, const char* searchPath[],
-    const char* extraPath, const char* extension, EffectChoiceLoader loader);
+int loadEffectChoices(EffectControl& option, const PathConfig& pathConfig,
+    const char* searchPath[], const char* extraPath, const char* extension,
+    EffectChoiceLoader loader);
 
 /**
  * Context-aware variant of loadEffectChoices().
  *
  * @param context Borrowed parser context passed through to loader.
  */
-int loadEffectChoices(EffectControl& option, const char* searchPath[],
-    const char* extraPath, const char* extension, EffectChoiceContextLoader loader,
-    void* context);
+int loadEffectChoices(EffectControl& option, const PathConfig& pathConfig,
+    const char* searchPath[], const char* extraPath, const char* extension,
+    EffectChoiceContextLoader loader, void* context);
 
 #endif

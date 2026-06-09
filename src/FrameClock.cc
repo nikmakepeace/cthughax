@@ -1,12 +1,12 @@
+/** @file
+ * Visual frame clock implementation.
+ */
+
 #include "FrameClock.h"
-#include "cthugha.h"
+#include "ProcessServices.h"
 
-double SystemFrameTimeSource::seconds() {
-    return getTime();
-}
-
-FrameClock::FrameClock(FrameTimeSource& timeSource_)
-    : timeSource(timeSource_)
+FrameClock::FrameClock(SecondsClock& clock_)
+    : clock(clock_)
     , nowValue(0.0)
     , deltaValue(0.0)
     , hasFrameValue(0)
@@ -15,7 +15,7 @@ FrameClock::FrameClock(FrameTimeSource& timeSource_)
 
 void FrameClock::beginFrame() {
     double previous = nowValue;
-    nowValue = timeSource.seconds();
+    nowValue = clock.nowSeconds();
     if (hasFrameValue) {
         deltaValue = nowValue - previous;
         frameRateMeter.observeFrameDuration(deltaValue);
@@ -26,7 +26,7 @@ void FrameClock::beginFrame() {
 }
 
 double FrameClock::sample() {
-    return timeSource.seconds();
+    return clock.nowSeconds();
 }
 
 double FrameClock::now() const {
@@ -43,9 +43,4 @@ double FrameClock::framesPerSecond() const {
 
 double FrameClock::rollingFramesPerSecond() const {
     return frameRateMeter.rollingFramesPerSecond();
-}
-
-void FrameClock::publish(double& nowAlias, double& deltaAlias) const {
-    nowAlias = nowValue;
-    deltaAlias = deltaValue;
 }

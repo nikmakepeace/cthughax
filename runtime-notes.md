@@ -64,6 +64,24 @@ Observed performance in the verified environment:
 
 But! This was a virtualised 
 
+## Random palettes
+
+Palette keys distinguish existing catalog palettes from generated random
+palettes:
+
+- `p`/`P` moves through the loaded palette catalog.
+- `R` creates a new generated random palette at `max(random.N) + 1`, saves it
+  as `resources/map/random.N.map`, and selects it.
+- `r` re-rolls the currently selected `random.N` palette and saves that same
+  map. If the current selection is not `random.N`, it re-rolls the most recent
+  generated palette from the current process; if none exists yet, it behaves
+  like `R`.
+
+Because the palette search path includes `./resources/map/`, saved
+`random.N.map` files are loaded as ordinary catalog palettes on the next run.
+New generated random palettes continue from the highest existing `random.N`
+instead of overwriting earlier saved random palettes.
+
 ## Audio expectations
 
 For file playback, the current code decodes into the modern audio runtime and

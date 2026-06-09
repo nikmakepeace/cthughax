@@ -91,13 +91,13 @@
      everything, and per-option locks are always respected.
 
 7. Stabilize image behavior.
-   - ~~Verify loading from `resources/img/`, `.pcx.gz`, clipping, centering, and palette selection.~~
-   - Add PNG loader coverage and keep screenshot save behavior verified.
+   - ~~Verify loading from `resources/img/`, clipping, centering, and palette selection.~~
+   - Add PNG loader coverage.
    - Review visual catalog/init return-code behavior: `Application` now owns
      visual catalog startup, but several `init_*` functions still always return
      `0`. Decide whether those functions should be `void`, or whether startup
      should have real fatal error propagation.
-   - ~~Keep PCX working as classic content while preparing for a modern image path.~~
+   - ~~Keep PCX loading working as classic content while preparing for a modern image path.~~
 
 8. Add a modern image loader.
    - ~~Add a small image-loader abstraction, with PNG as the first supported modern format.~~
@@ -232,7 +232,7 @@
 - Document `xcthugha` as the current reference target.
 - Update Help text to include the currently mapped keys
 - Update help functionality:
-```--list-palettes (for each map, show index, name, sets) 
+```--list-palettes (for each map, show index, name, sets)
 --list-palette-sets (for each set, show name)
 --list-palettes=$set_name (for each palette in a set, show name, sets)
 --list-waves (index, name)

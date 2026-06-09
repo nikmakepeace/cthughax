@@ -1,5 +1,6 @@
-#include "cthugha.h"
+#include "config.h"
 #include "PcmSourceFactory.h"
+#include "ProcessServices.h"
 #include "RuntimeFactory.h"
 
 #include <ctype.h>
@@ -19,6 +20,10 @@ static int filenameEndsWith(const char* name, const char* suffix) {
     }
 
     return 1;
+}
+
+PcmSourceFactory::PcmSourceFactory(LogSink& log_)
+    : log(log_) {
 }
 
 const char* PcmSourceFactory::strategyName(AudioSourceStrategy strategy) {
@@ -66,46 +71,47 @@ AudioSourceStrategy PcmSourceFactory::selectAudioSourceStrategy(const AudioSetti
         break;
     }
 
-    CTH_DEBUG("    pcm source strategy: selected strategy=%s audio-input-mode=%d file=`%s'\n",
+    log.debug("    pcm source strategy: selected strategy=%s audio-input-mode=%d file=`%s'\n",
         strategyName(strategy), settings.audioInputMode, settings.fileName);
     return strategy;
 }
 
-PcmSource* PcmSourceFactory::create(const AudioSettings& settings, int visualMaxDimension) const {
+PcmSource* PcmSourceFactory::create(const AudioSettings& settings,
+    int visualMaxDimension, RandomSource& randomSource) const {
     AudioSourceStrategy strategy = selectAudioSourceStrategy(settings);
 
     switch (strategy) {
     case ASS_LineIn:
-        CTH_DEBUG("    pcm source strategy: creating DspPcmSource\n");
-        return new DspPcmSource(visualMaxDimension);
+        log.debug("    pcm source strategy: creating DspPcmSource\n");
+        return new DspPcmSource(settings, visualMaxDimension, log);
 
     case ASS_Random:
-        CTH_DEBUG("    pcm source strategy: creating RandomNoisePcmSource\n");
-        return new RandomNoisePcmSource();
+        log.debug("    pcm source strategy: creating RandomNoisePcmSource\n");
+        return new RandomNoisePcmSource(settings.pcmFormat, randomSource, log);
 
     case ASS_WavFile:
-        CTH_DEBUG("    pcm source strategy: creating WavPcmSource file=`%s'\n",
+        log.debug("    pcm source strategy: creating WavPcmSource file=`%s'\n",
             settings.fileName);
-        return new WavPcmSource(settings.fileName);
+        return new WavPcmSource(settings.fileName, log);
 
     case ASS_Mp3File:
 #if WITH_MINIMP3 == 1
-        CTH_DEBUG("    pcm source strategy: creating Minimp3PcmSource file=`%s'\n",
+        log.debug("    pcm source strategy: creating Minimp3PcmSource file=`%s'\n",
             settings.fileName);
-        return new Minimp3PcmSource(settings.fileName);
+        return new Minimp3PcmSource(settings.fileName, log);
 #else
-        CTH_DEBUG("    pcm source strategy: no MP3 PCM driver is compiled in file=`%s'\n",
+        log.debug("    pcm source strategy: no MP3 PCM driver is compiled in file=`%s'\n",
             settings.fileName);
         return NULL;
 #endif
 
     case ASS_RawFile:
-        CTH_DEBUG("    pcm source strategy: creating RawPcmSource file=`%s'\n",
+        log.debug("    pcm source strategy: creating RawPcmSource file=`%s'\n",
             settings.fileName);
-        return new RawPcmSource(settings.fileName);
+        return new RawPcmSource(settings.fileName, settings.pcmFormat, log);
 
     default:
-        CTH_DEBUG("    pcm source strategy: no PCM source for strategy=%s\n",
+        log.debug("    pcm source strategy: no PCM source for strategy=%s\n",
             strategyName(strategy));
         return NULL;
     }

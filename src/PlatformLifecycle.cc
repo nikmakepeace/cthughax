@@ -2,25 +2,53 @@
 
 #include "PlatformLifecycle.h"
 
-#include "cthugha.h"
+#include "ProcessServices.h"
 
 #include <signal.h>
+
+class PlatformSuspendSignalState {
+#if defined(SIGTSTP) && !defined(_WIN32)
+    int handlerInstalledValue;
+    int previousActionValid;
+    struct sigaction previousAction;
+#endif
+    volatile sig_atomic_t requestPending;
+
+public:
+    PlatformSuspendSignalState();
+    ~PlatformSuspendSignalState();
+
+    int install(LogSink& log);
+    void shutdown();
+    void request();
+    int consumeRequest();
+    void suspendCurrentProcess(LogSink& log);
+};
 
 #if defined(SIGTSTP) && !defined(_WIN32)
 #define CTH_HAVE_JOB_CONTROL 1
 #include <string.h>
 
-static volatile sig_atomic_t suspendRequested = 0;
-static int suspendHandlerInstalled = 0;
-static int previousSuspendActionValid = 0;
-static struct sigaction previousSuspendAction;
+static PlatformSuspendSignalState* activeSuspendSignalState = NULL;
 
 static void suspendSignalHandler(int) {
-    suspendRequested = 1;
+    if (activeSuspendSignalState != NULL)
+        activeSuspendSignalState->request();
 }
 
-static int installSuspendSignalHandler() {
-    if (suspendHandlerInstalled)
+PlatformSuspendSignalState::PlatformSuspendSignalState()
+    : handlerInstalledValue(0)
+    , previousActionValid(0)
+    , requestPending(0) {
+    memset(&previousAction, 0, sizeof(previousAction));
+}
+
+PlatformSuspendSignalState::~PlatformSuspendSignalState() {
+    shutdown();
+}
+
+int PlatformSuspendSignalState::install(LogSink& log) {
+    if (handlerInstalledValue)
         return 1;
 
     struct sigaction action;
@@ -28,122 +56,144 @@ static int installSuspendSignalHandler() {
     sigemptyset(&action.sa_mask);
     action.sa_handler = suspendSignalHandler;
 
-    if (!previousSuspendActionValid) {
+    if (!previousActionValid) {
         struct sigaction currentAction;
         if (sigaction(SIGTSTP, 0, &currentAction) != 0) {
-            CTH_WARN("Could not inspect SIGTSTP handler; terminal suspend disabled.\n");
+            log.warn("Could not inspect SIGTSTP handler; terminal suspend disabled.\n");
             return 0;
         }
 
         if (currentAction.sa_handler == SIG_IGN)
             return 0;
 
-        if (sigaction(SIGTSTP, &action, &previousSuspendAction) != 0) {
-            CTH_WARN("Could not install SIGTSTP handler; terminal suspend disabled.\n");
+        if (sigaction(SIGTSTP, &action, &previousAction) != 0) {
+            log.warn("Could not install SIGTSTP handler; terminal suspend disabled.\n");
             return 0;
         }
 
-        previousSuspendActionValid = 1;
+        previousActionValid = 1;
     } else {
         if (sigaction(SIGTSTP, &action, 0) != 0) {
-            CTH_WARN("Could not reinstall SIGTSTP handler; terminal suspend disabled.\n");
+            log.warn("Could not reinstall SIGTSTP handler; terminal suspend disabled.\n");
             return 0;
         }
     }
 
-    suspendHandlerInstalled = 1;
+    activeSuspendSignalState = this;
+    handlerInstalledValue = 1;
     return 1;
 }
 
-static void restoreSuspendSignalHandler() {
-    if (!suspendHandlerInstalled)
+void PlatformSuspendSignalState::shutdown() {
+    if (!handlerInstalledValue)
         return;
 
-    if (previousSuspendActionValid)
-        sigaction(SIGTSTP, &previousSuspendAction, 0);
+    if (previousActionValid)
+        sigaction(SIGTSTP, &previousAction, 0);
 
-    previousSuspendActionValid = 0;
-    suspendHandlerInstalled = 0;
+    if (activeSuspendSignalState == this)
+        activeSuspendSignalState = NULL;
+    previousActionValid = 0;
+    handlerInstalledValue = 0;
 }
 
-static void useDefaultSuspendSignalHandler() {
+void PlatformSuspendSignalState::request() {
+    requestPending = 1;
+}
+
+int PlatformSuspendSignalState::consumeRequest() {
+    if (!requestPending)
+        return 0;
+
+    requestPending = 0;
+    return 1;
+}
+
+static void useDefaultSuspendSignalHandler(PlatformSuspendSignalState* state) {
     struct sigaction action;
     memset(&action, 0, sizeof(action));
     sigemptyset(&action.sa_mask);
     action.sa_handler = SIG_DFL;
     sigaction(SIGTSTP, &action, 0);
-    suspendHandlerInstalled = 0;
+    if (activeSuspendSignalState == state)
+        activeSuspendSignalState = NULL;
 }
 
-static void suspendCurrentProcess() {
-    useDefaultSuspendSignalHandler();
+void PlatformSuspendSignalState::suspendCurrentProcess(LogSink& log) {
+    handlerInstalledValue = 0;
+    useDefaultSuspendSignalHandler(this);
     raise(SIGTSTP);
-    installSuspendSignalHandler();
+    install(log);
 }
 #else
 #define CTH_HAVE_JOB_CONTROL 0
 
-static volatile int suspendRequested = 0;
+PlatformSuspendSignalState::PlatformSuspendSignalState()
+    : requestPending(0) { }
 
-static int installSuspendSignalHandler() { return 0; }
-static void restoreSuspendSignalHandler() { }
-static void suspendCurrentProcess() { }
-#endif
+PlatformSuspendSignalState::~PlatformSuspendSignalState() { }
 
-static int consumeSuspendRequest() {
-    if (!suspendRequested)
+int PlatformSuspendSignalState::install(LogSink&) {
+    return 0;
+}
+
+void PlatformSuspendSignalState::shutdown() { }
+
+void PlatformSuspendSignalState::request() {
+    requestPending = 1;
+}
+
+int PlatformSuspendSignalState::consumeRequest() {
+    if (!requestPending)
         return 0;
 
-    suspendRequested = 0;
+    requestPending = 0;
     return 1;
 }
 
-PlatformLifecycle::PlatformLifecycle(const PlatformLifecycleCallbacks& callbacks_)
+void PlatformSuspendSignalState::suspendCurrentProcess(LogSink&) { }
+#endif
+
+PlatformLifecycle::PlatformLifecycle(LogSink& log_,
+    const PlatformLifecycleCallbacks& callbacks_)
     : callbacks(callbacks_)
-    , installed(0) { }
+    , log(log_)
+    , signalState(new PlatformSuspendSignalState) { }
 
 PlatformLifecycle::~PlatformLifecycle() {
     shutdown();
 }
 
 void PlatformLifecycle::install() {
-    installed = installSuspendSignalHandler();
+    signalState->install(log);
 }
 
 void PlatformLifecycle::shutdown() {
-    if (!installed)
-        return;
-
-    restoreSuspendSignalHandler();
-    installed = 0;
+    signalState->shutdown();
 }
 
 void PlatformLifecycle::requestSuspend() {
-    requestApplicationSuspend();
+    signalState->request();
 }
 
 void PlatformLifecycle::serviceFrameBoundary() {
-    if (!consumeSuspendRequest())
+    if (!signalState->consumeRequest())
         return;
 
-    if (!installed) {
-        CTH_DEBUG("Suspend requested, but this platform has no active job-control suspend hook.\n");
+    if (!CTH_HAVE_JOB_CONTROL) {
+        log.debug("Suspend requested, but this platform has no active job-control suspend hook.\n");
         return;
     }
 
 #if CTH_HAVE_JOB_CONTROL
-    CTH_INFO("Stopping...\n");
+    log.info("Stopping...\n");
     if (callbacks.willSuspend != 0)
         callbacks.willSuspend(callbacks.context);
 
-    suspendCurrentProcess();
+    signalState->suspendCurrentProcess(log);
 
-    CTH_INFO("Continuing...\n");
+    log.info("Continuing...\n");
     if (callbacks.didResume != 0)
         callbacks.didResume(callbacks.context);
 #endif
-}
-
-void requestApplicationSuspend() {
-    suspendRequested = 1;
 }

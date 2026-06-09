@@ -1,21 +1,62 @@
-// Application lifecycle and shared graphical frame scheduler.
+/** @file
+ * Application lifecycle and shared graphical frame scheduler.
+ */
 
 #ifndef __APPLICATION_H
 #define __APPLICATION_H
 
+#include "ApplicationDisplayFrontend.h"
+#include "AudioAnalyzer.h"
+#include "CommandsInputRuntime.h"
 #include "PlatformLifecycle.h"
-#include "VideoFilterchainSequence.h"
+#include "Configuration.h"
+#include "DisplaySystem.h"
+#include "FrameGeneratorRuntime.h"
+#include "FramePacer.h"
+#include "ProcessServices.h"
 
 #include <memory>
 #include <vector>
 
-class AudioVisualBridge;
-class CthughaDisplay;
-class DisplayRuntimeOwnership;
+class AudioFrame;
+class AudioFramePipeline;
+class AudioIngest;
+class ApplicationRuntimeConfigContributor;
+class AudioRuntimeConfigContributor;
+class AudioProcessingSelector;
+class AudioProcessingState;
+class AudioProcessor;
+class AutoChangeControls;
+class AutoChangeQuietObserver;
+class AutoChangeSettings;
+class ErrorMessages;
 class IndexedFrame;
+class ImageOption;
+class InterfaceRuntime;
+class DisplayRuntimeConfigContributor;
+class LegacyRuntimeConfigContributor;
+class MixerControls;
+class MixerDevice;
+class MixerSession;
+class OptionTime;
+class RuntimeAudioControls;
+class RuntimeAutoChangeControls;
+class RuntimeChangeMediator;
+class RuntimeConfigRegistry;
+class RuntimeCommandTargetRouter;
+class RuntimeDisplayControls;
+class RuntimeEffectControls;
+class RuntimePersistence;
+class RuntimeShutdown;
 class Scene;
-class SceneCommands;
-class VideoFilterchain;
+class SceneChangeScheduler;
+class SceneImageCatalog;
+class ScenePaletteCatalog;
+class SceneRuntime;
+class SceneSnapshot;
+class SceneTranslationCatalog;
+class SceneWaveObjectCatalog;
+class SceneVisualCatalogFactory;
 
 /**
  * Top-level graphical application lifecycle.
@@ -29,16 +70,58 @@ class Application {
     int argcValue;
     char** argvValue;
     std::vector<char*> displayArgv;
+    SystemFrameSleeper frameSleeperValue;
+    FramePacer framePacerValue;
+    SystemMillisecondClock millisecondClockValue;
+    SystemSecondsClock secondsClockValue;
+    SystemCountdownTimerFactory countdownTimerFactoryValue;
+    CStdRandomSource randomSourceValue;
+    LoggingRuntime loggingRuntimeValue;
+    ConsoleLogSink logSinkValue;
+    std::unique_ptr<CommandsInputRuntime> commandsInputValue;
     int exitStatusValue;
-    int ncursesInitialized;
-    std::unique_ptr<VideoFilterchain> videoFilterchain;
-    VideoFilterchainSequence videoFilterchainSequence;
-    std::unique_ptr<AudioVisualBridge> audioVisualBridge;
-    std::unique_ptr<Scene> sceneValue;
-    std::unique_ptr<SceneCommands> sceneCommandsValue;
-    std::unique_ptr<DisplayRuntimeOwnership> displayRuntimeOwnership;
-    std::unique_ptr<CthughaDisplay> displayValue;
+    Config startupConfigValue;
+    std::vector<ConfigDiagnostic> startupConfigDiagnostics;
+    FrameGeneratorRuntime frameGeneratorValue;
+    std::unique_ptr<ImageOption> imageOptionValue;
+    std::unique_ptr<OptionTime> quietMessageOptionValue;
+    LegacyDisplayFrontendInitializer displayFrontendInitializerValue;
+    DisplayFrontendInitializer* displayFrontendInitializer;
+    AcousticContext acousticContextValue;
+    std::unique_ptr<AudioProcessor> audioProcessorValue;
+    std::unique_ptr<AudioProcessingState> audioProcessingStateValue;
+    std::unique_ptr<AudioProcessingSelector> audioProcessingSelectorValue;
+    std::unique_ptr<AudioFramePipeline> audioFramePipelineValue;
+    std::unique_ptr<AudioIngest> audioIngestValue;
+    std::unique_ptr<AutoChangeSettings> autoChangeSettingsValue;
+    std::unique_ptr<AutoChangeControls> autoChangeControlsValue;
+    std::unique_ptr<AutoChangeQuietObserver> autoChangeQuietObserverValue;
+    std::unique_ptr<SceneChangeScheduler> sceneChangeSchedulerValue;
+    std::unique_ptr<SceneImageCatalog> sceneImageCatalogValue;
+    std::unique_ptr<ScenePaletteCatalog> scenePaletteCatalogValue;
+    std::unique_ptr<SceneTranslationCatalog> sceneTranslationCatalogValue;
+    std::unique_ptr<SceneWaveObjectCatalog> sceneWaveObjectCatalogValue;
+    std::unique_ptr<SceneVisualCatalogFactory> sceneVisualCatalogFactoryValue;
+    std::unique_ptr<SceneRuntime> sceneRuntimeValue;
+    std::unique_ptr<RuntimeConfigRegistry> runtimeConfigRegistryValue;
+    std::unique_ptr<DisplayRuntimeConfigContributor> displayConfigContributorValue;
+    std::unique_ptr<AudioRuntimeConfigContributor> audioConfigContributorValue;
+    std::unique_ptr<ApplicationRuntimeConfigContributor> appConfigContributorValue;
+    std::unique_ptr<LegacyRuntimeConfigContributor> legacyConfigContributorValue;
+    std::unique_ptr<RuntimePersistence> runtimePersistenceValue;
+    std::unique_ptr<RuntimeShutdown> runtimeShutdownValue;
+    std::unique_ptr<RuntimeDisplayControls> runtimeDisplayControlsValue;
+    std::unique_ptr<RuntimeAudioControls> runtimeAudioControlsValue;
+    std::unique_ptr<RuntimeAutoChangeControls> runtimeAutoChangeControlsValue;
+    std::unique_ptr<RuntimeEffectControls> runtimeEffectControlsValue;
+    std::unique_ptr<RuntimeChangeMediator> runtimeChangeMediatorValue;
+    std::unique_ptr<RuntimeCommandTargetRouter> runtimeCommandRouterValue;
+    std::unique_ptr<MixerDevice> mixerDeviceValue;
+    std::unique_ptr<MixerSession> mixerSessionValue;
+    std::unique_ptr<MixerControls> mixerControlsValue;
+    DisplaySystem displaySystemValue;
     PlatformLifecycle platformLifecycle;
+    int startupInitialized;
     int shutdownComplete;
 
     /** PlatformLifecycle trampoline for willSuspend(). */
@@ -53,29 +136,49 @@ class Application {
     /** Reopens audio resources after process resume. */
     void didResume();
 
-    /** Destroys Scene/SceneCommands and disconnects legacy scene callbacks. */
+    /** @return True when the application should leave the main loop. */
+    bool closeRequested() const;
+
+    /** Destroys scene-adjacent runtime command and persistence objects. */
     void shutdownSceneRuntime();
 
-    /** Destroys the visual filterchain and its owned filters. */
-    void shutdownVideoFilterchain();
+    /** Creates and installs OSS mixer controls for DSP input sessions. */
+    int initMixerRuntime();
 
-    /** Destroys the audio-to-visual bridge and its AutoChanger state. */
-    void shutdownAudioVisualBridge();
+    /** Clears and releases the Application-owned mixer runtime. */
+    void shutdownMixerRuntime();
+
+    /** Destroys the frame generator filterchain and its owned filters. */
+    void shutdownFrameGeneratorPipeline();
 
     /**
-     * Runs the audio policy side of one visual frame.
+     * Creates and starts application-owned audio ingest.
      *
-     * This updates audio analysis/acoustic context and refreshes visual filters
-     * when an audio-side option change requires it.
+     * @return 0 on success, nonzero when requested startup audio cannot open.
      */
-    void runAudioVisualBridge();
+    int initAudioIngest();
+
+    /** Stops audio ingest and releases its owned acquisition pipeline. */
+    void shutdownAudioIngest();
+
+    /** Destroys the audio frame pipeline and automatic scene-change state. */
+    void shutdownAudioFramePipeline();
 
     /**
-     * Runs the visual filterchain for one frame.
+     * Runs the audio side of one visual frame.
+     *
+     * This updates audio analysis/acoustic context and runs automatic
+     * scene-change policy from the resulting frame metrics.
+     */
+    void runAudioFramePipeline(AudioFrame& frame);
+
+    /**
+     * Runs the frame generator for one frame.
      *
      * @return Published IndexedFrame for display, or NULL when no frame is ready.
      */
-    const IndexedFrame* runVideoFilterchain();
+    const IndexedFrame* runFrameGenerator(
+        AudioFrame& frame, const SceneSnapshot& sceneSnapshot);
 
 public:
     /**
@@ -85,6 +188,19 @@ public:
      * @param argv Argument vector from main(); borrowed for process lifetime.
      */
     Application(int argc, char* argv[]);
+
+    /**
+     * Captures process arguments and an explicit display frontend initializer.
+     *
+     * @param argc Argument count from main().
+     * @param argv Argument vector from main(); borrowed for process lifetime.
+     * @param displayFrontendInitializer_ Display startup port used during
+     *        initialize(). The referenced object must outlive Application.
+     */
+    Application(int argc, char* argv[],
+        DisplayFrontendInitializer& displayFrontendInitializer_);
+
+    /** Releases owned runtime objects through shutdown(). */
     ~Application();
 
     /**
@@ -98,7 +214,7 @@ public:
     int initialize();
 
     /**
-     * Runs the main event/frame loop until cthugha_close is set.
+     * Runs the main event/frame loop until shutdown is requested.
      *
      * Each iteration processes display events, services the active interface,
      * runs one frame, and services the interface again for post-frame updates.
@@ -106,23 +222,24 @@ public:
     void run();
 
     /**
-     * Initializes scene state and command facade.
+     * Initializes scene state and command ports.
      *
-     * Must run before option parsing that can route changes through legacy
-     * callbacks into SceneCommands.
+     * Must run after visual catalog loading so Scene selections copy complete
+     * catalog entries, and before startup scene config or runtime commands are
+     * applied.
      */
     void initSceneRuntime();
 
     /**
-     * Creates the configured video filterchain and connects its frame palette
-     * to the display device.
+     * Creates the configured frame generator filterchain and connects its
+     * frame palette to the display device.
      */
-    void initVideoFilterchain();
+    void initFrameGeneratorPipeline();
 
     /**
-     * Creates the audio-to-visual bridge after scene commands are available.
+     * Creates the audio frame pipeline after scene commands are available.
      */
-    void initAudioVisualBridge();
+    void initAudioFramePipeline();
 
     /**
      * Idempotently tears down runtime objects in dependency order.
@@ -143,8 +260,6 @@ public:
     /** @return Active Scene. Valid after initSceneRuntime(). */
     Scene& scene();
 
-    /** @return Active SceneCommands facade. Valid after initSceneRuntime(). */
-    SceneCommands& sceneCommands();
 };
 
 #endif

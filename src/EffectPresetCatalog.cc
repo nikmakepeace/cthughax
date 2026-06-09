@@ -3,8 +3,7 @@
 #include "cthugha.h"
 #include "EffectPresetCatalog.h"
 #include "EffectControl.h"
-
-EffectPresetCatalog effectPresetCatalog;
+#include "EffectRegistry.h"
 
 int EffectPresetSlot::indexOf(const EffectControl& option) const {
     for (unsigned int i = 0; i < values.size(); i++)
@@ -29,20 +28,28 @@ int EffectPresetSlot::value(const EffectControl& option) const {
     return (index >= 0) ? values[index].selection : 0;
 }
 
-void EffectPresetSlot::saveCurrentValues() {
-    for (EffectControl* option = EffectControl::firstRegistered(); option != NULL;
-         option = option->nextRegistered()) {
-        setValue(*option, option->currentN());
+void EffectPresetSlot::saveCurrentValues(const EffectRegistry& registry) {
+    for (int i = 0; i < registry.count(); i++) {
+        EffectControl* option = registry.controlAt(i);
+        if (option != 0)
+            setValue(*option, option->currentN());
     }
 }
 
-void EffectPresetSlot::restoreValues() {
-    for (EffectControl* option = EffectControl::firstRegistered(); option != NULL;
-         option = option->nextRegistered()) {
-        option->setValue(value(*option));
-        option->change(0, 0);
+void EffectPresetSlot::restoreValues(const EffectRegistry& registry) {
+    for (int i = 0; i < registry.count(); i++) {
+        EffectControl* option = registry.controlAt(i);
+        if (option != 0) {
+            option->setValue(value(*option));
+            option->change(0, 0);
+        }
     }
 }
+
+EffectPresetCatalog::EffectPresetCatalog(EffectRegistry& registry_)
+    : registry(registry_) { }
+
+EffectPresetCatalog::~EffectPresetCatalog() { }
 
 int EffectPresetCatalog::validSlot(int slot) const {
     return (slot >= 0) && (slot < PresetSlotCount);
@@ -56,15 +63,15 @@ void EffectPresetCatalog::save(int slot) {
     if (!validSlot(slot))
         return;
 
-    slots[slot].saveCurrentValues();
+    slots[slot].saveCurrentValues(registry);
 }
 
 void EffectPresetCatalog::restore(int slot) {
     if (!validSlot(slot))
         return;
 
-    EffectControl::save();
-    slots[slot].restoreValues();
+    registry.saveAll();
+    slots[slot].restoreValues(registry);
 }
 
 void EffectPresetCatalog::setValue(int slot, EffectControl& option, int selection) {

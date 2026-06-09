@@ -1,37 +1,34 @@
-// Runtime audio option declarations.
+/** @file
+ * Stateless audio option text helpers.
+ */
 
 #ifndef __AUDIO_OPTIONS_H
 #define __AUDIO_OPTIONS_H
 
 #include "AudioTypes.h"
-#include "Option.h"
 
-#include <limits.h>
-#ifndef PATH_MAX
-#define PATH_MAX 4096
-#endif
+/**
+ * Formats a channel count for display.
+ *
+ * @param channels PCM channel count.
+ * @return Human-readable channel text.
+ */
+const char* audioChannelsText(int channels);
 
-extern Option& audioInputMode;
+/**
+ * Formats a sample format id for display.
+ *
+ * @param sampleFormat Sample format id.
+ * @return Human-readable sample format text.
+ */
+const char* audioSampleFormatText(int sampleFormat);
 
-extern Option& soundFormat;
-extern Option& soundChannels;
-extern Option& soundSampleRate;
-
-extern Option& soundDSPMethod;
-extern Option& soundDSPFragments;
-extern Option& soundDSPFragmentSize;
-extern Option& soundDSPSync;
-
-extern Option& soundSilent;
-
-extern int audioInputLoop;
-extern char dev_dsp[];
-extern char pulse_server[];
-extern int pulse_latency_msec;
-extern char audio_output_dump[];
-extern char audio_input_file[];
-
-const char* pulse_server_name();
-const char* pulse_server_display_name();
+/**
+ * Formats a boolean setting as legacy on/off text.
+ *
+ * @param enabled Nonzero for on.
+ * @return " on" or "off".
+ */
+const char* audioOnOffText(int enabled);
 
 #endif

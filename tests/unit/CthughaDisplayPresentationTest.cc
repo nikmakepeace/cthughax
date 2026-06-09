@@ -1,9 +1,14 @@
+#include "AudioFrame.h"
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
+#include "DisplayPresentationOptions.h"
 #include "DisplayRuntime.h"
 #include "FramePalette.h"
 #include "IndexedFrameTestFixtures.h"
+#include "InputQueue.h"
+#include "ProcessServices.h"
 #include "Screen.h"
+#include "FrameRenderContext.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -39,7 +44,7 @@ double DisplayDevice::print(const char*, double y, int, int, int) {
 
 class StaticOutputBackend : public DisplayBackend {
 public:
-    virtual DisplayEventStats processEvents() {
+    virtual DisplayEventStats processEvents(InputEventSink&) {
         return DisplayEventStats();
     }
 
@@ -67,10 +72,6 @@ int screen_plate(ScreenRenderContext&) { return 0; }
 int screen_vscale_hmirror(ScreenRenderContext&) { return 0; }
 int screen_hscale_vmirror(ScreenRenderContext&) { return 0; }
 int screen_source(ScreenRenderContext&) { return 0; }
-
-double getTime() {
-    return 100.0;
-}
 
 int cth_log_enabled(int /*lvl*/) {
     return 0;
@@ -101,10 +102,35 @@ static int copySourceRenderer(ScreenRenderContext& context) {
     return 0;
 }
 
-static int retryRenderer(ScreenRenderContext& context) {
-    context.requestScreenChange(+1, 0);
+static int rejectRenderer(ScreenRenderContext&) {
     return 1;
 }
+
+static const AudioMetrics* observedAudioMetrics = 0;
+static const char2* observedRawAudio = 0;
+static const char2* observedProcessedAudio = 0;
+static const AcousticContext* observedAcousticContext = 0;
+
+static int observeAudioRenderer(ScreenRenderContext& context) {
+    observedAudioMetrics = context.audioMetrics();
+    observedRawAudio = context.rawAudioData();
+    observedProcessedAudio = context.processedWaveData();
+    observedAcousticContext = context.acousticContext();
+    return copySourceRenderer(context);
+}
+
+class FakeSecondsClock : public SecondsClock {
+public:
+    double value;
+
+    explicit FakeSecondsClock(double value_)
+        : value(value_) { }
+
+    virtual double nowSeconds() const { return value; }
+};
+
+static FakeSecondsClock displayClock(100.0);
+static DisplayPresentationSettings displaySettings;
 
 class StaticSelection : public PresentationScreenSelection {
     ScreenEntry* currentValue;
@@ -118,38 +144,8 @@ public:
         return currentValue;
     }
 
-    virtual void change(int /*by*/, int /*doSave*/) {
-    }
-};
-
-class RetryingSelection : public PresentationScreenSelection {
-    ScreenEntry* firstValue;
-    ScreenEntry* secondValue;
-    int changed;
-
-public:
-    int calls;
-    int by;
-    int doSave;
-
-    RetryingSelection(ScreenEntry& first, ScreenEntry& second)
-        : firstValue(&first)
-        , secondValue(&second)
-        , changed(0)
-        , calls(0)
-        , by(0)
-        , doSave(0) {
-    }
-
-    virtual ScreenEntry* current() {
-        return changed ? secondValue : firstValue;
-    }
-
-    virtual void change(int by_, int doSave_) {
-        calls++;
-        by = by_;
-        doSave = doSave_;
-        changed = 1;
+    void set(ScreenEntry& current) {
+        currentValue = &current;
     }
 };
 
@@ -161,7 +157,7 @@ public:
 
     DisplayConsumerHarness(PresentationScreenSelection& selection_,
         DisplayDevice& device, DisplayRuntime& runtime)
-        : CthughaDisplay(device, runtime)
+        : CthughaDisplay(device, runtime, displayClock, displaySettings)
         , selection(selection_)
         , presented(0) {
         fps = 60.0;
@@ -236,11 +232,12 @@ static void testPresentComposesCompletedIndexedFrameForConsumer() {
     assertClassicMirroredSource(frame, fixture);
 }
 
-static void testPresentHonorsComposerRetryPath() {
-    ScreenEntry retryEntry(retryRenderer, "retry", "Retry", xy(1, 1));
-    ScreenEntry fallbackEntry(copySourceRenderer, "Up", "Classic 2x",
+static void testPresentFallsBackToLastRenderedScreenAfterRejection() {
+    ScreenEntry previousEntry(copySourceRenderer, "previous", "Previous",
         xy(1, 1));
-    RetryingSelection selection(retryEntry, fallbackEntry);
+    ScreenEntry rejectEntry(rejectRenderer, "reject", "Reject", xy(1, 1),
+        xy(1, 1));
+    StaticSelection selection(previousEntry);
     IndexedFrameFixture source(4, 3, 6);
     DisplayDevice device;
     StaticOutputBackend backend;
@@ -249,14 +246,50 @@ static void testPresentHonorsComposerRetryPath() {
 
     display.present(source.frame());
 
-    assert(selection.calls == 1);
-    assert(selection.by == +1);
-    assert(selection.doSave == 0);
     assertClassicMirroredSource(display.indexedDisplayFrame(), source);
+
+    selection.set(rejectEntry);
+    display.present(source.frame());
+
+    assert(selection.current() == &rejectEntry);
+    assertClassicMirroredSource(display.indexedDisplayFrame(), source);
+}
+
+static void testPresentPassesAudioContextToScreenRenderer() {
+    ScreenEntry audioEntry(observeAudioRenderer, "audio", "Audio",
+        xy(1, 1), xy(1, 1));
+    StaticSelection selection(audioEntry);
+    IndexedFrameFixture source(4, 3, 6);
+    DisplayDevice device;
+    StaticOutputBackend backend;
+    DisplayRuntime runtime(backend);
+    DisplayConsumerHarness display(selection, device, runtime);
+    AudioFrame audioFrame;
+    audioFrame.metrics.amplitude = 42;
+
+    FrameRenderContext frameContext;
+    frameContext.audioFrame = &audioFrame;
+    frameContext.rawAudioData = audioFrame.raw;
+    frameContext.processedWaveData = audioFrame.processedWaveData;
+    frameContext.audioMetrics = &audioFrame.metrics;
+    frameContext.acousticContext = (const AcousticContext*)0x1234;
+    observedAudioMetrics = 0;
+    observedRawAudio = 0;
+    observedProcessedAudio = 0;
+    observedAcousticContext = 0;
+
+    display.present(source.frame(), frameContext);
+
+    assert(observedAudioMetrics == &audioFrame.metrics);
+    assert(observedRawAudio == audioFrame.raw);
+    assert(observedProcessedAudio == audioFrame.processedWaveData);
+    assert(observedAcousticContext == (const AcousticContext*)0x1234);
+    assert(observedAudioMetrics->amplitude == 42);
 }
 
 int main() {
     testPresentComposesCompletedIndexedFrameForConsumer();
-    testPresentHonorsComposerRetryPath();
+    testPresentFallsBackToLastRenderedScreenAfterRejection();
+    testPresentPassesAudioContextToScreenRenderer();
     return 0;
 }

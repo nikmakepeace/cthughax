@@ -5,22 +5,26 @@
 
 #include "cthugha.h"
 #include "DisplayDevice.h"
+#include "ApplicationDisplayFrontend.h"
+#include "Configuration.h"
+#include "CthughaDisplay.h"
 #include "FramePalette.h"
 #include "Scene.h"
+#include "RuntimeCommandSink.h"
+#include "RuntimeConfigRegistry.h"
 #include "cthugha.h"
-#include "defaults.h"
 #include "display.h"
 #include "disp-sys.h"
 #include "imath.h"
 #include "xcthugha.h"
-#include "keys.h"
+#include "InputQueue.h"
 #include "Interface.h"
-#include "cth_buffer.h"
-#include "CthughaBuffer.h"
 #include "DisplayBackend.h"
 #include "DisplayRuntime.h"
+#include "DisplaySystem.h"
 #include "OverlaySource.h"
 #include "PixelTransfer.h"
+#include "ProcessServices.h"
 #include "ViewportPresentation.h"
 #include "xcthugha.h"
 
@@ -37,6 +41,7 @@
 #include <signal.h>
 #include <errno.h>
 #include <limits.h>
+#include <stdio.h>
 #include <utility>
 #include <sys/ipc.h>
 #include <sys/shm.h>
@@ -46,14 +51,6 @@
 
 #include <X11/Xutil.h>
 #include <X11/extensions/XShm.h>
-
-static int fallbackIndexedDisplayWidth() {
-    return 2 * CthughaBuffer::current->width();
-}
-
-static int fallbackIndexedDisplayHeight() {
-    return 2 * CthughaBuffer::current->height();
-}
 
 static void renderOverlayCommands(DisplayDevice& device,
     const OverlayCommands& overlays) {
@@ -74,8 +71,8 @@ public:
         : device(device_) {
     }
 
-    virtual DisplayEventStats processEvents() {
-        return device.processEvents();
+    virtual DisplayEventStats processEvents(InputEventSink& input) {
+        return device.processEvents(input);
     }
 
     virtual PixelSize outputSize() const {
@@ -117,15 +114,45 @@ xy bufferSizes[]
     = { xy(160, 100), xy(320, 240), xy(400, 300), xy(512, 384), xy(576, 450), xy(600, 512) };
 int nBufferSizes = sizeof(bufferSizes) / sizeof(xy);
 
-int display_override_redirect = DEFAULT_X11_OVERRIDE_REDIRECT; // bypass the window manager
-int private_cmap = DEFAULT_X11_PRIVATE_CMAP; // allocate a window-private colormap
-int display_mit_shm = DEFAULT_X11_MIT_SHM; // use MIT-SHM if possible
-int display_on_root = DEFAULT_X11_ROOT_WINDOW; // display on root window
-int full_screen = DEFAULT_X11_FULLSCREEN;
-int window_do_pos = DEFAULT_X11_WINDOW_POSITION_ENABLED;
-xy window_pos(DEFAULT_X11_WINDOW_POSITION_X, DEFAULT_X11_WINDOW_POSITION_Y);
-int xcth_panel = DEFAULT_X11_PANEL_ENABLED; // use control panel
-char xcth_font[256] = DEFAULT_X11_FONT_NAME;
+int display_override_redirect = 0; // bypass the window manager
+int private_cmap = 0; // allocate a window-private colormap
+int display_mit_shm = 0; // use MIT-SHM if possible
+int display_on_root = 0; // display on root window
+int full_screen = 0;
+int window_do_pos = 0;
+xy window_pos(0, 0);
+int xcth_panel = 0; // use control panel
+char xcth_font[256] = "";
+static int x11_frame_dump_enabled = 0;
+static int x11_frame_dump_directory_ready = 0;
+static int x11_frame_dump_frame = 0;
+static int x11_frame_dump_dumped = 0;
+static int x11_frame_dump_limit = 1;
+static int x11_frame_dump_every = 1;
+static char x11_frame_dump_directory[PATH_MAX] = "";
+
+void configureDisplayDeviceX11(const X11Config& config) {
+    display_override_redirect = config.overrideRedirect;
+    private_cmap = config.privateCmap;
+    display_mit_shm = config.mitShm;
+    display_on_root = config.rootWindow;
+    full_screen = config.fullscreen;
+    window_do_pos = config.windowPositionEnabled;
+    window_pos.x = config.windowPositionX;
+    window_pos.y = config.windowPositionY;
+    xcth_panel = config.panelEnabled;
+    strncpy(xcth_font, config.fontName.c_str(), sizeof(xcth_font));
+    xcth_font[sizeof(xcth_font) - 1] = '\0';
+    x11_frame_dump_enabled = !config.frameDumpDirectory.empty();
+    x11_frame_dump_directory_ready = 0;
+    x11_frame_dump_frame = 0;
+    x11_frame_dump_dumped = 0;
+    x11_frame_dump_limit = max(1, config.frameDumpLimit);
+    x11_frame_dump_every = max(1, config.frameDumpEvery);
+    strncpy(x11_frame_dump_directory, config.frameDumpDirectory.c_str(),
+        sizeof(x11_frame_dump_directory));
+    x11_frame_dump_directory[sizeof(x11_frame_dump_directory) - 1] = '\0';
+}
 
 Display* xcth_display;
 
@@ -193,55 +220,33 @@ static void mapIndexedPixelsToPairedColorCells(const XColor* colors) {
 }
 
 static void dump_x11_frame(XImage* image) {
-    static int initialized = 0;
-    static int enabled = 0;
-    static int frame = 0;
-    static int dumped = 0;
-    static int limit = 1;
-    static int every = 1;
-    static char directory[PATH_MAX];
+    if (!x11_frame_dump_enabled || (image == NULL))
+        return;
 
-    const char* env;
-
-    if (!initialized) {
-        initialized = 1;
-        env = getenv("CTHUGHA_DUMP_X11_FRAMES");
-        if (env && env[0]) {
-            strncpy(directory, env, PATH_MAX - 1);
-            directory[PATH_MAX - 1] = '\0';
-            enabled = 1;
-
-            env = getenv("CTHUGHA_DUMP_X11_FRAME_LIMIT");
-            if (env && env[0])
-                limit = max(1, atoi(env));
-
-            env = getenv("CTHUGHA_DUMP_X11_FRAME_EVERY");
-            if (env && env[0])
-                every = max(1, atoi(env));
-
-            if ((mkdir(directory, 0777) != 0) && (errno != EEXIST)) {
-                CTH_ERRNO(errno, "Can not create X11 frame dump directory");
-                enabled = 0;
-            }
+    if (!x11_frame_dump_directory_ready) {
+        x11_frame_dump_directory_ready = 1;
+        if ((mkdir(x11_frame_dump_directory, 0777) != 0)
+            && (errno != EEXIST)) {
+            CTH_ERRNO(errno, "Can not create X11 frame dump directory");
+            x11_frame_dump_enabled = 0;
+            return;
         }
     }
 
-    if (!enabled || (image == NULL))
+    x11_frame_dump_frame++;
+    if ((x11_frame_dump_frame % x11_frame_dump_every) != 0)
         return;
-
-    frame++;
-    if ((frame % every) != 0)
-        return;
-    if (dumped >= limit)
+    if (x11_frame_dump_dumped >= x11_frame_dump_limit)
         return;
 
     char path[PATH_MAX];
-    snprintf(path, PATH_MAX, "%s/frame-%06d.ppm", directory, frame);
+    snprintf(path, PATH_MAX, "%s/frame-%06d.ppm", x11_frame_dump_directory,
+        x11_frame_dump_frame);
 
     FILE* out = fopen(path, "wb");
     if (out == NULL) {
         CTH_ERRNO(errno, "Can not create X11 frame dump");
-        enabled = 0;
+        x11_frame_dump_enabled = 0;
         return;
     }
 
@@ -265,7 +270,7 @@ static void dump_x11_frame(XImage* image) {
     }
 
     fclose(out);
-    dumped++;
+    x11_frame_dump_dumped++;
 }
 
 int cth_init(int* argc, char* argv[]) {
@@ -391,34 +396,35 @@ Cursor DisplayDeviceX11::xcth_cursor() {
     return XCreatePixmapCursor(xcth_display, blank_pix, blank_pix, &dummyColor, &dummyColor, 0, 0);
 }
 
-void DisplayDeviceX11::checkDisplaySize() {
-
-    if (display_mode != -1) {
-        if ((display_mode >= nScreenSizes) || (display_mode < 0))
-            display_mode = 0;
-
-        disp_size = screenSizes[display_mode];
+void DisplayDeviceX11::checkDisplaySize(const DisplayConfig& config) {
+    if (config.hasCustomDisplaySize) {
+        disp_size.x = config.displayWidth;
+        disp_size.y = config.displayHeight;
+        return;
     }
+
+    int mode = config.displayMode;
+    if ((mode >= nScreenSizes) || (mode < 0))
+        mode = 0;
+
+    disp_size = screenSizes[mode];
 }
 
 int DisplayDeviceX11::loadFont() {
-    if (!text_on_term) {
-        font = XLoadQueryFont(xcth_display, xcth_font);
-        if (font == NULL) {
-            CTH_ERROR("Can not load font `%s'. Trying font `fixed'.\n", xcth_font);
+    font = XLoadQueryFont(xcth_display, xcth_font);
+    if (font == NULL) {
+        CTH_ERROR("Can not load font `%s'. Trying font `fixed'.\n", xcth_font);
 
-            font = XLoadQueryFont(xcth_display, "fixed");
-            if (font == NULL) {
-                CTH_ERROR("Can not load font fixed.\n");
-                return 1;
-            }
+        font = XLoadQueryFont(xcth_display, "fixed");
+        if (font == NULL) {
+            CTH_ERROR("Can not load font fixed.\n");
+            return 1;
         }
-        XSetFont(xcth_display, gc, font->fid);
-        fontSize.y = font->max_bounds.ascent + 1;
-        fontSize.x = font->max_bounds.width;
-        text_size.x = 0;
-    } else
-        font = NULL;
+    }
+    XSetFont(xcth_display, gc, font->fid);
+    fontSize.y = font->max_bounds.ascent + 1;
+    fontSize.x = font->max_bounds.width;
+    text_size.x = 0;
     return 0;
 }
 
@@ -428,10 +434,20 @@ void DisplayDeviceX11::freeFont() {
     font = NULL;
 }
 
-DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
+DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, ImageOption& images_,
+    SceneVisualSelections* sceneVisualSelections_,
+    RuntimeCommandSink& runtimeCommands_,
+    RuntimeCommandTargetRouter& runtimeCommandRouter_,
+    RuntimeConfigRegistry& runtimeConfigRegistry_, const DisplayConfig& config,
+    SecondsClock& clock_)
     : DisplayDevice()
     , scene(scene_)
-    , sceneCommands(sceneCommands_)
+    , images(images_)
+    , sceneVisualSelections(sceneVisualSelections_)
+    , runtimeCommands(runtimeCommands_)
+    , runtimeCommandRouter(runtimeCommandRouter_)
+    , runtimeConfigRegistry(runtimeConfigRegistry_)
+    , clock(clock_)
     ,
 
     visual(NULL)
@@ -447,6 +463,7 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
     ,
 
     panelTextWidget(NULL)
+    , panelMenuButtons()
     , palettePreviewWidget(NULL)
     , paletteNameTextWidget(NULL)
     , paletteSetTextWidget(NULL)
@@ -457,15 +474,36 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
     , palettePreviewPalette(-1)
     , palettePreviewWidth(0)
     , palettePreviewHeight(0)
+    , palettePreviewFingerprintValid(0)
+    , palettePreviewCurrentFingerprint(0)
+    , palettePreviewTargetFingerprint(0)
+    , panelMenuLabels()
+    , panelPendingTextCommands()
+    , panelCommittedTextCommands()
+    , panelPendingTextSignature()
+    , panelCommittedTextSignature()
+    , panelSelectionSignature()
+    , panelTextDirty(1)
+    , panelTextCopyX(0)
+    , panelTextCopyY(0)
+    , panelTextCopyWidth(0)
+    , panelTextCopyHeight(0)
+    , currentInputSink(NULL)
+    , changeKeyButtonData()
     , shmAttached(0)
     , shmMarkedForRemoval(0)
     , pixmap(None)
     , image(NULL)
     , copyText(0)
     , paletteInitialized(0)
-    , initialized(0) {
+    , initialized(0)
+    , presentationViewport()
+    , fallbackIndexedFrameSize(2 * config.bufferWidth,
+          2 * config.bufferHeight) {
 
     CTH_INFO("Initializing X11 display...\n");
+    changeKeyButtonData.device = this;
+    changeKeyButtonData.keyText = " ";
     memset(&shminfo, 0, sizeof(shminfo));
     shminfo.shmid = -1;
 
@@ -481,7 +519,7 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
     if (*(char*)&byte_order_test == 4)
         rev_byte_order = !rev_byte_order;
 
-    checkDisplaySize();
+    checkDisplaySize(config);
 
     xcth_root = DefaultRootWindow(xcth_display);
 
@@ -516,7 +554,8 @@ DisplayDeviceX11::DisplayDeviceX11(Scene& scene_, SceneCommands& sceneCommands_)
             CTH_ERROR("Can not create the text pixmap.\n");
             return;
         }
-        copyText = 2;
+        markPanelTextCopyRect(0, 0, text_size.x * fontSize.x,
+            text_size.y * fontSize.y, 2);
     } else {
         copyText = 0;
     }
@@ -534,8 +573,9 @@ DisplayDeviceX11::~DisplayDeviceX11() {
     freeImage();
 }
 
-DisplayEventStats DisplayDeviceX11::processEvents() {
+DisplayEventStats DisplayDeviceX11::processEvents(InputEventSink& input) {
     DisplayEventStats stats;
+    currentInputSink = &input;
 
     // Xt queues X events for both the raw display window and the optional
     // Athena-widget panel. Key releases are translated into Cthugha keys;
@@ -557,7 +597,7 @@ DisplayEventStats DisplayDeviceX11::processEvents() {
                 strncpy(key_buff, tmp ? tmp : "", 256);
             }
 
-            keys_x11(key_buff, kevent->state);
+            input.pushRawKey(key_buff, (kevent->state & ShiftMask) != 0);
 
         } else if ((event.type == ConfigureNotify)
             && (event.xconfigure.window == window)) {
@@ -571,21 +611,22 @@ DisplayEventStats DisplayDeviceX11::processEvents() {
         }
     }
 
+    currentInputSink = NULL;
     return stats;
 }
 
 void DisplayDeviceX11::prePrint() {
+    if (panelTextWidget) {
+        panelPendingTextCommands.clear();
+        panelPendingTextSignature.clear();
+    }
 
     // Text is composited through textPixmap when the frame buffer cannot be
     // drawn to directly. For panel text, the pixmap starts empty; for overlay
     // text, it starts as a copy of the current frame so strings can be drawn
     // over it before one final XCopyArea to the window.
     if (copyText && textPixmap) {
-        if (panelTextWidget) {
-            XSetForeground(xcth_display, gc, 0);
-            XFillRectangle(xcth_display, textPixmap, gc, 0, 0, text_size.x * fontSize.x,
-                text_size.y * fontSize.y);
-        } else {
+        if (!panelTextWidget) {
             switch (shmLevel) {
             case shmPixmap:
                 break;
@@ -604,8 +645,118 @@ void DisplayDeviceX11::prePrint() {
     darkenPalette = 0;
 }
 
+static void appendPanelTextSignature(
+    std::string& signature, int x, int y, int color, int noDarken,
+    const char* text, int len) {
+    char header[96];
+    snprintf(header, sizeof(header), "%d,%d,%d,%d,%d:", x, y, color,
+        noDarken, len);
+    signature.append(header);
+    signature.append(text, len);
+    signature.push_back('\n');
+}
+
+int DisplayDeviceX11::samePanelTextCommand(const PanelTextCommand& a,
+    const PanelTextCommand& b) {
+    return (a.x == b.x) && (a.y == b.y) && (a.color == b.color)
+        && (a.noDarken == b.noDarken) && (a.text == b.text);
+}
+
+void DisplayDeviceX11::panelTextCommandBounds(
+    const PanelTextCommand& command,
+    int* x, int* y, int* width, int* height) {
+    *x = command.x;
+    *y = command.y;
+    *width = int(command.text.size()) * fontSize.x;
+    if (*width < 1)
+        *width = 1;
+    *height = fontSize.y + 1;
+}
+
+static int rectIntersects(int ax, int ay, int aw, int ah,
+    int bx, int by, int bw, int bh) {
+    return (aw > 0) && (ah > 0) && (bw > 0) && (bh > 0)
+        && (ax < bx + bw) && (bx < ax + aw)
+        && (ay < by + bh) && (by < ay + ah);
+}
+
+static void includeRect(int* x, int* y, int* width, int* height,
+    int nextX, int nextY, int nextWidth, int nextHeight) {
+    if ((nextWidth <= 0) || (nextHeight <= 0))
+        return;
+
+    if ((*width <= 0) || (*height <= 0)) {
+        *x = nextX;
+        *y = nextY;
+        *width = nextWidth;
+        *height = nextHeight;
+        return;
+    }
+
+    int right = *x + *width;
+    int bottom = *y + *height;
+    int nextRight = nextX + nextWidth;
+    int nextBottom = nextY + nextHeight;
+
+    if (nextX < *x)
+        *x = nextX;
+    if (nextY < *y)
+        *y = nextY;
+    if (nextRight > right)
+        right = nextRight;
+    if (nextBottom > bottom)
+        bottom = nextBottom;
+
+    *width = right - *x;
+    *height = bottom - *y;
+}
+
+void DisplayDeviceX11::markPanelTextCopyRect(
+    int x, int y, int width, int height, int copyCount) {
+    if (!panelTextWidget || !textPixmap)
+        return;
+
+    int panelWidth = text_size.x * fontSize.x;
+    int panelHeight = text_size.y * fontSize.y;
+    if ((panelWidth <= 0) || (panelHeight <= 0))
+        return;
+
+    if (x < 0) {
+        width += x;
+        x = 0;
+    }
+    if (y < 0) {
+        height += y;
+        y = 0;
+    }
+    if (x + width > panelWidth)
+        width = panelWidth - x;
+    if (y + height > panelHeight)
+        height = panelHeight - y;
+    if ((width <= 0) || (height <= 0))
+        return;
+
+    includeRect(&panelTextCopyX, &panelTextCopyY, &panelTextCopyWidth,
+        &panelTextCopyHeight, x, y, width, height);
+    if (copyText < copyCount)
+        copyText = copyCount;
+}
+
 void DisplayDeviceX11::printString(
     int x, int y, const char* text, int color, int len, int noDarken) {
+
+    if (panelTextWidget) {
+        PanelTextCommand command;
+        command.x = x;
+        command.y = y;
+        command.color = color;
+        command.noDarken = noDarken;
+        command.text.assign(text, len);
+        panelPendingTextCommands.push_back(command);
+        appendPanelTextSignature(panelPendingTextSignature, x, y, color,
+            noDarken, text, len);
+        return;
+    }
 
     XSetForeground(xcth_display, gc, textColor[color]);
 
@@ -621,6 +772,92 @@ void DisplayDeviceX11::printString(
         if (!noDarken)
             darkenPalette = 1;
     }
+}
+
+void DisplayDeviceX11::postPrint() {
+    if (!panelTextWidget || !textPixmap)
+        return;
+
+    int textChanged = panelPendingTextSignature != panelCommittedTextSignature;
+    if (!panelTextDirty && !textChanged)
+        return;
+
+    int dirtyX = 0;
+    int dirtyY = 0;
+    int dirtyWidth = 0;
+    int dirtyHeight = 0;
+    int panelWidth = text_size.x * fontSize.x;
+    int panelHeight = text_size.y * fontSize.y;
+
+    if (panelTextDirty) {
+        dirtyWidth = panelWidth;
+        dirtyHeight = panelHeight;
+    } else {
+        size_t count = panelPendingTextCommands.size();
+        if (panelCommittedTextCommands.size() > count)
+            count = panelCommittedTextCommands.size();
+
+        for (size_t i = 0; i < count; i++) {
+            const PanelTextCommand* pending
+                = (i < panelPendingTextCommands.size())
+                ? &panelPendingTextCommands[i] : NULL;
+            const PanelTextCommand* committed
+                = (i < panelCommittedTextCommands.size())
+                ? &panelCommittedTextCommands[i] : NULL;
+            if ((pending != NULL) && (committed != NULL)
+                && samePanelTextCommand(*pending, *committed))
+                continue;
+
+            int x;
+            int y;
+            int width;
+            int height;
+            if (committed != NULL) {
+                panelTextCommandBounds(*committed, &x, &y, &width, &height);
+                includeRect(&dirtyX, &dirtyY, &dirtyWidth, &dirtyHeight,
+                    x, y, width, height);
+            }
+            if (pending != NULL) {
+                panelTextCommandBounds(*pending, &x, &y, &width, &height);
+                includeRect(&dirtyX, &dirtyY, &dirtyWidth, &dirtyHeight,
+                    x, y, width, height);
+            }
+        }
+    }
+
+    if ((dirtyWidth <= 0) || (dirtyHeight <= 0)) {
+        panelCommittedTextCommands = panelPendingTextCommands;
+        panelCommittedTextSignature = panelPendingTextSignature;
+        panelTextDirty = 0;
+        return;
+    }
+
+    XSetForeground(xcth_display, gc, 0);
+    XFillRectangle(xcth_display, textPixmap, gc, dirtyX, dirtyY,
+        dirtyWidth, dirtyHeight);
+
+    for (size_t i = 0; i < panelPendingTextCommands.size(); i++) {
+        const PanelTextCommand& command = panelPendingTextCommands[i];
+        int commandX;
+        int commandY;
+        int commandWidth;
+        int commandHeight;
+        panelTextCommandBounds(command, &commandX, &commandY, &commandWidth,
+            &commandHeight);
+        if (!rectIntersects(dirtyX, dirtyY, dirtyWidth, dirtyHeight,
+                commandX, commandY, commandWidth, commandHeight))
+            continue;
+
+        XSetForeground(xcth_display, gc, textColor[command.color]);
+        XDrawString(xcth_display, textPixmap, gc, command.x,
+            command.y + fontSize.y, command.text.c_str(),
+            int(command.text.size()));
+    }
+
+    panelCommittedTextCommands = panelPendingTextCommands;
+    panelCommittedTextSignature = panelPendingTextSignature;
+    panelTextDirty = 0;
+    markPanelTextCopyRect(dirtyX, dirtyY, dirtyWidth, dirtyHeight, 2);
 }
 
 int DisplayDeviceX11::allocImage() {
@@ -745,7 +982,7 @@ int DisplayDeviceX11::allocImage() {
         break;
     }
 
-    if ((shmLevel != shmPixmap) && !text_on_term && !xcth_panel) {
+    if ((shmLevel != shmPixmap) && !xcth_panel) {
         textPixmap = XCreatePixmap(xcth_display, window, disp_size.x, disp_size.y, planes);
         text_size.x = disp_size.x / fontSize.x;
         text_size.y = disp_size.y / fontSize.y;
@@ -819,7 +1056,7 @@ void DisplayDeviceX11::freeImage() {
 
     XSync(xcth_display, True);
 
-    if (textPixmap && (shmLevel != shmPixmap) && !text_on_term && !xcth_panel) {
+    if (textPixmap && (shmLevel != shmPixmap) && !xcth_panel) {
         XFreePixmap(xcth_display, textPixmap);
         textPixmap = 0;
     }
@@ -867,14 +1104,14 @@ int DisplayDeviceX11::indexedDisplayWidth() const {
     if (presentationViewport.valid())
         return presentationViewport.frameSize.width;
 
-    return fallbackIndexedDisplayWidth();
+    return fallbackIndexedFrameSize.width;
 }
 
 int DisplayDeviceX11::indexedDisplayHeight() const {
     if (presentationViewport.valid())
         return presentationViewport.frameSize.height;
 
-    return fallbackIndexedDisplayHeight();
+    return fallbackIndexedFrameSize.height;
 }
 
 void DisplayDeviceX11::setPresentationViewport(const DisplayViewport& viewport) {
@@ -892,7 +1129,7 @@ void DisplayDeviceX11::resizeDisplay(int new_width, int new_height) {
     disp_size.x = max(new_width, indexedDisplayWidth());
     disp_size.y = max(new_height, indexedDisplayHeight());
 
-    if (!text_on_term && !panelTextWidget) {
+    if (!panelTextWidget) {
         text_size.x = disp_size.x / fontSize.x;
         text_size.y = disp_size.y / fontSize.y;
     }
@@ -927,10 +1164,11 @@ void DisplayDeviceX11::clearBox(int x, int y, int width, int height) {
 
 void DisplayDeviceX11::postDraw() {
     int traceDisplayTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
-    double postStart = traceDisplayTiming ? getTime() : 0.0;
+    double postStart = traceDisplayTiming ? clock.nowSeconds() : 0.0;
     double paletteMs = 0.0;
     double dumpMs = 0.0;
     double previewMs = 0.0;
+    double labelMs = 0.0;
     double putMs = 0.0;
     double copyMs = 0.0;
     int fullCopy = needsFullCopy;
@@ -941,63 +1179,78 @@ void DisplayDeviceX11::postDraw() {
     PixelRect drawRect = ViewportPresentation::drawCopyRect(viewport);
 
     if (traceDisplayTiming)
-        stepStart = getTime();
+        stepStart = clock.nowSeconds();
     this->setGlobalPalette();
     if (traceDisplayTiming)
-        paletteMs = (getTime() - stepStart) * 1000.0;
+        paletteMs = (clock.nowSeconds() - stepStart) * 1000.0;
 
     if (traceDisplayTiming)
-        stepStart = getTime();
+        stepStart = clock.nowSeconds();
     dump_x11_frame(image);
     if (traceDisplayTiming)
-        dumpMs = (getTime() - stepStart) * 1000.0;
+        dumpMs = (clock.nowSeconds() - stepStart) * 1000.0;
 
     if (traceDisplayTiming)
-        stepStart = getTime();
+        stepStart = clock.nowSeconds();
     if (palettePreviewWidget)
         updatePalettePreview();
     if (traceDisplayTiming)
-        previewMs = (getTime() - stepStart) * 1000.0;
+        previewMs = (clock.nowSeconds() - stepStart) * 1000.0;
+    if (traceDisplayTiming)
+        stepStart = clock.nowSeconds();
+    if (panelTextWidget)
+        updatePanelSelectionLabels();
+    if (traceDisplayTiming)
+        labelMs = (clock.nowSeconds() - stepStart) * 1000.0;
 
     if (copyText) {
 
         if (panelTextWidget) {
+            if ((panelTextCopyWidth > 0) && (panelTextCopyHeight > 0)) {
+                if (traceDisplayTiming)
+                    stepStart = clock.nowSeconds();
+                XCopyArea(xcth_display, textPixmap, XtWindow(panelTextWidget), gc,
+                    panelTextCopyX, panelTextCopyY, panelTextCopyWidth,
+                    panelTextCopyHeight, panelTextCopyX, panelTextCopyY);
+                if (traceDisplayTiming)
+                    copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
+            }
             copyText--;
-            if (traceDisplayTiming)
-                stepStart = getTime();
-            XCopyArea(xcth_display, textPixmap, XtWindow(panelTextWidget), gc, 0, 0,
-                text_size.x * fontSize.x, text_size.y * fontSize.y, 0, 0);
-            if (traceDisplayTiming)
-                copyMs += (getTime() - stepStart) * 1000.0;
+            if (copyText <= 0) {
+                panelTextCopyX = 0;
+                panelTextCopyY = 0;
+                panelTextCopyWidth = 0;
+                panelTextCopyHeight = 0;
+            }
         } else {
             switch (shmLevel) {
             case shmPixmap:
                 if (traceDisplayTiming)
-                    stepStart = getTime();
+                    stepStart = clock.nowSeconds();
                 XCopyArea(xcth_display, pixmap, window, gc, fullRect.x, fullRect.y,
                     fullRect.width, fullRect.height,
                     fullRect.x, fullRect.y);
                 if (traceDisplayTiming)
-                    copyMs += (getTime() - stepStart) * 1000.0;
+                    copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
 
                 break;
             case shmImage:
             case shmNone:
                 if (traceDisplayTiming)
-                    stepStart = getTime();
+                    stepStart = clock.nowSeconds();
                 XCopyArea(xcth_display, textPixmap, window, gc, fullRect.x, fullRect.y,
                     fullRect.width, fullRect.height,
                     fullRect.x, fullRect.y);
                 if (traceDisplayTiming)
-                    copyMs += (getTime() - stepStart) * 1000.0;
+                    copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
             }
             {
-                double flushStart = getTime();
+                double flushStart = clock.nowSeconds();
                 XFlush(xcth_display);
-                double flushMs = (getTime() - flushStart) * 1000.0;
-                CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=1 full-copy=%d shm-level=%d draw=%dx%d\n",
-                    "display timing", (getTime() - postStart) * 1000.0,
-                    paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs,
+                double flushMs = (clock.nowSeconds() - flushStart) * 1000.0;
+                CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f label-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=1 full-copy=%d shm-level=%d draw=%dx%d\n",
+                    "display timing", (clock.nowSeconds() - postStart) * 1000.0,
+                    paletteMs, dumpMs, previewMs, labelMs, putMs, copyMs, flushMs,
                     fullCopy, shmLevel, viewport.drawSize.width,
                     viewport.drawSize.height);
             }
@@ -1009,82 +1262,82 @@ void DisplayDeviceX11::postDraw() {
         switch (shmLevel) {
         case shmPixmap:
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XCopyArea(xcth_display, pixmap, window, gc, fullRect.x, fullRect.y,
                 fullRect.width, fullRect.height,
                 fullRect.x, fullRect.y);
             if (traceDisplayTiming)
-                copyMs += (getTime() - stepStart) * 1000.0;
+                copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
 
             break;
         case shmImage:
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XShmPutImage(xcth_display, window, gc, image, fullRect.x, fullRect.y,
                 fullRect.x, fullRect.y, fullRect.width, fullRect.height, 0);
             if (traceDisplayTiming)
-                putMs += (getTime() - stepStart) * 1000.0;
+                putMs += (clock.nowSeconds() - stepStart) * 1000.0;
             break;
         case shmNone:
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XPutImage(xcth_display, pixmap, gc, image, fullRect.x, fullRect.y,
                 fullRect.x, fullRect.y, fullRect.width, fullRect.height);
             if (traceDisplayTiming)
-                putMs += (getTime() - stepStart) * 1000.0;
+                putMs += (clock.nowSeconds() - stepStart) * 1000.0;
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XCopyArea(xcth_display, pixmap, window, gc, fullRect.x, fullRect.y,
                 fullRect.width, fullRect.height,
                 fullRect.x, fullRect.y);
             if (traceDisplayTiming)
-                copyMs += (getTime() - stepStart) * 1000.0;
+                copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
             break;
         }
     else
         switch (shmLevel) {
         case shmPixmap:
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XCopyArea(xcth_display, pixmap, window, gc, drawRect.x,
                 drawRect.y,
                 drawRect.width, drawRect.height,
                 drawRect.x,
                 drawRect.y);
             if (traceDisplayTiming)
-                copyMs += (getTime() - stepStart) * 1000.0;
+                copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
             break;
         case shmImage:
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XShmPutImage(xcth_display, window, gc, image, drawRect.x, drawRect.y,
                 drawRect.x, drawRect.y, drawRect.width, drawRect.height, 0);
             if (traceDisplayTiming)
-                putMs += (getTime() - stepStart) * 1000.0;
+                putMs += (clock.nowSeconds() - stepStart) * 1000.0;
             break;
         case shmNone:
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XPutImage(xcth_display, pixmap, gc, image, drawRect.x, drawRect.y,
                 drawRect.x, drawRect.y, drawRect.width, drawRect.height);
             if (traceDisplayTiming)
-                putMs += (getTime() - stepStart) * 1000.0;
+                putMs += (clock.nowSeconds() - stepStart) * 1000.0;
             if (traceDisplayTiming)
-                stepStart = getTime();
+                stepStart = clock.nowSeconds();
             XCopyArea(xcth_display, pixmap, window, gc, drawRect.x, drawRect.y,
                 drawRect.width, drawRect.height,
                 drawRect.x, drawRect.y);
             if (traceDisplayTiming)
-                copyMs += (getTime() - stepStart) * 1000.0;
+                copyMs += (clock.nowSeconds() - stepStart) * 1000.0;
             break;
         }
 
-    double flushStart = getTime();
+    double flushStart = clock.nowSeconds();
     XFlush(xcth_display);
-    double flushMs = (getTime() - flushStart) * 1000.0;
-    CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=%d full-copy=%d shm-level=%d draw=%dx%d\n",
-        "display timing", (getTime() - postStart) * 1000.0,
-        paletteMs, dumpMs, previewMs, putMs, copyMs, flushMs, copyTextFrame,
+    double flushMs = (clock.nowSeconds() - flushStart) * 1000.0;
+    CTH_TRACE("post-draw-ms=%.3f palette-ms=%.3f dump-ms=%.3f preview-ms=%.3f label-ms=%.3f put-ms=%.3f copy-ms=%.3f flush-ms=%.3f copy-text=%d full-copy=%d shm-level=%d draw=%dx%d\n",
+        "display timing", (clock.nowSeconds() - postStart) * 1000.0,
+        paletteMs, dumpMs, previewMs, labelMs, putMs, copyMs, flushMs, copyTextFrame,
         fullCopy, shmLevel, viewport.drawSize.width, viewport.drawSize.height);
     needsFullCopy = 0;
 }
@@ -1360,50 +1613,59 @@ void DisplayDeviceX11::setPalette(const Palette pal) {
     }
 }
 
-std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
-    Scene& scene, SceneCommands& sceneCommands) {
-    std::unique_ptr<DisplayDeviceX11> device(
-        new DisplayDeviceX11(scene, sceneCommands));
-    if (!device->isInitialized()) {
-        return std::unique_ptr<DisplayRuntimeOwnership>();
+class X11DisplayDriverFactory : public DisplayDriverFactory {
+    DisplayFrontendInitializer& frontendInitializer;
+    const X11Config& config;
+
+public:
+    explicit X11DisplayDriverFactory(
+        DisplayFrontendInitializer& frontendInitializer_,
+        const X11Config& config_)
+        : frontendInitializer(frontendInitializer_)
+        , config(config_) {
     }
 
-    std::unique_ptr<DisplayBackend> backend(new DisplayBackendX11(*device));
-    std::unique_ptr<DisplayRuntime> runtime(new DisplayRuntime(*backend));
-    return std::unique_ptr<DisplayRuntimeOwnership>(
-        new DisplayRuntimeOwnership(std::move(device), std::move(backend),
-            std::move(runtime)));
-}
-
-#if HAVE_XPM_H
-#include <xpm.h>
-#else
-#if HAVE_X11_XPM_H
-#include <X11/xpm.h>
-#else
-#undef USE_XPM
-#endif
-#endif
-
-#if USE_XPM == 1
-
-int DisplayDeviceX11::printScreen() {
-    switch (shmLevel) {
-    case shmPixmap:
-        XpmWriteFileFromPixmap(xcth_display, prtFileName("xpm"), pixmap, 0, NULL);
-        break;
-    case shmImage:
-    case shmNone:
-        XpmWriteFileFromImage(xcth_display, prtFileName("xpm"), image, NULL, NULL);
+    virtual DisplayDriverId driverId() const {
+        return DisplayDriverX11;
     }
-    return 0;
+
+    virtual const char* driverName() const {
+        return "x11";
+    }
+
+    virtual std::unique_ptr<DisplaySystemComponents> open(
+        const DisplayOpenRequest& request) {
+        configureDisplayDeviceX11(config);
+        if (frontendInitializer.initializeDisplayFrontend(
+                request.argc, request.argv))
+            return std::unique_ptr<DisplaySystemComponents>();
+
+        std::unique_ptr<DisplayDeviceX11> device(
+            new DisplayDeviceX11(request.scene, request.images,
+                request.sceneVisualSelections, request.runtimeCommands,
+                request.runtimeCommandRouter, request.runtimeConfigRegistry,
+                request.config, request.clock));
+        if (!device->isInitialized())
+            return std::unique_ptr<DisplaySystemComponents>();
+
+        DisplayDeviceX11& deviceRef = *device;
+        std::unique_ptr<DisplayBackend> backend(
+            new DisplayBackendX11(deviceRef));
+        std::unique_ptr<DisplayRuntime> runtime(new DisplayRuntime(*backend));
+        std::unique_ptr<CthughaDisplay> coordinator = newCthughaDisplay(
+            deviceRef, *runtime, request.clock, request.presentationSettings,
+            request.interfaceRuntime, request.errorMessages);
+
+        return std::unique_ptr<DisplaySystemComponents>(
+            new DisplaySystemComponents(std::move(device),
+                std::move(backend), std::move(runtime),
+                std::move(coordinator)));
+    }
+};
+
+std::unique_ptr<DisplayDriverFactory> newX11DisplayDriverFactory(
+    DisplayFrontendInitializer& frontendInitializer,
+    const X11Config& config) {
+    return std::unique_ptr<DisplayDriverFactory>(
+        new X11DisplayDriverFactory(frontendInitializer, config));
 }
-
-#else
-
-int DisplayDeviceX11::printScreen() {
-    CTH_ERROR("Print screen is not available. You need the Xpm library.\n");
-    return 1;
-}
-
-#endif

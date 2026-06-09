@@ -7,6 +7,11 @@
 #ifndef __PLATFORM_LIFECYCLE_H
 #define __PLATFORM_LIFECYCLE_H
 
+#include <memory>
+
+class LogSink;
+class PlatformSuspendSignalState;
+
 struct PlatformLifecycleCallbacks {
     /** Called at a safe frame boundary immediately before process suspension. */
     void (*willSuspend)(void*);
@@ -22,6 +27,13 @@ struct PlatformLifecycleCallbacks {
         , didResume(0)
         , context(0) { }
 
+    /**
+     * Creates lifecycle callbacks.
+     *
+     * @param willSuspend_ Callback run before process suspension.
+     * @param didResume_ Callback run after process resume.
+     * @param context_ Opaque context passed to both callbacks.
+     */
     PlatformLifecycleCallbacks(void (*willSuspend_)(void*),
         void (*didResume_)(void*), void* context_)
         : willSuspend(willSuspend_)
@@ -31,11 +43,23 @@ struct PlatformLifecycleCallbacks {
 
 class PlatformLifecycle {
     PlatformLifecycleCallbacks callbacks;
-    int installed;
+    LogSink& log;
+    std::unique_ptr<PlatformSuspendSignalState> signalState;
 
 public:
-    explicit PlatformLifecycle(const PlatformLifecycleCallbacks& callbacks_ =
+    /**
+     * Creates platform lifecycle integration.
+     *
+     * @param log_ Sink for lifecycle diagnostics. The referenced object must
+     *        outlive this lifecycle object.
+     * @param callbacks_ Application callbacks invoked at safe lifecycle
+     *        boundaries.
+     */
+    explicit PlatformLifecycle(LogSink& log_,
+        const PlatformLifecycleCallbacks& callbacks_ =
             PlatformLifecycleCallbacks());
+
+    /** Restores installed platform hooks. */
     ~PlatformLifecycle();
 
     /** Installs supported platform hooks, such as POSIX SIGTSTP handling. */
@@ -56,8 +80,5 @@ public:
      */
     void serviceFrameBoundary();
 };
-
-/** Requests application suspension through the process-wide lifecycle hook. */
-void requestApplicationSuspend();
 
 #endif

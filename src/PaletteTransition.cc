@@ -1,6 +1,7 @@
 #include "cthugha.h"
 #include "FramePalette.h"
 #include "PaletteTransition.h"
+#include "ProcessServices.h"
 
 #include <math.h>
 
@@ -189,8 +190,9 @@ const PaletteTransitionStrategy& hslPaletteTransitionStrategy() {
     return paletteTransitionStrategies[2];
 }
 
-const PaletteTransitionStrategy& randomPaletteTransitionStrategy() {
-    return paletteTransitionStrategies[rand() % nPaletteTransitionStrategies];
+const PaletteTransitionStrategy& randomPaletteTransitionStrategy(
+    RandomSource& randomSource) {
+    return paletteTransitionStrategies[randomSource.uniformInt(nPaletteTransitionStrategies)];
 }
 
 PaletteTransition::PaletteTransition()

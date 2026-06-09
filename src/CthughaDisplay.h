@@ -4,7 +4,7 @@
 
 #include "cthugha.h"
 #include "DisplayGeometry.h"
-#include "EffectControl.h"
+#include "FrameClock.h"
 #include "IndexedDisplayFrame.h"
 #include "PresentationComposer.h"
 
@@ -17,25 +17,29 @@
 // It is initialized with the owned display stage so viewport and palette work
 // do not need to read transitional globals.
 
-extern OptionInt zoom;
-extern OptionInt maxFramesPerSecond;
-extern OptionOnOff showFPS;
-
-extern double now; // timestamp used by all modules while drawing this frame
-extern double deltaT; // elapsed time between the last two frames, in seconds
-
 class IndexedFrame;
 class DisplayDevice;
 class DisplayRuntime;
+class ErrorMessages;
+class InterfaceRuntime;
+class SecondsClock;
+class FrameRenderContext;
+class DisplayPresentationSettings;
+struct DisplayConfig;
 
 class CthughaDisplay : public PresentationFrameObserver {
 protected:
     DisplayDevice& deviceValue;
     DisplayRuntime& runtimeValue;
+    DisplayPresentationSettings& presentationSettingsValue;
     const IndexedFrame* sourceFrame;
+    const FrameRenderContext* presentationContextValue;
     IndexedDisplayFrame indexedDisplayFrameValue;
     PresentationComposer presentationComposer;
     DisplayViewport displayViewportValue;
+    FrameClock frameClockValue;
+    double frameNowValue;
+    double frameDeltaTValue;
 
     // Non-owning alias for indexedDisplayFrameValue.pixels(), retained for
     // subclasses that publish the composed frame to backend presentation.
@@ -52,11 +56,13 @@ protected:
     const IndexedDisplayFrame& composePresentationFrame(
         PresentationScreenSelection& screenSelection);
     const IndexedDisplayFrame& composePresentationFrame();
+    void presentSourceWithContext(const FrameRenderContext* context);
 
     void updateFPS();
     void checkZoom();
     DisplayDevice& device();
     DisplayRuntime& runtime();
+    DisplayPresentationSettings& settings();
 
 public:
     // buffer points at the indexed presentation buffer. bufferWidth is measured
@@ -66,10 +72,11 @@ public:
 
     int needsClear; // border must be cleared before the next frame is shown
 
-    CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime);
+    CthughaDisplay(DisplayDevice& device, DisplayRuntime& runtime,
+        SecondsClock& clock, DisplayPresentationSettings& settings);
 
     /**
-     * Starts a new visual frame and publishes now/deltaT.
+     * Starts a new visual frame and updates owned frame timing.
      *
      * Application calls this before audio analysis and visual filters so every
      * frame subsystem observes the same visual clock.
@@ -84,7 +91,16 @@ public:
      */
     void present(const IndexedFrame& frame);
 
-    /** Legacy display path used when no IndexedFrame is available. */
+    /**
+     * Presents a filterchain-published indexed frame with audio context.
+     *
+     * @param frame Indexed pixels, dimensions, pitch, and palette to hand to
+     *        the display backend.
+     * @param context Borrowed per-frame audio/timing context.
+     */
+    void present(const IndexedFrame& frame, const FrameRenderContext& context);
+
+    /** Frontend-specific presentation path for the current explicit source frame. */
     virtual void operator()() { }
 
     const unsigned char* sourcePixels() const;
@@ -96,6 +112,12 @@ public:
     const DisplayViewport& displayViewport() const;
     int displayFrameWidth() const;
     int displayFrameHeight() const;
+
+    /** @return Current visual-frame timestamp in seconds. */
+    double currentFrameTimeSeconds() const;
+
+    /** @return Seconds elapsed since the previous visual frame. */
+    double currentFrameDeltaSeconds() const;
 
     /**
      * Adds a display presentation latency sample.
@@ -122,16 +144,22 @@ public:
 // a special CthughaDisplay for X11
 //
 class CthughaDisplayX11 : public CthughaDisplay {
+    SecondsClock& clock;
+    InterfaceRuntime& interfaceRuntime;
+    ErrorMessages& errorMessages;
+
 public:
-    CthughaDisplayX11(DisplayDevice& device, DisplayRuntime& runtime);
+    CthughaDisplayX11(DisplayDevice& device, DisplayRuntime& runtime,
+        SecondsClock& clock_, DisplayPresentationSettings& settings_,
+        InterfaceRuntime& interfaceRuntime_, ErrorMessages& errorMessages_);
     virtual ~CthughaDisplayX11();
     virtual void operator()();
 };
 
-extern CthughaDisplay* cthughaDisplay;
-
 /** Allocates the frontend-specific display coordinator. */
 std::unique_ptr<CthughaDisplay> newCthughaDisplay(
-    DisplayDevice& device, DisplayRuntime& runtime);
+    DisplayDevice& device, DisplayRuntime& runtime, SecondsClock& clock,
+    DisplayPresentationSettings& settings, InterfaceRuntime& interfaceRuntime,
+    ErrorMessages& errorMessages);
 
 #endif

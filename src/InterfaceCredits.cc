@@ -1,40 +1,46 @@
 #include "cthugha.h"
 #include "keys.h"
 #include "Interface.h"
+#include "InterfaceRuntime.h"
 #include "display.h"
-#include "DisplayDevice.h"
+#include "OverlaySource.h"
+#include "RuntimeCommandSink.h"
+#include "keymap.h"
 
 class InterfaceCredits : public Interface {
-    double pos;
     static const char* credits[];
     static int nCredits;
 
 public:
     InterfaceCredits()
-        : Interface("credits", NULL, NULL)
-        , pos(0) { }
+        : Interface("credits", NULL, NULL) { }
 
-    virtual void doKey(int /* key */) { cthugha_close++; }
+    virtual void doKey(InterfaceRuntime& runtime,
+        KeymapRegistry& /* keymaps */, CommandRegistry& /* commands */,
+        CommandDispatcher& /* dispatcher */, CommandContext& context,
+        int /* key */) {
+        (void)runtime;
+        RuntimeCommandSink* sink = context.runtimeCommandSink();
+        if (sink != NULL)
+            sink->apply(RuntimeCommand::requestClose());
+    }
 
-    virtual void display() {
+    virtual void display(InterfaceRuntime& runtime,
+        OverlayRenderContext& overlay) {
 
-        static int firsttime = -1;
+        const int currentTime = runtime.milliseconds();
+        const double pos = runtime.updateCreditsPosition(currentTime,
+            overlay.textRows());
 
-        if (firsttime == -1) {
-            firsttime = gettime();
-        }
-
-        int time_diff = gettime() - firsttime;
-        pos = -(double(text_size.y) * 0.8) + double(time_diff) / 250.0;
-
-        for (int i = 1; i < text_size.y; i++) {
+        for (int i = 1; i < overlay.textRows(); i++) {
             int L = (int(pos) + i) % nCredits;
             if (L < 0)
                 continue;
-            displayDevice->print(credits[L] + 1, -pos + int(pos) + i, 'c', credits[L][0]);
+            overlay.printText(credits[L] + 1, -pos + int(pos) + i, 'c',
+                credits[L][0]);
         }
     }
-} interfaceCredits;
+};
 
 #define N "\000"
 #define H "\001"
@@ -107,3 +113,7 @@ const char* InterfaceCredits::credits[] = { E
     N "Robert Bihlmeyer", N "Antonio Schifano", N "Richard Boulton", N "John Morton", N " ", N " ",
     N " ", N " ", N " ", N " ", N " ", N " " };
 int InterfaceCredits::nCredits = sizeof(InterfaceCredits::credits) / sizeof(const char*);
+
+void registerCreditsInterface(InterfaceRuntime& runtime) {
+    runtime.registerOwnedInterface(new InterfaceCredits());
+}

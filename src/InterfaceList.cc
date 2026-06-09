@@ -1,16 +1,12 @@
 #include "cthugha.h"
 #include "Interface.h"
-#include "display.h"
+#include "InterfaceRuntime.h"
 #include "imath.h"
-#include "Border.h"
-#include "DisplayDevice.h"
-#include "CthughaBuffer.h"
-#include "Flashlight.h"
+#include "OverlaySource.h"
 #include "Scene.h"
-#include "VideoDirector.h"
-#include "flames.h"
-#include "TranslationOptions.h"
-#include "waves.h"
+#include "SceneChoiceSelection.h"
+#include "Screen.h"
+#include "keymap.h"
 
 //
 // ERROR:
@@ -20,21 +16,76 @@
 //
 
 class InterfaceList : public Interface {
-    static int size;
+    enum { size = 6 };
     int pos;
     EffectControl* effectControl;
-    static Keymap listOptionKeymap;
+    RuntimeSceneTarget sceneTarget;
+    int hasSceneTarget;
 
 public:
     InterfaceList(const char* name, const char* title, EffectControl* o)
         : Interface(name, title, NULL)
-        , effectControl(o) { }
+        , pos(0)
+        , effectControl(o)
+        , sceneTarget(RuntimeSceneFlame)
+        , hasSceneTarget(0) { }
 
-    virtual void display() {
+    InterfaceList(const char* name, const char* title,
+        RuntimeSceneTarget sceneTarget_)
+        : Interface(name, title, NULL)
+        , pos(0)
+        , effectControl(0)
+        , sceneTarget(sceneTarget_)
+        , hasSceneTarget(1) { }
 
-        Interface::display();
+    SceneOptionSelection* sceneSelection(InterfaceRuntime& runtime) const {
+        return hasSceneTarget ? runtime.sceneSelection(sceneTarget) : NULL;
+    }
 
-        int n = effectControl->getNEntries();
+    int entryCount(InterfaceRuntime& runtime) const {
+        SceneOptionSelection* selection = sceneSelection(runtime);
+        if (hasSceneTarget)
+            return (selection != NULL) ? selection->entryCount() : 0;
+
+        return (effectControl != NULL) ? effectControl->getNEntries() : 0;
+    }
+
+    const char* rowName(SceneOptionSelection* selection, int index) const {
+        if (selection != NULL) {
+            const SceneChoice* choice = selection->choiceAt(index);
+            return (choice != NULL) ? choice->name() : "unknown";
+        }
+
+        return (effectControl != NULL) ? effectControl->entries[index]->name
+                                       : "unknown";
+    }
+
+    const char* rowDescription(
+        SceneOptionSelection* selection, int index) const {
+        if (selection != NULL)
+            return rowName(selection, index);
+
+        return (effectControl != NULL) ? effectControl->entries[index]->desc
+                                       : "";
+    }
+
+    const char* rowUseText(SceneOptionSelection* selection, int index) const {
+        if (selection != NULL) {
+            const SceneChoice* choice = selection->choiceAt(index);
+            return (choice != NULL && choice->inUse()) ? "yes" : "no";
+        }
+
+        return (effectControl != NULL) ? effectControl->entries[index]->use.text()
+                                       : "no";
+    }
+
+    virtual void display(InterfaceRuntime& runtime,
+        OverlayRenderContext& overlay) {
+
+        Interface::display(runtime, overlay);
+
+        SceneOptionSelection* selection = sceneSelection(runtime);
+        int n = entryCount(runtime);
         if (n == 0)
             return;
 
@@ -52,73 +103,70 @@ public:
                 continue;
 
             char str1[128];
-            snprintf(str1, sizeof(str1), "%c%s", (s == sel) ? '>' : ' ', effectControl->entries[s]->name);
+            snprintf(str1, sizeof(str1), "%c%s", (s == sel) ? '>' : ' ',
+                rowName(selection, s));
 
             char str2[128];
-            snprintf(str2, sizeof(str2), "%s %3s%c", effectControl->entries[s]->desc, effectControl->entries[s]->use.text(),
+            snprintf(str2, sizeof(str2), "%s %3s%c",
+                rowDescription(selection, s), rowUseText(selection, s),
                 (s == sel) ? '<' : ' ');
 
             char str3[128];
             snprintf(str3, sizeof(str3), "%40s", str2);
 
-            displayDevice->print(
+            overlay.printText(
                 str3, (i + 2), 'l', (s == sel) ? TEXT_COLOR_HIGHLIGHT : TEXT_COLOR_NORMAL);
-            displayDevice->print(
+            overlay.printText(
                 str1, (i + 2), 'l', (s == sel) ? TEXT_COLOR_HIGHLIGHT : TEXT_COLOR_NORMAL);
         }
     }
 
-    virtual void doKey(int key) {
+    virtual void doKey(InterfaceRuntime& runtime, KeymapRegistry& keymaps,
+        CommandRegistry& commands, CommandDispatcher& dispatcher,
+        CommandContext& context, int key) {
         int ret = key;
-        int n = effectControl->getNEntries();
+        int n = entryCount(runtime);
 
         nElements = n;
 
         if ((sel < n) && (sel >= 0)) {
-            currentOption = &(effectControl->entries[sel]->use);
-            currentEffectControl = effectControl;
-
-            ret = Keymap::action("ListOption", key);
-
-            if (ret)
-                ret = Keymap::action("Option", key);
+            if (hasSceneTarget) {
+                ret = runtime.runSceneChoiceKey(sceneTarget, keymaps,
+                    commands, dispatcher, context, sel, key);
+            } else {
+                ret = runtime.runEffectChoiceKey(*effectControl,
+                    effectControl->entries[sel]->use, keymaps, commands,
+                    dispatcher, context, sel, key);
+            }
         }
 
         if (ret)
-            ret = Keymap::action(name, key);
+            ret = dispatcher.dispatchKeymap(keymaps, commands, name, key,
+                context);
         if (ret)
-            ret = Keymap::action("list", key);
+            ret = dispatcher.dispatchKeymap(keymaps, commands, "list", key,
+                context);
         if (ret)
-            ret = Keymap::action("default", key);
+            ret = dispatcher.dispatchKeymap(keymaps, commands, "default", key,
+                context);
 
         nElements = 0;
-
-        currentOption = NULL;
-        currentEffectControl = NULL;
     }
 };
-Keymap InterfaceList::listOptionKeymap("ListOption");
 
 ACTION(toggleUse) {
-    if (currentOption == NULL)
-        return;
-    currentOption->change(+1);
+    context.toggleEffectChoiceUse();
 }
 
 ACTION(activate) {
-    if (currentEffectControl == NULL)
-        return;
-    if (currentOption == NULL)
-        return;
+    context.activateEffectChoice();
+}
 
-    currentEffectControl->entries[Interface::current->sel]->use.change("on");
-    SceneCommands* sceneCommands = sceneCommandsForLegacyCallbacks();
-    if (sceneCommands != NULL && sceneCommands->isSceneOption(*currentEffectControl)) {
-        sceneCommands->activate(*currentEffectControl, Interface::current->sel);
-    } else {
-        currentEffectControl->setValue(Interface::current->sel);
-        currentEffectControl->change(0, 0);
-    }
+void registerListKeyActions(CommandRegistry& registry) {
+#define REGISTER_ACTION(a) registry.registerAction(new a##Action())
+    REGISTER_ACTION(toggleUse);
+    REGISTER_ACTION(activate);
+#undef REGISTER_ACTION
 }
 
 #if 0
@@ -146,26 +194,32 @@ int InterfaceList::do_key(int key) {
 }
 #endif
 
-int InterfaceList::size = 6;
-
-InterfaceList interfaceList0("Display", "Select Display", &screen);
-
-InterfaceList interfaceList1("Flame", "Select Flame", &flame);
-
-InterfaceList interfaceList2("Border", "Select Border of Buffer", &border);
-
-InterfaceList interfaceList3("Translate", "Select Translation Table", &translation);
-
-InterfaceList interfaceList4("Wave", "Select Wave", &wave);
-
-InterfaceList interfaceList6("Table", "Select Sound Table", &table);
-
-InterfaceList interfaceList7("WaveScaling", "Select Wave Scaling", &waveScale);
-
-InterfaceList interfaceList8("Object", "Select 3D Object (for some waves)", &object);
-
-InterfaceList interfaceList9("Palette", "Select Palette", &palette);
-
-InterfaceList interfaceListA("Image", "Select Image", &(videoDirector().imageOption()));
-
-InterfaceList interfaceListB("Flashlight", "Select Flashlight", &flashlight);
+void registerListInterfaces(InterfaceRuntime& runtime) {
+    runtime.registerOwnedInterface(
+        new InterfaceList("Display", "Select Display", &screen));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Flame", "Select Flame", RuntimeSceneFlame));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Border", "Select Border of Buffer",
+            RuntimeSceneBorder));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Translate", "Select Translation Table",
+            RuntimeSceneTranslation));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Wave", "Select Wave", RuntimeSceneWave));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Table", "Select Sound Table", RuntimeSceneTable));
+    runtime.registerOwnedInterface(
+        new InterfaceList("WaveScaling", "Select Wave Scaling",
+            RuntimeSceneWaveScale));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Object", "Select 3D Object (for some waves)",
+            RuntimeSceneObject));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Palette", "Select Palette", RuntimeScenePalette));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Image", "Select Image", RuntimeSceneImage));
+    runtime.registerOwnedInterface(
+        new InterfaceList("Flashlight", "Select Flashlight",
+            RuntimeSceneFlashlight));
+}

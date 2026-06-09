@@ -1,10 +1,10 @@
-// Indexed PCX image loading and PCX screenshot saving.
+// Indexed PCX image loading.
 
 #include "cthugha.h"
 #include "cth_buffer.h"
 #include "display.h"
 #include "Image.h"
-#include "Screenshot.h"
+#include "pcx.h"
 
 /* load 1 pcx-file from disk
 
@@ -106,7 +106,7 @@ public:
     }
 };
 
-EffectChoice* read_pcx_image(
+IndexedImage* read_pcx_indexed_image(
     FILE* file, const char* name, const char* /* dir */, const char* /*total_name*/,
     const ImageLoadTarget& target) {
     int x, y;
@@ -198,101 +198,16 @@ EffectChoice* read_pcx_image(
     }
 
     image->setPalette(sourcePalette);
-
-    return new ImageEntry(name, "", image);
+    return image;
 }
 
-int save_pcx(unsigned char* buffer, int width, int height, Palette pal) {
-    FILE* file;
-    headrec header;
-    Palette tmp_pal;
-    int i, j;
-    const char* file_name = prtFileName("pcx");
+EffectChoice* read_pcx_image(
+    FILE* file, const char* name, const char* dir, const char* totalName,
+    const ImageLoadTarget& target) {
+    IndexedImage* image = read_pcx_indexed_image(file, name, dir, totalName,
+        target);
+    if (image == NULL)
+        return NULL;
 
-    /* open file */
-    if ((file = fopen(file_name, "w")) == NULL) {
-        CTH_ERRNO(errno, "Can't open file for writing.");
-        return 1;
-    }
-
-    /* fill header with information */
-    header.id = 0x0A;
-    header.version = 5;
-    header.compr = 1;
-    header.bitsperpixel = 8;
-    header.xmin = 0;
-    header.ymin = 0;
-    header.xmax = width - 1;
-    header.ymax = height - 1;
-    header.horidpi = 0;
-    header.vertdpi = 0;
-    header.reserved = 0;
-    header.ncolplanes = 1;
-    header.bytesperline = width;
-    header.greyscale = 1;
-    for (i = 0; i < 16; i++)
-        header.colormap[i][0] = header.colormap[i][1] = header.colormap[i][2] = 0;
-    for (i = 0; i < 58; i++)
-        header.filler[i] = 0;
-
-    /* write header */
-    if (fwrite(&header, sizeof(header), 1, file) != 1) {
-        CTH_ERRNO(errno, "Can not write header.");
-        fclose(file);
-        return 1;
-    }
-
-    /* write buffer currently on screen */
-    for (i = 0; i < height; i++) {
-        for (j = 0; j < width; j++) {
-            if (*buffer == *(buffer + 1)) { /* repeating */
-                unsigned char cnt = 0;
-                while ((cnt < 62) && (*buffer == *(buffer + 1)) && (j < (width - 1)))
-                    j++, cnt++, buffer++;
-                cnt += 192 + 1;
-                if (fputc(cnt, file) == EOF) { /* write count */
-                    CTH_ERRNO(errno, "Can not write picture.");
-                    fclose(file);
-                    return 1;
-                }
-            } else { /* maybe repeat once */
-                if (*buffer >= 192) {
-                    if (fputc(193, file) == EOF) { /* repeat once */
-                        CTH_ERRNO(errno, "Can not write picture.");
-                        fclose(file);
-                        return 1;
-                    }
-                }
-            }
-            if (fputc(*buffer, file) == EOF) { /* write data */
-                CTH_ERRNO(errno, "Can not write picture.");
-                fclose(file);
-                return 1;
-            }
-            buffer++;
-        }
-    }
-
-    /* create palette for save (in the future Palette might contains RGBA values) */
-    for (i = 0; i < 256; i++)
-        for (j = 0; j < 3; j++)
-            tmp_pal[i][j] = pal[i][j];
-
-    /* write palette marker */
-    if (fputc(12, file) == EOF) {
-        CTH_ERRNO(errno, "Can not write palette.");
-        fclose(file);
-        return 1;
-    }
-    /* write palette */
-    if (fwrite(tmp_pal, 3 * 256, 1, file) != 1) {
-        CTH_ERRNO(errno, "Can not write palette.");
-        fclose(file);
-        return 1;
-    }
-
-    /* close file */
-    fclose(file);
-
-    return 0;
+    return new ImageEntry(name, "", image);
 }

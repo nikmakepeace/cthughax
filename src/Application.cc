@@ -1,59 +1,215 @@
-// Application lifecycle, shutdown handling, and one-frame runtime dispatcher.
+/** @file
+ * Application lifecycle, shutdown handling, and one-frame runtime dispatcher.
+ */
 
 #include "Application.h"
 
-#include "cthugha.h"
 #include "information.h"
 #include "display.h"
 #include "AudioFrame.h"
-#include "AudioRuntime.h"
-#include "AudioSystem.h"
+#include "AudioFramePipeline.h"
+#include "AudioIngest.h"
 #include "AudioAnalyzer.h"
+#include "AudioProcessing.h"
 #include "AudioProcessor.h"
-#include "AudioVisualBridge.h"
-#include "Border.h"
-#include "EffectControl.h"
-#include "CthughaBuffer.h"
+#include "AutoChangeControls.h"
+#include "AutoChangeSettings.h"
+#include "BorderOption.h"
+#include "EffectChoiceLoader.h"
 #include "CthughaDisplay.h"
-#include "DisplayBackend.h"
-#include "DisplayDevice.h"
-#include "DisplayRuntime.h"
-#include "Flashlight.h"
-#include "FramePacer.h"
+#include "DisplayPresentationOptions.h"
+#include "FlashlightOption.h"
+#include "FrameGeneratorContext.h"
+#include "FrameGeometry.h"
+#include "FrameRenderContext.h"
+#include "Image.h"
 #include "IndexedFrame.h"
 #include "Interface.h"
+#include "InterfaceRuntime.h"
+#include "Mixer.h"
+#include "IniFiles.h"
+#include "Option.h"
+#include "RuntimeAudioControls.h"
+#include "RuntimeAutoChangeControls.h"
+#include "RuntimeConfigRegistry.h"
+#include "RuntimeChangeMediator.h"
+#include "RuntimeCommandTargets.h"
+#include "RuntimeDisplayControls.h"
+#include "RuntimeEffectControls.h"
+#include "RuntimePersistence.h"
+#include "RuntimeShutdown.h"
 #include "Scene.h"
-#include "VideoDirector.h"
-#include "VideoFilterchain.h"
-#include "VideoFilterchainFactory.h"
-#include "VideoFilters.h"
+#include "SceneChangeScheduler.h"
+#include "SceneImageCatalog.h"
+#include "SceneImageCatalogLoader.h"
+#include "ScenePaletteCatalog.h"
+#include "ScenePaletteCatalogLoader.h"
+#include "SceneRuntime.h"
+#include "SceneTranslationCatalog.h"
+#include "SceneVisualCatalogServiceFactory.h"
+#include "SceneVisualSelectionFactory.h"
+#include "SceneVisualSelections.h"
+#include "SceneWaveObjectCatalog.h"
+#include "SceneWaveObjectCatalogLoader.h"
+#include "Screen.h"
 #include "TranslationOptions.h"
+#include "FrameGeneratorFrameBudget.h"
 #include "flames.h"
-#include "imath.h"
 #include "keymap.h"
-#include "options.h"
+#include "keys.h"
 #include "waves.h"
+
+#ifdef CTH_XWIN
+#include "xcthugha.h"
+#endif
 
 #include <unistd.h>
 
-static void configureTerminalTextMode();
-static int initializeVisualCatalogs(const CthughaBuffer& buffer);
+static int initializeVisualCatalogs(const FrameGeometry& geometry,
+    const PathConfig& pathConfig, const EffectPolicy& effectPolicy,
+    SceneWaveObjectCatalog& waveObjects, ScenePaletteCatalog& palettes,
+    SceneTranslationCatalog& translations, RandomSource& randomSource,
+    LogSink& log);
+static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
+    const PathConfig& pathConfig, const FrameGeometry& geometry,
+    ImageOption& images, LogSink& log);
+static void emitStartupConfigDiagnostics(
+    const std::vector<ConfigDiagnostic>& diagnostics, LogSink& log);
+static void applyDisplayPresentationStartupChoice(const SceneConfig& sceneConfig,
+    RandomSource& randomSource);
 
-static SystemFrameSleeper systemFrameSleeper;
-static FramePacer framePacer(systemFrameSleeper);
+class FrameGeneratorQuietObserver : public AutoChangeQuietObserver {
+    FrameGeneratorRuntime& frameGeneratorValue;
+    CthughaDisplay& displayCoordinator;
+    DisplayPresentationSettings& displaySettings;
+    const Option& quietMessageOptionValue;
+
+public:
+    /**
+     * Creates a quiet-audio observer over the frame generator.
+     *
+     * @param frameGenerator_ Generator that emits quiet-message cues.
+     * @param display_ Display clock source for current rolling frame budget.
+     * @param quietMessageOption_ Runtime threshold option owned by Application.
+     */
+    FrameGeneratorQuietObserver(FrameGeneratorRuntime& frameGenerator_,
+        CthughaDisplay& display_,
+        DisplayPresentationSettings& displaySettings_,
+        const Option& quietMessageOption_)
+        : frameGeneratorValue(frameGenerator_)
+        , displayCoordinator(display_)
+        , displaySettings(displaySettings_)
+        , quietMessageOptionValue(quietMessageOption_) { }
+
+    /** Reports an ongoing quiet period to the frame generator. */
+    virtual int observeQuiet(int quietLength) {
+        int frameBudget = frameGenerationBudgetFramesPerSecond(
+            int(displaySettings.maxFramesPerSecond),
+            displayCoordinator.rollingFps);
+        return frameGeneratorValue.observeQuiet(quietLength,
+            int(quietMessageOptionValue), frameBudget);
+    }
+};
+
+static FrameRenderContext frameRenderContextFor(const AudioFrame& frame,
+    const AcousticContext& acousticContext, const SceneSnapshot* sceneSnapshot,
+    double frameNow, double frameDeltaT) {
+    FrameRenderContext context;
+    context.audioFrame = &frame;
+    context.rawAudioData = frame.raw;
+    context.processedWaveData = frame.processedWaveData;
+    context.audioMetrics = &frame.metrics;
+    context.acousticContext = &acousticContext;
+    context.sceneSnapshot = sceneSnapshot;
+    context.now = frameNow;
+    context.deltaT = frameDeltaT;
+    return context;
+}
+
+static void emitStartupConfigDiagnostics(
+    const std::vector<ConfigDiagnostic>& diagnostics, LogSink& log) {
+    for (std::vector<ConfigDiagnostic>::const_iterator it = diagnostics.begin();
+         it != diagnostics.end(); ++it) {
+        if (it->severity == ConfigDiagnosticError) {
+            log.error("Configuration error from %s `%s': %s\n",
+                it->source.c_str(), it->key.c_str(), it->message.c_str());
+        } else if (it->severity == ConfigDiagnosticWarning) {
+            log.warn("Configuration warning from %s `%s': %s\n",
+                it->source.c_str(), it->key.c_str(), it->message.c_str());
+        } else {
+            log.info("Configuration note from %s `%s': %s\n",
+                it->source.c_str(), it->key.c_str(), it->message.c_str());
+        }
+    }
+}
+
+static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
+    const PathConfig& pathConfig, const FrameGeometry& geometry,
+    ImageOption& images, LogSink& log) {
+    if (!effectPolicy.imageFilesEnabled)
+        return 0;
+
+    log.info("  loading image files...\n");
+    int result = images.loadImages(pathConfig, geometry.width(),
+        geometry.height());
+    log.info("  number of loaded image files: %d\n", images.getNEntries());
+
+    return result;
+}
+
+static void applyDisplayPresentationStartupChoice(const SceneConfig& sceneConfig,
+    RandomSource& randomSource) {
+    screen.change(sceneConfig.presentation.c_str(), randomSource, 0);
+}
 
 Application::Application(int argc, char* argv[])
     : argcValue(argc)
     , argvValue(argv)
     , displayArgv(argv, argv + argc)
+    , framePacerValue(frameSleeperValue)
+    , logSinkValue(loggingRuntimeValue)
     , exitStatusValue(1)
-    , ncursesInitialized(0)
-    , platformLifecycle(PlatformLifecycleCallbacks(
+    , frameGeneratorValue(randomSourceValue, countdownTimerFactoryValue,
+          logSinkValue)
+    , displayFrontendInitializer(&displayFrontendInitializerValue)
+    , acousticContextValue(&logSinkValue)
+    , platformLifecycle(logSinkValue, PlatformLifecycleCallbacks(
           &Application::platformWillSuspend, &Application::platformDidResume, this))
-    , shutdownComplete(0) { }
+    , startupInitialized(0)
+    , shutdownComplete(0) {
+    cthugha_install_logging_runtime(loggingRuntimeValue);
+    imageOptionValue.reset(new ImageOption(0, "image"));
+    quietMessageOptionValue.reset(new OptionTime("change-msg-time", 0));
+    commandsInputValue.reset(new CommandsInputRuntime(millisecondClockValue,
+        *quietMessageOptionValue, displaySystemValue.settings()));
+}
+
+Application::Application(int argc, char* argv[],
+    DisplayFrontendInitializer& displayFrontendInitializer_)
+    : argcValue(argc)
+    , argvValue(argv)
+    , displayArgv(argv, argv + argc)
+    , framePacerValue(frameSleeperValue)
+    , logSinkValue(loggingRuntimeValue)
+    , exitStatusValue(1)
+    , frameGeneratorValue(randomSourceValue, countdownTimerFactoryValue,
+          logSinkValue)
+    , displayFrontendInitializer(&displayFrontendInitializer_)
+    , acousticContextValue(&logSinkValue)
+    , platformLifecycle(logSinkValue, PlatformLifecycleCallbacks(
+          &Application::platformWillSuspend, &Application::platformDidResume, this))
+    , startupInitialized(0)
+    , shutdownComplete(0) {
+    cthugha_install_logging_runtime(loggingRuntimeValue);
+    imageOptionValue.reset(new ImageOption(0, "image"));
+    quietMessageOptionValue.reset(new OptionTime("change-msg-time", 0));
+    commandsInputValue.reset(new CommandsInputRuntime(millisecondClockValue,
+        *quietMessageOptionValue, displaySystemValue.settings()));
+}
 
 Application::~Application() {
     shutdown();
+    cthugha_clear_logging_runtime(loggingRuntimeValue);
 }
 
 void Application::platformWillSuspend(void* context) {
@@ -65,98 +221,279 @@ void Application::platformDidResume(void* context) {
 }
 
 void Application::willSuspend() {
-    exit_sound();
+    shutdownAudioIngest();
 }
 
 void Application::didResume() {
-    if (init_sound(CthughaBuffer::buffer.maxDimension()))
-        cthugha_close++;
+    if (initAudioIngest() && runtimeShutdownValue.get() != NULL)
+        runtimeShutdownValue->requestClose();
+}
+
+bool Application::closeRequested() const {
+    return (runtimeShutdownValue.get() != NULL)
+        && runtimeShutdownValue->closeRequested();
 }
 
 void Application::initSceneRuntime() {
-    if (sceneValue.get() != NULL)
+    if (runtimeConfigRegistryValue.get() != NULL)
         return;
 
-    // SceneCommands is the modern target for legacy option callbacks, so create
-    // it before full option parsing can trigger scene-changing work.
-    sceneValue.reset(new Scene);
-    videoDirector().bindScene(*sceneValue);
-    sceneCommandsValue.reset(new SceneCommands(*sceneValue, CthughaBuffer::buffer,
-        videoDirector().imageOption()));
-    bindSceneCommandsForLegacyCallbacks(sceneCommandsValue.get());
+    if (sceneTranslationCatalogValue.get() == NULL)
+        sceneTranslationCatalogValue.reset(new SceneTranslationCatalog());
+    if (sceneWaveObjectCatalogValue.get() == NULL) {
+        sceneWaveObjectCatalogValue.reset(new SceneWaveObjectCatalog());
+        loadSceneWaveObjectCatalog(*sceneWaveObjectCatalogValue,
+            startupConfigValue.paths,
+            startupConfigValue.effectPolicy.useObjectsEnabled, logSinkValue);
+    }
+    if (sceneImageCatalogValue.get() == NULL) {
+        sceneImageCatalogValue.reset(new SceneImageCatalog());
+        loadSceneImageCatalog(*sceneImageCatalogValue,
+            startupConfigValue.paths,
+            startupConfigValue.effectPolicy.imageFilesEnabled,
+            frameGeneratorValue.geometry().width(),
+            frameGeneratorValue.geometry().height(), logSinkValue);
+    }
+    if (scenePaletteCatalogValue.get() == NULL) {
+        scenePaletteCatalogValue.reset(new ScenePaletteCatalog());
+        loadScenePaletteCatalog(*scenePaletteCatalogValue,
+            startupConfigValue.paths,
+            startupConfigValue.effectPolicy.paletteSetFilterText.c_str(),
+            logSinkValue);
+    }
+    if (sceneVisualCatalogFactoryValue.get() == NULL) {
+        SceneVisualSelectionSeeds sceneVisualSelectionSeeds;
+        sceneVisualCatalogFactoryValue
+            = createSceneVisualCatalogServiceFactory(
+                createSceneVisualSelections(sceneVisualSelectionSeeds,
+                    *sceneWaveObjectCatalogValue,
+                    *sceneImageCatalogValue,
+                    *scenePaletteCatalogValue,
+                    *sceneTranslationCatalogValue));
+    }
+    if (sceneRuntimeValue.get() == NULL)
+        sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
+            *sceneVisualCatalogFactoryValue, randomSourceValue));
+    commandsInputValue->interfaceRuntime().setSceneVisualSelections(
+        sceneRuntimeValue->visualSelections());
+
+    frameGeneratorValue.bindScene(sceneRuntimeValue->scene());
+    runtimeConfigRegistryValue.reset(new RuntimeConfigRegistry(startupConfigValue));
+    audioProcessorValue.reset(new AudioProcessor());
+    audioProcessingStateValue.reset(new AudioProcessingState(randomSourceValue));
+    audioProcessingSelectorValue.reset(
+        new AudioProcessingSelector(*audioProcessingStateValue,
+            *audioProcessorValue, logSinkValue));
+    autoChangeSettingsValue.reset(
+        new OwnedAutoChangeSettings(startupConfigValue.autoChange));
+    autoChangeControlsValue.reset(
+        new AutoChangeControls(*autoChangeSettingsValue, logSinkValue));
+    runtimeConfigRegistryValue->addContributor(sceneRuntimeValue->serializer());
+    displayConfigContributorValue.reset(
+        new DisplayRuntimeConfigContributor(displaySystemValue.settings()));
+    runtimeConfigRegistryValue->addContributor(*displayConfigContributorValue);
+    audioConfigContributorValue.reset(
+        new AudioRuntimeConfigContributor(*audioProcessingStateValue));
+    runtimeConfigRegistryValue->addContributor(*audioConfigContributorValue);
+    appConfigContributorValue.reset(
+        new ApplicationRuntimeConfigContributor(*autoChangeSettingsValue,
+            *quietMessageOptionValue));
+    runtimeConfigRegistryValue->addContributor(*appConfigContributorValue);
+    legacyConfigContributorValue.reset(new LegacyRuntimeConfigContributor());
+    runtimeConfigRegistryValue->addContributor(*legacyConfigContributorValue);
+    runtimePersistenceValue.reset(
+        new IniRuntimePersistence(*runtimeConfigRegistryValue, logSinkValue));
+    runtimeShutdownValue.reset(new RuntimeCloseState());
+    runtimeDisplayControlsValue.reset(
+        new DefaultRuntimeDisplayControls(randomSourceValue,
+            displaySystemValue.settings()));
+    runtimeAudioControlsValue.reset(
+        new DefaultRuntimeAudioControls(*audioProcessingSelectorValue,
+            mixerControlsValue.get()));
+    runtimeAutoChangeControlsValue.reset(
+        new DefaultRuntimeAutoChangeControls(*autoChangeControlsValue,
+            *quietMessageOptionValue));
+    runtimeEffectControlsValue.reset(
+        new DefaultRuntimeEffectControls(randomSourceValue));
+    commandsInputValue->interfaceRuntime().setRuntimeConfigRegistry(
+        runtimeConfigRegistryValue.get());
+    commandsInputValue->interfaceRuntime().setAudioProcessingSelector(
+        audioProcessingSelectorValue.get());
+    runtimeChangeMediatorValue.reset(new RuntimeChangeMediator(
+        sceneRuntimeValue->commandTarget(), *runtimePersistenceValue,
+        *runtimeShutdownValue, *runtimeDisplayControlsValue,
+        *runtimeAudioControlsValue, *runtimeAutoChangeControlsValue,
+        *runtimeEffectControlsValue));
+    runtimeCommandRouterValue.reset(new RoutedRuntimeCommandTargetRouter(
+        *runtimeChangeMediatorValue, *runtimeDisplayControlsValue,
+        *runtimeAudioControlsValue,
+        *runtimeAutoChangeControlsValue, *runtimeEffectControlsValue));
+    commandsInputValue->interfaceRuntime().setAutoChangeControls(
+        autoChangeControlsValue.get());
 }
 
 void Application::shutdownSceneRuntime() {
-    bindSceneCommandsForLegacyCallbacks(NULL);
-    videoDirector().unbindScene();
-    sceneCommandsValue.reset();
-    sceneValue.reset();
+    commandsInputValue->interfaceRuntime().setAutoChangeControls(NULL);
+    commandsInputValue->interfaceRuntime().setSceneVisualSelections(NULL);
+    frameGeneratorValue.unbindScene();
+    commandsInputValue->interfaceRuntime().setAudioProcessingSelector(NULL);
+    commandsInputValue->interfaceRuntime().setRuntimeConfigRegistry(NULL);
+    runtimeCommandRouterValue.reset();
+    runtimeChangeMediatorValue.reset();
+    runtimeEffectControlsValue.reset();
+    runtimeAutoChangeControlsValue.reset();
+    runtimeAudioControlsValue.reset();
+    runtimeDisplayControlsValue.reset();
+    runtimePersistenceValue.reset();
+    runtimeShutdownValue.reset();
+    legacyConfigContributorValue.reset();
+    appConfigContributorValue.reset();
+    audioConfigContributorValue.reset();
+    displayConfigContributorValue.reset();
+    runtimeConfigRegistryValue.reset();
+    sceneRuntimeValue.reset();
+    sceneVisualCatalogFactoryValue.reset();
+    sceneImageCatalogValue.reset();
+    scenePaletteCatalogValue.reset();
+    sceneWaveObjectCatalogValue.reset();
+    sceneTranslationCatalogValue.reset();
+    autoChangeControlsValue.reset();
+    autoChangeSettingsValue.reset();
+    audioProcessingSelectorValue.reset();
+    audioProcessingStateValue.reset();
+    audioProcessorValue.reset();
 }
 
-void Application::initVideoFilterchain() {
-    if (videoFilterchain.get() != NULL)
-        return;
+int Application::initMixerRuntime() {
+    if (mixerSessionValue.get() != NULL)
+        return 0;
 
-    VideoFilterchainFactory factory;
-    videoFilterchainSequence = videoDirector().defaultFilterchainSequence();
-    videoFilterchain.reset(factory.create(videoFilterchainSequence));
+    if (startupConfigValue.audio.inputMode != AIM_DSPIn)
+        return 0;
 
-    if (displayRuntimeOwnership.get() != NULL)
-        displayRuntimeOwnership->device().setFramePalette(
-            framePaletteFromFilterchain(*videoFilterchain));
-}
-
-void Application::shutdownVideoFilterchain() {
-    videoFilterchain.reset();
-}
-
-void Application::initAudioVisualBridge() {
-    if (audioVisualBridge.get() == NULL)
-        audioVisualBridge.reset(new AudioVisualBridge(sceneCommandsValue.get()));
-}
-
-void Application::shutdownAudioVisualBridge() {
-    audioVisualBridge.reset();
-}
-
-void Application::runAudioVisualBridge() {
-    initAudioVisualBridge();
-    audioVisualBridge->runFrame();
-
-    // AutoChanger and audio processing can request option changes that require
-    // filters to refresh cached scene/display state before visual mutation.
-    if (audioVisualBridge->filterchainRefreshRequested()) {
-        initVideoFilterchain();
-        VideoFilterchainFactory factory;
-        factory.refresh(*videoFilterchain, videoFilterchainSequence);
-        audioVisualBridge->clearFilterchainRefreshRequest();
-    }
-}
-
-const IndexedFrame* Application::runVideoFilterchain() {
-    initVideoFilterchain();
-
-    // The filterchain receives a snapshot-like context for this visual frame.
-    // The pointed-to audio/analysis state remains owned by the audio facade and
-    // global analyzers; filters borrow it only during run().
-    VideoFrameContext context;
-    context.audioFrame = audioFrameCurrent();
-    context.rawAudioData = audioFrameRawData();
-    context.processedWaveData = audioFrameProcessedWaveData();
-    context.audioMetrics = &audioMetrics;
-    context.acousticContext = &acousticContext;
-    context.now = now;
-    context.deltaT = deltaT;
-
-    CTH_TRACE("running filterchain=%p filters=%d\n", "video runtime",
-        videoFilterchain.get(), videoFilterchain.get() ? videoFilterchain->size() : 0);
-    CthughaBuffer* buffer = videoDirector().configureFilterchain(*videoFilterchain);
-    if (buffer != NULL) {
-        videoFilterchain->run(*buffer, context);
-        return &videoFilterchain->indexedFrame();
+    logSinkValue.info("Initializing OSS mixer device...\n");
+    mixerDeviceValue.reset(newMixerDevice());
+    mixerSessionValue.reset(
+        new MixerSession(*mixerDeviceValue, logSinkValue,
+            startupConfigValue.audio));
+    if (mixerSessionValue->initialize()) {
+        mixerControlsValue.reset();
+        mixerSessionValue.reset();
+        mixerDeviceValue.reset();
+        return 1;
     }
 
-    return NULL;
+    mixerControlsValue.reset(new MixerControls(*mixerSessionValue, logSinkValue));
+    Interface* mixerInterface = commandsInputValue->interfaceRuntime().find("Mixer");
+    if (mixerInterface == NULL) {
+        logSinkValue.error("Mixer interface is not registered.\n");
+        return 1;
+    }
+    mixerControlsValue->installInto(*mixerInterface);
+    return 0;
+}
+
+void Application::shutdownMixerRuntime() {
+    if (mixerControlsValue.get() != NULL) {
+        Interface* mixerInterface = commandsInputValue->interfaceRuntime().find("Mixer");
+        if (mixerInterface != NULL)
+            mixerControlsValue->clearInterface(*mixerInterface);
+    }
+    mixerControlsValue.reset();
+    mixerSessionValue.reset();
+    mixerDeviceValue.reset();
+}
+
+void Application::initFrameGeneratorPipeline() {
+    frameGeneratorValue.initializePipeline();
+
+    if (displaySystemValue.isOpen())
+        displaySystemValue.device().setFramePalette(
+            frameGeneratorValue.framePalette());
+}
+
+void Application::shutdownFrameGeneratorPipeline() {
+    frameGeneratorValue.resetPipeline();
+}
+
+int Application::initAudioIngest() {
+    if (audioIngestValue.get() != NULL)
+        return 0;
+
+    audioIngestValue.reset(new AudioIngest(startupConfigValue.audio,
+        frameGeneratorValue.geometry().maxDimension(), randomSourceValue,
+        secondsClockValue, logSinkValue));
+    if (audioIngestValue->start()) {
+        audioIngestValue.reset();
+        return 1;
+    }
+
+    return 0;
+}
+
+void Application::shutdownAudioIngest() {
+    if (audioIngestValue.get() != NULL)
+        audioIngestValue->stop();
+    audioIngestValue.reset();
+}
+
+void Application::initAudioFramePipeline() {
+    if (audioFramePipelineValue.get() == NULL) {
+        audioFramePipelineValue.reset(new DefaultAudioFramePipeline(
+            acousticContextValue, *audioProcessingSelectorValue,
+            *audioProcessorValue, secondsClockValue, logSinkValue,
+            startupConfigValue.audioAnalysis.minNoise));
+    }
+    if (autoChangeQuietObserverValue.get() == NULL)
+        autoChangeQuietObserverValue.reset(
+            new FrameGeneratorQuietObserver(frameGeneratorValue,
+                displaySystemValue.coordinator(), displaySystemValue.settings(),
+                *quietMessageOptionValue));
+    if (sceneChangeSchedulerValue.get() == NULL
+        && sceneRuntimeValue.get() != NULL
+        && autoChangeSettingsValue.get() != NULL)
+        sceneChangeSchedulerValue.reset(new SceneChangeScheduler(sceneRuntimeValue->commandTarget(),
+            *autoChangeSettingsValue, acousticContextValue,
+            millisecondClockValue, randomSourceValue,
+            *autoChangeQuietObserverValue, logSinkValue));
+    commandsInputValue->interfaceRuntime().setSceneChangeStatusProvider(
+        sceneChangeSchedulerValue.get());
+}
+
+void Application::shutdownAudioFramePipeline() {
+    commandsInputValue->interfaceRuntime().setSceneChangeStatusProvider(NULL);
+    sceneChangeSchedulerValue.reset();
+    autoChangeQuietObserverValue.reset();
+    audioFramePipelineValue.reset();
+}
+
+void Application::runAudioFramePipeline(AudioFrame& frame) {
+    initAudioFramePipeline();
+    audioFramePipelineValue->processFrame(frame);
+    if (sceneChangeSchedulerValue.get() != NULL)
+        (*sceneChangeSchedulerValue)(frame.metrics);
+}
+
+const IndexedFrame* Application::runFrameGenerator(
+    AudioFrame& frame, const SceneSnapshot& sceneSnapshot) {
+    initFrameGeneratorPipeline();
+    CthughaDisplay& display = displaySystemValue.coordinator();
+
+    // The generator receives a snapshot-like context for this visual frame.
+    // Audio frame data and frame-local metrics are owned by AudioIngest; filters
+    // borrow them only during render().
+    AudioAnalysisSnapshot audioAnalysis(frame.metrics,
+        acousticContextValue.intensity(), acousticContextValue.fire(),
+        acousticContextValue.cumulativeFireLevel());
+    FrameGeneratorContext context(&frame, frame.raw, frame.processedWaveData,
+        audioAnalysis, &sceneSnapshot, display.currentFrameTimeSeconds(),
+        display.currentFrameDeltaSeconds(),
+        frameGenerationBudgetFramesPerSecond(
+            int(displaySystemValue.settings().maxFramesPerSecond),
+            display.rollingFps));
+
+    const IndexedFrame& indexedFrame = frameGeneratorValue.render(context);
+    return indexedFrame.valid() ? &indexedFrame : NULL;
 }
 
 void Application::shutdown() {
@@ -165,125 +502,162 @@ void Application::shutdown() {
 
     shutdownComplete = 1;
 
-    // AutoChanger owns final option persistence, so destroy the bridge before
-    // tearing down scene commands or runtime globals it may consult.
-    shutdownAudioVisualBridge();
-    if (ncursesInitialized) {
-        exit_ncurses();
-        ncursesInitialized = 0;
-    }
-    displayValue.reset();
-    cthughaDisplay = NULL;
-    if (displayRuntimeOwnership.get() != NULL)
-        displayRuntimeOwnership->shutdown();
-    displayRuntimeOwnership.reset();
+    if (startupInitialized && startupConfigValue.app.optionsSaveEnabled
+        && runtimePersistenceValue.get() != NULL)
+        runtimePersistenceValue->writeCurrentConfig();
+
+    shutdownAudioFramePipeline();
+    displaySystemValue.close();
     platformLifecycle.shutdown();
-    audioRuntimeShutdown();
-    shutdownVideoFilterchain();
+    shutdownAudioIngest();
+    shutdownFrameGeneratorPipeline();
     shutdownSceneRuntime();
+    shutdownMixerRuntime();
 }
 
 Scene& Application::scene() {
-    return *sceneValue;
-}
-
-SceneCommands& Application::sceneCommands() {
-    return *sceneCommandsValue;
+    return sceneRuntimeValue->scene();
 }
 
 int Application::initialize() {
-    srand(time(0));
     seteuid(getuid()); // give up root privileges
 
-    // Pre-params can affect how much parsing/output should happen at all.
-    if (get_pre_params(argcValue, argvValue))
-        return 0;
+    ConfigBuildResult startupConfig = buildStartupConfig(argcValue, argvValue);
+    startupConfigValue = startupConfig.config;
+    startupConfigDiagnostics = startupConfig.diagnostics;
+    loggingRuntimeValue.configure(startupConfigValue.logging);
 
-    // Help exits successfully without opening terminal, audio, or display state.
-    if (params_request_help(argcValue, argvValue)) {
+    if (startupConfig.helpRequested) {
         title();
         usage();
         exitStatusValue = 0;
         return 0;
     }
 
-    // Version exits successfully without opening terminal, audio, or display state.
-    if (params_request_version(argcValue, argvValue)) {
+    if (startupConfig.versionRequested) {
         version();
         exitStatusValue = 0;
         return 0;
     }
 
-    initSceneRuntime();
-
-    // Full parameter parsing can select initial scene/audio/display options.
-    if (get_params(argcValue, argvValue))
+    emitStartupConfigDiagnostics(startupConfigDiagnostics, logSinkValue);
+    if (!startupConfig.ok()) {
+        usage();
         return 0;
-
-    videoDirector().silenceMessages().initialize();
-
-    init_imath();
-
-    // Terminal text mode is chosen before audio/display startup because ncurses
-    // may own the terminal while the graphical frontend owns the window.
-    configureTerminalTextMode();
-    if (ncurses_use) {
-        if (init_ncurses())
-            return 0;
-        ncursesInitialized = 1;
     }
 
-    CTH_INFO("Initializing the sound device...\n");
-    if (init_sound(CthughaBuffer::buffer.maxDimension()))
+    commandsInputValue->configureInput(startupConfigValue.input);
+    configureTranslationOptions(startupConfigValue.effectPolicy);
+    configureWaveOptions(startupConfigValue.effectPolicy);
+    configurePaletteOptions(startupConfigValue.effectPolicy);
+
+    FrameGeneratorRuntimeConfig frameGeneratorConfig;
+    frameGeneratorConfig.frameSize = PixelSize(
+        startupConfigValue.display.bufferWidth,
+        startupConfigValue.display.bufferHeight);
+    frameGeneratorConfig.paletteSmoothingChance
+        = startupConfigValue.sceneTransition.paletteSmoothingChance;
+    frameGeneratorConfig.paletteSmoothSeconds
+        = startupConfigValue.sceneTransition.paletteSmoothSeconds;
+    frameGeneratorConfig.quietMessageDurationMs
+        = startupConfigValue.messages.quietMessageDurationMs;
+    frameGeneratorConfig.silenceMessages.quietMessageFile
+        = startupConfigValue.messages.quietMessageFile;
+    frameGeneratorConfig.silenceMessages.qotdEnabled
+        = startupConfigValue.messages.qotdEnabled;
+    frameGeneratorConfig.silenceMessages.qotdPrefetchTimeoutMs
+        = startupConfigValue.messages.qotdPrefetchTimeoutMs;
+    frameGeneratorConfig.silenceMessages.qotdServer
+        = startupConfigValue.messages.qotdServer;
+    frameGeneratorConfig.silenceMessages.qotdPort
+        = startupConfigValue.messages.qotdPort;
+    frameGeneratorValue.configure(frameGeneratorConfig);
+    quietMessageOptionValue->setValue(startupConfigValue.messages.quietMessageMs);
+
+    remove_continuation_ini(startupConfigValue.paths, logSinkValue);
+
+    if (initMixerRuntime())
+        return 0;
+
+    frameGeneratorValue.silenceMessages().initialize();
+
+    logSinkValue.info("Initializing the sound device...\n");
+    if (initAudioIngest())
         return 0;
 
     // Visual catalogs depend on final buffer dimensions and must be available
-    // before EffectControl::changeToInitial() resolves staged option names.
-    CTH_INFO("Initializing cthugha Buffer...\n");
-    if (initializeVisualCatalogs(CthughaBuffer::buffer))
+    // before startup scene config can be matched to concrete catalog entries.
+    logSinkValue.info("Initializing Frame Generator storage...\n");
+    sceneWaveObjectCatalogValue.reset(new SceneWaveObjectCatalog());
+    scenePaletteCatalogValue.reset(new ScenePaletteCatalog());
+    sceneTranslationCatalogValue.reset(new SceneTranslationCatalog());
+    if (initializeVisualCatalogs(frameGeneratorValue.geometry(),
+            startupConfigValue.paths, startupConfigValue.effectPolicy,
+            *sceneWaveObjectCatalogValue, *scenePaletteCatalogValue,
+            *sceneTranslationCatalogValue, randomSourceValue, logSinkValue))
         return 0;
-    CthughaBuffer::buffer.allocatePixels();
-    if (videoDirector().loadImages()) {
+    if (loadEffectPolicyImages(startupConfigValue.effectPolicy,
+            startupConfigValue.paths, frameGeneratorValue.geometry(),
+            *imageOptionValue, logSinkValue)) {
         exitStatusValue = 0;
         return 0;
     }
+    sceneImageCatalogValue.reset(new SceneImageCatalog());
+    loadSceneImageCatalog(*sceneImageCatalogValue,
+        startupConfigValue.paths,
+        startupConfigValue.effectPolicy.imageFilesEnabled,
+        frameGeneratorValue.geometry().width(),
+        frameGeneratorValue.geometry().height(), logSinkValue);
     init_border();
     init_flashlight();
 
-    CTH_INFO("Setting initial effect controls...\n");
-    EffectControl::changeToInitial();
-    audioProcessing.changeToInitial();
-    sceneCommands().initializeFromOptions();
+    initSceneRuntime();
+    sceneRuntimeValue->configureEffectPolicy(startupConfigValue.effectPolicy);
+
+    logSinkValue.info("Setting initial effect controls...\n");
+    sceneRuntimeValue->applyStartupConfig(startupConfigValue.scene);
+    applyDisplayPresentationStartupChoice(startupConfigValue.scene,
+        randomSourceValue);
+    audioProcessingSelectorValue->configureStartup(startupConfigValue.scene);
 
     // Interface/keymaps are available before display creation so early display
     // events and option panels can route input immediately.
-    CTH_INFO("Initializing interface...\n");
-    Interface::set("main");
+    logSinkValue.info("Initializing interface...\n");
+    commandsInputValue->interfaceRuntime().set("main");
 
-    CTH_INFO("Initializing keymaps...\n");
-    Keymap::init();
+    logSinkValue.info("Registering key actions...\n");
+    commandsInputValue->registerBuiltins();
 
-    CTH_INFO("Initializing display...\n");
+    logSinkValue.info("Initializing keymaps...\n");
+    commandsInputValue->initializeKeymaps(startupConfigValue.input);
+
+    logSinkValue.info("Initializing display...\n");
     int displayArgc = int(displayArgv.size());
-    if (cth_init(&displayArgc, displayArgv.data()))
+    DisplayDriverRegistry displayDrivers;
+#ifdef CTH_XWIN
+    std::unique_ptr<DisplayDriverFactory> x11DisplayDriverFactory
+        = newX11DisplayDriverFactory(*displayFrontendInitializer,
+            startupConfigValue.x11);
+    displayDrivers.add(*x11DisplayDriverFactory);
+#endif
+    DisplayOpenRequest displayOpenRequest(scene(), *imageOptionValue,
+        sceneRuntimeValue->visualSelections(), *runtimeChangeMediatorValue,
+        *runtimeCommandRouterValue, *runtimeConfigRegistryValue,
+        startupConfigValue.display, displaySystemValue.settings(),
+        secondsClockValue, commandsInputValue->interfaceRuntime(),
+        commandsInputValue->errorMessages(), logSinkValue, &displayArgc,
+        displayArgv.data());
+    if (displaySystemValue.open(displayDrivers, displayOpenRequest))
         return 0;
-    displayRuntimeOwnership = newDisplayDevice(scene(), sceneCommands());
-    if (displayRuntimeOwnership.get() == NULL)
-        return 0;
-    displayRuntimeOwnership->publishAliases();
-    displayValue = newCthughaDisplay(displayRuntimeOwnership->device(),
-        displayRuntimeOwnership->runtime());
-    cthughaDisplay = displayValue.get();
+    initFrameGeneratorPipeline();
 
-    CTH_INFO("Loading effect-control usage and preset slots...\n");
-    read_effect_control_usage_and_presets();
-
-    CTH_INFO("Initializing the audio-visual bridge...\n");
-    initAudioVisualBridge();
+    logSinkValue.info("Initializing the audio-visual bridge...\n");
+    initAudioFramePipeline();
 
     // Install platform hooks last; callbacks assume audio/display state exists.
     platformLifecycle.install();
 
+    startupInitialized = 1;
     exitStatusValue = 0;
     return 1;
 }
@@ -294,9 +668,9 @@ void Application::run() {
     //   2. let the active interface react before frame generation;
     //   3. generate and optionally present one frame;
     //   4. let the interface draw/react again after frame-side changes.
-    while (cthugha_close == 0) {
-        int traceDisplayTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
-        double loopStart = traceDisplayTiming ? getTime() : 0.0;
+    while (!closeRequested()) {
+        int traceDisplayTiming = logSinkValue.traceEnabled();
+        double loopStart = traceDisplayTiming ? secondsClockValue.nowSeconds() : 0.0;
         double eventsStart = loopStart;
         double eventsEnd = loopStart;
         double preInterfaceStart = 0.0;
@@ -309,43 +683,49 @@ void Application::run() {
         double pacingEnd = 0.0;
         int frameWasRun = 0;
         double visualFrameStart = 0.0;
+        CthughaDisplay& display = displaySystemValue.coordinator();
 
         DisplayEventStats eventStats
-            = displayRuntimeOwnership->runtime().processEvents();
+            = displaySystemValue.runtime().processEvents(
+                commandsInputValue->inputQueue());
         if (traceDisplayTiming)
-            eventsEnd = getTime();
+            eventsEnd = secondsClockValue.nowSeconds();
+
+        CommandContext commandContext(commandsInputValue->interfaceRuntime(),
+            runtimeChangeMediatorValue.get(), runtimeCommandRouterValue.get());
 
         if (traceDisplayTiming)
-            preInterfaceStart = getTime();
-        Interface::current->run();
+            preInterfaceStart = secondsClockValue.nowSeconds();
+        commandsInputValue->runCurrent(commandContext);
         if (traceDisplayTiming)
-            preInterfaceEnd = getTime();
+            preInterfaceEnd = secondsClockValue.nowSeconds();
 
-        if (cthugha_close == 0) {
+        if (!closeRequested()) {
             if (traceDisplayTiming)
-                frameStart = getTime();
+                frameStart = secondsClockValue.nowSeconds();
             runFrame(1);
             frameWasRun = 1;
-            visualFrameStart = now;
+            visualFrameStart = display.currentFrameTimeSeconds();
             if (traceDisplayTiming)
-                frameEnd = getTime();
+                frameEnd = secondsClockValue.nowSeconds();
         }
 
         if (traceDisplayTiming)
-            postInterfaceStart = getTime();
-        Interface::current->run();
+            postInterfaceStart = secondsClockValue.nowSeconds();
+        commandsInputValue->runCurrent(commandContext);
         if (traceDisplayTiming)
-            postInterfaceEnd = getTime();
+            postInterfaceEnd = secondsClockValue.nowSeconds();
 
-        if (frameWasRun && cthugha_close == 0) {
+        if (frameWasRun && !closeRequested()) {
             if (traceDisplayTiming)
-                pacingStart = getTime();
-            FramePacingResult pacing = framePacer.paceFrameEnd(visualFrameStart,
-                getTime(), int(maxFramesPerSecond));
+                pacingStart = secondsClockValue.nowSeconds();
+            FramePacingResult pacing = framePacerValue.paceFrameEnd(visualFrameStart,
+                secondsClockValue.nowSeconds(),
+                int(displaySystemValue.settings().maxFramesPerSecond));
             if (traceDisplayTiming) {
-                pacingEnd = getTime();
-                CTH_TRACE("pacing target-ms=%.3f requested-sleep-ms=%.3f actual-pacing-ms=%.3f maxfps=%d\n",
-                    "frame pacing",
+                pacingEnd = secondsClockValue.nowSeconds();
+                logSinkValue.trace("frame pacing",
+                    "pacing target-ms=%.3f requested-sleep-ms=%.3f actual-pacing-ms=%.3f maxfps=%d\n",
                     (pacing.targetFrameEndSeconds - pacing.frameStartSeconds)
                         * 1000.0,
                     pacing.requestedSleepSeconds * 1000.0,
@@ -355,9 +735,10 @@ void Application::run() {
         }
 
         if (traceDisplayTiming) {
-            double loopEnd = getTime();
-            CTH_TRACE("mainloop-ms=%.3f events-ms=%.3f pre-interface-ms=%.3f frame-ms=%.3f post-interface-ms=%.3f pacing-ms=%.3f events=%d resize-events=%d expose-events=%d\n",
-                "display timing", (loopEnd - loopStart) * 1000.0,
+            double loopEnd = secondsClockValue.nowSeconds();
+            logSinkValue.trace("display timing",
+                "mainloop-ms=%.3f events-ms=%.3f pre-interface-ms=%.3f frame-ms=%.3f post-interface-ms=%.3f pacing-ms=%.3f events=%d resize-events=%d expose-events=%d\n",
+                (loopEnd - loopStart) * 1000.0,
                 (eventsEnd - eventsStart) * 1000.0,
                 (preInterfaceEnd - preInterfaceStart) * 1000.0,
                 (frameEnd - frameStart) * 1000.0,
@@ -368,7 +749,7 @@ void Application::run() {
         }
     }
 
-    CTH_INFO("Exiting cthugha...\n");
+    logSinkValue.info("Exiting cthugha...\n");
 }
 
 int Application::exitStatus() const {
@@ -377,51 +758,53 @@ int Application::exitStatus() const {
 
 void Application::runFrame(int doDisplay) {
     double frameTiming[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
-    int traceFrameTiming = CTH_LOG_ENABLED(CTH_LOG_TRACE);
+    int traceFrameTiming = logSinkValue.traceEnabled();
+    CthughaDisplay& display = displaySystemValue.coordinator();
     if (traceFrameTiming)
-        frameTiming[0] = getTime();
+        frameTiming[0] = secondsClockValue.nowSeconds();
 
-    // Advance display timing first so now/deltaT describe this visual frame for
-    // audio analysis, AutoChanger policy, and all visual filters.
-    displayValue->nextFrame();
+    // Advance display timing first so owned frame time describes this visual frame for
+    // audio analysis, scene-change policy, and all visual filters.
+    display.nextFrame();
     if (traceFrameTiming)
-        frameTiming[1] = getTime();
+        frameTiming[1] = secondsClockValue.nowSeconds();
 
-    // Publish the audio frame that corresponds to the visual clock.
-    audioFrameTick();
+    audioIngestValue->tick();
+    AudioFrame& audioFrame = audioIngestValue->currentFrame();
+    if (audioIngestValue->complete() && runtimeShutdownValue.get() != NULL) {
+        logSinkValue.info("Stopping...\n");
+        runtimeShutdownValue->requestClose();
+    }
     if (traceFrameTiming)
-        frameTiming[2] = getTime();
+        frameTiming[2] = secondsClockValue.nowSeconds();
 
     // Analyze audio and run option-changing policy before visual filters read
     // SceneSettings.
-    runAudioVisualBridge();
+    runAudioFramePipeline(audioFrame);
     if (traceFrameTiming)
-        frameTiming[3] = getTime();
+        frameTiming[3] = secondsClockValue.nowSeconds();
 
-    // Mutate Cthugha's indexed active/passive buffers and publish a frame view.
-    const IndexedFrame* indexedFrame = runVideoFilterchain();
+    // Generate indexed active/passive pixels and publish a frame view.
+    SceneSnapshot sceneSnapshot = sceneRuntimeValue->snapshot();
+    const IndexedFrame* indexedFrame = runFrameGenerator(audioFrame, sceneSnapshot);
+    FrameRenderContext presentationContext = frameRenderContextFor(audioFrame,
+        acousticContextValue, &sceneSnapshot, display.currentFrameTimeSeconds(),
+        display.currentFrameDeltaSeconds());
     if (traceFrameTiming)
-        frameTiming[4] = getTime();
+        frameTiming[4] = secondsClockValue.nowSeconds();
 
-    // Prefer the modern IndexedFrame path. Fall back to the legacy screen()
-    // function path when no filterchain frame was published.
-    double visualStart = getTime();
-    if (doDisplay) {
-        if (indexedFrame != NULL && indexedFrame->valid())
-            displayValue->present(*indexedFrame);
-        else
-            (*displayValue)();
-    }
-    double visualEnd = getTime();
+    double visualStart = secondsClockValue.nowSeconds();
+    if (doDisplay && indexedFrame != NULL && indexedFrame->valid())
+        display.present(*indexedFrame, presentationContext);
+    double visualEnd = secondsClockValue.nowSeconds();
     if (traceFrameTiming)
         frameTiming[5] = visualEnd;
-    if (displayValue.get() != NULL)
-        displayValue->observeVisualLatency(visualEnd - visualStart);
+    display.observeVisualLatency(visualEnd - visualStart);
 
     if (traceFrameTiming) {
-        frameTiming[6] = getTime();
-        CTH_TRACE("total-ms=%.3f next-frame=%.3f audio=%.3f bridge=%.3f buffer=%.3f display=%.3f do-display=%d\n",
-            "frame timing",
+        frameTiming[6] = secondsClockValue.nowSeconds();
+        logSinkValue.trace("frame timing",
+            "total-ms=%.3f next-frame=%.3f audio=%.3f bridge=%.3f buffer=%.3f display=%.3f do-display=%d\n",
             (frameTiming[6] - frameTiming[0]) * 1000.0,
             (frameTiming[1] - frameTiming[0]) * 1000.0,
             (frameTiming[2] - frameTiming[1]) * 1000.0,
@@ -435,16 +818,11 @@ void Application::runFrame(int doDisplay) {
     platformLifecycle.serviceFrameBoundary();
 }
 
-static void configureTerminalTextMode() {
-#if HAVE_NCURSES == 1
-    ncurses_use = DisplayDevice::text_on_term;
-#else
-    ncurses_use = 0;
-    DisplayDevice::text_on_term = 0;
-#endif
-}
-
-static int initializeVisualCatalogs(const CthughaBuffer& buffer) {
+static int initializeVisualCatalogs(const FrameGeometry& geometry,
+    const PathConfig& pathConfig, const EffectPolicy& effectPolicy,
+    SceneWaveObjectCatalog& waveObjects, ScenePaletteCatalog& palettes,
+    SceneTranslationCatalog& translations, RandomSource& randomSource,
+    LogSink& log) {
     // Built-in visual choices and file-backed catalogs are application startup
     // state, not pixel-buffer state. They live here because option parsing can
     // change buffer dimensions and stage initial option names before startup.
@@ -453,14 +831,20 @@ static int initializeVisualCatalogs(const CthughaBuffer& buffer) {
     if (init_flames())
         return 1;
 
-    if (init_translate(buffer))
+    translations.load(geometry.width(), geometry.height(),
+        effectPolicy.useTranslatesEnabled, randomSource);
+    if (init_translate(translations))
         return 1;
 
-    if (init_wave())
+    if (init_wave(pathConfig, log))
         return 1;
+    loadSceneWaveObjectCatalog(
+        waveObjects, pathConfig, effectPolicy.useObjectsEnabled, log);
 
-    if (load_palettes())
+    if (load_palettes(pathConfig))
         return 1;
+    loadScenePaletteCatalog(palettes, pathConfig,
+        effectPolicy.paletteSetFilterText.c_str(), log);
 
     return 0;
 }

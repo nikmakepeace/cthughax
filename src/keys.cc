@@ -1,46 +1,12 @@
 #include "cthugha.h"
-#include "defaults.h"
 #include "keys.h"
-#include "display.h"
-#include "PlatformLifecycle.h"
 
-#ifdef CTH_XWIN
-#include "xcthugha.h"
-#endif
-
-int key_esc = DEFAULT_ESCAPE_KEY_ENABLED; /* disable/enable ESC-key. When enable it
-                    sometimes happens that when pressing
-                    functions keys or cursor keys cthugha
-                    only get the leading ESC and quits. */
-int x11_key = CK_NONE;
-
-// to handle keys, that give shifted and normal the same result
-static int shiftMap[][2] = {
-    { '0', CK_SHIFT(0) },
-    { '1', CK_SHIFT(1) },
-    { '2', CK_SHIFT(2) },
-    { '3', CK_SHIFT(3) },
-    { '4', CK_SHIFT(4) },
-    { '5', CK_SHIFT(5) },
-    { '6', CK_SHIFT(6) },
-    { '7', CK_SHIFT(7) },
-    { '8', CK_SHIFT(8) },
-    { '9', CK_SHIFT(9) },
+struct KeyNameEntry {
+    const char* name;
+    int keyValue;
 };
-static int nShiftMap = sizeof(shiftMap) / sizeof(int[2]);
 
-int shift(int key, int shift) {
-    if (shift) {
-        for (int i = 0; i < nShiftMap; i++)
-            if (key == shiftMap[i][0]) {
-                return shiftMap[i][1];
-            }
-    }
-
-    return key;
-}
-
-KeyAssoc keyAssoc[] = {
+static const KeyNameEntry keyNameTable[] = {
     { "F10", CK_FKT(10) },
     { "F11", CK_FKT(11) },
     { "F12", CK_FKT(12) },
@@ -90,7 +56,7 @@ KeyAssoc keyAssoc[] = {
     { "KP_8", '8' },
     { "KP_9", '9' },
 
-    { "S-0", CK_SHIFT(0) }, // these are not X11 keys, but are only for the keymap
+    { "S-0", CK_SHIFT(0) }, // keymap-only shifted number names
     { "S-1", CK_SHIFT(1) },
     { "S-2", CK_SHIFT(2) },
     { "S-3", CK_SHIFT(3) },
@@ -100,203 +66,36 @@ KeyAssoc keyAssoc[] = {
     { "S-7", CK_SHIFT(7) },
     { "S-8", CK_SHIFT(8) },
     { "S-9", CK_SHIFT(9) },
-
 };
-int nKeyAssoc = sizeof(keyAssoc) / sizeof(KeyAssoc);
 
-#ifdef CTH_XWIN
+static const int keyNameTableCount = sizeof(keyNameTable) / sizeof(KeyNameEntry);
 
-/*
- * Handler for key-board
- */
-void keys_x11(char* input, int state) {
+int keyCodeForName(const char* name) {
+    if (name == NULL)
+        return CK_NONE;
 
-    if (input[1] == '\0')
-        switch (input[0]) {
-        case 0:
-        case -1:
-            x11_key = CK_NONE;
-            break;
-        case 27:
-            x11_key = (key_esc ? CK_ESC : CK_NONE);
-            break;
-        case 10:
-        case 13:
-            x11_key = CK_ENTER;
-            break;
-        case 8:
-            x11_key = CK_BACK;
-            break;
-        default:
-            x11_key = input[0];
+    for (int i = 0; i < keyNameTableCount; i++) {
+        if (strcasecmp(name, keyNameTable[i].name) == 0)
+            return keyNameTable[i].keyValue;
+    }
+
+    return CK_NONE;
+}
+
+int keyCodeForNamePrefix(const char* text, int* consumedLength) {
+    if (consumedLength != NULL)
+        *consumedLength = 0;
+    if (text == NULL)
+        return CK_NONE;
+
+    for (int i = 0; i < keyNameTableCount; i++) {
+        int length = strlen(keyNameTable[i].name);
+        if (strncasecmp(keyNameTable[i].name, text, length) == 0) {
+            if (consumedLength != NULL)
+                *consumedLength = length;
+            return keyNameTable[i].keyValue;
         }
-    else {
-        int i;
-        for (i = 0; i < nKeyAssoc; i++)
-            if (strcasecmp(input, keyAssoc[i].name) == 0) {
-                x11_key = keyAssoc[i].keyValue;
-                return;
-            }
-        x11_key = CK_NONE;
     }
 
-    x11_key = shift(x11_key, state & ShiftMask);
-}
-
-int getkey_x11() {
-    int key;
-    key = x11_key;
-    x11_key = CK_NONE;
-    return key;
-}
-
-#endif /* CTH_XWIN */
-
-#if HAVE_NCURSES == 1
-
-#if HAVE_NCURSES_H
-#include <ncurses.h>
-#else
-#if HAVE_NCURSES_NCURSES_H
-#include <ncurses/ncurses.h>
-#else
-#if HAVE_CURSES_H
-#include <curses.h>
-#else
-#if HAVE_NCURSES_CURSES_H
-#include <ncurses/curses.h>
-#endif
-#endif
-#endif
-#endif
-
-int translate_key(int key) {
-
-    switch (key) {
-    case 0:
-    case -1:
-        return CK_NONE;
-    case 27:
-        return (key_esc ? CK_ESC : CK_NONE);
-    case KEY_F(1):
-        return CK_FKT(1);
-    case KEY_F(2):
-        return CK_FKT(2);
-    case KEY_F(3):
-        return CK_FKT(3);
-    case KEY_F(4):
-        return CK_FKT(4);
-    case KEY_F(5):
-        return CK_FKT(5);
-    case KEY_F(6):
-        return CK_FKT(6);
-    case KEY_F(7):
-        return CK_FKT(7);
-    case KEY_F(8):
-        return CK_FKT(8);
-    case KEY_F(9):
-        return CK_FKT(9);
-    case KEY_F(10):
-        return CK_FKT(10);
-    case KEY_F(11):
-        return CK_FKT(11);
-    case KEY_F(12):
-        return CK_FKT(12);
-    case KEY_F(13):
-        return CK_FKT(13);
-    case KEY_F(14):
-        return CK_FKT(14);
-    case KEY_F(15):
-        return CK_FKT(15);
-    case KEY_F(16):
-        return CK_FKT(16);
-    case KEY_F(17):
-        return CK_FKT(17);
-    case KEY_F(18):
-        return CK_FKT(18);
-    case KEY_F(19):
-        return CK_FKT(19);
-    case KEY_F(20):
-        return CK_FKT(20);
-
-    case KEY_UP:
-        return CK_UP;
-    case KEY_DOWN:
-        return CK_DOWN;
-    case KEY_PPAGE:
-        return CK_PGUP;
-    case KEY_NPAGE:
-        return CK_PGDN;
-    case KEY_HOME:
-        return CK_HOME;
-    case KEY_END:
-        return CK_END;
-    case KEY_RIGHT:
-        return CK_RIGHT;
-    case KEY_LEFT:
-        return CK_LEFT;
-
-    case KEY_PRINT:
-        return CK_PRINT;
-
-    case KEY_DC:
-        return CK_DELETE;
-
-    case 8:
-    case KEY_BACKSPACE:
-        return CK_BACK;
-
-    case 10:
-    case 13:
-        return CK_ENTER;
-
-    default:
-        return key;
-    }
-}
-
-/* There is a 1 sec. delay when only ESC is pressed. */
-
-int getkey_ncurs() {
-    static int next_key = CK_NONE;
-    int key;
-
-    key = next_key;
-    next_key = getch();
-
-    if ((key == 27) && (next_key > 0)) {
-        /* seems like an unrecognized special key. skip everything still
-         waiting */
-        while ((next_key = getch()) > 0)
-            ;
-
-        return CK_OTHER;
-    }
-
-    if (key == KEY_SUSPEND) { /* suspend (^Z) */
-        requestApplicationSuspend();
-        return CK_NONE;
-    }
-
-    return shift(translate_key(key), 0);
-}
-
-#endif
-
-int getkey() {
-
-#ifdef CTH_XWIN
-    // first get the X key
-    int k = getkey_x11();
-    if (k != CK_NONE)
-        return k;
-#endif
-
-#if HAVE_NCURSES == 1
-    // OK, now check ncurses, if it is in use
-    if (ncurses_use)
-        return getkey_ncurs();
-    else
-        return CK_NONE;
-#endif
+    return CK_NONE;
 }

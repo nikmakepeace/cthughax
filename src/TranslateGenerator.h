@@ -6,6 +6,8 @@
 #include <string>
 #include <vector>
 
+class RandomSource;
+
 class TranslateGenerationTarget {
 public:
     /** Output table width in pixels. */
@@ -151,9 +153,11 @@ public:
      *
      * @param width Target buffer width in pixels.
      * @param height Target buffer height in pixels.
+     * @param randomSource Seed source for entries whose options request
+     *        per-run randomization.
      * @param tables Output generated table collection.
      */
-    void generateAll(int width, int height,
+    void generateAll(int width, int height, RandomSource& randomSource,
         std::vector<GeneratedTranslationTable>& tables) const;
 };
 

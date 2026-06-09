@@ -1,6 +1,9 @@
 #include "CthughaDisplay.h"
 #include "DisplayDevice.h"
+#include "DisplayPresentationOptions.h"
 #include "DisplayRuntime.h"
+#include "InputQueue.h"
+#include "ProcessServices.h"
 
 #include <assert.h>
 #include <stdarg.h>
@@ -54,10 +57,6 @@ int screen_vscale_hmirror(ScreenRenderContext&) { return 0; }
 int screen_hscale_vmirror(ScreenRenderContext&) { return 0; }
 int screen_source(ScreenRenderContext&) { return 0; }
 
-double getTime() {
-    return 100.0;
-}
-
 int cth_log_enabled(int /*lvl*/) {
     return 0;
 }
@@ -79,10 +78,23 @@ int cth_log_errno(int /*errnum*/, const char* /*fmt*/, ...) {
     return 0;
 }
 
+class FakeSecondsClock : public SecondsClock {
+public:
+    double value;
+
+    explicit FakeSecondsClock(double value_)
+        : value(value_) { }
+
+    virtual double nowSeconds() const { return value; }
+};
+
+static FakeSecondsClock displayClock(100.0);
+
 class ViewportDisplayHarness : public CthughaDisplay {
 public:
-    ViewportDisplayHarness(DisplayDevice& device, DisplayRuntime& runtime)
-        : CthughaDisplay(device, runtime) {
+    ViewportDisplayHarness(DisplayDevice& device, DisplayRuntime& runtime,
+        DisplayPresentationSettings& settings)
+        : CthughaDisplay(device, runtime, displayClock, settings) {
     }
 
     void setDisplayFrameSize(int width, int height) {
@@ -120,7 +132,7 @@ public:
         : outputSizeValue(0, 0) {
     }
 
-    virtual DisplayEventStats processEvents() {
+    virtual DisplayEventStats processEvents(InputEventSink&) {
         return DisplayEventStats();
     }
 
@@ -137,13 +149,15 @@ public:
     RecordingDisplayDevice device;
     ResizableOutputBackend backend;
     DisplayRuntime runtime;
+    DisplayPresentationSettings settings;
     ViewportDisplayHarness display;
 
     DisplayStageFixture()
         : device()
         , backend()
         , runtime(backend)
-        , display(device, runtime) {
+        , settings()
+        , display(device, runtime, settings) {
     }
 };
 
@@ -152,7 +166,7 @@ static void prepareHarness(DisplayStageFixture& fixture, int frameWidth,
     ViewportDisplayHarness& display = fixture.display;
     display.setDisplayFrameSize(frameWidth, frameHeight);
     fixture.backend.outputSizeValue = PixelSize(windowWidth, windowHeight);
-    zoom.setValue(zoomValue);
+    fixture.settings.zoom.setValue(zoomValue);
     display.needsClear = 0;
 }
 
@@ -168,7 +182,7 @@ static void testCheckZoomPublishesFitViewportFromRuntimeOutputSize() {
     assert(viewport.scaleMode == SCALE_MODE_FIT_WINDOW);
     assert(viewport.drawSize == PixelSize(10, 9));
     assert(viewport.destination == PixelRect(0, 0, 10, 9));
-    assert(int(zoom) == 0);
+    assert(int(fixture.settings.zoom) == 0);
 }
 
 static void testCheckZoomPublishesFixedViewportAndOffsets() {
@@ -184,7 +198,7 @@ static void testCheckZoomPublishesFixedViewportAndOffsets() {
     assert(viewport.drawSize == PixelSize(4, 3));
     assert(viewport.destination == PixelRect(3, 3, 4, 3));
     assert(viewport.screenOffsetBytes(bytes_per_line, bypp) == 126);
-    assert(int(zoom) == 1);
+    assert(int(fixture.settings.zoom) == 1);
 }
 
 static void testCheckZoomReducesOversizedFixedZoom() {
@@ -198,7 +212,7 @@ static void testCheckZoomReducesOversizedFixedZoom() {
     assert(viewport.zoomWasReduced());
     assert(viewport.requestedZoom == 2);
     assert(viewport.effectiveZoom == 1);
-    assert(int(zoom) == 1);
+    assert(int(fixture.settings.zoom) == 1);
 }
 
 static void testCheckZoomMarksBorderClearWhenResizeMovesViewport() {

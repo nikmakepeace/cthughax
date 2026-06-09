@@ -39,8 +39,6 @@ cmake --install build
 - `CTH_ENABLE_MIXER`: enable OSS mixer controls when soundcard headers are
   available. Default: `ON`.
 - `CTH_ENABLE_MINIMP3`: enable embedded MP3 decoding. Default: `ON`.
-- `CTH_ENABLE_XPM`: enable XPM screenshots when Xpm is available. Default:
-  `ON`.
 - `CTH_DATA_DIR`: installed runtime data directory.
 
 Example:
@@ -65,4 +63,5 @@ From a build tree, `xcthugha` can also find assets in the repository's
 - PulseAudio-compatible output requires `libpulse-simple`.
 - OSS DSP and mixer support depend on soundcard headers and usable device
   nodes.
-- Some compressed indexed-image assets are loaded through `gzip` at runtime.
+- Indexed-image assets are loaded directly from uncompressed `.pcx` and indexed
+  `.png` files.

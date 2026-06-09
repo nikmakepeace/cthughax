@@ -1,8 +1,7 @@
 #include "cthugha.h"
-#include "AudioFrame.h"
 #include "Border.h"
-#include "CthughaBuffer.h"
-#include "VideoFilterchain.h"
+#include "FrameRenderTarget.h"
+#include "FrameGeneratorContext.h"
 #include "cth_buffer.h"
 
 static EffectChoice* border_entries[]
@@ -16,12 +15,35 @@ void init_border() {
     border.add(border_entries, 4);
 }
 
-void apply_border(CthughaBuffer& buffer, const VideoFrameContext& context, int borderMode) {
+static int audioBorderBytesAvailable(const FrameGeneratorContext& context) {
+    if (context.audioFrame() != 0)
+        return context.audioFrame()->samples * int(sizeof(char2));
+
+    return context.rawAudioData() != 0 ? 1024 * int(sizeof(char2)) : 0;
+}
+
+static void copyAudioBorderRow(unsigned char* destination, int width, int pitch,
+    const FrameGeneratorContext& context) {
+    const unsigned char* rawBytes
+        = reinterpret_cast<const unsigned char*>(context.rawAudioData());
+    int available = audioBorderBytesAvailable(context);
+    int copyBytes = available < width ? available : width;
+
+    if (rawBytes != 0 && copyBytes > 0)
+        memcpy(destination, rawBytes, copyBytes);
+    if (copyBytes < width)
+        memset(destination + copyBytes, 0, width - copyBytes);
+    if (width < pitch)
+        memset(destination + width, 0, pitch - width);
+}
+
+void apply_border(FrameRenderTarget& buffer, const FrameGeneratorContext& context, int borderMode) {
     unsigned char* active = buffer.activePixels();
     if (active == 0)
         return;
 
     int width = buffer.width();
+    int pitch = buffer.pitch();
     int hiddenRows = buffer.hiddenBorderRows();
     int hiddenBytes = buffer.hiddenBorderByteCount();
     unsigned char* top = buffer.activeTopHiddenRows();
@@ -34,12 +56,12 @@ void apply_border(CthughaBuffer& buffer, const VideoFrameContext& context, int b
         break;
     case 1:
         for (int i = 0; i < hiddenRows; i++) {
-            memcpy(top + i * width, audioFrameRawData(), width);
-            memcpy(bottom + i * width, audioFrameRawData(), width);
+            copyAudioBorderRow(top + i * pitch, width, pitch, context);
+            copyAudioBorderRow(bottom + i * pitch, width, pitch, context);
         }
         break;
     case 2: {
-        int amplitude = (context.audioMetrics != 0) ? context.audioMetrics->amplitude : 0;
+        int amplitude = context.audioAnalysis().amplitude();
         memset(bottom, amplitude, hiddenBytes);
         memset(top, amplitude, hiddenBytes);
         break;

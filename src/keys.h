@@ -5,20 +5,6 @@
 #ifndef __KEYS_H__
 #define __KEYS_H__
 
-extern int key_esc; /* disable/enable ESC-key */
-
-int translate_key(int key);
-int getkey(); /* get a key and return a code */
-
-void keys_x11(char* input, int state = 0);
-
-struct KeyAssoc { // keyboard association table
-    const char* name;
-    int keyValue;
-};
-extern KeyAssoc keyAssoc[];
-extern int nKeyAssoc;
-
 #define CK_BASE 65536
 #define CK_FKT(x) (CK_BASE + (x))
 #define CK_ENTER (CK_BASE + 25)
@@ -46,5 +32,21 @@ extern int nKeyAssoc;
 #define CK_SHIFT(x) (CK_BASE + 39 + x)
 
 #define CK_OTHER (CK_BASE + 99)
+
+/**
+ * Looks up a complete named key symbol.
+ *
+ * @return Cthugha key code, or CK_NONE when unknown.
+ */
+int keyCodeForName(const char* name);
+
+/**
+ * Looks up a named key symbol at the start of a keymap token.
+ *
+ * @param text Keymap token text.
+ * @param consumedLength Receives matched symbol length, or zero when unknown.
+ * @return Cthugha key code, or CK_NONE when unknown.
+ */
+int keyCodeForNamePrefix(const char* text, int* consumedLength);
 
 #endif

@@ -10,6 +10,8 @@
 #include "Audio.h"
 
 class AudioSettings;
+class LogSink;
+class RandomSource;
 
 enum AudioSourceStrategy {
     ASS_LineIn,
@@ -21,7 +23,16 @@ enum AudioSourceStrategy {
 };
 
 class PcmSourceFactory {
+    LogSink& log;
+
 public:
+    /**
+     * Creates a PCM source factory with explicit diagnostics.
+     *
+     * @param log_ Sink for source-selection diagnostics.
+     */
+    explicit PcmSourceFactory(LogSink& log_);
+
     /**
      * @param strategy Audio source strategy enum value.
      * @return Stable human-readable strategy name for logs.
@@ -43,9 +54,11 @@ public:
      * @param visualMaxDimension Maximum logical visual-buffer dimension, in pixels,
      *        before display zoom. Passed to live DSP input so its sample window
      *        tracks the visual buffer scale.
+     * @param randomSource Random source passed to synthetic random PCM input.
      * @return Newly allocated source, or NULL if settings do not select a valid source.
      */
-    PcmSource* create(const AudioSettings& settings, int visualMaxDimension) const;
+    PcmSource* create(const AudioSettings& settings, int visualMaxDimension,
+        RandomSource& randomSource) const;
 };
 
 #endif

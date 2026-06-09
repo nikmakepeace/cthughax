@@ -6,35 +6,14 @@
 #define __CTHUGHA_H__
 
 #include "config.h"
+#include "LogLevels.h"
 
 // #define bzero(b,len) (memset((b), '\0', (len)), (void) 0)
-
-/* check if soundcard header file is available, if not disable DSP and Mixer */
-#if !defined(HAVE_LINUX_SOUNDCARD_H) && !defined(HAVE_SYS_SOUNDCARD_H)
-#undef WITH_DSP
-#undef WITH_MIXER
-#define WITH_DSP 0
-#define WITH_MIXER 0
-#endif
 
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-
-/* Keep old portability fallbacks while CMake supplies the feature defines. */
-#if STDC_HEADERS
 #include <string.h>
-#else
-#ifndef HAVE_STRCHR
-#define strchr index
-#define strrchr rindex
-#endif
-char *strchr(), *strrchr();
-#ifndef HAVE_MEMCPY
-#define memcpy(d, s, n) bcopy((s), (d), (n))
-#define memmove(d, s, n) bcopy((s), (d), (n))
-#endif
-#endif
 
 #include <limits.h>
 #ifndef PATH_MAX
@@ -76,24 +55,11 @@ char *strchr(), *strrchr();
 #endif
 #endif
 
-/*
- * variables
- */
-extern int cthugha_close; /* cthugha is closing now */
-
 char* cthugha_mode_text();
 
 // Initialize the selected graphical frontend when display startup is reached.
 int cth_init(int* argc, char* argv[]);
 int cth_main();
-
-enum CthughaLogLevel {
-    CTH_LOG_ERROR = 0,
-    CTH_LOG_WARN = 1,
-    CTH_LOG_INFO = 2,
-    CTH_LOG_DEBUG = 5,
-    CTH_LOG_TRACE = 10
-};
 
 int printfv(int lvl, const char* fmt, ...); // print verbose message
 int cth_log_enabled(int lvl); // true if named-level log message would be printed
@@ -119,8 +85,6 @@ int cth_log_errno(int errnum, const char* fmt, ...); // print error log message 
             cth_log_context(CTH_LOG_TRACE, context, fmt, ##args); \
     } while (0)
 
-int systemf(const char* fmt, ...); // combined sprintf and system
-
 #ifdef __cplusplus
 
 inline int fclose0(FILE*& stream) {
@@ -130,9 +94,6 @@ inline int fclose0(FILE*& stream) {
 }
 
 #endif
-
-int gettime(); // return milliseconds since program start
-double getTime(); // return time in seconds
 
 #ifdef __cplusplus
 

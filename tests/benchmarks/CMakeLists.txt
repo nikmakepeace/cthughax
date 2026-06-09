@@ -1,20 +1,25 @@
 add_executable(audio_pipeline_bench
     AudioPipelineBench.cc
     ${CMAKE_SOURCE_DIR}/src/AudioInternal.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioOutputConfig.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioOutputDump.cc
     ${CMAKE_SOURCE_DIR}/src/AudioOutput.cc
     ${CMAKE_SOURCE_DIR}/src/AudioPulseOutput.cc
     ${CMAKE_SOURCE_DIR}/src/AudioDSPOutput.cc
-    ${CMAKE_SOURCE_DIR}/src/AudioBuffer.cc
+    ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
     ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
-    ${CMAKE_SOURCE_DIR}/src/AudioInputProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/DspPcmSource.cc
     ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFramePipeline.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFftProcessor.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingSelector.cc
     ${CMAKE_SOURCE_DIR}/src/AudioProcessor.cc
-    ${CMAKE_SOURCE_DIR}/src/AudioVisualBridge.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
     ${CMAKE_SOURCE_DIR}/src/imath.cc
-    ${CMAKE_SOURCE_DIR}/src/misc.cc
+    ${CMAKE_SOURCE_DIR}/src/LegacyLoggingAdapter.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
 )
@@ -22,9 +27,8 @@ add_executable(audio_pipeline_bench
 target_compile_definitions(audio_pipeline_bench PRIVATE
     CTH_AUDIO_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/audio"
     CTH_AUDIO_FRAME_NO_RUNTIME
-    CTH_AUDIO_FRAME_TEST_OVERRIDE
-    CTH_AUDIO_VISUAL_BRIDGE_NO_AUTOCHANGER
     CTH_LIBDIR="${CTH_DATA_DIR}"
+    CTH_DISABLE_MINIMP3
 )
 
 target_include_directories(audio_pipeline_bench PRIVATE
@@ -49,20 +53,30 @@ if(WITH_PULSE)
 endif()
 
 add_executable(visual_effects_bench
-    VideoEffectsBench.cc
+    FrameEffectsBench.cc
     ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
-    ${CMAKE_SOURCE_DIR}/src/CthughaBuffer.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderTarget.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeneratorContext.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalysisSnapshot.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
     ${CMAKE_SOURCE_DIR}/src/Flame.cc
     ${CMAKE_SOURCE_DIR}/src/flames.cc
     ${CMAKE_SOURCE_DIR}/src/imath.cc
-    ${CMAKE_SOURCE_DIR}/src/misc.cc
+    ${CMAKE_SOURCE_DIR}/src/LegacyLoggingAdapter.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
     ${CMAKE_SOURCE_DIR}/src/Translate.cc
     ${CMAKE_SOURCE_DIR}/src/TranslateGenerator.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneTranslationCatalog.cc
     ${CMAKE_SOURCE_DIR}/src/TranslationOptions.cc
-    ${CMAKE_SOURCE_DIR}/src/VideoFilterchain.cc
 )
 
 target_compile_definitions(visual_effects_bench PRIVATE

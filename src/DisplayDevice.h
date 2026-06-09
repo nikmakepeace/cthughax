@@ -4,22 +4,20 @@
 #define __DISPLAY_DEVICE_H
 
 #include "display.h"
+#include "OverlaySource.h"
 
 #include <memory>
 
 class FramePalette;
+class ImageOption;
+class InputEventSink;
+class RuntimeConfigRegistry;
+class RuntimeCommandSink;
+class RuntimeCommandTargetRouter;
 class Scene;
-class SceneCommands;
-class DisplayRuntimeOwnership;
-
-//
-//  Stuff about text-display
-//
-#define TEXT_COLOR_NORMAL 0
-#define TEXT_COLOR_ERROR 1
-#define TEXT_COLOR_HIGHLIGHT 2
-
-extern int display_mode; // predefined graphics mode to use
+class SceneVisualSelections;
+class SecondsClock;
+struct DisplayConfig;
 
 extern int display_text_time; // how long text is kept on the screen
 
@@ -81,8 +79,6 @@ protected:
     static int textColors;
 
 public:
-    static int text_on_term; // text is drawn on terminal (with ncurses)
-
     int textOnScreen;
     int darkenPalette; // palette should be darkend
     int needsFullCopy; // Complete image with border must be copied
@@ -99,12 +95,10 @@ public:
      *
      * @return Counts used by trace logging.
      */
-    virtual DisplayEventStats processEvents() { return DisplayEventStats(); }
-
-    virtual int printScreen() { return 0; }
+    virtual DisplayEventStats processEvents(InputEventSink&) { return DisplayEventStats(); }
 
     /**
-     * Supplies the palette published by the active video filterchain.
+     * Supplies the palette published by the active frame filterchain.
      *
      * @param framePalette_ Borrowed palette pointer, or NULL.
      */
@@ -129,10 +123,5 @@ public:
     virtual void printString(int, int, const char*, int, int, int);
     virtual void postPrint();
 };
-
-extern DisplayDevice* displayDevice;
-
-extern std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
-    Scene& scene, SceneCommands& sceneCommands);
 
 #endif

@@ -43,8 +43,6 @@ Major CMake options:
 - `CTH_ENABLE_MIXER`: enable OSS mixer controls when soundcard headers are
   available. Default: `ON`.
 - `CTH_ENABLE_MINIMP3`: enable embedded minimp3 decoding. Default: `ON`.
-- `CTH_ENABLE_XPM`: enable XPM screenshots when Xpm is available. Default:
-  `ON`.
 - `CTH_DATA_DIR`: installed runtime data directory. Default:
   `${CMAKE_INSTALL_FULL_DATADIR}/cthughanix`.
 
@@ -63,9 +61,7 @@ Core/common:
 
 - C and C++ compiler;
 - CMake;
-- POSIX process/file APIs;
-- curses or ncurses for text UI support;
-- gzip at runtime for `.gz` assets.
+- POSIX process/file APIs.
 
 X11 frontend:
 
@@ -120,10 +116,9 @@ local logging path rather than adding a new one.
 
 ## Build-System Gotchas To Preserve
 
-- Do not compile `options.cc` directly for every target unless replacing the
-  wrapper scheme deliberately.
-- `xwin_options.cc` and `xwin_keys.cc` are the remaining wrapper compile units
-  for X11-specific options and key handling.
+- Startup configuration is built by `src/Configuration.cc`; do not reintroduce
+  per-frontend option parser wrappers.
+- `xwin_keys.cc` is still an X11 wrapper compile unit for key handling.
 - CMake generates `default.keymap.str` under `build/src/`; in-tree builds may
   generate `src/default.keymap.str`.
 - Local object files in `src/` are not authoritative. Check source lists in

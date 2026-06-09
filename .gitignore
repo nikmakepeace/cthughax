@@ -129,6 +129,7 @@ CVS/
 !tests/fixtures/audio/
 !tests/fixtures/audio/*.wav
 !tests/fixtures/audio/*.mp3
+
 # Python bytecode and cache
 __pycache__/
 

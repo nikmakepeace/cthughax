@@ -1,6 +1,7 @@
 #include "cthugha.h"
 #include "FileMessagesProvider.h"
 #include "MessageFormatValidator.h"
+#include "ProcessServices.h"
 
 #include <fstream>
 #include <string.h>
@@ -276,10 +277,11 @@ int FileMessagesProvider::count() const {
     return int(messages.size());
 }
 
-int FileMessagesProvider::randomMessage(std::string& message) const {
+int FileMessagesProvider::randomMessage(RandomSource& randomSource,
+    std::string& message) const {
     if (messages.empty())
         return 0;
 
-    message = messages[rand() % messages.size()];
+    message = messages[randomSource.uniformInt(int(messages.size()))];
     return 1;
 }

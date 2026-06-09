@@ -14,33 +14,43 @@ main(argc, argv)
 `Application::initialize()` does the startup work:
 
 ```text
-  srand(time(0))
   seteuid(getuid())                    # drop elevated uid
-  get_pre_params()                     # early --path/--ini-file/--verbose/text options
-  params_request_help()                # banner/help exit before display work
-  get_params()                         # read ini files, then command line
+  buildStartupConfig(argc, argv)       # defaults, ini files, env, command line
+  loggingRuntimeValue.configure(LoggingConfig)
+  emit diagnostics; handle failure/help before display work
+  configureKeys(InputConfig)
+  configureAudioOptions(AudioConfig)
+  configureCthughaDisplay(DisplayConfig)
+  configureDisplayDeviceX11(X11Config)
+  configureAutoChanger(AutoChangeConfig)
+  configure effect/message/transition policies
+  CthughaBuffer::buffer.setDimensions(DisplayConfig)
+  remove_continuation_ini(PathConfig)
+  initSceneRuntime()
   title()
+  videoDirector().silenceMessages().initialize()
   init_imath()
-  init_ncurses() if requested
-  init_sound()
-  CthughaBuffer::initAll()
+  init_sound(AudioConfig, RuntimeCommandSink)
+  initializeVisualCatalogs(PathConfig, RandomSource)
+  CthughaBuffer::buffer.allocatePixels()
+  loadEffectPolicyImages(EffectPolicy, PathConfig)
   init_border()
   init_flashlight()
-  EffectControl::changeToInitial()
-  audioProcessing.changeToInitial()
+  sceneCommands().applyStartupConfig(SceneConfig)
+  configureAudioProcessing(SceneConfig)
   Interface::set("main")
-  Keymap::init()
+  Keymap::init(InputConfig)
   cth_init(&argc, argv)                # frontend-specific display init
-  newDisplayDevice()
+  newDisplayDevice(DisplayConfig)
   newCthughaDisplay()
-  initAudioVisualBridge()              # constructs AutoChanger
+  initAudioFramePipeline()             # constructs audio pipeline and Application-owned AutoChanger
   PlatformLifecycle::install()         # platform pause/suspend hook
 ```
 
 `Application::run()` owns the runtime loop:
 
 ```text
-while cthugha_close == 0
+while !runtimeShutdown.closeRequested()
   displayDevice->processEvents()
   Interface::current->run()
   runFrame(1)
@@ -63,11 +73,13 @@ CthughaDisplay::nextFrame()
 audioFrameTick()
   advances AudioRuntime and publishes the current 1024-sample audio frame/window
 
-AudioVisualBridge::runFrame()
+AudioFramePipeline::processFrame()
   applies selected sound-processing mode
   analyzes raw audio into AudioMetrics
   updates AcousticContext
-  runs AutoChanger
+
+Application::runAudioFramePipeline()
+  runs AutoChanger against the analyzed frame metrics
 
 VideoFilterchain::run()
   runs visual-stage filters and publishes IndexedFrame
@@ -82,8 +94,9 @@ pause/suspend handling
 The visual frame loop is cooperative. File playback now uses the modern audio
 runtime; Pulse output owns its feed through its write callback, and decoded PCM
 is shared with the visual engine through `AudioBuffer`/`AudioFrameBuilder`.
-Translation tables are generated in-process during startup so the frame loop
-receives ready tables.
+Translation tables are generated in-process during startup with the
+Application-owned `RandomSource` where generated tables request randomized
+seeds, so the frame loop receives ready tables.
 
 ### Frontend Event Loops
 
@@ -99,8 +112,7 @@ flow.
 
 `PlatformLifecycle` owns platform suspend requests.  On POSIX systems it
 installs a `SIGTSTP` handler with `sigaction`; that handler only records a
-pending suspend request.  Ncurses `^Z` handling uses the same
-`requestApplicationSuspend()` entry point instead of raising a signal directly.
+pending suspend request.
 
 `Application::runFrame()` services lifecycle requests only at the frame boundary.
 It calls application-owned callbacks to stop audio before the process suspends
@@ -112,10 +124,10 @@ no-op lifecycle hook that future native ports can replace.
 ### Runtime Selection
 
 `audioRuntimeInit()` builds the active audio runtime through `RuntimeFactory`.
-Audio startup uses current options (`sound-device-number`, `sound-method`,
-`silent`, `--pulse-server`, and the `--play` file name). Environment detection
-checks OSS read and write availability and whether Pulse support was compiled
-in.
+Audio startup uses an `AudioConfig` slice containing source mode, file name,
+sample format, output policy, latency, device, and mixer choices. Environment
+detection checks OSS read and write availability and whether Pulse support was
+compiled in.
 
 `PcmSourceFactory` currently selects:
 
@@ -149,7 +161,8 @@ Important pieces:
   audible sample, with compensation for observed visual latency.
 
 When playback reaches the end and the output has drained, `AudioRuntime` sets
-completion and requests program close.
+completion and issues `RuntimeCommand::requestClose()` through the configured
+runtime command sink.
 
 ### Native Input Processor Path
 
@@ -201,9 +214,9 @@ Built-in entries:
 - `FFT`: custom 1024-sample FFT using left/right channels as real/imaginary
   components.
 
-`AudioVisualBridge::runFrame()` calls `audioProcessing.process()` before
-analysis and before visual mutation. Waves normally read
-`audioFrameProcessedWaveData()`.
+`Application::runAudioFramePipeline()` calls the owned audio frame pipeline
+before visual mutation. Waves normally read the processed wave data through
+the current screen render context.
 
 ### Analysis and Acoustic Context
 
@@ -221,7 +234,10 @@ analysis and before visual mutation. Waves normally read
 - `cumulativeFireLevel()`: accumulated fire used by `AutoChanger`.
 
 `AutoChanger` uses `audioMetrics.noisy` for silence handling and
-`acousticContext.cumulativeFireLevel()` for fire-driven option changes.
+`acousticContext.cumulativeFireLevel()` for fire-driven option changes. When it
+decides to change effects, it issues either `RuntimeCommand::changeOne()` or
+`RuntimeCommand::changeAll()` through `RuntimeCommandSink`; the mediator then
+delegates concrete selection to `SceneCommands` and `EffectControl`.
 
 ## Video Buffer Filterchain
 
@@ -274,15 +290,20 @@ IndexedFrameFilter
 
 `ImageFilter`, `FlameFilter`, `TranslateFilter`, `WaveFilter`, and
 `TextInjectionFilter` are real pixel-mutating stages. Image overlays the current
-`IndexedImage` when `VideoDirector` arms the one-shot image stage. Text
+`IndexedImage` when `VideoDirector` arms the one-shot image stage; placement is
+chosen with the Application-owned `RandomSource`. Text
 injection stamps wrapped CP437 text into active pixels when `VideoDirector` arms
 the text stage. Quiet-message text is selected by `SilenceMessage` from
-validated `--quiet-file` messages, opt-in QOTD prefetches, or defaults, routed
-through `SceneCueInjectText`, then observed by `VideoDirector` to arm
-`TextInjectionFilter`. PCX and indexed PNG files are decoded into that domain
-object before the frame loop. Before each frame,
-`VideoDirector` updates the stage filters with the selected image, selected
-flame, general-flame value, prepared translation object, wave, and border mode.
+validated `--quiet-file` messages, opt-in QOTD prefetches, or defaults using
+the Application-owned `RandomSource`; QOTD socket prefetches also receive an
+Application-owned countdown timer factory, routed through `SceneCueInjectText`,
+then observed by `VideoDirector` to arm `TextInjectionFilter`. PCX and indexed
+PNG files are decoded into that domain object before the frame loop. Before
+each frame, `VideoDirector` updates the stage filters with the selected image,
+selected flame, general-flame value, prepared translation object, wave, and
+border mode.
+General-flame and generic EffectControl randomization are commanded through
+`SceneCommands` and use the Application-owned `RandomSource`.
 `VideoFilterchain::run()` then wraps the current buffer, frame context, display
 palette, and indexed-frame publication slot in a `VideoFrame`, then passes that
 frame through each enabled stage.
@@ -341,6 +362,11 @@ The order matters:
 - swapping makes the finished frame become `passiveBuffer`, which display code
   reads.
 
+Wave renderers receive the Application-owned `RandomSource` through
+`VideoDirector` -> `WaveFilter` -> `WaveRuntime`; random object axes, firework
+placement, warp rings, and random stick lines do not use process-global random
+state.
+
 Palette smoothing is separate from the indexed pixel mutation stages.
 
 ### Palette Stage
@@ -348,6 +374,8 @@ Palette smoothing is separate from the indexed pixel mutation stages.
 `PaletteOption` is the global EffectControl adapter for loaded palettes.
 `PaletteEntry` wraps a `ColorPalette` plus UI/config metadata, while
 `VideoDirector` binds the selected entry into `PaletteFilter`.
+Randomly generated palettes are created by `PaletteRandomGenerator` with the
+Application-owned `RandomSource`, routed through `SceneCommands`.
 `PaletteFilter` delegates transition mechanics to `PaletteTransition`,
 which moves the output palette toward the target `ColorPalette` over a frame
 budget.
@@ -358,8 +386,9 @@ overlay the final frame palette without becoming the starting point for the
 next smoothing step.
 The global `paletteSmoothingChance` controls whether a palette change smooths
 or jumps directly to the new palette.
-When smoothing is used, `VideoDirector` asks `PaletteTransition` to use a
-random named strategy: RGB linear, RGB squared, or HSL interpolation.
+When smoothing is used, `VideoDirector` uses the Application-owned
+`RandomSource` to choose the `PaletteTransition` strategy: RGB linear,
+RGB squared, or HSL interpolation.
 
 Command-line options:
 
@@ -385,12 +414,16 @@ palette output for the frame instead of being diluted by the smoothing step.
 `EffectChoice` is callable via `operator()()`. Subclasses wrap functions,
 loaded assets, display functions, or no-op entries.
 
-Initial values come from ini files and command-line arguments. Startup applies
-them with:
+Initial values come from ini files and command-line arguments. Startup scene
+choices are applied by `SceneCommands::applyStartupConfig(SceneConfig)`, which
+passes the Application-owned `RandomSource` into `EffectControl::change(...)`
+for empty or invalid random fallbacks.
+
+Generic random changes are also routed through `SceneCommands`:
 
 ```text
-EffectControl::changeToInitial()
-audioProcessing.changeToInitial()
+EffectControl::changeOne(RandomSource&)
+EffectControl::changeAll(RandomSource&)
 ```
 
 ## Display Pipeline
@@ -402,7 +435,7 @@ displayDevice->setGlobalPalette()
 displayDevice->preDraw()
 choose direct or temporary indexed buffer
 checkZoom()
-screen() maps selected IndexedFrame pixels into CthughaDisplay::buffer
+PresentationComposer maps selected IndexedFrame pixels into CthughaDisplay::buffer
 optional horizontal mirror
 palette expansion if target is not 8-bit indexed
 optional vertical mirror
@@ -414,6 +447,11 @@ errors.display()
 displayDevice->postPrint()
 displayDevice->postDraw()
 ```
+
+`PresentationComposer` treats the `screen` option as requested user intent. If
+the requested screen renderer rejects the current source geometry, the composer
+falls back for that frame to the last successfully rendered screen, then to the
+safe `Up` screen. It does not mutate the selected `screen` option.
 
 The display function selected by the `display` EffectControl comes from
 `src/display.cc`. It maps one `BUFF_WIDTH x BUFF_HEIGHT`
@@ -445,27 +483,43 @@ Keymap contexts include:
 
 Actions are registered by static `ACTION(name)` objects in `keymap.cc`,
 `Interface.cc`, `InterfaceHelp.cc`, `InterfaceList.cc`, and related modules.
+Keymap, generic interface mutation actions, X11 panel selection/quit/palette
+metadata callbacks, credits key handling, playback completion, and AutoChanger
+now issue `RuntimeCommand` values through a `RuntimeCommandSink`.
+`RuntimeChangeMediator` implements that sink, delegates to existing
+scene commands, delegates display commands to `RuntimeDisplayControls`,
+delegates audio commands to `RuntimeAudioControls`, delegates AutoChanger
+commands to `RuntimeAutoChangeControls`, delegates legacy EffectControl state
+mutations to `RuntimeEffectControls`, delegates ini persistence to
+`RuntimePersistence`, delegates close requests to the application-owned
+`RuntimeShutdown`, handles palette metadata commands, and reports a
+`RuntimeChangeSet`.
+
+The default runtime control implementations still call the current global
+display/audio/auto-change/EffectControl objects. Generic `Option*` commands
+from the legacy interface are routed only through display, audio, and
+owned target adapters; `RuntimeEffectControls` handles EffectControl
+selection, effect-choice use flags, and individual EffectControl locks. These
+adapters are deliberately thin layers so future subsystem deglobalisation can
+replace their internals without teaching `RuntimeChangeMediator` about concrete
+subsystem ownership.
 
 ## Configuration Flow
 
-`get_pre_params()` handles only early options such as `--path`, `--ini-file`,
-`--verbose`, and X11 terminal-text options. `get_params()` then reads ini files
-and reprocesses the full command line, so command-line options override ini
-values.
+Startup config is acquired in `buildStartupConfig()`. A bootstrap command-line
+pass only discovers `--path` and `--ini-file`, then `ConfigurationBuilder`
+applies defaults, ini files, supported environment variables, and the full
+command line into one immutable `Config` value. `Application` handles
+diagnostics/help and passes only config slices to subsystem startup APIs.
 
-Without `--ini-file`, `read_ini()` searches:
+Without `--ini-file`, the builder searches:
 
 1. `CTH_LIBDIR/cthugha.ini`
 2. `~/.cthugha.auto`
 3. `~/.cthugha.ini`
 4. `./cthugha.ini`
 5. `--path DIR` -> `DIR/cthugha.ini`
-6. X11 resource database for `xcthugha`, via `open_ini_sys()`, only after a
-   display connection exists
-
-Initial option loading now happens before X11 startup, so this legacy X resource
-source is skipped during normal startup configuration. Later usage reads that
-run after display startup can still query it.
+6. `~/.cthugha.continue`
 
 With `--ini-file FILE`, only that file is opened. Ini chaining from inside an
 ini file is intentionally ignored with a warning.
@@ -478,5 +532,5 @@ cthugha.feature.buffer: value
 cthugha.feature.buffer.entry: on/off
 ```
 
-The ini reader supports `?` wildcards in entry names. Pressing `a` at runtime
-can write `~/.cthugha.auto` when saving is enabled.
+The ini reader rejects `?` wildcard entries with a warning. Pressing `a` at
+runtime writes `~/.cthugha.auto` from the registered current runtime config.

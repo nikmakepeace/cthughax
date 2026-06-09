@@ -5,16 +5,17 @@
 #include "disp-sys.h"
 #include "imath.h"
 #include "xcthugha.h"
-#include "keys.h"
-#include "CthughaBuffer.h"
+#include "InputQueue.h"
 #include "Interface.h"
-#include "Image.h"
 #include "FramePalette.h"
+#include "RuntimeConfigRegistry.h"
+#include "RuntimeConfigSelection.h"
+#include "RuntimeCommandSink.h"
+#include "RuntimeCommandTargets.h"
+#include "SceneChoiceSelection.h"
+#include "SceneVisualSelections.h"
 #include "cth_buffer.h"
-#include "flames.h"
 #include "Scene.h"
-#include "TranslationOptions.h"
-#include "waves.h"
 
 #include <unistd.h>
 #include <X11/Shell.h>
@@ -34,6 +35,7 @@
 #include <sys/shm.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -56,22 +58,33 @@ static const int PalettePreviewStripHeight = 80;
 // Create the panel with buttons and menus
 //
 void DisplayDeviceX11::key_button(Widget /*w*/, XtPointer data, XtPointer /*data2*/) {
-    if (data)
-        keys_x11((char*)data);
+    KeyButtonData* keyData = (KeyButtonData*)data;
+    if ((keyData != 0) && (keyData->device != 0))
+        keyData->device->enqueuePanelKey(keyData->keyText);
 }
+
+void DisplayDeviceX11::enqueuePanelKey(const char* keyText) {
+    if (currentInputSink != 0)
+        currentInputSink->pushRawKey(keyText, 0);
+}
+
+void DisplayDeviceX11::quit(Widget /*w*/, XtPointer data, XtPointer /*data2*/) {
+    RuntimeCommandSink* sink = (RuntimeCommandSink*)data;
+    if (sink != 0)
+        sink->apply(RuntimeCommand::requestClose());
+}
+
 /*
  * handler for activated menu-items
  */
 void DisplayDeviceX11::menuCB(Widget /*item*/, XtPointer data, XtPointer /*data2*/) {
     menu_data_t* d = (menu_data_t*)data;
 
-    if (d->opt != 0) {
-        if (d->sceneCommands != 0) {
-            d->sceneCommands->activate(*d->opt, d->pos);
-        } else {
-            d->opt->setValue(d->pos);
-            d->opt->change(0, 0);
-        }
+    if ((d->hasSceneTarget != 0) && (d->runtimeCommands != 0)) {
+        d->runtimeCommands->apply(
+            RuntimeCommand::activateScene(d->sceneTarget, d->pos));
+    } else if ((d->opt != 0) && (d->runtimeCommandRouter != 0)) {
+        d->runtimeCommandRouter->activateEffectControl(*d->opt, d->pos);
     }
 }
 
@@ -165,6 +178,10 @@ static int write_metadata_line(FILE* file, const char* key, const char* value) {
 }
 
 void DisplayDeviceX11::drawPalettePreview() {
+    drawPalettePreviewRect(0, 0, palettePreviewWidth, palettePreviewHeight);
+}
+
+void DisplayDeviceX11::drawPalettePreviewRect(int x, int y, int width, int height) {
     if ((palettePreviewWidget == NULL) || (palettePreviewPixmap == None)
         || (palettePreviewWidth <= 0) || (palettePreviewHeight <= 0))
         return;
@@ -173,8 +190,35 @@ void DisplayDeviceX11::drawPalettePreview() {
     if (previewWindow == 0)
         return;
 
-    XCopyArea(xcth_display, palettePreviewPixmap, previewWindow, gc, 0, 0,
-        palettePreviewWidth, palettePreviewHeight, 0, 0);
+    if (x < 0) {
+        width += x;
+        x = 0;
+    }
+    if (y < 0) {
+        height += y;
+        y = 0;
+    }
+    if (x + width > palettePreviewWidth)
+        width = palettePreviewWidth - x;
+    if (y + height > palettePreviewHeight)
+        height = palettePreviewHeight - y;
+    if ((width <= 0) || (height <= 0))
+        return;
+
+    XCopyArea(xcth_display, palettePreviewPixmap, previewWindow, gc, x, y,
+        width, height, x, y);
+}
+
+static unsigned long palettePreviewFingerprint(const Palette& palette) {
+    unsigned long hash = 2166136261UL;
+    const unsigned char* bytes = &palette[0][0];
+
+    for (int i = 0; i < 256 * 3; i++) {
+        hash ^= bytes[i];
+        hash *= 16777619UL;
+    }
+
+    return hash;
 }
 
 void DisplayDeviceX11::updatePalettePreview() {
@@ -185,15 +229,8 @@ void DisplayDeviceX11::updatePalettePreview() {
     if (previewWindow == 0)
         return;
 
-    XWindowAttributes attrs;
-    if (!XGetWindowAttributes(xcth_display, previewWindow, &attrs))
-        return;
-    if ((attrs.width <= 0) || (attrs.height <= 0))
-        return;
-
     int current_palette = scene.settings().paletteIndex;
     int palette_changed = current_palette != palettePreviewPalette;
-    int size_changed = (attrs.width != palettePreviewWidth) || (attrs.height != palettePreviewHeight);
     if (palette_changed) {
         palettePreviewPalette = current_palette;
         updatePaletteMetadataEditor();
@@ -209,6 +246,24 @@ void DisplayDeviceX11::updatePalettePreview() {
     if ((currentPalette == NULL) || (targetPalette == NULL))
         return;
 
+    unsigned long currentFingerprint = palettePreviewFingerprint(currentPalette->raw());
+    unsigned long targetFingerprint = palettePreviewFingerprint(targetPalette->raw());
+    int currentChanged = !palettePreviewFingerprintValid
+        || (currentFingerprint != palettePreviewCurrentFingerprint);
+    int targetChanged = !palettePreviewFingerprintValid
+        || (targetFingerprint != palettePreviewTargetFingerprint);
+
+    if ((palettePreviewPixmap != None) && palettePreviewFingerprintValid
+        && !currentChanged && !targetChanged)
+        return;
+
+    XWindowAttributes attrs;
+    if (!XGetWindowAttributes(xcth_display, previewWindow, &attrs))
+        return;
+    if ((attrs.width <= 0) || (attrs.height <= 0))
+        return;
+
+    int size_changed = (attrs.width != palettePreviewWidth) || (attrs.height != palettePreviewHeight);
     if (size_changed || (palettePreviewPixmap == None)) {
         if (palettePreviewPixmap != None) {
             XFreePixmap(xcth_display, palettePreviewPixmap);
@@ -218,16 +273,36 @@ void DisplayDeviceX11::updatePalettePreview() {
         palettePreviewHeight = attrs.height;
         palettePreviewPixmap
             = XCreatePixmap(xcth_display, previewWindow, attrs.width, attrs.height, planes);
+        palettePreviewFingerprintValid = 0;
     }
     if (palettePreviewPixmap == None)
         return;
 
+    int targetStartY = palettePreviewHeight / 2;
+    int dirtyY = 0;
+    int dirtyHeight = palettePreviewHeight;
+    if (!size_changed && palettePreviewFingerprintValid) {
+        if (currentChanged && !targetChanged) {
+            dirtyY = 0;
+            dirtyHeight = targetStartY;
+        } else if (!currentChanged && targetChanged) {
+            dirtyY = targetStartY;
+            dirtyHeight = palettePreviewHeight - targetStartY;
+        }
+    }
+    if (dirtyHeight <= 0) {
+        palettePreviewCurrentFingerprint = currentFingerprint;
+        palettePreviewTargetFingerprint = targetFingerprint;
+        palettePreviewFingerprintValid = 1;
+        return;
+    }
+
     XImage* preview = XCreateImage(xcth_display, visual, planes, ZPixmap, 0, NULL,
-        palettePreviewWidth, palettePreviewHeight, XBitmapPad(xcth_display), 0);
+        palettePreviewWidth, dirtyHeight, XBitmapPad(xcth_display), 0);
     if (preview == NULL)
         return;
 
-    preview->data = (char*)malloc(preview->bytes_per_line * palettePreviewHeight);
+    preview->data = (char*)malloc(preview->bytes_per_line * dirtyHeight);
     if (preview->data == NULL) {
         XDestroyImage(preview);
         return;
@@ -235,10 +310,10 @@ void DisplayDeviceX11::updatePalettePreview() {
 
     const Palette& currentRaw = currentPalette->raw();
     const Palette& targetRaw = targetPalette->raw();
-    int targetStartY = palettePreviewHeight / 2;
 
-    for (int y = 0; y < palettePreviewHeight; y++) {
-        const Palette& rowPalette = (y < targetStartY) ? currentRaw : targetRaw;
+    for (int y = 0; y < dirtyHeight; y++) {
+        int previewY = dirtyY + y;
+        const Palette& rowPalette = (previewY < targetStartY) ? currentRaw : targetRaw;
         for (int x = 0; x < palettePreviewWidth; x++) {
             int paletteIndex = (x * 256) / palettePreviewWidth;
             const unsigned char* color = rowPalette[paletteIndex];
@@ -246,11 +321,14 @@ void DisplayDeviceX11::updatePalettePreview() {
         }
     }
 
-    XPutImage(xcth_display, palettePreviewPixmap, gc, preview, 0, 0, 0, 0,
-        palettePreviewWidth, palettePreviewHeight);
+    XPutImage(xcth_display, palettePreviewPixmap, gc, preview, 0, 0, 0, dirtyY,
+        palettePreviewWidth, dirtyHeight);
 
     XDestroyImage(preview);
-    drawPalettePreview();
+    palettePreviewCurrentFingerprint = currentFingerprint;
+    palettePreviewTargetFingerprint = targetFingerprint;
+    palettePreviewFingerprintValid = 1;
+    drawPalettePreviewRect(0, dirtyY, palettePreviewWidth, dirtyHeight);
 }
 
 void DisplayDeviceX11::setPaletteMetadataStatus(const char* status) {
@@ -386,6 +464,11 @@ int DisplayDeviceX11::savePaletteMetadata() {
     return 1;
 }
 
+void DisplayDeviceX11::revertPaletteMetadata() {
+    updatePaletteMetadataEditor();
+    setPaletteMetadataStatus("reverted");
+}
+
 void DisplayDeviceX11::nextUntaggedPalette() {
     int n = palette.getNEntries();
     int start = scene.settings().paletteIndex;
@@ -395,7 +478,8 @@ void DisplayDeviceX11::nextUntaggedPalette() {
         if ((paletteEntry != NULL)
             && ((paletteEntry->metadataName[0] == '\0') || (paletteEntry->metadataSetCount == 0)
                 || (paletteEntry->metadataEnergyCount == 0))) {
-            sceneCommands.activate(palette, candidate);
+            runtimeCommands.apply(
+                RuntimeCommand::activateScene(RuntimeScenePalette, candidate));
             palettePreviewPalette = -1;
             updatePalettePreview();
             setPaletteMetadataStatus("next untagged");
@@ -410,16 +494,16 @@ void DisplayDeviceX11::savePaletteMetadataCB(
     Widget /*item*/, XtPointer data, XtPointer /*data2*/) {
     DisplayDeviceX11* device = (DisplayDeviceX11*)data;
     if (device != NULL)
-        device->savePaletteMetadata();
+        device->runtimeCommands.apply(
+            RuntimeCommand::savePaletteMetadata(*device));
 }
 
 void DisplayDeviceX11::revertPaletteMetadataCB(
     Widget /*item*/, XtPointer data, XtPointer /*data2*/) {
     DisplayDeviceX11* device = (DisplayDeviceX11*)data;
-    if (device != NULL) {
-        device->updatePaletteMetadataEditor();
-        device->setPaletteMetadataStatus("reverted");
-    }
+    if (device != NULL)
+        device->runtimeCommands.apply(
+            RuntimeCommand::revertPaletteMetadata(*device));
 }
 
 void DisplayDeviceX11::nextUntaggedPaletteCB(
@@ -436,18 +520,184 @@ void DisplayDeviceX11::palettePreviewExpose(
         return;
 
     if (event->type == ConfigureNotify) {
+        device->palettePreviewFingerprintValid = 0;
         device->updatePalettePreview();
     } else if (event->type == Expose) {
-        device->drawPalettePreview();
+        device->drawPalettePreviewRect(event->xexpose.x, event->xexpose.y,
+            event->xexpose.width, event->xexpose.height);
+    }
+}
+
+void DisplayDeviceX11::panelTextExpose(
+    Widget /*item*/, XtPointer data, XEvent* event, Boolean* /*cont*/) {
+    DisplayDeviceX11* device = (DisplayDeviceX11*)data;
+    if (device == NULL)
+        return;
+
+    if (event->type == ConfigureNotify) {
+        device->panelTextDirty = 1;
+        device->markPanelTextCopyRect(0, 0, text_size.x * fontSize.x,
+            text_size.y * fontSize.y, 2);
+    } else if (event->type == Expose) {
+        device->markPanelTextCopyRect(event->xexpose.x, event->xexpose.y,
+            event->xexpose.width, event->xexpose.height, 1);
+    }
+}
+
+static const char* currentNameOrEmpty(EffectControl& control) {
+    const char* name = control.currentName();
+    return (name != NULL && strcmp(name, "unknown") != 0) ? name : "";
+}
+
+static const char* sceneNameOrEmpty(SceneOptionSelection* selection) {
+    const char* name = (selection != NULL) ? selection->currentName() : NULL;
+    return (name != NULL && strcmp(name, "unknown") != 0) ? name : "";
+}
+
+static int panelChoiceCount(
+    SceneOptionSelection* selection, EffectControl* control) {
+    if (selection != NULL)
+        return selection->entryCount();
+
+    return (control != NULL) ? control->getNEntries() : 0;
+}
+
+static const char* panelChoiceName(
+    SceneOptionSelection* selection, EffectControl* control, int index) {
+    if (selection != NULL) {
+        const SceneChoice* choice = selection->choiceAt(index);
+        return (choice != NULL) ? choice->name() : "unknown";
+    }
+
+    return (control != NULL) ? (*control)[index]->Name() : "unknown";
+}
+
+static const char* panelChoiceLabel(
+    SceneOptionSelection* selection, EffectControl* control, int index) {
+    if (selection != NULL)
+        return panelChoiceName(selection, control, index);
+
+    if (control == NULL)
+        return "unknown";
+
+    return (*control)[index]->Desc()[0] ? (*control)[index]->Desc()
+                                        : (*control)[index]->Name();
+}
+
+SceneOptionSelection* DisplayDeviceX11::sceneSelection(
+    RuntimeSceneTarget target) const {
+    if (sceneVisualSelections == NULL)
+        return NULL;
+
+    switch (target) {
+    case RuntimeSceneFlame:
+        return &sceneVisualSelections->flame();
+    case RuntimeSceneGeneralFlame:
+        return &sceneVisualSelections->generalFlame();
+    case RuntimeSceneWave:
+        return &sceneVisualSelections->wave();
+    case RuntimeSceneWaveScale:
+        return &sceneVisualSelections->waveScale();
+    case RuntimeSceneObject:
+        return &sceneVisualSelections->object();
+    case RuntimeSceneTranslation:
+        return &sceneVisualSelections->translation();
+    case RuntimeSceneBorder:
+        return &sceneVisualSelections->border();
+    case RuntimeSceneFlashlight:
+        return &sceneVisualSelections->flashlight();
+    case RuntimeScenePalette:
+        return &sceneVisualSelections->palette();
+    case RuntimeSceneTable:
+        return &sceneVisualSelections->table();
+    case RuntimeSceneImage:
+        return &sceneVisualSelections->images();
+    }
+
+    return NULL;
+}
+
+void DisplayDeviceX11::updatePanelSelectionLabels() {
+    if (panelMenuButtons[0] == NULL)
+        return;
+
+    struct PanelSelection {
+        const char* name;
+        RuntimeConfigSelectionField field;
+        const char* fallback;
+    };
+
+    PanelSelection selections[8] = {
+        { "Display", RuntimeConfigSelectionDisplay, currentNameOrEmpty(::screen) },
+        { "Wave", RuntimeConfigSelectionWave,
+            sceneNameOrEmpty(sceneSelection(RuntimeSceneWave)) },
+        { "Flame", RuntimeConfigSelectionFlame,
+            sceneNameOrEmpty(sceneSelection(RuntimeSceneFlame)) },
+        { "Translation", RuntimeConfigSelectionTranslation,
+            sceneNameOrEmpty(sceneSelection(RuntimeSceneTranslation)) },
+        { "Palette", RuntimeConfigSelectionPalette,
+            sceneNameOrEmpty(sceneSelection(RuntimeScenePalette)) },
+        { "Table", RuntimeConfigSelectionTable,
+            sceneNameOrEmpty(sceneSelection(RuntimeSceneTable)) },
+        { "Image", RuntimeConfigSelectionImage,
+            sceneNameOrEmpty(sceneSelection(RuntimeSceneImage)) },
+        { "Objects", RuntimeConfigSelectionObject,
+            sceneNameOrEmpty(sceneSelection(RuntimeSceneObject)) },
+    };
+
+    Config config = runtimeConfigRegistry.currentConfig();
+    std::string signature;
+    for (int i = 0; i < 8; i++) {
+        signature += runtimeConfigSelectionTextOrFallback(config,
+            selections[i].field, selections[i].fallback);
+        signature.push_back('\n');
+    }
+    if (signature == panelSelectionSignature)
+        return;
+    panelSelectionSignature = signature;
+
+    Arg wargs[1];
+    for (int i = 0; i < 8; i++) {
+        if (panelMenuButtons[i] == NULL)
+            continue;
+
+        std::string selected = runtimeConfigSelectionTextOrFallback(config,
+            selections[i].field, selections[i].fallback);
+        char nextLabel[sizeof(panelMenuLabels[i])];
+        snprintf(nextLabel, sizeof(nextLabel), "%s: %s",
+            selections[i].name, selected.c_str());
+        if (strcmp(panelMenuLabels[i], nextLabel) == 0)
+            continue;
+
+        strncpy(panelMenuLabels[i], nextLabel, sizeof(panelMenuLabels[i]));
+        panelMenuLabels[i][sizeof(panelMenuLabels[i]) - 1] = '\0';
+        xawSetArg(wargs[0], XtNlabel, panelMenuLabels[i]);
+        XtSetValues(panelMenuButtons[i], wargs, 1);
     }
 }
 
 Widget DisplayDeviceX11::add_menu(
     const char* name, EffectControl* what, Widget parent, Widget under, Widget right) {
+    return add_menu_target(name, what, RuntimeSceneFlame, 0, parent, under,
+        right);
+}
+
+Widget DisplayDeviceX11::add_scene_menu(const char* name,
+    RuntimeSceneTarget sceneTarget, Widget parent, Widget under,
+    Widget right) {
+    return add_menu_target(name, NULL, sceneTarget, 1, parent, under, right);
+}
+
+Widget DisplayDeviceX11::add_menu_target(const char* name, EffectControl* what,
+    RuntimeSceneTarget sceneTarget, int hasSceneTarget, Widget parent,
+    Widget under, Widget right) {
     Arg wargs[3];
     int n;
     Widget button, menu, item;
     int i;
+    SceneOptionSelection* selection
+        = hasSceneTarget ? sceneSelection(sceneTarget) : NULL;
+    int choiceCount = panelChoiceCount(selection, what);
 
     if (parent == NULL)
         return NULL;
@@ -475,22 +725,26 @@ Widget DisplayDeviceX11::add_menu(
         return NULL;
     }
 
-    if (what->getNEntries() <= 0) {
+    if (choiceCount <= 0) {
         xawSetArg(wargs[0], XtNlabel, "none");
         XtCreateManagedWidget("none", smeBSBObjectClass, menu, wargs, 1);
     }
 
     /* create menu items */
-    for (i = 0; i < what->getNEntries(); i++) {
+    for (i = 0; i < choiceCount; i++) {
         menu_data_t* md = new menu_data_t;
-        const char* label = (*what)[i]->Desc()[0] ? (*what)[i]->Desc() : (*what)[i]->Name();
+        const char* name = panelChoiceName(selection, what, i);
+        const char* label = panelChoiceLabel(selection, what, i);
 
-        md->sceneCommands = &sceneCommands;
+        md->runtimeCommands = &runtimeCommands;
+        md->runtimeCommandRouter = &runtimeCommandRouter;
         md->opt = what;
+        md->sceneTarget = sceneTarget;
+        md->hasSceneTarget = hasSceneTarget;
         md->pos = i;
 
         xawSetArg(wargs[0], XtNlabel, label);
-        item = XtCreateManagedWidget((*what)[i]->Name(), smeBSBObjectClass, menu, wargs, 1);
+        item = XtCreateManagedWidget(name, smeBSBObjectClass, menu, wargs, 1);
         XtAddCallback(item, XtNcallback, menuCB, md);
     }
     return button;
@@ -500,7 +754,6 @@ void DisplayDeviceX11::xcth_create_panel() {
     Widget quit_button, change_button;
     Widget name_label, set_label, energy_label;
     Widget save_metadata_button, revert_metadata_button, next_untagged_button;
-    Widget menu[8];
     Arg wargs[8];
 
     /* create the panel formWidget */
@@ -509,33 +762,43 @@ void DisplayDeviceX11::xcth_create_panel() {
     /* create the quit button */
     xawSetArg(wargs[0], XtNlabel, "Quit!");
     quit_button = XtCreateManagedWidget("quit", commandWidgetClass, panel, wargs, 1);
-    XtAddCallback(quit_button, XtNcallback, (XtCallbackProc)quit, NULL);
+    XtAddCallback(quit_button, XtNcallback, (XtCallbackProc)quit, &runtimeCommands);
 
     /* create the change button */
     xawSetArg(wargs[0], XtNlabel, "Change!");
     xawSetArg(wargs[1], XtNfromHoriz, quit_button);
     change_button = XtCreateManagedWidget("change", commandWidgetClass, panel, wargs, 2);
-    XtAddCallback(change_button, XtNcallback, key_button, (char*)" ");
+    XtAddCallback(change_button, XtNcallback, key_button, &changeKeyButtonData);
 
     /* create the menus */
-    menu[0] = add_menu("Display", &::screen, panel, quit_button, NULL);
-    menu[1] = add_menu("Wave", &wave, panel, quit_button, menu[0]);
-    menu[2] = add_menu("Flame", &flame, panel, quit_button, menu[1]);
-    menu[3] = add_menu("Translation", &translation, panel, quit_button, menu[2]);
-    menu[4] = add_menu("Palette", &palette, panel, quit_button, menu[3]);
-    menu[5] = add_menu("Table", &table, panel, quit_button, menu[4]);
-    menu[6] = add_menu("Image", &sceneCommands.imageOption(), panel, quit_button, menu[5]);
-    menu[7] = add_menu("Objects", &object, panel, quit_button, menu[6]);
+    panelMenuButtons[0] = add_menu("Display", &::screen, panel, quit_button, NULL);
+    panelMenuButtons[1] = add_scene_menu("Wave", RuntimeSceneWave,
+        panel, quit_button, panelMenuButtons[0]);
+    panelMenuButtons[2] = add_scene_menu("Flame", RuntimeSceneFlame,
+        panel, quit_button, panelMenuButtons[1]);
+    panelMenuButtons[3] = add_scene_menu("Translation",
+        RuntimeSceneTranslation, panel, quit_button, panelMenuButtons[2]);
+    panelMenuButtons[4] = add_scene_menu("Palette",
+        RuntimeScenePalette, panel, quit_button, panelMenuButtons[3]);
+    panelMenuButtons[5] = add_scene_menu("Table", RuntimeSceneTable,
+        panel, quit_button, panelMenuButtons[4]);
+    panelMenuButtons[6] = add_scene_menu("Image", RuntimeSceneImage,
+        panel, quit_button, panelMenuButtons[5]);
+    panelMenuButtons[7] = add_scene_menu("Objects",
+        RuntimeSceneObject, panel, quit_button, panelMenuButtons[6]);
+    updatePanelSelectionLabels();
 
     // create the panelText Widget
     text_size.x = 80;
     text_size.y = 40 / fontSize.y;
     if (text_size.y < 1)
         text_size.y = 1;
-    xawSetArg(wargs[0], XtNfromVert, menu[0]);
+    xawSetArg(wargs[0], XtNfromVert, panelMenuButtons[0]);
     xawSetArg(wargs[1], XtNwidth, fontSize.x * text_size.x);
     xawSetArg(wargs[2], XtNheight, 40);
     panelTextWidget = XtCreateManagedWidget("panelText", labelWidgetClass, panel, wargs, 3);
+    XtAddEventHandler(
+        panelTextWidget, ExposureMask | StructureNotifyMask, False, panelTextExpose, this);
 
     xawSetArg(wargs[0], XtNfromVert, panelTextWidget);
     xawSetArg(wargs[1], XtNwidth, fontSize.x * text_size.x);

@@ -1,6 +1,6 @@
 #include "cthugha.h"
 #include "EffectControl.h"
-#include "imath.h"
+#include "ProcessServices.h"
 
 #include <string>
 
@@ -9,6 +9,29 @@ static const int visualBufferCount = 1;
 EffectControl* EffectControl::first = NULL;
 
 const int MAX_HISTORY = 128;
+
+static int modInt(int value, int modulo) {
+    int result = value % modulo;
+    return result < 0 ? result + modulo : result;
+}
+
+class EffectControlFallbackRandomSource : public RandomSource {
+    unsigned int stateValue;
+
+public:
+    EffectControlFallbackRandomSource()
+        : stateValue(0x6d2b79f5u) { }
+
+    virtual int uniformInt(int exclusiveMax) {
+        if (exclusiveMax <= 1)
+            return 0;
+
+        stateValue = stateValue * 1664525u + 1013904223u;
+        return int((stateValue >> 1) % unsigned(exclusiveMax));
+    }
+};
+
+static EffectControlFallbackRandomSource fallbackRandomSource;
 
 EffectControl::EffectControl(int b, const char* n, EffectChoiceList& e, int flags_)
     : Option(n)
@@ -24,6 +47,7 @@ EffectControl::EffectControl(int b, const char* n, EffectChoiceList& e, int flag
     // history
     oldValues = new int[MAX_HISTORY];
     history = 0;
+
 }
 
 EffectControl& EffectControl::operator=(const EffectControl& other) {
@@ -71,13 +95,13 @@ void EffectControl::change(int by, int doSave) {
     if (nouse) { // if none in use, use the first
         value = 0;
     } else {
-        value = mod(value + by, getNEntries());
+        value = modInt(value + by, getNEntries());
         if (by < 0) {
             while (!int(entries[value]->use))
-                value = mod(value - 1, getNEntries());
+                value = modInt(value - 1, getNEntries());
         } else
             while (!int(entries[value]->use))
-                value = mod(value + 1, getNEntries());
+                value = modInt(value + 1, getNEntries());
     }
 
     CTH_DEBUG("changed option `%s' to `%s'\n", name(), entries[value]->name);
@@ -85,15 +109,23 @@ void EffectControl::change(int by, int doSave) {
 }
 
 void EffectControl::changeRandom(int doSave) {
+    changeRandom(fallbackRandomSource, doSave);
+}
+
+void EffectControl::changeRandom(RandomSource& randomSource, int doSave) {
     if (lock)
         return;
     if (getNEntries() == 0)
         return;
-    value = mod(rand(), getNEntries()); // select a desired value
+    value = randomSource.uniformInt(getNEntries()); // select a desired value
     change(0, doSave); // change to next usable value, do saving
 }
 
 void EffectControl::change(const char* to, int doSave) {
+    change(to, fallbackRandomSource, doSave);
+}
+
+void EffectControl::change(const char* to, RandomSource& randomSource, int doSave) {
     char* pos;
 
     // check, if there is something we can set this to
@@ -104,7 +136,7 @@ void EffectControl::change(const char* to, int doSave) {
     /* if empty, set to a random value */
     if ((to == NULL) || (to[0] == '\0')) {
         CTH_DEBUG("changing option `%s' to a random value.\n", name());
-        value = Random(getNEntries());
+        value = randomSource.uniformInt(getNEntries());
         change(0, 0);
         return;
     }
@@ -152,9 +184,9 @@ void EffectControl::change(const char* to, int doSave) {
     if (pos == to) { // not a number
         /* found no entry, use a random value */
         CTH_WARN("Unknown entry `%s' for option `%s'\n", to, name());
-        value = mod(rand(), getNEntries());
+        value = randomSource.uniformInt(getNEntries());
     } else { // it is a number
-        value = mod(value, getNEntries());
+        value = modInt(value, getNEntries());
     }
 
     entries[value]->use.setValue(1);
@@ -164,6 +196,10 @@ void EffectControl::change(const char* to, int doSave) {
 // convert an option name to a number
 //
 int EffectControl::optNr(const char* n) {
+    return optNr(n, fallbackRandomSource);
+}
+
+int EffectControl::optNr(const char* n, RandomSource& randomSource) {
     char* pos;
 
     // check, if there is something we can set this to
@@ -173,7 +209,7 @@ int EffectControl::optNr(const char* n) {
 
     /* if empty, set to a random value */
     if ((n == NULL) || (n[0] == '\0')) {
-        return Random(getNEntries());
+        return randomSource.uniformInt(getNEntries());
     }
 
     // try to find it as a name
@@ -186,9 +222,9 @@ int EffectControl::optNr(const char* n) {
     int v = strtol(n, &pos, 0);
 
     if (pos == n) { // not a number
-        return Random(getNEntries());
+        return randomSource.uniformInt(getNEntries());
     } else {
-        return mod(v, getNEntries());
+        return modInt(v, getNEntries());
     }
 }
 
@@ -196,6 +232,10 @@ int EffectControl::optNr(const char* n) {
 // change randomly one of the features
 //
 EffectControl* EffectControl::changeOne() {
+    return changeOne(fallbackRandomSource);
+}
+
+EffectControl* EffectControl::changeOne(RandomSource& randomSource) {
 
     int nCandidates = 0;
     for (EffectControl* o = first; o != NULL; o = o->next) {
@@ -206,7 +246,7 @@ EffectControl* EffectControl::changeOne() {
     if (nCandidates == 0)
         return 0;
 
-    int n = rand() % nCandidates;
+    int n = randomSource.uniformInt(nCandidates);
     EffectControl* o = EffectControl::first;
     while (o != NULL) {
         if (o->isAutoChangeCandidate()) {
@@ -225,7 +265,7 @@ EffectControl* EffectControl::changeOne() {
 
     if (o->lock)
         return 0;
-    o->changeRandom(1);
+    o->changeRandom(randomSource, 1);
     return o;
 }
 
@@ -233,12 +273,16 @@ EffectControl* EffectControl::changeOne() {
 // change all the features
 //
 void EffectControl::changeAll() {
+    changeAll(fallbackRandomSource);
+}
+
+void EffectControl::changeAll(RandomSource& randomSource) {
 
     save();
 
     for (EffectControl* o = first; o != NULL; o = o->next) {
         if (o->isAutoChangeCandidate())
-            o->changeRandom(0);
+            o->changeRandom(randomSource, 0);
     }
 }
 
@@ -303,7 +347,9 @@ EffectControl* EffectControl::firstRegistered() { return first; }
 //
 // add a new entry to the list
 //
-void EffectControl::add(EffectChoice* entry) { entries.add(entry); }
+void EffectControl::add(EffectChoice* entry) {
+    entries.add(entry);
+}
 void EffectControl::add(EffectChoice** entries, int nEntries) {
     for (int i = 0; i < nEntries; i++)
         add(entries[i]);

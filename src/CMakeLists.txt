@@ -2,23 +2,62 @@ set(CTHUGHA_COMMON_SOURCES
     Option.cc
     OptionInt.cc
     EffectControl.cc
+    EffectRegistry.cc
+    EffectControlPolicy.cc
     EffectPresetCatalog.cc
     EffectChoiceLoader.cc
-    EffectControlIni.cc
     EffectChoice.cc
     AudioInternal.cc
+    AudioOutputConfig.cc
+    AudioOutputDump.cc
     AudioOutput.cc
     AudioPulseOutput.cc
     AudioDSPOutput.cc
-    AudioBuffer.cc
+    DecodedAudioHistory.cc
+    AudioPassthrough.cc
+    AudioIngest.cc
     PcmSource.cc
-    AudioInputProcessor.cc
     DspPcmSource.cc
     AudioFrame.cc
-    AudioRuntime.cc
+    AudioFramePipeline.cc
     AudioSettings.cc
+    AutoChangeSettings.cc
+    AutoChangeControls.cc
     RuntimeFactory.cc
     Scene.cc
+    SceneGeometry.cc
+    SceneDependencies.cc
+    SceneRuntimeDependencies.cc
+    SceneChoiceListCatalog.cc
+    SceneBuiltInChoiceCatalogs.cc
+    SceneChoiceSelection.cc
+    SceneGeneralFlameSelectionValue.cc
+    SceneImageCatalog.cc
+    ScenePaletteCatalog.cc
+    SceneTranslationCatalog.cc
+    SceneWaveObjectCatalog.cc
+    SceneTypedVisualCatalogs.cc
+    SceneVisualSelectionSet.cc
+    SceneVisualSelections.cc
+    ScenePaletteRandomizer.cc
+    SceneImageCatalogLoader.cc
+    ScenePaletteCatalogLoader.cc
+    SceneWaveObjectCatalogLoader.cc
+    SceneVisualSelectionFactory.cc
+    SceneVisualCatalogServiceFactory.cc
+    SceneVisualCatalogService.cc
+    SceneRuntime.cc
+    SceneSerializer.cc
+    RuntimeCommand.cc
+    RuntimeDisplayControls.cc
+    RuntimeAudioControls.cc
+    RuntimeAutoChangeControls.cc
+    RuntimeEffectControls.cc
+    RuntimeCommandTargets.cc
+    RuntimePersistence.cc
+    RuntimeShutdown.cc
+    RuntimeChangeMediator.cc
+    ProcessServices.cc
     Screen.cc
     ScreenRenderContext.cc
     DefaultMessagesProvider.cc
@@ -27,47 +66,65 @@ set(CTHUGHA_COMMON_SOURCES
     MessagesProvider.cc
     QotdMessagesProvider.cc
     SilenceMessage.cc
-    Screenshot.cc
     PcmSourceFactory.cc
-    AudioVisualBridge.cc
     PlatformLifecycle.cc
     Mixer.cc
+    MixerControls.cc
+    MixerInterfaceControls.cc
     imath.cc
     AudioSystem.cc
+    Configuration.cc
+    StartupConfiguration.cc
+    RuntimeConfigRegistry.cc
+    RuntimeConfigContributors.cc
+    RuntimeConfigSelection.cc
+    LegacyRuntimeConfigContributor.cc
     IniFiles.cc
+    CommandsInputRuntime.cc
+    InputQueue.cc
     Interface.cc
+    InterfaceRuntime.cc
     info_title_usage.cc
-    disp-ncurses.cc
-    misc.cc
+    LegacyLoggingAdapter.cc
     DisplayDevice.cc
+    DisplayPresentationOptions.cc
     DisplayRuntime.cc
-    DisplayRuntimeOwnership.cc
-    AutoChanger.cc
+    DisplaySystem.cc
+    SceneChangeScheduler.cc
     AudioAnalyzer.cc
+    AudioAnalysisSnapshot.cc
     CthughaDisplay.cc
     Border.cc
     ColorPalette.cc
     DosVga9x14Font.cc
     FrameClock.cc
     FrameCompletion.cc
+    FrameGeneratorPipeline.cc
+    FrameGeneratorContext.cc
+    FrameRenderContext.cc
+    FrameGeneratorRuntime.cc
+    FrameGeneratorSceneBinding.cc
+    FrameGeometry.cc
     FramePacer.cc
     FrameRateMeter.cc
+    FrameStore.cc
+    FrameTransitionController.cc
     Image.cc
     IndexedDisplayFrame.cc
     OverlaySource.cc
     PixelTransfer.cc
     PresentationComposer.cc
     ViewportPolicy.cc
-    VideoFilterchain.cc
-    VideoFilterchainSequence.cc
-    VideoFilters.cc
-    VideoFilterchainFactory.cc
-    VideoFrameBudget.cc
-    VideoDirector.cc
+    FrameFilterchain.cc
+    FrameFilterchainSequence.cc
+    FrameFilters.cc
+    FrameFilterchainFactory.cc
+    FrameGeneratorFrameBudget.cc
     keymap.cc
     InterfaceCredits.cc
     InterfaceList.cc
     palettes.cc
+    PaletteRandomGenerator.cc
     pcx.cc
     png.cc
     Flame.cc
@@ -81,8 +138,12 @@ set(CTHUGHA_COMMON_SOURCES
     waves.cc
     sound_tables.cc
     TranslationOptions.cc
+    AudioProcessingState.cc
+    AudioProcessingSelector.cc
     AudioProcessor.cc
-    CthughaBuffer.cc
+    AudioFftProcessor.cc
+    FrameRenderTarget.cc
+    ApplicationDisplayFrontend.cc
     Application.cc
     main.cc
     Flashlight.cc
@@ -106,7 +167,6 @@ if(CTH_BUILD_X11)
     add_executable(xcthugha
         ${CTHUGHA_COMMON_SOURCES}
         xwin_keys.cc
-        xwin_options.cc
         display.cc
         DisplayDeviceX11.cc
         CthughaDisplayX11.cc
@@ -117,6 +177,7 @@ if(CTH_BUILD_X11)
     add_dependencies(xcthugha default_keymap_str)
 
     target_compile_definitions(xcthugha PRIVATE
+        CTH_XWIN
         CTH_LIBDIR="${CTH_DATA_DIR}"
     )
 
@@ -141,15 +202,6 @@ if(CTH_BUILD_X11)
         ZLIB::ZLIB
         m
     )
-
-    if(USE_XPM)
-        target_link_libraries(xcthugha PRIVATE ${X11_Xpm_LIB})
-    endif()
-
-    if(CURSES_FOUND)
-        target_include_directories(xcthugha PRIVATE ${CURSES_INCLUDE_DIRS})
-        target_link_libraries(xcthugha PRIVATE ${CURSES_LIBRARIES})
-    endif()
 
     if(WITH_PULSE)
         target_link_libraries(xcthugha PRIVATE ${PULSE_LIBRARIES})

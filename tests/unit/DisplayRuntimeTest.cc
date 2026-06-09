@@ -1,5 +1,6 @@
 #include "DisplayRuntime.h"
 #include "FramePalette.h"
+#include "InputQueue.h"
 #include "PixelTransfer.h"
 
 #include <assert.h>
@@ -35,7 +36,7 @@ public:
         , presentedFirstOverlay() {
     }
 
-    virtual DisplayEventStats processEvents() {
+    virtual DisplayEventStats processEvents(InputEventSink&) {
         processEventCalls++;
         return nextStats;
     }
@@ -58,6 +59,11 @@ public:
     }
 };
 
+class IgnoringInputSink : public InputEventSink {
+public:
+    virtual void pushRawKey(const char*, int) { }
+};
+
 class TransferringBackend : public DisplayBackend {
 public:
     unsigned char destination[16];
@@ -68,7 +74,7 @@ public:
         memset(destination, 0xaa, sizeof(destination));
     }
 
-    virtual DisplayEventStats processEvents() {
+    virtual DisplayEventStats processEvents(InputEventSink&) {
         return DisplayEventStats();
     }
 
@@ -103,8 +109,9 @@ static void testProcessEventsDelegatesToBackend() {
     backend.nextStats.resizeEvents = 2;
     backend.nextStats.exposeEvents = 1;
     DisplayRuntime runtime(backend);
+    IgnoringInputSink input;
 
-    DisplayEventStats stats = runtime.processEvents();
+    DisplayEventStats stats = runtime.processEvents(input);
 
     assert(backend.processEventCalls == 1);
     assert(stats.eventCount == 5);

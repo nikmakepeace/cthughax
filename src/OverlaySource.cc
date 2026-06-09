@@ -2,6 +2,40 @@
 
 #include <string.h>
 
+OverlayLayout::OverlayLayout()
+    : columns(0)
+    , rows(0)
+    , fontWidth(0)
+    , fontHeight(0) {
+}
+
+OverlayLayout::OverlayLayout(int columns_, int rows_, int fontWidth_,
+    int fontHeight_)
+    : columns(columns_)
+    , rows(rows_)
+    , fontWidth(fontWidth_)
+    , fontHeight(fontHeight_) {
+}
+
+DisplayStatusSnapshot::DisplayStatusSnapshot()
+    : frameStatusValue()
+    , frameDeltaSecondsValue(0.0) {
+}
+
+DisplayStatusSnapshot::DisplayStatusSnapshot(const char* frameStatus,
+    double frameDeltaSeconds)
+    : frameStatusValue(frameStatus ? frameStatus : "")
+    , frameDeltaSecondsValue(frameDeltaSeconds) {
+}
+
+const char* DisplayStatusSnapshot::frameStatus() const {
+    return frameStatusValue.c_str();
+}
+
+double DisplayStatusSnapshot::frameDeltaSeconds() const {
+    return frameDeltaSecondsValue;
+}
+
 OverlayTextCommand::OverlayTextCommand()
     : text()
     , y(0.0)
@@ -52,6 +86,30 @@ double OverlayCommands::addText(const char* text, double y, int justification,
     } while (lineEnd);
 
     return y;
+}
+
+OverlayRenderContext::OverlayRenderContext(OverlaySink& sink,
+    const OverlayLayout& layout, const DisplayStatusSnapshot& status)
+    : sinkValue(sink)
+    , layoutValue(layout)
+    , statusValue(status) {
+}
+
+double OverlayRenderContext::printText(const char* text, double y,
+    int justification, int color, int noDarken) {
+    return sinkValue.printText(text, y, justification, color, noDarken);
+}
+
+int OverlayRenderContext::textColumns() const {
+    return layoutValue.columns;
+}
+
+int OverlayRenderContext::textRows() const {
+    return layoutValue.rows;
+}
+
+const DisplayStatusSnapshot& OverlayRenderContext::status() const {
+    return statusValue;
 }
 
 class OverlayCommandCollector : public OverlaySink {

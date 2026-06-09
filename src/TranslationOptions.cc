@@ -1,33 +1,48 @@
 // Translation option/catalog setup; generated tables are executed by Translate.
 
 #include "cthugha.h"
+#include "Configuration.h"
+#include "ProcessServices.h"
+#include "SceneTranslationCatalog.h"
+#include "SceneGeometry.h"
 #include "TranslationOptions.h"
 #include "TranslateGenerator.h"
-#include "CthughaBuffer.h"
 
 #include <vector>
 
-OptionOnOff use_translates("use-translate", DEFAULT_USE_TRANSLATES_ENABLED); /* allow translations */
+OptionOnOff use_translates("use-translate", 0); /* allow translations */
 
 static EffectChoice* _trans[] = { new TranslateEntry("none", "No Translate") };
 static EffectChoiceList translateEntries(_trans, 1);
 TranslateOption translation(-1, "translate");
 
+void configureTranslationOptions(const EffectPolicy& config) {
+    use_translates.setValue(config.useTranslatesEnabled);
+}
+
 /*
  * Initialize the translate-tables.
  */
-int init_translate(const CthughaBuffer& buffer) {
+int init_translate(const SceneGeometry& geometry, RandomSource& randomSource) {
+    SceneTranslationCatalog catalog;
+    catalog.load(geometry.width(), geometry.height(), int(use_translates),
+        randomSource);
+    return init_translate(catalog);
+}
 
-    if (use_translates) {
+int init_translate(const SceneTranslationCatalog& catalog) {
+    if (catalog.generatedCount() > 0) {
 
         CTH_INFO("  loading translation tables...\n");
 
-        std::vector<GeneratedTranslationTable> generatedTables;
-        defaultTranslationCatalog().generateAll(buffer.width(), buffer.height(), generatedTables);
-        for (unsigned int i = 0; i < generatedTables.size(); i++) {
-            const GeneratedTranslationTable& generated = generatedTables[i];
-            translation.add(new TranslateEntry(generated.id.c_str(), generated.description.c_str(),
-                generated.table, generated.width, generated.height));
+        for (int i = 1; i < catalog.entryCount(); i++) {
+            TranslationTable table = catalog.tableAt(i);
+            std::vector<int> tableData;
+            if (table.data() != 0 && table.size() > 0)
+                tableData.assign(table.data(), table.data() + table.size());
+            translation.add(new TranslateEntry(table.name(),
+                catalog.descriptionAt(i), tableData, table.width(),
+                table.height()));
         }
 
         CTH_INFO("  number of loaded translates: %d\n",

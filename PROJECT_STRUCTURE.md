@@ -7,7 +7,7 @@
 |-- src/                 application source and frontend-specific source files
 |-- resources/           runtime resources loaded by the video filterchain
 |   |-- map/             256-color palette maps and PNG palette previews
-|   |-- img/             indexed image assets: PCX, PCX.GZ, and indexed PNG
+|   |-- img/             indexed image assets: PCX and indexed PNG
 |   `-- obj/             external 3D line object assets
 |-- doc/                 original Texinfo/manual/manpage documentation
 |-- tests/headers/       header/source self-containment check harness
@@ -38,6 +38,8 @@ boundary.
 
 - `src/main.cc`: graphical executable entry point.
 - `src/Application.*`: application lifecycle and shared per-frame scheduler.
+- `src/Configuration.*`: startup configuration sources, schema, diagnostics,
+  and immutable config slices.
 - `src/TranslateGenerator.cc`: built-in translation-table generators and catalog
   entries.
 
@@ -46,16 +48,18 @@ There is no current server-mode source entry point in `src/`.
 ### Runtime and Composition
 
 - `src/cthugha.h`: global platform config, logging, and timing helpers.
-- `src/Settings.*`: snapshots current audio options for runtime composition.
-- `src/AudioRuntime.*`: owns the active audio runtime lifecycle.
+- `src/AudioSettings.*`: snapshots audio config for runtime composition.
+- `src/AudioIngest.*`: owns active audio acquisition, decoded history, visual
+  pacing, and current frame production.
+- `src/AudioPassthrough.*`: owns optional audio output passthrough and output
+  cursor state.
 - `src/RuntimeFactory.*`: chooses audio input/output strategy from settings and
   detected environment.
 - `src/PcmSourceFactory.*`: maps current settings/file names to PCM sources.
 - `src/Audio.*`: modern PCM source/input/output/buffer/frame-builder classes.
-- `src/AudioFrame.*`: facade exposing raw and processed 1024-sample audio
-  windows to the rest of the program.
-- `src/AudioVisualBridge.*`: runs audio processing, analysis, and auto-changing
-  before visual mutation.
+- `src/AudioFrame.*`: owned per-frame raw/processed audio data and metrics.
+- `src/AudioFramePipeline.*`: runs audio processing and analysis before visual
+  mutation.
 - `src/PlatformLifecycle.*`: platform pause/suspend hooks with application-owned
   suspend/resume callbacks.
 - `src/VideoFilterchain.*`, `src/VideoFilterchainSequence.*`,
@@ -73,13 +77,17 @@ There is no current server-mode source entry point in `src/`.
   locks, hotkeys, and file loading helpers.
 - `src/Option.*`, `src/OptionInt.cc`: scalar option classes.
 - `src/AutoChanger.*`: automatic option changes based on silence, cumulative
-  fire level, and elapsed time. It reports quiet intervals to visual policy.
+  fire level, and elapsed time. It reports quiet intervals to visual policy and
+  issues automatic change commands through `RuntimeCommandSink`.
 - `src/SilenceMessage.*`, `src/*MessagesProvider.*`, and
   `src/MessageFormatValidator.*`: quiet-message selection, validated
   CP437-compatible `--quiet-file`/default messages, and opt-in non-blocking
   QOTD prefetch for text injection.
 - `src/imath.*`: integer math tables/helpers used by visual code.
-- `src/misc.cc`: logging helpers, time helpers, and `systemf()`.
+- `src/ProcessServices.*`: process clocks, logging runtime, log sinks, and
+  random-source adapters.
+- `src/LegacyLoggingAdapter.cc`: temporary compatibility adapter for legacy
+  `CTH_*` logging macros.
 
 ### Audio
 
@@ -119,9 +127,8 @@ files.
 - `src/palettes.cc`: palette loading, metadata, filtering, random palettes, and
   palette handling.
 - `src/Image.*`: indexed image domain objects, placement, and image option adapter.
-- `src/pcx.*`: PCX decode/encode support for indexed images.
+- `src/pcx.*`: PCX decode support for indexed images.
 - `src/png.*`: indexed PNG decode support for indexed images.
-- `src/Screenshot.*`: screenshot filename state.
 
 ### Display Frontends
 
@@ -141,17 +148,21 @@ The current tree only wires up the X11 frontend.
 - `src/InterfaceHelp.cc`, `src/InterfaceCredits.cc`,
   `src/InterfaceList.cc`: specific screens.
 - `src/keymap.*`: configurable keymaps and action dispatch.
+- `src/RuntimeCommand.*`, `src/RuntimeCommandSink.h`, and
+  `src/RuntimeChangeMediator.*`: live runtime command values, sink contract, and
+  mediator used by keymap, interface, X11 panel, credits, audio completion, and
+  AutoChanger actions before they touch
+  scene/audio/display/palette-metadata/lifecycle state.
 - `src/default.keymap`: default keymap source.
 - `src/default.keymap.str`: generated C string include in in-tree builds;
   CMake generates its own copy under `build/src/`.
 - `src/keys.cc`: key symbol translation and X11 key polling.
 - `src/xwin_keys.cc`: X11 wrapper variant for key handling.
-- `src/options.cc`: command-line and ini option handling.
-- `src/xwin_options.cc`: X11 wrapper variant for option handling.
-- `src/IniFiles.cc`: ini search order, wildcard matching, validation, and
-  generated `.cthugha.auto`.
+- `src/Configuration.cc`: command-line, environment, and ini startup config
+  acquisition.
+- `src/IniFiles.cc`: generated `.cthugha.auto` and stop-and-continue
+  persistence from typed config/state snapshots.
 - `src/info_title_usage.cc`: title/help/usage output.
-- `src/disp-ncurses.cc`: ncurses setup/teardown.
 
 ## Build Targets and Source Groups
 
@@ -161,11 +172,10 @@ Current CMake targets:
 
 | Target | Purpose | Notes |
 | --- | --- | --- |
-| `xcthugha` | X11 visualizer | Built from `CTHUGHA_COMMON_SOURCES`, X11 key/options wrappers, `display.cc`, and X11 display device/display classes. |
+| `xcthugha` | X11 visualizer | Built from `CTHUGHA_COMMON_SOURCES`, the X11 key wrapper, `display.cc`, and X11 display device/display classes. |
 
-The wrapper files are important: several compile modes include implementation
-files directly after defining a macro, for example `xwin_options.cc` defines
-`CTH_XWIN` and includes `options.cc`.
+The only remaining frontend wrapper in the active CMake target is
+`xwin_keys.cc`, which compiles key handling with X11-specific definitions.
 
 ## Asset Directories
 
@@ -189,12 +199,10 @@ CTH_LIBDIR/map/
 
 ### `resources/img/`
 
-Contains the classic indexed image assets. Existing content is 6 `.pcx.gz`
-files and 1 `.png` image. The image option also accepts indexed `.png` and
-`.png.gz` files from the same locations. PCX loading lives in `src/pcx.cc`;
-indexed PNG loading lives in `src/png.cc`. Compressed
-files still go through `EffectControl::load`, which can read `.gz` by spawning
-`gzip -cd`.
+Contains the classic indexed image assets. Existing content is 6 `.pcx` files
+and 1 `.png` image. The image option accepts uncompressed `.pcx` and indexed
+`.png` files from the same locations. PCX loading lives in `src/pcx.cc`;
+indexed PNG loading lives in `src/png.cc`.
 
 Search path:
 
