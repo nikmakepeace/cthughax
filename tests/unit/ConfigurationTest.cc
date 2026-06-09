@@ -782,22 +782,26 @@ static void commandLineSourceHandlesDisplayAndBufferSettings() {
     assert(!result.config.display.hasCustomBufferSize);
 }
 
-static void customBufferSizeIsClampedWithDeferredWarnings() {
+static void customDisplayAndBufferSizesAreAcceptedWithoutLegacyClamps() {
     ConfigurationBuilder builder;
     ConfigBuildResult result = builder.addDefaults()
         .addCommandLine(std::vector<std::string>{
             "cthugha",
+            "--display-driver=sdl3",
+            "--disp-mode=2560x1440",
             "--buff-size=2000x12",
         })
         .build();
 
     assert(result.ok());
-    assert(result.config.display.bufferWidth == 1024);
-    assert(result.config.display.bufferHeight == 64);
+    assert(result.config.display.driver == DisplayDriverSDL3);
+    assert(result.config.display.hasCustomDisplaySize);
+    assert(result.config.display.displayWidth == 2560);
+    assert(result.config.display.displayHeight == 1440);
+    assert(result.config.display.bufferWidth == 2000);
+    assert(result.config.display.bufferHeight == 12);
     assert(result.config.display.hasCustomBufferSize);
-    assert(result.diagnostics.size() == 2);
-    assert(result.diagnostics[0].severity == ConfigDiagnosticWarning);
-    assert(result.diagnostics[1].severity == ConfigDiagnosticWarning);
+    assert(result.diagnostics.empty());
 }
 
 static void invalidTypedValueProducesDeferredError() {
@@ -845,7 +849,7 @@ int main() {
     iniTextSourceBuildsEffectCatalogPolicy();
     iniTextSourceBuildsSdl3Config();
     commandLineSourceHandlesDisplayAndBufferSettings();
-    customBufferSizeIsClampedWithDeferredWarnings();
+    customDisplayAndBufferSizesAreAcceptedWithoutLegacyClamps();
     invalidTypedValueProducesDeferredError();
 
     return 0;

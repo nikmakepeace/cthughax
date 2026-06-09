@@ -3,11 +3,11 @@
 #include "AudioAnalyzer.h"
 #include "TranslationOptions.h"
 #include "imath.h"
-#include "cth_buffer.h"
 #include "Screen.h"
 #include "ScreenRenderContext.h"
 
 #include <math.h>
+#include <vector>
 
 char screen_first[256] = ""; /* Start with this scrn-fkt */
 
@@ -91,17 +91,26 @@ static double acousticIntensity(ScreenRenderContext& context) {
  *
  * A lot of the display functions are now based on this.
  */
-static const unsigned char* perm_lines[MAX_BUFF_HEIGHT];
+static std::vector<const unsigned char*> perm_lines;
+
+static const unsigned char* perm_addr(ScreenRenderContext& context, int i);
+
+static void prepare_perm_lines(ScreenRenderContext& context) {
+    perm_lines.assign(visualBuffer(context).height(), 0);
+}
 
 static void screen_perm(ScreenRenderContext& context) {
     unsigned char* scrn = destinationPixels(context);
-    const unsigned char** perm = perm_lines;
-    int i;
+    int height = visualBuffer(context).height();
+    if (int(perm_lines.size()) < height)
+        perm_lines.resize(height, 0);
 
-    for (i = visualBuffer(context).height(); i != 0; i--) {
-        memcpy(scrn, *perm, visualBuffer(context).width());
+    for (int i = 0; i < height; i++) {
+        const unsigned char* line = perm_lines[i] != 0
+            ? perm_lines[i]
+            : perm_addr(context, i);
+        memcpy(scrn, line, visualBuffer(context).width());
         scrn += destinationPitch(context);
-        perm++;
     }
 }
 
@@ -111,6 +120,7 @@ static const unsigned char* perm_addr(ScreenRenderContext& context, int i) {
 
 int screen_up(ScreenRenderContext& context) {
     int i;
+    prepare_perm_lines(context);
     for (i = 0; i < visualBuffer(context).height(); i++)
         perm_lines[i] = perm_addr(context, i);
 
@@ -125,6 +135,7 @@ int screen_source(ScreenRenderContext& context) {
 
 int screen_down(ScreenRenderContext& context) {
     int i;
+    prepare_perm_lines(context);
     for (i = 0; i < visualBuffer(context).height(); i++)
         perm_lines[i] = perm_addr(context, visualBuffer(context).height() - i - 1);
 
@@ -134,6 +145,7 @@ int screen_down(ScreenRenderContext& context) {
 
 int screen_2hor(ScreenRenderContext& context) {
     int i;
+    prepare_perm_lines(context);
     for (i = 0; i < visualBuffer(context).height() / 2; i++) {
         /* lower half of buffer maps to upper half of screen */
         perm_lines[i] = perm_addr(context, visualBuffer(context).height() / 2 + i);
@@ -147,6 +159,7 @@ int screen_2hor(ScreenRenderContext& context) {
 
 int screen_r2hor(ScreenRenderContext& context) {
     int i;
+    prepare_perm_lines(context);
     for (i = 0; i < visualBuffer(context).height() / 2; i++) {
         /* lower half of buffer get turned around to upper half of screen*/
         perm_lines[i] = perm_addr(context, visualBuffer(context).height() - i - 1);
@@ -491,7 +504,7 @@ int screen_bent(ScreenRenderContext& context) {
     unsigned char* dst
         = destinationPixels(context) + visualBuffer(context).width() + destinationPitch(context) * visualBuffer(context).height();
     int i, j;
-    static int height[MAX_BUFF_WIDTH];
+    static std::vector<int> height;
     static float t = 0;
     static float h = 0.0;
     static float stp = 0.0;
@@ -500,6 +513,7 @@ int screen_bent(ScreenRenderContext& context) {
 
     h = h * 0.95 + (min((2 * audioAmplitude(context)), 120)) * 0.05;
 
+    height.resize(visualBuffer(context).width() + 1);
     for (i = visualBuffer(context).width(); i != 0; i--) {
         height[i] = (int)(h * sin(t) * sin((double)(i) / (double)visualBuffer(context).width() * 3.0 * M_PI)) + 128;
     }
@@ -560,6 +574,7 @@ int screen_roll(ScreenRenderContext& context) {
     int i;
     static double theta = 0; /* rotation angle */
 
+    prepare_perm_lines(context);
     for (i = 0; i < visualBuffer(context).height(); i++) {
         int p = i - visualBuffer(context).height() / 2;
         double phi = acos((double)p / (double)(visualBuffer(context).height() / 2));
@@ -585,19 +600,15 @@ int screen_roll(ScreenRenderContext& context) {
  * this is not looking good
  */
 #define ZICK_SMOOTH 10
-static int zicks[MAX_BUFF_HEIGHT];
 int screen_zick(ScreenRenderContext& context) {
     int i;
     unsigned char* scrn = destinationPixels(context);
     const unsigned char* src = sourcePixels(context);
-    static int first = 1;
+    static std::vector<int> zicks;
 
     static int d = 0;
 
-    if (first) {
-        for (i = 0; i < visualBuffer(context).height() + 1; i++)
-            zicks[i] = 0;
-    }
+    zicks.assign(visualBuffer(context).height() + 1, 0);
 
     for (i = visualBuffer(context).height(); i != 0; i--) {
         zicks[i] = (processedWaveSample(context, i) + ZICK_SMOOTH * zicks[i]) / (ZICK_SMOOTH + 1);

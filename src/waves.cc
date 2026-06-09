@@ -9,12 +9,12 @@
 #include "ProcessServices.h"
 #include "waves.h"
 #include "disp-sys.h"
-#include "cth_buffer.h"
 #include "FrameRenderTarget.h"
 #include "FrameGeneratorContext.h"
 #include "WaveObject.h"
 
 #include <math.h>
+#include <vector>
 
 static EffectChoiceList waveEntries;
 static EffectChoiceList objectEntries;
@@ -2471,16 +2471,18 @@ void wave_corner(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 /* Writes fixed raw palette index 255. */
 void wave_jump(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
-        int speed[MAX_BUFF_WIDTH];
-        int pos[MAX_BUFF_WIDTH];
-        int dir[MAX_BUFF_WIDTH];
-        State() {
-            memset(speed, 0, sizeof(speed));
-            memset(pos, 0, sizeof(pos));
-            memset(dir, 0, sizeof(dir));
+        std::vector<int> speed;
+        std::vector<int> pos;
+        std::vector<int> dir;
+
+        void resize(int width) {
+            speed.resize(width);
+            pos.resize(width);
+            dir.resize(width);
         }
     };
     State& state = runtime.state<State>();
+    state.resize(buffer.width());
 
     PreparedWaveSamples sound(context, buffer.width());
 

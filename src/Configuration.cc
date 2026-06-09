@@ -4,7 +4,6 @@
 
 #include "Configuration.h"
 
-#include "cth_buffer.h"
 #include "configuration_defaults.h"
 #include "defaults.h"
 
@@ -2524,11 +2523,10 @@ Config ConfigSchema::build(const ConfigPatch& patch,
             || !parseInteger(bufferHeightEntry->value, &height)) {
             diagnostics.error(bufferWidthEntry->source, "buffer.size",
                 "expected WIDTHxHEIGHT buffer dimensions");
+        } else if (width <= 0 || height <= 0) {
+            diagnostics.error(bufferWidthEntry->source, "buffer.size",
+                "buffer dimensions must be positive");
         } else {
-            width = clampIntWithWarning(width, 64, MAX_BUFF_WIDTH,
-                *bufferWidthEntry, diagnostics);
-            height = clampIntWithWarning(height, 64, MAX_BUFF_HEIGHT,
-                *bufferHeightEntry, diagnostics);
             config.display.bufferWidth = width;
             config.display.bufferHeight = height;
             config.display.hasCustomBufferSize
