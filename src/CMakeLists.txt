@@ -76,6 +76,7 @@ set(CTHUGHA_COMMON_SOURCES
     Configuration.cc
     StartupConfiguration.cc
     RuntimeConfigRegistry.cc
+    RuntimeConfigContributors.cc
     RuntimeConfigSelection.cc
     LegacyRuntimeConfigContributor.cc
     IniFiles.cc

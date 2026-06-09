@@ -1680,6 +1680,30 @@ target_link_libraries(runtime_config_selection_test PRIVATE m)
 add_test(NAME runtime_config_selection_test
     COMMAND runtime_config_selection_test)
 
+add_executable(runtime_config_contributors_test
+    unit/RuntimeConfigContributorsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
+    ${CMAKE_SOURCE_DIR}/src/AutoChangeSettings.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/DisplayPresentationOptions.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeConfigContributors.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeConfigRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(runtime_config_contributors_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(runtime_config_contributors_test PRIVATE m)
+
+add_test(NAME runtime_config_contributors_test
+    COMMAND runtime_config_contributors_test)
+
 add_executable(runtime_persistence_test
     unit/RuntimePersistenceTest.cc
     ${CMAKE_SOURCE_DIR}/src/AutoChangeSettings.cc

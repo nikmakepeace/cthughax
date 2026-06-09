@@ -776,8 +776,10 @@ static void testAutoChangeSettingsAreApplicationOwned() {
         "InterfaceElementAutoChangeOption");
     assertSourceContains("src/Interface.cc",
         "controls->option(field)");
-    assertSourceContains("src/LegacyRuntimeConfigContributor.cc",
+    assertSourceContains("src/RuntimeConfigContributors.cc",
         "config.autoChange = autoChangeSettings.config()");
+    assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc",
+        "autoChangeSettings");
     assertSourceContains("tests/CMakeLists.txt",
         "runtime_auto_change_controls_test");
     assertSourceContains("tests/unit/RuntimeAutoChangeControlsTest.cc",
@@ -1787,8 +1789,25 @@ static void testIniPersistenceUsesRuntimePersistenceAdapter() {
         "config.scene.image = persistedName(settings.imageName)");
     assertSourceContains("src/Application.cc",
         "runtimeConfigRegistryValue->addContributor(sceneRuntimeValue->serializer())");
+    assertSourceContains("src/Application.cc",
+        "new DisplayRuntimeConfigContributor(displaySystemValue.settings())");
+    assertSourceContains("src/Application.cc",
+        "new AudioRuntimeConfigContributor(*audioProcessingStateValue)");
+    assertSourceContains("src/Application.cc",
+        "new ApplicationRuntimeConfigContributor(*autoChangeSettingsValue,\n"
+        "            *quietMessageOptionValue)");
+    assertSourceContains("src/Application.cc",
+        "new LegacyRuntimeConfigContributor()");
     assertSourceDoesNotContain("src/Application.h",
         "std::unique_ptr<SceneSerializer> sceneSerializerValue");
+    assertSourceContains("src/RuntimeConfigRegistry.h",
+        "class DisplayRuntimeConfigContributor");
+    assertSourceContains("src/RuntimeConfigRegistry.h",
+        "class AudioRuntimeConfigContributor");
+    assertSourceContains("src/RuntimeConfigRegistry.h",
+        "class ApplicationRuntimeConfigContributor");
+    assertSourceContains("tests/unit/RuntimeConfigContributorsTest.cc",
+        "testRegistryComposesModuleContributors");
     assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc",
         "SceneCommands");
     assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc",
@@ -1803,8 +1822,10 @@ static void testIniPersistenceUsesRuntimePersistenceAdapter() {
         "#include \"TranslationOption.h\"");
     assertSourceContains("src/LegacyRuntimeConfigContributor.cc",
         "#include \"WaveOptions.h\"");
-    assertSourceContains("src/LegacyRuntimeConfigContributor.cc",
+    assertSourceContains("src/RuntimeConfigContributors.cc",
         "audioProcessingState.text()");
+    assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc",
+        "audioProcessingState");
     assertSourceDoesNotContain("src/LegacyRuntimeConfigContributor.cc",
         "audioProcessing.text()");
     assertSourceDoesNotContain("src/keymap.cc",

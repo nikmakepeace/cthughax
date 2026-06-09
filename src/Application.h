@@ -21,6 +21,8 @@
 class AudioFrame;
 class AudioFramePipeline;
 class AudioIngest;
+class ApplicationRuntimeConfigContributor;
+class AudioRuntimeConfigContributor;
 class AudioProcessingSelector;
 class AudioProcessingState;
 class AudioProcessor;
@@ -31,6 +33,7 @@ class ErrorMessages;
 class IndexedFrame;
 class ImageOption;
 class InterfaceRuntime;
+class DisplayRuntimeConfigContributor;
 class LegacyRuntimeConfigContributor;
 class MixerControls;
 class MixerDevice;
@@ -101,7 +104,10 @@ class Application {
     std::unique_ptr<SceneVisualCatalogFactory> sceneVisualCatalogFactoryValue;
     std::unique_ptr<SceneRuntime> sceneRuntimeValue;
     std::unique_ptr<RuntimeConfigRegistry> runtimeConfigRegistryValue;
-    std::unique_ptr<LegacyRuntimeConfigContributor> runtimeConfigContributorValue;
+    std::unique_ptr<DisplayRuntimeConfigContributor> displayConfigContributorValue;
+    std::unique_ptr<AudioRuntimeConfigContributor> audioConfigContributorValue;
+    std::unique_ptr<ApplicationRuntimeConfigContributor> appConfigContributorValue;
+    std::unique_ptr<LegacyRuntimeConfigContributor> legacyConfigContributorValue;
     std::unique_ptr<RuntimePersistence> runtimePersistenceValue;
     std::unique_ptr<RuntimeShutdown> runtimeShutdownValue;
     std::unique_ptr<RuntimeDisplayControls> runtimeDisplayControlsValue;

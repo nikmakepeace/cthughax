@@ -67,30 +67,86 @@ public:
     Config currentConfig() const;
 };
 
-/** Transitional contributor for runtime values not yet split by subsystem. */
-class LegacyRuntimeConfigContributor : public RuntimeConfigContributor {
-    const AutoChangeSettings& autoChangeSettings;
-    const AudioProcessingState& audioProcessingState;
+/**
+ * Contributes Display-owned runtime presentation settings.
+ */
+class DisplayRuntimeConfigContributor : public RuntimeConfigContributor {
     const DisplayPresentationSettings& displaySettings;
+
+public:
+    /**
+     * Creates a contributor over Display-owned presentation settings.
+     *
+     * @param displaySettings_ Settings owned by DisplaySystem.
+     */
+    explicit DisplayRuntimeConfigContributor(
+        const DisplayPresentationSettings& displaySettings_);
+
+    /**
+     * Overlays Display-owned runtime presentation state.
+     *
+     * @param config Snapshot being prepared for persistence.
+     */
+    virtual void contribute(Config& config) const;
+};
+
+/**
+ * Contributes Audio-owned runtime processing state.
+ */
+class AudioRuntimeConfigContributor : public RuntimeConfigContributor {
+    const AudioProcessingState& audioProcessingState;
+
+public:
+    /**
+     * Creates a contributor over Audio-owned processing state.
+     *
+     * @param audioProcessingState_ Runtime-owned audio processing state.
+     */
+    explicit AudioRuntimeConfigContributor(
+        const AudioProcessingState& audioProcessingState_);
+
+    /**
+     * Overlays Audio-owned runtime processing state.
+     *
+     * @param config Snapshot being prepared for persistence.
+     */
+    virtual void contribute(Config& config) const;
+};
+
+/**
+ * Contributes Application-owned runtime settings.
+ */
+class ApplicationRuntimeConfigContributor : public RuntimeConfigContributor {
+    const AutoChangeSettings& autoChangeSettings;
     const Option& quietMessageOption;
 
 public:
     /**
-     * Creates a contributor backed by current runtime owners.
+     * Creates a contributor over Application-owned runtime settings.
      *
      * @param autoChangeSettings_ Runtime-owned automatic scene-change settings.
-     * @param audioProcessingState_ Runtime-owned audio processing state.
-     * @param displaySettings_ Display-owned presentation settings.
      * @param quietMessageOption_ Runtime quiet-message threshold option.
      */
-    LegacyRuntimeConfigContributor(const AutoChangeSettings& autoChangeSettings_,
-        const AudioProcessingState& audioProcessingState_,
-        const DisplayPresentationSettings& displaySettings_,
+    ApplicationRuntimeConfigContributor(
+        const AutoChangeSettings& autoChangeSettings_,
         const Option& quietMessageOption_);
 
     /**
-     * Overlays display, audio-processing, auto-change, and policy values that
-     * have not moved to module serializers yet.
+     * Overlays Application-owned runtime settings.
+     *
+     * @param config Snapshot being prepared for persistence.
+     */
+    virtual void contribute(Config& config) const;
+};
+
+/** Transitional contributor for legacy values not yet split by subsystem. */
+class LegacyRuntimeConfigContributor : public RuntimeConfigContributor {
+public:
+    /** Creates a contributor over the remaining legacy presentation globals. */
+    LegacyRuntimeConfigContributor();
+
+    /**
+     * Overlays values still owned by legacy scene/effect-policy globals.
      *
      * @param config Snapshot being prepared for persistence.
      */

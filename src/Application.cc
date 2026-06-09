@@ -289,11 +289,18 @@ void Application::initSceneRuntime() {
     autoChangeControlsValue.reset(
         new AutoChangeControls(*autoChangeSettingsValue, logSinkValue));
     runtimeConfigRegistryValue->addContributor(sceneRuntimeValue->serializer());
-    runtimeConfigContributorValue.reset(
-        new LegacyRuntimeConfigContributor(*autoChangeSettingsValue,
-            *audioProcessingStateValue, displaySystemValue.settings(),
+    displayConfigContributorValue.reset(
+        new DisplayRuntimeConfigContributor(displaySystemValue.settings()));
+    runtimeConfigRegistryValue->addContributor(*displayConfigContributorValue);
+    audioConfigContributorValue.reset(
+        new AudioRuntimeConfigContributor(*audioProcessingStateValue));
+    runtimeConfigRegistryValue->addContributor(*audioConfigContributorValue);
+    appConfigContributorValue.reset(
+        new ApplicationRuntimeConfigContributor(*autoChangeSettingsValue,
             *quietMessageOptionValue));
-    runtimeConfigRegistryValue->addContributor(*runtimeConfigContributorValue);
+    runtimeConfigRegistryValue->addContributor(*appConfigContributorValue);
+    legacyConfigContributorValue.reset(new LegacyRuntimeConfigContributor());
+    runtimeConfigRegistryValue->addContributor(*legacyConfigContributorValue);
     runtimePersistenceValue.reset(
         new IniRuntimePersistence(*runtimeConfigRegistryValue, logSinkValue));
     runtimeShutdownValue.reset(new RuntimeCloseState());
@@ -339,7 +346,10 @@ void Application::shutdownSceneRuntime() {
     runtimeDisplayControlsValue.reset();
     runtimePersistenceValue.reset();
     runtimeShutdownValue.reset();
-    runtimeConfigContributorValue.reset();
+    legacyConfigContributorValue.reset();
+    appConfigContributorValue.reset();
+    audioConfigContributorValue.reset();
+    displayConfigContributorValue.reset();
     runtimeConfigRegistryValue.reset();
     sceneRuntimeValue.reset();
     sceneVisualCatalogFactoryValue.reset();
