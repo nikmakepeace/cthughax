@@ -17,9 +17,7 @@
 #include "BorderOption.h"
 #include "EffectChoiceLoader.h"
 #include "CthughaDisplay.h"
-#include "DisplayBackend.h"
-#include "DisplayDevice.h"
-#include "DisplayRuntime.h"
+#include "DisplayPresentationOptions.h"
 #include "FlashlightOption.h"
 #include "FrameGeneratorContext.h"
 #include "FrameGeometry.h"
@@ -82,7 +80,7 @@ static void applyDisplayPresentationStartupChoice(const SceneConfig& sceneConfig
 
 class FrameGeneratorQuietObserver : public AutoChangeQuietObserver {
     FrameGeneratorRuntime& frameGeneratorValue;
-    CthughaDisplay& displayValue;
+    CthughaDisplay& displayCoordinator;
     const Option& quietMessageOptionValue;
 
 public:
@@ -96,13 +94,13 @@ public:
     FrameGeneratorQuietObserver(FrameGeneratorRuntime& frameGenerator_,
         CthughaDisplay& display_, const Option& quietMessageOption_)
         : frameGeneratorValue(frameGenerator_)
-        , displayValue(display_)
+        , displayCoordinator(display_)
         , quietMessageOptionValue(quietMessageOption_) { }
 
     /** Reports an ongoing quiet period to the frame generator. */
     virtual int observeQuiet(int quietLength) {
         int frameBudget = frameGenerationBudgetFramesPerSecond(int(maxFramesPerSecond),
-            displayValue.rollingFps);
+            displayCoordinator.rollingFps);
         return frameGeneratorValue.observeQuiet(quietLength,
             int(quietMessageOptionValue), frameBudget);
     }
@@ -394,8 +392,8 @@ void Application::shutdownMixerRuntime() {
 void Application::initFrameGeneratorPipeline() {
     frameGeneratorValue.initializePipeline();
 
-    if (displayRuntimeOwnership.get() != NULL)
-        displayRuntimeOwnership->device().setFramePalette(
+    if (displaySystemValue.isOpen())
+        displaySystemValue.device().setFramePalette(
             frameGeneratorValue.framePalette());
 }
 
@@ -433,8 +431,8 @@ void Application::initAudioFramePipeline() {
     }
     if (autoChangeQuietObserverValue.get() == NULL)
         autoChangeQuietObserverValue.reset(
-            new FrameGeneratorQuietObserver(frameGeneratorValue, *displayValue,
-                *quietMessageOptionValue));
+            new FrameGeneratorQuietObserver(frameGeneratorValue,
+                displaySystemValue.coordinator(), *quietMessageOptionValue));
     if (sceneChangeSchedulerValue.get() == NULL
         && sceneRuntimeValue.get() != NULL
         && autoChangeSettingsValue.get() != NULL)
@@ -463,6 +461,7 @@ void Application::runAudioFramePipeline(AudioFrame& frame) {
 const IndexedFrame* Application::runFrameGenerator(
     AudioFrame& frame, const SceneSnapshot& sceneSnapshot) {
     initFrameGeneratorPipeline();
+    CthughaDisplay& display = displaySystemValue.coordinator();
 
     // The generator receives a snapshot-like context for this visual frame.
     // Audio frame data and frame-local metrics are owned by AudioIngest; filters
@@ -471,10 +470,10 @@ const IndexedFrame* Application::runFrameGenerator(
         acousticContextValue.intensity(), acousticContextValue.fire(),
         acousticContextValue.cumulativeFireLevel());
     FrameGeneratorContext context(&frame, frame.raw, frame.processedWaveData,
-        audioAnalysis, &sceneSnapshot, displayValue->currentFrameTimeSeconds(),
-        displayValue->currentFrameDeltaSeconds(),
+        audioAnalysis, &sceneSnapshot, display.currentFrameTimeSeconds(),
+        display.currentFrameDeltaSeconds(),
         frameGenerationBudgetFramesPerSecond(int(maxFramesPerSecond),
-            displayValue->rollingFps));
+            display.rollingFps));
 
     const IndexedFrame& indexedFrame = frameGeneratorValue.render(context);
     return indexedFrame.valid() ? &indexedFrame : NULL;
@@ -491,11 +490,7 @@ void Application::shutdown() {
         runtimePersistenceValue->writeCurrentConfig();
 
     shutdownAudioFramePipeline();
-    displayValue.reset();
-    cthughaDisplay = NULL;
-    if (displayRuntimeOwnership.get() != NULL)
-        displayRuntimeOwnership->shutdown();
-    displayRuntimeOwnership.reset();
+    displaySystemValue.close();
     platformLifecycle.shutdown();
     shutdownAudioIngest();
     shutdownFrameGeneratorPipeline();
@@ -536,9 +531,6 @@ int Application::initialize() {
 
     inputQueueValue.configure(startupConfigValue.input);
     configureCthughaDisplay(startupConfigValue.display);
-#ifdef CTH_XWIN
-    configureDisplayDeviceX11(startupConfigValue.x11);
-#endif
     configureTranslationOptions(startupConfigValue.effectPolicy);
     configureWaveOptions(startupConfigValue.effectPolicy);
     configurePaletteOptions(startupConfigValue.effectPolicy);
@@ -626,22 +618,21 @@ int Application::initialize() {
 
     logSinkValue.info("Initializing display...\n");
     int displayArgc = int(displayArgv.size());
-    if (displayFrontendInitializer->initializeDisplayFrontend(
-            &displayArgc, displayArgv.data()))
-        return 0;
-    displayRuntimeOwnership = newDisplayDevice(scene(),
-        *imageOptionValue, sceneRuntimeValue->visualSelections(),
-        *runtimeChangeMediatorValue,
+    DisplayDriverRegistry displayDrivers;
+#ifdef CTH_XWIN
+    std::unique_ptr<DisplayDriverFactory> x11DisplayDriverFactory
+        = newX11DisplayDriverFactory(*displayFrontendInitializer,
+            startupConfigValue.x11);
+    displayDrivers.add(*x11DisplayDriverFactory);
+#endif
+    DisplayOpenRequest displayOpenRequest(scene(), *imageOptionValue,
+        sceneRuntimeValue->visualSelections(), *runtimeChangeMediatorValue,
         *runtimeCommandRouterValue, *runtimeConfigRegistryValue,
-        startupConfigValue.display, secondsClockValue);
-    if (displayRuntimeOwnership.get() == NULL)
+        startupConfigValue.display, secondsClockValue, *interfaceRuntimeValue,
+        *errorMessagesValue, logSinkValue, &displayArgc, displayArgv.data());
+    if (displaySystemValue.open(displayDrivers, displayOpenRequest))
         return 0;
-    displayRuntimeOwnership->publishAliases();
     initFrameGeneratorPipeline();
-    displayValue = newCthughaDisplay(displayRuntimeOwnership->device(),
-        displayRuntimeOwnership->runtime(), secondsClockValue,
-        *interfaceRuntimeValue, *errorMessagesValue);
-    cthughaDisplay = displayValue.get();
 
     logSinkValue.info("Initializing the audio-visual bridge...\n");
     initAudioFramePipeline();
@@ -675,9 +666,10 @@ void Application::run() {
         double pacingEnd = 0.0;
         int frameWasRun = 0;
         double visualFrameStart = 0.0;
+        CthughaDisplay& display = displaySystemValue.coordinator();
 
         DisplayEventStats eventStats
-            = displayRuntimeOwnership->runtime().processEvents(inputQueueValue);
+            = displaySystemValue.runtime().processEvents(inputQueueValue);
         if (traceDisplayTiming)
             eventsEnd = secondsClockValue.nowSeconds();
 
@@ -696,7 +688,7 @@ void Application::run() {
                 frameStart = secondsClockValue.nowSeconds();
             runFrame(1);
             frameWasRun = 1;
-            visualFrameStart = displayValue->currentFrameTimeSeconds();
+            visualFrameStart = display.currentFrameTimeSeconds();
             if (traceDisplayTiming)
                 frameEnd = secondsClockValue.nowSeconds();
         }
@@ -750,12 +742,13 @@ int Application::exitStatus() const {
 void Application::runFrame(int doDisplay) {
     double frameTiming[9] = { 0, 0, 0, 0, 0, 0, 0, 0, 0 };
     int traceFrameTiming = logSinkValue.traceEnabled();
+    CthughaDisplay& display = displaySystemValue.coordinator();
     if (traceFrameTiming)
         frameTiming[0] = secondsClockValue.nowSeconds();
 
     // Advance display timing first so owned frame time describes this visual frame for
     // audio analysis, scene-change policy, and all visual filters.
-    displayValue->nextFrame();
+    display.nextFrame();
     if (traceFrameTiming)
         frameTiming[1] = secondsClockValue.nowSeconds();
 
@@ -778,19 +771,18 @@ void Application::runFrame(int doDisplay) {
     SceneSnapshot sceneSnapshot = sceneRuntimeValue->snapshot();
     const IndexedFrame* indexedFrame = runFrameGenerator(audioFrame, sceneSnapshot);
     FrameRenderContext presentationContext = frameRenderContextFor(audioFrame,
-        acousticContextValue, &sceneSnapshot, displayValue->currentFrameTimeSeconds(),
-        displayValue->currentFrameDeltaSeconds());
+        acousticContextValue, &sceneSnapshot, display.currentFrameTimeSeconds(),
+        display.currentFrameDeltaSeconds());
     if (traceFrameTiming)
         frameTiming[4] = secondsClockValue.nowSeconds();
 
     double visualStart = secondsClockValue.nowSeconds();
     if (doDisplay && indexedFrame != NULL && indexedFrame->valid())
-        displayValue->present(*indexedFrame, presentationContext);
+        display.present(*indexedFrame, presentationContext);
     double visualEnd = secondsClockValue.nowSeconds();
     if (traceFrameTiming)
         frameTiming[5] = visualEnd;
-    if (displayValue.get() != NULL)
-        displayValue->observeVisualLatency(visualEnd - visualStart);
+    display.observeVisualLatency(visualEnd - visualStart);
 
     if (traceFrameTiming) {
         frameTiming[6] = secondsClockValue.nowSeconds();

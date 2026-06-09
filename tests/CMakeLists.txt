@@ -759,7 +759,26 @@ add_test(NAME input_queue_test COMMAND input_queue_test)
 add_executable(display_ownership_test
     unit/DisplayOwnershipTest.cc
     ${CMAKE_SOURCE_DIR}/src/DisplayRuntime.cc
-    ${CMAKE_SOURCE_DIR}/src/DisplayRuntimeOwnership.cc
+    ${CMAKE_SOURCE_DIR}/src/DisplaySystem.cc
+    ${CMAKE_SOURCE_DIR}/src/CthughaDisplay.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameClock.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRateMeter.cc
+    ${CMAKE_SOURCE_DIR}/src/PresentationComposer.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameCompletion.cc
+    ${CMAKE_SOURCE_DIR}/src/ViewportPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/Screen.cc
+    ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
+    ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderTarget.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControlPolicy.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectPresetCatalog.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
 )
 
 target_include_directories(display_ownership_test PRIVATE

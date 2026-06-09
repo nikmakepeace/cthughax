@@ -6,6 +6,7 @@
 #include "cthugha.h"
 #include <X11/Intrinsic.h>
 #include <X11/extensions/XShm.h>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,8 @@ void configureDisplayDeviceX11(const X11Config& config);
 #include "DisplayGeometry.h"
 #include "RuntimeCommandSink.h"
 
+class DisplayDriverFactory;
+class DisplayFrontendInitializer;
 class Scene;
 class ImageOption;
 class RuntimeConfigRegistry;
@@ -226,5 +229,10 @@ public:
 
     friend int cth_init(int* argc, char* argv[]);
 };
+
+/** Creates the X11 display driver factory when X11 is compiled in. */
+std::unique_ptr<DisplayDriverFactory> newX11DisplayDriverFactory(
+    DisplayFrontendInitializer& frontendInitializer,
+    const X11Config& config);
 
 #endif

@@ -67,6 +67,7 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.audio.nullOutputTargetLatencyMs == AUDIO_CONFIG_DEFAULT_NULL_TARGET_LATENCY_MS);
     assert(result.config.audio.pulseOutputTargetLatencyMs == AUDIO_CONFIG_DEFAULT_PULSE_TARGET_LATENCY_MS);
     assert(result.config.audio.dspOutputTargetLatencyMs == AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS);
+    assert(result.config.display.driver == DisplayDriverAuto);
     assert(result.config.display.displayMode == DISPLAY_CONFIG_DEFAULT_MODE);
     assert(!result.config.display.hasCustomDisplaySize);
     assert(result.config.display.bufferWidth == 160);
@@ -160,6 +161,7 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
         "cthugha.line: 12\n"
         "cthugha.mic: 34\n"
         "cthugha.mixer: pcm:56\n"
+        "cthugha.display-driver: sdl3\n"
         "cthugha.disp-mode: 800x600\n"
         "cthugha.max-fps: 60\n"
         "cthugha.show-fps: yes\n"
@@ -236,6 +238,7 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert((*mixerInitials)[0].value == "line=3084");
     assert((*mixerInitials)[1].value == "mic=8738");
     assert((*mixerInitials)[2].value == "pcm=56");
+    assert(*patchValue(patch, "display.driver") == "sdl3");
     assert(*patchValue(patch, "display.mode") == "-1");
     assert(*patchValue(patch, "display.width") == "800");
     assert(*patchValue(patch, "display.height") == "600");
@@ -697,6 +700,7 @@ static void commandLineSourceHandlesDisplayAndBufferSettings() {
             "cthugha",
             "--disp-mode",
             "800x600",
+            "--display-driver=x11",
             "--buff-size",
             "2",
         })
@@ -704,6 +708,7 @@ static void commandLineSourceHandlesDisplayAndBufferSettings() {
 
     assert(result.ok());
     assert(result.config.display.hasCustomDisplaySize);
+    assert(result.config.display.driver == DisplayDriverX11);
     assert(result.config.display.displayMode == -1);
     assert(result.config.display.displayWidth == 800);
     assert(result.config.display.displayHeight == 600);
@@ -739,6 +744,19 @@ static void invalidTypedValueProducesDeferredError() {
     assert(!result.ok());
     assert(!result.diagnostics.empty());
     assert(result.diagnostics[0].severity == ConfigDiagnosticError);
+
+    ConfigurationBuilder driverBuilder;
+    result = driverBuilder.addDefaults()
+                 .addCommandLine(std::vector<std::string>{
+                     "cthugha",
+                     "--display-driver=wayland",
+                 })
+                 .build();
+
+    assert(!result.ok());
+    assert(!result.diagnostics.empty());
+    assert(result.diagnostics[0].severity == ConfigDiagnosticError);
+    assert(result.diagnostics[0].key == "display.driver");
 }
 
 int main() {

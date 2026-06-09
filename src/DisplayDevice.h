@@ -17,7 +17,6 @@ class RuntimeCommandTargetRouter;
 class Scene;
 class SceneVisualSelections;
 class SecondsClock;
-class DisplayRuntimeOwnership;
 struct DisplayConfig;
 
 extern int display_text_time; // how long text is kept on the screen
@@ -124,13 +123,5 @@ public:
     virtual void printString(int, int, const char*, int, int, int);
     virtual void postPrint();
 };
-
-extern DisplayDevice* displayDevice;
-
-extern std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
-    Scene& scene, ImageOption& images, SceneVisualSelections* sceneVisualSelections,
-    RuntimeCommandSink& runtimeCommands, RuntimeCommandTargetRouter& runtimeCommandRouter,
-    RuntimeConfigRegistry& runtimeConfigRegistry, const DisplayConfig& config,
-    SecondsClock& clock);
 
 #endif

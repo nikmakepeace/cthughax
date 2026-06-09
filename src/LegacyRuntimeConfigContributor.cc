@@ -6,7 +6,7 @@
 
 #include "AutoChangeSettings.h"
 #include "AudioProcessing.h"
-#include "CthughaDisplay.h"
+#include "DisplayPresentationOptions.h"
 #include "Option.h"
 #include "Screen.h"
 #include "TranslationOption.h"

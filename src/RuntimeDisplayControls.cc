@@ -4,7 +4,7 @@
 
 #include "RuntimeDisplayControls.h"
 
-#include "CthughaDisplay.h"
+#include "DisplayPresentationOptions.h"
 #include "ProcessServices.h"
 #include "Screen.h"
 

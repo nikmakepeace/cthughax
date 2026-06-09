@@ -9,6 +9,7 @@
 #include "AudioAnalyzer.h"
 #include "PlatformLifecycle.h"
 #include "Configuration.h"
+#include "DisplaySystem.h"
 #include "FrameGeneratorRuntime.h"
 #include "FramePacer.h"
 #include "InputQueue.h"
@@ -27,8 +28,6 @@ class AudioProcessor;
 class AutoChangeControls;
 class AutoChangeQuietObserver;
 class AutoChangeSettings;
-class CthughaDisplay;
-class DisplayRuntimeOwnership;
 class ErrorMessages;
 class IndexedFrame;
 class ImageOption;
@@ -120,8 +119,7 @@ class Application {
     std::unique_ptr<MixerDevice> mixerDeviceValue;
     std::unique_ptr<MixerSession> mixerSessionValue;
     std::unique_ptr<MixerControls> mixerControlsValue;
-    std::unique_ptr<DisplayRuntimeOwnership> displayRuntimeOwnership;
-    std::unique_ptr<CthughaDisplay> displayValue;
+    DisplaySystem displaySystemValue;
     PlatformLifecycle platformLifecycle;
     int startupInitialized;
     int shutdownComplete;

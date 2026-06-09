@@ -480,7 +480,7 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/Application.cc",
         "context.acousticContext = &acousticContext");
     assertSourceContains("src/Application.cc",
-        "displayValue->present(*indexedFrame, presentationContext)");
+        "display.present(*indexedFrame, presentationContext)");
     assertSourceContains("src/ScreenRenderContext.h",
         "const AudioMetrics* audioMetrics() const");
     assertSourceContains("src/ScreenRenderContext.h",
@@ -667,6 +667,12 @@ static void testAudioFrameOwnsPerFrameMetrics() {
 
 static void testDisplayStartupUsesDisplayConfig() {
     assertSourceContains("src/Application.cc", "startupConfigValue.display");
+    assertSourceContains("src/Application.h", "DisplaySystem displaySystemValue");
+    assertSourceContains("src/Application.cc", "DisplayDriverRegistry displayDrivers");
+    assertSourceContains("src/Application.cc",
+        "displaySystemValue.open(displayDrivers, displayOpenRequest)");
+    assertSourceDoesNotContain("src/Application.cc", "publishAliases");
+    assertSourceDoesNotContain("src/Application.cc", "newDisplayDevice");
     assertSourceContains("src/DisplayDeviceX11.cc", "checkDisplaySize(config)");
     assertSourceDoesNotContain("src/DisplayDevice.h", "display_mode");
     assertSourceDoesNotContain("src/DisplayDevice.cc", "display_mode");
@@ -825,6 +831,9 @@ static void testX11StartupUsesX11ConfigOnlyForX11Builds() {
     assertSourceContains("src/Configuration.h", "#ifdef CTH_XWIN\nstruct X11Config");
     assertSourceContains("src/Configuration.h", "#ifdef CTH_XWIN\n    X11Config x11;");
     assertSourceContains("src/Application.cc",
+        "newX11DisplayDriverFactory(*displayFrontendInitializer,\n"
+        "            startupConfigValue.x11)");
+    assertSourceDoesNotContain("src/Application.cc",
         "configureDisplayDeviceX11(startupConfigValue.x11)");
     assertSourceDoesNotContain("src/Application.cc",
         "configureDisplayDevice(startupConfigValue.display)");
@@ -832,6 +841,10 @@ static void testX11StartupUsesX11ConfigOnlyForX11Builds() {
         "void configureDisplayDeviceX11(const X11Config& config)");
     assertSourceContains("src/DisplayDeviceX11.cc",
         "void configureDisplayDeviceX11(const X11Config& config)");
+    assertSourceContains("src/DisplayDeviceX11.cc",
+        "configureDisplayDeviceX11(config)");
+    assertSourceContains("src/DisplayDeviceX11.cc",
+        "frontendInitializer.initializeDisplayFrontend");
     assertSourceContains("src/DisplayDeviceX11.cc", "config.frameDumpDirectory");
     assertSourceDoesNotContain("src/DisplayDeviceX11.cc",
         "getenv(\"CTHUGHA_DUMP_X11");
@@ -891,8 +904,10 @@ static void testLoggingUsesLoggingConfig() {
         "LegacyDisplayFrontendInitializer::initializeDisplayFrontend");
     assertSourceContains("src/ApplicationDisplayFrontend.cc", "cth_init(argc, argv)");
     assertSourceContains("src/CMakeLists.txt", "ApplicationDisplayFrontend.cc");
-    assertSourceContains("src/Application.cc",
+    assertSourceDoesNotContain("src/Application.cc",
         "displayFrontendInitializer->initializeDisplayFrontend");
+    assertSourceContains("src/DisplayDeviceX11.cc",
+        "frontendInitializer.initializeDisplayFrontend");
     assertSourceDoesNotContain("src/Application.cc", "cth_init");
     assertSourceDoesNotContain("src/Application.cc", "requestApplicationSuspend");
     assertSourceDoesNotContain("src/Application.cc", "CTH_INFO");
@@ -1843,7 +1858,7 @@ static void testRuntimeLifecycleRequestsUseMediator() {
     assertSourceContains("src/Application.cc",
         "startupConfigValue.display, secondsClockValue");
     assertSourceContains("src/Application.cc",
-        "displayRuntimeOwnership->runtime(), secondsClockValue");
+        "displaySystemValue.runtime().processEvents(inputQueueValue)");
     assertSourceDoesNotContain("src/Application.cc", "getTime()");
     assertSourceContains("src/InterfaceRuntime.h", "MillisecondClock& clock");
     assertSourceContains("src/InterfaceRuntime.cc", "clock.milliseconds()");
@@ -1861,7 +1876,7 @@ static void testRuntimeLifecycleRequestsUseMediator() {
     assertSourceContains("src/CthughaDisplay.h", "double frameNowValue");
     assertSourceContains("src/CthughaDisplay.h", "double currentFrameTimeSeconds() const");
     assertSourceContains("src/Application.cc",
-        "displayValue->currentFrameTimeSeconds()");
+        "display.currentFrameTimeSeconds()");
     assertSourceDoesNotContain("src/CthughaDisplay.h", "extern double now");
     assertSourceDoesNotContain("src/CthughaDisplay.h", "extern double deltaT");
     assertSourceDoesNotContain("src/CthughaDisplay.cc", "double now =");
@@ -1990,8 +2005,12 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
         "currentNameOrEmpty(flame)");
     assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc",
         "currentNameOrEmpty(translation)");
-    assertSourceContains("src/DisplayDevice.h",
+    assertSourceDoesNotContain("src/DisplayDevice.h",
         "SceneVisualSelections* sceneVisualSelections");
+    assertSourceContains("src/DisplaySystem.h",
+        "SceneVisualSelections* sceneVisualSelections");
+    assertSourceContains("src/DisplayDeviceX11.cc",
+        "request.sceneVisualSelections");
     assertSourceContains("src/xcthugha.h",
         "SceneVisualSelections* sceneVisualSelections");
     assertSourceContains("src/keymap.cc",
@@ -2283,7 +2302,9 @@ static void testX11PanelInputsUseRuntimeCommands() {
         "RuntimeCommand::savePaletteMetadata");
     assertSourceContains("src/DisplayDeviceX11-Panel.cc",
         "RuntimeCommand::revertPaletteMetadata");
-    assertSourceContains("src/DisplayDevice.h", "ImageOption& images");
+    assertSourceDoesNotContain("src/DisplayDevice.h", "ImageOption& images");
+    assertSourceContains("src/DisplaySystem.h", "ImageOption& images");
+    assertSourceContains("src/DisplayDeviceX11.cc", "request.images");
     assertSourceContains("src/xcthugha.h", "ImageOption& images");
     assertSourceDoesNotContain("src/DisplayDevice.h", "SceneCommands");
     assertSourceDoesNotContain("src/xcthugha.h", "SceneCommands");
@@ -2292,7 +2313,8 @@ static void testX11PanelInputsUseRuntimeCommands() {
     assertSourceDoesNotContain("src/Application.h",
         "SceneCommands& sceneCommands");
     assertSourceContains("src/Application.cc",
-        "*imageOptionValue, sceneRuntimeValue->visualSelections(),");
+        "DisplayOpenRequest displayOpenRequest(scene(), *imageOptionValue,\n"
+        "        sceneRuntimeValue->visualSelections()");
     assertSourceContains("src/DisplayDeviceX11-Panel.cc",
         "sceneNameOrEmpty(sceneSelection(RuntimeSceneImage))");
     assertSourceDoesNotContain("src/DisplayDeviceX11-Panel.cc",
@@ -2781,8 +2803,8 @@ static void testGeneralFlameUsesInjectedRandomSource() {
     assertSourceContains("src/Application.cc",
         "*sceneVisualCatalogFactoryValue, randomSourceValue)");
     assertSourceContains("src/Application.cc",
-        "newDisplayDevice(scene(),\n"
-        "        *imageOptionValue, sceneRuntimeValue->visualSelections()");
+        "DisplayOpenRequest displayOpenRequest(scene(), *imageOptionValue,\n"
+        "        sceneRuntimeValue->visualSelections()");
     assertSourceContains("src/SceneRuntime.cc",
         "RandomSource& randomSource)");
     assertSourceContains("src/SceneVisualCatalogService.cc",

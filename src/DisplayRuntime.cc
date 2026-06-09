@@ -1,8 +1,5 @@
 #include "DisplayRuntime.h"
 
-DisplayBackend* displayBackend = 0;
-DisplayRuntime* displayRuntime = 0;
-
 DisplayRuntime::DisplayRuntime(DisplayBackend& backend_)
     : backend(backend_) {
 }

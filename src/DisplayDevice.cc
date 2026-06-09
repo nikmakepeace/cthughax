@@ -5,8 +5,6 @@
 #include "FramePalette.h"
 #include "imath.h"
 
-DisplayDevice* displayDevice = NULL;
-
 int bypp = 1; /* bytes per pixel */
 int bytes_per_line = 0;
 xy disp_size(0, 0); /* size of drawing area */

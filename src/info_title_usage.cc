@@ -186,6 +186,7 @@ void usage() {
 
     PH("Display options:");
     PH(" -D, --disp-mode MODE    Set graphics mode (window size)");
+    PH(" --display-driver NAME  Select display driver: auto, x11, or sdl3");
     for (int i = 0; i < nScreenSizes; i++) {
         printfv(0, "                   ");
         for (int j = 0; (j < 4) && (i < nScreenSizes); i++, j++)

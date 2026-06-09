@@ -293,7 +293,28 @@ struct AudioAnalysisConfig {
     AudioAnalysisConfig();
 };
 
+enum DisplayDriverId {
+    DisplayDriverAuto,
+    DisplayDriverX11,
+    DisplayDriverSDL3
+};
+
+/** @return Stable configuration text for a display driver id. */
+inline const char* displayDriverIdName(DisplayDriverId driver) {
+    switch (driver) {
+    case DisplayDriverAuto:
+        return "auto";
+    case DisplayDriverX11:
+        return "x11";
+    case DisplayDriverSDL3:
+        return "sdl3";
+    }
+
+    return "unknown";
+}
+
 struct DisplayConfig {
+    DisplayDriverId driver;
     int displayMode;
     bool hasCustomDisplaySize;
     int displayWidth;

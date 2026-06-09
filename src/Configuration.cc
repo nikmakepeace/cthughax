@@ -63,6 +63,7 @@ static const char* KEY_AUDIO_MIXER_INITIAL_VOLUME
 static const char* KEY_AUDIO_NULL_TARGET_LATENCY = "audio.null_target_latency_ms";
 static const char* KEY_AUDIO_PULSE_TARGET_LATENCY = "audio.pulse_target_latency_ms";
 static const char* KEY_AUDIO_DSP_TARGET_LATENCY = "audio.dsp_target_latency_ms";
+static const char* KEY_DISPLAY_DRIVER = "display.driver";
 static const char* KEY_DISPLAY_MODE = "display.mode";
 static const char* KEY_DISPLAY_WIDTH = "display.width";
 static const char* KEY_DISPLAY_HEIGHT = "display.height";
@@ -172,6 +173,25 @@ static std::string lowercase(const std::string& value) {
 
 static bool startsWith(const std::string& value, const std::string& prefix) {
     return value.compare(0, prefix.size(), prefix) == 0;
+}
+
+static bool parseDisplayDriverId(const std::string& text,
+    DisplayDriverId* driver) {
+    std::string cleaned = lowercase(trim(text));
+    if (cleaned == "auto") {
+        *driver = DisplayDriverAuto;
+        return true;
+    }
+    if (cleaned == "x11") {
+        *driver = DisplayDriverX11;
+        return true;
+    }
+    if (cleaned == "sdl3") {
+        *driver = DisplayDriverSDL3;
+        return true;
+    }
+
+    return false;
 }
 
 static bool parseInteger(const std::string& text, int* result) {
@@ -727,6 +747,8 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
             cleanedValue);
     } else if (key == "disp-mode") {
         setDisplayMode(patch, source, cleanedValue);
+    } else if (key == "display-driver" || key == "driver") {
+        patch.set(KEY_DISPLAY_DRIVER, cleanedValue, source);
     } else if (key == "max-fps" || key == "maxfps") {
         patch.set(KEY_DISPLAY_MAX_FPS, cleanedValue, source);
     } else if (key == "show-fps") {
@@ -1304,6 +1326,12 @@ static void applyCommandLineOption(ConfigPatch& patch,
             setDisplayMode(patch, "command line", value);
     } else if (startsWith(arg, "--disp-mode=")) {
         setDisplayMode(patch, "command line", arg.substr(12));
+    } else if (arg == "--display-driver") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_DISPLAY_DRIVER, value, "command line");
+    } else if (startsWith(arg, "--display-driver=")) {
+        patch.set(KEY_DISPLAY_DRIVER, arg.substr(17), "command line");
     } else if (arg == "--buff-size") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -2065,7 +2093,8 @@ AudioConfig::AudioConfig()
     , dspOutputTargetLatencyMs(AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS) { }
 
 DisplayConfig::DisplayConfig()
-    : displayMode(DISPLAY_CONFIG_DEFAULT_MODE)
+    : driver(DisplayDriverAuto)
+    , displayMode(DISPLAY_CONFIG_DEFAULT_MODE)
     , hasCustomDisplaySize(false)
     , displayWidth(0)
     , displayHeight(0)
@@ -2255,6 +2284,16 @@ Config ConfigSchema::build(const ConfigPatch& patch,
         &config.audio.pulseOutputTargetLatencyMs);
     applyMinimumIntEntry(patch, diagnostics, KEY_AUDIO_DSP_TARGET_LATENCY, 0,
         &config.audio.dspOutputTargetLatencyMs);
+
+    if (const ConfigEntry* entry = patch.entry(KEY_DISPLAY_DRIVER)) {
+        DisplayDriverId driver = DisplayDriverAuto;
+        if (parseDisplayDriverId(entry->value, &driver)) {
+            config.display.driver = driver;
+        } else {
+            diagnostics.error(entry->source, entry->key,
+                "expected one of: auto, x11, sdl3");
+        }
+    }
 
     if (const ConfigEntry* entry = patch.entry(KEY_DISPLAY_MODE)) {
         int mode = DISPLAY_CONFIG_DEFAULT_MODE;
@@ -2717,6 +2756,8 @@ ConfigPatch hardcodedDefaultConfigPatch() {
         integerText(AUDIO_CONFIG_DEFAULT_PULSE_TARGET_LATENCY_MS), "defaults");
     defaults.set(KEY_AUDIO_DSP_TARGET_LATENCY,
         integerText(AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS), "defaults");
+    defaults.set(KEY_DISPLAY_DRIVER, displayDriverIdName(DisplayDriverAuto),
+        "defaults");
     defaults.set(KEY_DISPLAY_MODE, integerText(DISPLAY_CONFIG_DEFAULT_MODE),
         "defaults");
     defaults.set(KEY_DISPLAY_MAX_FPS,

@@ -6,6 +6,7 @@
 #include "InputQueue.h"
 #include "keys.h"
 #include "imath.h"
+#include "DisplayPresentationOptions.h"
 #include "OverlaySource.h"
 #include "AudioProcessing.h"
 #include "RuntimeConfigRegistry.h"

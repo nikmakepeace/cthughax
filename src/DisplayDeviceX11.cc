@@ -5,7 +5,9 @@
 
 #include "cthugha.h"
 #include "DisplayDevice.h"
+#include "ApplicationDisplayFrontend.h"
 #include "Configuration.h"
+#include "CthughaDisplay.h"
 #include "FramePalette.h"
 #include "Scene.h"
 #include "RuntimeCommandSink.h"
@@ -17,9 +19,9 @@
 #include "xcthugha.h"
 #include "InputQueue.h"
 #include "Interface.h"
-#include "cth_buffer.h"
 #include "DisplayBackend.h"
 #include "DisplayRuntime.h"
+#include "DisplaySystem.h"
 #include "OverlaySource.h"
 #include "PixelTransfer.h"
 #include "ProcessServices.h"
@@ -1611,22 +1613,59 @@ void DisplayDeviceX11::setPalette(const Palette pal) {
     }
 }
 
-std::unique_ptr<DisplayRuntimeOwnership> newDisplayDevice(
-    Scene& scene, ImageOption& images, SceneVisualSelections* sceneVisualSelections,
-    RuntimeCommandSink& runtimeCommands, RuntimeCommandTargetRouter& runtimeCommandRouter,
-    RuntimeConfigRegistry& runtimeConfigRegistry, const DisplayConfig& config,
-    SecondsClock& clock) {
-    std::unique_ptr<DisplayDeviceX11> device(
-        new DisplayDeviceX11(scene, images, sceneVisualSelections, runtimeCommands,
-            runtimeCommandRouter,
-            runtimeConfigRegistry, config, clock));
-    if (!device->isInitialized()) {
-        return std::unique_ptr<DisplayRuntimeOwnership>();
+class X11DisplayDriverFactory : public DisplayDriverFactory {
+    DisplayFrontendInitializer& frontendInitializer;
+    const X11Config& config;
+
+public:
+    explicit X11DisplayDriverFactory(
+        DisplayFrontendInitializer& frontendInitializer_,
+        const X11Config& config_)
+        : frontendInitializer(frontendInitializer_)
+        , config(config_) {
     }
 
-    std::unique_ptr<DisplayBackend> backend(new DisplayBackendX11(*device));
-    std::unique_ptr<DisplayRuntime> runtime(new DisplayRuntime(*backend));
-    return std::unique_ptr<DisplayRuntimeOwnership>(
-        new DisplayRuntimeOwnership(std::move(device), std::move(backend),
-            std::move(runtime)));
+    virtual DisplayDriverId driverId() const {
+        return DisplayDriverX11;
+    }
+
+    virtual const char* driverName() const {
+        return "x11";
+    }
+
+    virtual std::unique_ptr<DisplaySystemComponents> open(
+        const DisplayOpenRequest& request) {
+        configureDisplayDeviceX11(config);
+        if (frontendInitializer.initializeDisplayFrontend(
+                request.argc, request.argv))
+            return std::unique_ptr<DisplaySystemComponents>();
+
+        std::unique_ptr<DisplayDeviceX11> device(
+            new DisplayDeviceX11(request.scene, request.images,
+                request.sceneVisualSelections, request.runtimeCommands,
+                request.runtimeCommandRouter, request.runtimeConfigRegistry,
+                request.config, request.clock));
+        if (!device->isInitialized())
+            return std::unique_ptr<DisplaySystemComponents>();
+
+        DisplayDeviceX11& deviceRef = *device;
+        std::unique_ptr<DisplayBackend> backend(
+            new DisplayBackendX11(deviceRef));
+        std::unique_ptr<DisplayRuntime> runtime(new DisplayRuntime(*backend));
+        std::unique_ptr<CthughaDisplay> coordinator = newCthughaDisplay(
+            deviceRef, *runtime, request.clock, request.interfaceRuntime,
+            request.errorMessages);
+
+        return std::unique_ptr<DisplaySystemComponents>(
+            new DisplaySystemComponents(std::move(device),
+                std::move(backend), std::move(runtime),
+                std::move(coordinator)));
+    }
+};
+
+std::unique_ptr<DisplayDriverFactory> newX11DisplayDriverFactory(
+    DisplayFrontendInitializer& frontendInitializer,
+    const X11Config& config) {
+    return std::unique_ptr<DisplayDriverFactory>(
+        new X11DisplayDriverFactory(frontendInitializer, config));
 }

@@ -4,7 +4,6 @@
 
 #include "cthugha.h"
 #include "DisplayGeometry.h"
-#include "EffectControl.h"
 #include "FrameClock.h"
 #include "IndexedDisplayFrame.h"
 #include "PresentationComposer.h"
@@ -17,10 +16,6 @@
 //
 // It is initialized with the owned display stage so viewport and palette work
 // do not need to read transitional globals.
-
-extern OptionInt zoom;
-extern OptionInt maxFramesPerSecond;
-extern OptionOnOff showFPS;
 
 class IndexedFrame;
 class DisplayDevice;
@@ -157,8 +152,6 @@ public:
     virtual ~CthughaDisplayX11();
     virtual void operator()();
 };
-
-extern CthughaDisplay* cthughaDisplay;
 
 /** Allocates the frontend-specific display coordinator. */
 std::unique_ptr<CthughaDisplay> newCthughaDisplay(

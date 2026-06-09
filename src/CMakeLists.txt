@@ -86,7 +86,7 @@ set(CTHUGHA_COMMON_SOURCES
     LegacyLoggingAdapter.cc
     DisplayDevice.cc
     DisplayRuntime.cc
-    DisplayRuntimeOwnership.cc
+    DisplaySystem.cc
     SceneChangeScheduler.cc
     AudioAnalyzer.cc
     AudioAnalysisSnapshot.cc

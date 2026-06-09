@@ -15,6 +15,4 @@ public:
     virtual void present(const DisplayPresentation&) = 0;
 };
 
-extern DisplayBackend* displayBackend;
-
 #endif

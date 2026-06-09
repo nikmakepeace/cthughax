@@ -2,9 +2,9 @@
 #include "CthughaDisplay.h"
 #include "display.h"
 #include "DisplayDevice.h"
+#include "DisplayPresentationOptions.h"
 #include "DisplayRuntime.h"
 #include "Configuration.h"
-#include "cth_buffer.h"
 #include "imath.h"
 #include "Interface.h"
 #include "IndexedFrame.h"
@@ -14,10 +14,6 @@
 #include "ViewportPresentation.h"
 
 #include <stdint.h>
-
-// The active display coordinator.  The selected frontend supplies
-// newCthughaDisplay(), so this points at the X11 display subclass.
-CthughaDisplay* cthughaDisplay = NULL;
 
 CthughaDisplay::~CthughaDisplay() { }
 

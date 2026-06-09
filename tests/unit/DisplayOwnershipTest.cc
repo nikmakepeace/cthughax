@@ -1,13 +1,15 @@
-#include "DisplayRuntime.h"
+#include "CthughaDisplay.h"
+#include "DisplaySystem.h"
 #include "InputQueue.h"
+#include "ProcessServices.h"
 
 #include <assert.h>
 #include <memory>
+#include <stdarg.h>
 #include <vector>
 
 static std::vector<int> destroyedObjects;
 
-DisplayDevice* displayDevice = 0;
 int DisplayDevice::textColorRGB[][3] = { { 0, 0, 0 }, { 0, 0, 0 }, { 0, 0, 0 } };
 int DisplayDevice::textColor[3] = { 0, 0, 0 };
 int DisplayDevice::textColors = 3;
@@ -42,6 +44,52 @@ void DisplayDevice::printString(int, int, const char*, int, int, int) {
 
 void DisplayDevice::postPrint() {
 }
+
+int screen_up(ScreenRenderContext&) { return 0; }
+int screen_down(ScreenRenderContext&) { return 0; }
+int screen_2hor(ScreenRenderContext&) { return 0; }
+int screen_r2hor(ScreenRenderContext&) { return 0; }
+int screen_4hor(ScreenRenderContext&) { return 0; }
+int screen_2verd(ScreenRenderContext&) { return 0; }
+int screen_r2verd(ScreenRenderContext&) { return 0; }
+int screen_4kal(ScreenRenderContext&) { return 0; }
+int screen_hfield(ScreenRenderContext&) { return 0; }
+int screen_roll(ScreenRenderContext&) { return 0; }
+int screen_zick(ScreenRenderContext&) { return 0; }
+int screen_bent(ScreenRenderContext&) { return 0; }
+int screen_plate(ScreenRenderContext&) { return 0; }
+int screen_vscale_hmirror(ScreenRenderContext&) { return 0; }
+int screen_hscale_vmirror(ScreenRenderContext&) { return 0; }
+int screen_source(ScreenRenderContext&) { return 0; }
+
+int cth_log_enabled(int) {
+    return 0;
+}
+
+int cth_log(int, const char*, ...) {
+    return 0;
+}
+
+int cth_log_context(int, const char*, const char*, ...) {
+    return 0;
+}
+
+int cth_log_error(const char*, ...) {
+    return 0;
+}
+
+int cth_log_errno(int, const char*, ...) {
+    return 0;
+}
+
+class FakeSecondsClock : public SecondsClock {
+public:
+    virtual double nowSeconds() const {
+        return 0.0;
+    }
+};
+
+static FakeSecondsClock clockValue;
 
 class RecordingDevice : public DisplayDevice {
     int id;
@@ -81,14 +129,47 @@ public:
     }
 };
 
-static void clearDisplayAliases() {
-    displayDevice = 0;
-    displayBackend = 0;
-    displayRuntime = 0;
-}
+class RecordingCoordinator : public CthughaDisplay {
+    int id;
 
-static void testPublishesAndClearsCompatibilityAliases() {
-    clearDisplayAliases();
+public:
+    RecordingCoordinator(int id_, DisplayDevice& device,
+        DisplayRuntime& runtime)
+        : CthughaDisplay(device, runtime, clockValue)
+        , id(id_) {
+    }
+
+    virtual ~RecordingCoordinator() {
+        destroyedObjects.push_back(id);
+    }
+};
+
+class NamedFactory : public DisplayDriverFactory {
+    DisplayDriverId idValue;
+    const char* nameValue;
+
+public:
+    NamedFactory(DisplayDriverId id_, const char* name_)
+        : idValue(id_)
+        , nameValue(name_) {
+    }
+
+    virtual DisplayDriverId driverId() const {
+        return idValue;
+    }
+
+    virtual const char* driverName() const {
+        return nameValue;
+    }
+
+    virtual std::unique_ptr<DisplaySystemComponents> open(
+        const DisplayOpenRequest&) {
+        return std::unique_ptr<DisplaySystemComponents>();
+    }
+};
+
+static void testComponentsDestroyCoordinatorBeforeBackendAndDevice() {
+    destroyedObjects.clear();
 
     std::unique_ptr<RecordingDevice> device(new RecordingDevice(1));
     RecordingDevice* deviceAlias = device.get();
@@ -96,49 +177,42 @@ static void testPublishesAndClearsCompatibilityAliases() {
     RecordingBackend* backendAlias = backend.get();
     std::unique_ptr<DisplayRuntime> runtime(new DisplayRuntime(*backend));
     DisplayRuntime* runtimeAlias = runtime.get();
+    std::unique_ptr<CthughaDisplay> coordinator(
+        new RecordingCoordinator(3, *device, *runtime));
+    CthughaDisplay* coordinatorAlias = coordinator.get();
 
-    DisplayRuntimeOwnership ownership(std::move(device), std::move(backend),
-        std::move(runtime));
+    {
+        DisplaySystemComponents components(std::move(device),
+            std::move(backend), std::move(runtime), std::move(coordinator));
 
-    assert(&ownership.device() == deviceAlias);
-    assert(&ownership.backend() == backendAlias);
-    assert(&ownership.runtime() == runtimeAlias);
+        assert(&components.device() == deviceAlias);
+        assert(&components.backend() == backendAlias);
+        assert(&components.runtime() == runtimeAlias);
+        assert(components.coordinator() == coordinatorAlias);
+    }
 
-    ownership.publishAliases();
-
-    assert(displayDevice == deviceAlias);
-    assert(displayBackend == backendAlias);
-    assert(displayRuntime == runtimeAlias);
-
-    ownership.shutdown();
-
-    assert(displayDevice == 0);
-    assert(displayBackend == 0);
-    assert(displayRuntime == 0);
+    assert(destroyedObjects.size() == 3);
+    assert(destroyedObjects[0] == 3);
+    assert(destroyedObjects[1] == 2);
+    assert(destroyedObjects[2] == 1);
 }
 
-static void testShutdownDestroysBackendBeforeDeviceAndIsIdempotent() {
-    clearDisplayAliases();
-    destroyedObjects.clear();
+static void testRegistrySelectsAutoByRegistrationOrderAndExplicitDriver() {
+    NamedFactory x11(DisplayDriverX11, "x11");
+    NamedFactory sdl3(DisplayDriverSDL3, "sdl3");
+    DisplayDriverRegistry registry;
 
-    std::unique_ptr<RecordingDevice> device(new RecordingDevice(1));
-    std::unique_ptr<RecordingBackend> backend(new RecordingBackend(2));
-    std::unique_ptr<DisplayRuntime> runtime(new DisplayRuntime(*backend));
+    registry.add(x11);
+    registry.add(sdl3);
 
-    DisplayRuntimeOwnership ownership(std::move(device), std::move(backend),
-        std::move(runtime));
-    ownership.publishAliases();
-
-    ownership.shutdown();
-    ownership.shutdown();
-
-    assert(destroyedObjects.size() == 2);
-    assert(destroyedObjects[0] == 2);
-    assert(destroyedObjects[1] == 1);
+    assert(registry.select(DisplayDriverAuto) == &x11);
+    assert(registry.select(DisplayDriverX11) == &x11);
+    assert(registry.select(DisplayDriverSDL3) == &sdl3);
+    assert(registry.find(DisplayDriverX11) == &x11);
 }
 
 int main() {
-    testPublishesAndClearsCompatibilityAliases();
-    testShutdownDestroysBackendBeforeDeviceAndIsIdempotent();
+    testComponentsDestroyCoordinatorBeforeBackendAndDevice();
+    testRegistrySelectsAutoByRegistrationOrderAndExplicitDriver();
     return 0;
 }
