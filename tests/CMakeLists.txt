@@ -741,6 +741,23 @@ target_link_libraries(display_runtime_test PRIVATE m)
 
 add_test(NAME display_runtime_test COMMAND display_runtime_test)
 
+add_executable(sdl3_presentation_test
+    unit/Sdl3PresentationTest.cc
+    ${CMAKE_SOURCE_DIR}/src/Sdl3Presentation.cc
+    ${CMAKE_SOURCE_DIR}/src/OverlaySource.cc
+    ${CMAKE_SOURCE_DIR}/src/ColorPalette.cc
+)
+
+target_include_directories(sdl3_presentation_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(sdl3_presentation_test PRIVATE m)
+
+add_test(NAME sdl3_presentation_test COMMAND sdl3_presentation_test)
+
 add_executable(input_queue_test
     unit/InputQueueTest.cc
     ${CMAKE_SOURCE_DIR}/src/InputQueue.cc
