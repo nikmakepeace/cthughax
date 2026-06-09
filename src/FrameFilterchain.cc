@@ -5,7 +5,7 @@
 FrameFilter::~FrameFilter() { }
 
 const char* FrameFilter::name() const {
-    return "FrameFilter";
+    return "frame-filter";
 }
 
 FrameFilterFrame::FrameFilterFrame(FrameRenderTarget& buffer_, const FrameGeneratorContext& context_,
@@ -54,14 +54,6 @@ static int findStageIndex(const std::vector<unsigned int>& sequence, unsigned in
     return -1;
 }
 
-static const char* frameFilterName(const FrameFilter* filter) {
-    if (filter == 0)
-        return "null";
-
-    const char* name = filter->name();
-    return (name != 0 && name[0] != '\0') ? name : "unnamed";
-}
-
 FrameFilterchain::FrameFilterchain(LogSink& log)
     : framePaletteValue(0)
     , logValue(&log) { }
@@ -86,7 +78,7 @@ void FrameFilterchain::add(unsigned int stage, FrameFilter* filter, int takeOwne
         return;
     filters.push_back(Entry(stage, filter, takeOwnership));
     logValue->debug("frame filterchain: added stage=%u filter=%s ptr=%p owned=%d mode=%d size=%d\n",
-        stage, frameFilterName(filter), filter, takeOwnership, int(FrameFilterDisabled), size());
+        stage, filter->name(), filter, takeOwnership, int(FrameFilterDisabled), size());
 }
 
 void FrameFilterchain::setStageSequence(const std::vector<unsigned int>& stages) {
@@ -197,7 +189,7 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContex
             if (filters[filterIndex].mode == FrameFilterDisabled) {
                 logValue->trace("frame filterchain",
                     "skipping disabled stage=%u filter=%s ptr=%p\n",
-                    filters[filterIndex].stage, frameFilterName(filters[filterIndex].filter),
+                    filters[filterIndex].stage, filters[filterIndex].filter->name(),
                     filters[filterIndex].filter);
                 continue;
             }
@@ -207,7 +199,7 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContex
             if (filters[filterIndex].mode == FrameFilterArmedOnce) {
                 logValue->trace("frame filterchain",
                     "disarming one-shot stage=%u filter=%s ptr=%p\n",
-                    filters[filterIndex].stage, frameFilterName(filters[filterIndex].filter),
+                    filters[filterIndex].stage, filters[filterIndex].filter->name(),
                     filters[filterIndex].filter);
                 filters[filterIndex].mode = FrameFilterDisabled;
             }

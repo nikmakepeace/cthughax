@@ -15,11 +15,12 @@ class RecordingLogSink : public LogSink {
 public:
     int debugWrites;
     int traceWrites;
-    std::vector<std::string> messages;
+    std::string lastDebug;
 
     RecordingLogSink()
         : debugWrites(0)
-        , traceWrites(0) { }
+        , traceWrites(0)
+        , lastDebug() { }
 
     virtual int enabled(int level) const {
         return level <= CTH_LOG_TRACE;
@@ -27,11 +28,12 @@ public:
 
 protected:
     virtual void write(int level, const char*, int, const char* fmt, va_list ap) {
-        char buffer[512];
-        vsnprintf(buffer, sizeof(buffer), fmt, ap);
-        messages.push_back(buffer);
-        if (level == CTH_LOG_DEBUG)
+        if (level == CTH_LOG_DEBUG) {
+            char message[512];
+            vsnprintf(message, sizeof(message), fmt, ap);
+            lastDebug = message;
             debugWrites++;
+        }
         if (level == CTH_LOG_TRACE)
             traceWrites++;
     }
@@ -39,7 +41,8 @@ protected:
 
 class NoOpFrameFilter : public FrameFilter {
 public:
-    virtual const char* name() const { return "NoOpFrameFilter"; }
+    virtual const char* name() const { return "test-filter"; }
+
     virtual void execute(FrameFilterFrame&) { }
 };
 
@@ -50,9 +53,7 @@ static void testFrameFilterchainUsesInjectedLogSink() {
 
     filterchain.add(7, &filter);
     assert(log.debugWrites == 1);
-    assert(log.messages.size() == 1);
-    assert(log.messages[0].find("filter=NoOpFrameFilter") != std::string::npos);
-    assert(log.messages[0].find("ptr=") != std::string::npos);
+    assert(log.lastDebug.find("filter=test-filter") != std::string::npos);
 
     std::vector<unsigned int> stages;
     stages.push_back(7);

@@ -184,7 +184,7 @@ The frame-filterchain add-stage diagnostic now includes a human-readable filter
 name and pointer, for example:
 
 ```text
-frame filterchain: added stage=3 filter=FlameFilter ptr=0x... owned=1 mode=0 size=3
+frame filterchain: added stage=3 filter=flame ptr=0x... owned=1 mode=0 size=3
 ```
 
 ## Porting Strategy

@@ -18,7 +18,7 @@ ImageFilter::ImageFilter()
     , overlayPassiveBuffer(1) { }
 
 const char* ImageFilter::name() const {
-    return "ImageFilter";
+    return "image";
 }
 
 void ImageFilter::setImage(const IndexedImage* image_) {
@@ -69,7 +69,7 @@ FlameFilter::FlameFilter()
     , generalFlame(0) { }
 
 const char* FlameFilter::name() const {
-    return "FlameFilter";
+    return "flame";
 }
 
 void FlameFilter::setFlame(const Flame* flame_) {
@@ -91,7 +91,7 @@ TranslateFilter::TranslateFilter()
     : translate() { }
 
 const char* TranslateFilter::name() const {
-    return "TranslateFilter";
+    return "translate";
 }
 
 void TranslateFilter::setTranslate(const TranslationTable& table) {
@@ -113,7 +113,7 @@ WaveFilter::WaveFilter()
     , needsConfiguration(1) { }
 
 const char* WaveFilter::name() const {
-    return "WaveFilter";
+    return "wave";
 }
 
 void WaveFilter::setWave(Wave* wave_, const WaveConfig& config_) {
@@ -153,7 +153,7 @@ TextInjectionFilter::TextInjectionFilter()
     , verticalAlign(TextInjectionAlignMiddle) { }
 
 const char* TextInjectionFilter::name() const {
-    return "TextInjectionFilter";
+    return "text-injection";
 }
 
 void TextInjectionFilter::setMessage(const char* message_, int frameCount) {
@@ -386,7 +386,7 @@ FrameCommitFilter::FrameCommitFilter()
     , debugReports(0) { }
 
 const char* FrameCommitFilter::name() const {
-    return "FrameCommitFilter";
+    return "frame-commit";
 }
 
 void FrameCommitFilter::setSceneNames(const char* flameName_, const char* waveName_,
@@ -429,7 +429,7 @@ void FrameCommitFilter::execute(FrameFilterFrame& frame) {
 FlashlightFilter::FlashlightFilter() { }
 
 const char* FlashlightFilter::name() const {
-    return "FlashlightFilter";
+    return "flashlight";
 }
 
 void FlashlightFilter::execute(FrameFilterFrame& frame) {
@@ -443,7 +443,7 @@ BorderFilter::BorderFilter()
     : borderMode(0) { }
 
 const char* BorderFilter::name() const {
-    return "BorderFilter";
+    return "border";
 }
 
 void BorderFilter::setBorderMode(int borderMode_) {
@@ -459,7 +459,7 @@ void BorderFilter::execute(FrameFilterFrame& frame) {
 PaletteFilter::PaletteFilter() { }
 
 const char* PaletteFilter::name() const {
-    return "PaletteFilter";
+    return "palette";
 }
 
 FramePalette& PaletteFilter::framePalette() {
@@ -491,7 +491,7 @@ void PaletteFilter::execute(FrameFilterFrame& frame) {
 IndexedFrameFilter::IndexedFrameFilter() { }
 
 const char* IndexedFrameFilter::name() const {
-    return "IndexedFrameFilter";
+    return "indexed-frame";
 }
 
 void IndexedFrameFilter::execute(FrameFilterFrame& frame) {

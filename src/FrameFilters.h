@@ -47,6 +47,8 @@ class ImageFilter : public FrameFilter {
 
 public:
     ImageFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -87,6 +89,8 @@ class FlameFilter : public FrameFilter {
 
 public:
     FlameFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -118,6 +122,8 @@ class TranslateFilter : public FrameFilter {
 
 public:
     TranslateFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -148,6 +154,8 @@ class WaveFilter : public FrameFilter {
 
 public:
     WaveFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -187,6 +195,8 @@ class TextInjectionFilter : public FrameFilter {
 
 public:
     TextInjectionFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -234,6 +244,8 @@ class FrameCommitFilter : public FrameFilter {
 
 public:
     FrameCommitFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -260,6 +272,8 @@ public:
 class FlashlightFilter : public FrameFilter {
 public:
     FlashlightFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -277,6 +291,8 @@ class BorderFilter : public FrameFilter {
 
 public:
     BorderFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
@@ -302,6 +318,8 @@ class PaletteFilter : public FrameFilter {
 
 public:
     PaletteFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /** @return Owned frame palette supplied to the filterchain. */
@@ -348,6 +366,8 @@ public:
 class IndexedFrameFilter : public FrameFilter {
 public:
     IndexedFrameFilter();
+
+    /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
     /**
