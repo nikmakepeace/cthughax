@@ -263,6 +263,17 @@ static void testMiniAudioNullBackendNameIsNotARealDevice() {
 #endif
 }
 
+static void testMiniAudioPresentationDelayUsesActualInternalBuffer() {
+#if WITH_MINIAUDIO == 1
+    assert(AudioMiniAudioOutput::testPresentationDelaySamples(44100, 250,
+        1764, 5) == 8820);
+    assert(AudioMiniAudioOutput::testPresentationDelaySamples(44100, 250,
+        2400, 4) == 9600);
+    assert(AudioMiniAudioOutput::testPresentationDelaySamples(44100, 250,
+        0, 0) == 11025);
+#endif
+}
+
 static void testMiniAudioCallbackDrainDirectCopyCompletesFiniteInput() {
 #if WITH_MINIAUDIO == 1
     FakeSecondsClock clock;
@@ -577,6 +588,7 @@ int main() {
     testMiniAudioCallbackDrainRequiresOpenDevice();
     testMiniAudioPcmFormatMapping();
     testMiniAudioNullBackendNameIsNotARealDevice();
+    testMiniAudioPresentationDelayUsesActualInternalBuffer();
     testMiniAudioCallbackDrainDirectCopyCompletesFiniteInput();
     testMiniAudioCallbackDrainConvertsSigned8AndPadsSilence();
     testMiniAudioCallbackDrainConvertsUnsigned16Le();

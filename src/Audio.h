@@ -418,6 +418,8 @@ public:
     static MiniAudioDeviceSampleFormat testDeviceSampleFormatFor(
         const PcmFormat& format, int* directCopy);
     static int testBackendNameIsNull(const char* backendName);
+    static int testPresentationDelaySamples(int sampleRate,
+        int targetLatencyMs, int internalPeriodFrames, int internalPeriods);
     void testStartCallbackDrainWithoutDevice(AudioOutputStream& stream,
         const std::atomic<int>* inputFinished, int scratchSamples);
     void testStartCallbackDrainWithoutDeviceFormat(AudioOutputStream& stream,

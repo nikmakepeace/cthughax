@@ -401,6 +401,18 @@ static int audioMiniAudioBackendNameIsNull(const char* backendName) {
     return (backendName != NULL) && (strcmp(backendName, "Null") == 0);
 }
 
+static int audioMiniAudioPresentationDelaySamples(int sampleRate,
+    int targetLatencyMs, int internalPeriodFrames, int internalPeriods) {
+    long long internalSamples
+        = (long long)internalPeriodFrames * (long long)internalPeriods;
+    if (internalSamples > 0)
+        return (int)internalSamples;
+
+    if ((sampleRate <= 0) || (targetLatencyMs <= 0))
+        return 0;
+    return (sampleRate * targetLatencyMs) / 1000;
+}
+
 static void audioMiniAudioStoreBackendName(AudioMiniAudioOutputState* state) {
     if (state == NULL)
         return;
@@ -590,13 +602,11 @@ void AudioMiniAudioOutput::open(const PcmFormat& format) {
         return;
     }
 
-    int configuredDelaySamples
-        = (state->deviceSampleRate
-            * state->outputConfigValue.miniAudioOutputTargetLatencyMs) / 1000;
-    int deviceLeadSamples = int(state->device.playback.internalPeriodSizeInFrames
-        * state->device.playback.internalPeriods);
-    if (deviceLeadSamples > 0)
-        configuredDelaySamples += deviceLeadSamples;
+    int configuredDelaySamples = audioMiniAudioPresentationDelaySamples(
+        state->deviceSampleRate,
+        state->outputConfigValue.miniAudioOutputTargetLatencyMs,
+        int(state->device.playback.internalPeriodSizeInFrames),
+        int(state->device.playback.internalPeriods));
     state->miniaudioPresentationDelaySamples.store(configuredDelaySamples);
 
     result = ma_device_start(&state->device);
@@ -804,6 +814,12 @@ AudioMiniAudioOutput::testDeviceSampleFormatFor(const PcmFormat& format,
 
 int AudioMiniAudioOutput::testBackendNameIsNull(const char* backendName) {
     return audioMiniAudioBackendNameIsNull(backendName);
+}
+
+int AudioMiniAudioOutput::testPresentationDelaySamples(int sampleRate,
+    int targetLatencyMs, int internalPeriodFrames, int internalPeriods) {
+    return audioMiniAudioPresentationDelaySamples(sampleRate, targetLatencyMs,
+        internalPeriodFrames, internalPeriods);
 }
 
 void AudioMiniAudioOutput::testStartCallbackDrainWithoutDevice(
