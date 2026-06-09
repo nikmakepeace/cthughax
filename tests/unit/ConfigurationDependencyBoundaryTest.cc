@@ -2788,21 +2788,25 @@ static void testRemainingSharedRuntimeStateWasRemoved() {
         "runtime.runOptionKey(*opt, *this, keymaps, commands, dispatcher,");
     assertSourceContains("src/Interface.cc",
         "dispatcher.dispatchKeymap(keymaps, commands");
-    assertSourceContains("src/CthughaDisplayX11.cc",
+    assertSourceContains("src/DisplayOverlay.cc",
         "CurrentInterfaceOverlayProducer(InterfaceRuntime& runtime_,");
-    assertSourceContains("src/CthughaDisplayX11.cc",
+    assertSourceContains("src/DisplayOverlay.cc",
         "OverlayRenderContext overlay(sink, layout, status)");
-    assertSourceContains("src/CthughaDisplayX11.cc",
+    assertSourceContains("src/DisplayOverlay.cc",
         "currentInterface->display(runtime, overlay)");
-    assertSourceContains("src/CthughaDisplayX11.cc",
+    assertSourceContains("src/DisplayOverlay.cc",
         "ErrorMessagesOverlayProducer errorProducer(errorMessages, runtime, layout,");
+    assertSourceContains("src/DisplayOverlay.h",
+        "OverlayCommands collectDisplayOverlayCommands");
+    assertSourceContains("src/CthughaDisplayX11.cc",
+        "collectDisplayOverlayCommands(fps,");
     assertSourceDoesNotContain("src/CthughaDisplayX11.cc",
         "ScopedOverlayDisplayDevice");
     assertSourceDoesNotContain("src/CthughaDisplayX11.cc",
         "displayDevice = &recorder");
     assertSourceDoesNotContain("src/Interface.h", "extern ErrorMessages");
     assertSourceDoesNotContain("src/Interface.cc", "ErrorMessages errors");
-    assertSourceDoesNotContain("src/CthughaDisplayX11.cc",
+    assertSourceDoesNotContain("src/DisplayOverlay.cc",
         "ErrorMessagesOverlayProducer errorProducer(errors");
 
     assertSourceDoesNotContain("src/Interface.h", "Interface::current");

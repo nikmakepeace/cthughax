@@ -1,4 +1,6 @@
-// -*- c++ -*-
+/** @file
+ * Common display-device state, event statistics, and legacy compatibility hooks.
+ */
 
 #ifndef __DISPLAY_DEVICE_H
 #define __DISPLAY_DEVICE_H
@@ -66,10 +68,14 @@ struct DisplayEventStats {
     /** Number of expose/redraw events processed. */
     int exposeEvents;
 
+    /** Nonzero when the platform requested application shutdown. */
+    int closeRequested;
+
     DisplayEventStats()
         : eventCount(0)
         , resizeEvents(0)
-        , exposeEvents(0) { }
+        , exposeEvents(0)
+        , closeRequested(0) { }
 };
 
 class DisplayDevice {

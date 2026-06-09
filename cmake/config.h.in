@@ -33,6 +33,7 @@
 #cmakedefine01 WITH_MIXER
 #cmakedefine01 WITH_PULSE
 #cmakedefine01 WITH_SAVER
+#cmakedefine01 WITH_SDL3
 #cmakedefine01 WITH_X11
 
 #define DEV_DSP "@CTH_DEV_DSP@"

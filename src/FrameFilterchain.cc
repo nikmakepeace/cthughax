@@ -2,10 +2,18 @@
 
 #include "ProcessServices.h"
 
+#include <chrono>
+
 FrameFilter::~FrameFilter() { }
 
 const char* FrameFilter::name() const {
     return "frame-filter";
+}
+
+static double filterchainNowSeconds() {
+    std::chrono::steady_clock::duration elapsed
+        = std::chrono::steady_clock::now().time_since_epoch();
+    return std::chrono::duration<double>(elapsed).count();
 }
 
 FrameFilterFrame::FrameFilterFrame(FrameRenderTarget& buffer_, const FrameGeneratorContext& context_,
@@ -179,6 +187,10 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContex
     indexedFrameValue = IndexedFrame();
     FrameFilterFrame frame(buffer, context, framePaletteValue, &indexedFrameValue,
         *logValue);
+    int traceTiming = logValue->traceEnabled();
+    double runStartSeconds = traceTiming ? filterchainNowSeconds() : 0.0;
+    int executedFilters = 0;
+    int skippedFilters = 0;
 
     for (unsigned int stageIndex = 0; stageIndex < sequence.size(); stageIndex++) {
         unsigned int stage = sequence[stageIndex];
@@ -191,10 +203,23 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContex
                     "skipping disabled stage=%u filter=%s ptr=%p\n",
                     filters[filterIndex].stage, filters[filterIndex].filter->name(),
                     filters[filterIndex].filter);
+                skippedFilters++;
                 continue;
             }
 
+            double filterStartSeconds = traceTiming ? filterchainNowSeconds() : 0.0;
+            FrameFilterRunMode mode = filters[filterIndex].mode;
             filters[filterIndex].filter->execute(frame);
+            executedFilters++;
+            if (traceTiming) {
+                double filterEndSeconds = filterchainNowSeconds();
+                logValue->trace("frame filterchain",
+                    "filter-ms=%.3f stage=%u filter=%s ptr=%p mode=%d\n",
+                    (filterEndSeconds - filterStartSeconds) * 1000.0,
+                    filters[filterIndex].stage,
+                    filters[filterIndex].filter->name(),
+                    filters[filterIndex].filter, int(mode));
+            }
 
             if (filters[filterIndex].mode == FrameFilterArmedOnce) {
                 logValue->trace("frame filterchain",
@@ -204,6 +229,15 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContex
                 filters[filterIndex].mode = FrameFilterDisabled;
             }
         }
+    }
+
+    if (traceTiming) {
+        double runEndSeconds = filterchainNowSeconds();
+        logValue->trace("frame filterchain",
+            "run-ms=%.3f stages=%d filters=%d executed=%d skipped=%d published=%d\n",
+            (runEndSeconds - runStartSeconds) * 1000.0,
+            int(sequence.size()), size(), executedFilters, skippedFilters,
+            indexedFrameValue.valid() ? 1 : 0);
     }
 }
 

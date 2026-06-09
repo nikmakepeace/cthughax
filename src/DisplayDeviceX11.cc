@@ -1,7 +1,10 @@
-// X11 display backend.
-// Owns the X Toolkit event loop, window or root-window target, XImage/XPixmap
-// backing storage, optional MIT-SHM acceleration, text overlay rendering, and
-// palette translation for both true-color and indexed-color X visuals.
+/** @file
+ * X11 display backend.
+ *
+ * Owns the X Toolkit event loop, window or root-window target, XImage/XPixmap
+ * backing storage, optional MIT-SHM acceleration, text overlay rendering, and
+ * palette translation for both true-color and indexed-color X visuals.
+ */
 
 #include "cthugha.h"
 #include "DisplayDevice.h"
@@ -106,13 +109,6 @@ public:
         renderOverlayCommands(device, presentation.overlays);
     }
 };
-
-xy screenSizes[]
-    = { xy(320, 200), xy(640, 480), xy(800, 600), xy(1024, 768), xy(1152, 864), xy(1280, 1024) };
-int nScreenSizes = sizeof(screenSizes) / sizeof(xy);
-xy bufferSizes[]
-    = { xy(160, 100), xy(320, 240), xy(400, 300), xy(512, 384), xy(576, 450), xy(600, 512) };
-int nBufferSizes = sizeof(bufferSizes) / sizeof(xy);
 
 int display_override_redirect = 0; // bypass the window manager
 int private_cmap = 0; // allocate a window-private colormap

@@ -3,6 +3,10 @@
 These benchmarks use Google Benchmark. They are disabled by default so normal
 builds do not require benchmark headers.
 
+The scene-script macro benchmark is different: it runs the SDL3 application
+itself against a deterministic script and reads the app trace output. It does
+not require `CTH_BUILD_BENCHMARKS`.
+
 Configure and build:
 
 ```sh
@@ -10,6 +14,52 @@ cmake -S . -B build -DCTH_BUILD_BENCHMARKS=ON
 cmake --build build --target audio_pipeline_bench
 cmake --build build --target visual_effects_bench
 ```
+
+## Scene Script Macro Benchmark
+
+`scene_script_benchmark_report` runs `cthugha` at `1600x1200` with the perf
+scene script in `tests/fixtures/ini/perf/perf.scenescript`, a fixed audio
+fixture, trace logging, and autochange locked by default. It summarizes the real
+app path, including per-filter timings grouped by scene, filterchain run timing,
+audio-frame timing, display timing, and main-loop timing.
+
+Configure an SDL3 build and run the report target:
+
+```sh
+cmake -S . -B build \
+  -DCTH_BUILD_X11=OFF \
+  -DCTH_BUILD_SDL3=ON \
+  -DCTH_ENABLE_MINIAUDIO=ON \
+  -DCTH_ENABLE_PULSE=OFF
+cmake --build build --target scene_script_benchmark_report
+```
+
+Run directly:
+
+```sh
+tools/run_scene_script_benchmark.py --build-dir build
+```
+
+Override the default buffer size:
+
+```sh
+tools/run_scene_script_benchmark.py --build-dir build --buffer-size 640x480
+```
+
+Allow the normal scene autochanger to run during the scripted benchmark:
+
+```sh
+tools/run_scene_script_benchmark.py --build-dir build --allow-autochange
+```
+
+Reports are written under:
+
+```text
+build/test-results/scene-script/
+```
+
+Each report directory contains the raw combined trace, `manifest.json` with
+git/build/fixture metadata, parsed `metrics.json`, and `summary.md`.
 
 ## Audio Pipeline
 
@@ -74,7 +124,7 @@ Run selected fixtures:
 CTH_VISUAL_FIXTURES=gradient,captured build/tests/benchmarks/visual_effects_bench
 ```
 
-Run a larger synthetic fixture:
+Run a smaller synthetic fixture:
 
 ```sh
 build/tests/benchmarks/visual_effects_bench --cth-buffer-size=640x480
@@ -112,9 +162,15 @@ The report runner defaults to:
 - 20 ms minimum time per measured repetition;
 - microsecond timing units;
 - spread metrics over all measured repetitions;
-- `160x100` benchmark buffers unless a different size is passed to the runner.
+- `1600x1200` benchmark buffers unless a different size is passed to the runner.
 
-Run a sized report directly:
+Run the default sized report directly:
+
+```sh
+tools/run_visual_effects_benchmarks.py --build-dir build
+```
+
+Run a smaller report directly:
 
 ```sh
 tools/run_visual_effects_benchmarks.py --build-dir build --buffer-size 640x480

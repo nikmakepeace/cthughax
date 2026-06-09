@@ -1,3 +1,7 @@
+/** @file
+ * Unit tests for display-runtime delegation and presentation payloads.
+ */
+
 #include "DisplayRuntime.h"
 #include "FramePalette.h"
 #include "InputQueue.h"
@@ -108,6 +112,7 @@ static void testProcessEventsDelegatesToBackend() {
     backend.nextStats.eventCount = 5;
     backend.nextStats.resizeEvents = 2;
     backend.nextStats.exposeEvents = 1;
+    backend.nextStats.closeRequested = 1;
     DisplayRuntime runtime(backend);
     IgnoringInputSink input;
 
@@ -117,6 +122,7 @@ static void testProcessEventsDelegatesToBackend() {
     assert(stats.eventCount == 5);
     assert(stats.resizeEvents == 2);
     assert(stats.exposeEvents == 1);
+    assert(stats.closeRequested == 1);
 }
 
 static void testOutputSizeDelegatesToBackend() {

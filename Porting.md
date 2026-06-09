@@ -1,13 +1,14 @@
 
-## SDL3 macOS Buildout And Test Plan
+## SDL3 Linux-First Buildout And Test Plan
 
 This section describes how to build the SDL3 Display driver and prove it works
-on macOS without weakening the explicit-dependency goal. It is intentionally
-more operational than the module plan above. The expected outcome is a display
-driver that can coexist with X11 in the same source tree, can be compiled on
-macOS without X11/XQuartz, can be selected at runtime when compiled, and can be
-tested with fast headless unit tests plus a small number of explicit windowed
-macOS smoke tests.
+on the first native target, Debian 13/trixie amd64, without weakening the
+explicit-dependency goal. It is intentionally more operational than the module
+plan above. The expected outcome is a display driver that can coexist with the
+legacy X11 frontend in the same source tree, can be compiled without the X11
+frontend target, can be selected at runtime when compiled, and can be tested
+with fast headless unit tests plus a small number of explicit windowed Linux
+smoke tests. macOS remains a later compatibility target, not the first proof.
 
 Reference assumptions to re-check at implementation time:
 
@@ -19,93 +20,103 @@ Reference assumptions to re-check at implementation time:
   `SDL_RenderPresent`, and `SDL_PollEvent`.
 - SDL3 event names use the `SDL_EVENT_*` form, including key, quit, window
   resize, window pixel-size, expose, and close-request events.
-- macOS windowed tests must run from a GUI login session and on the main thread.
-  They should not be part of the default noninteractive test run.
+- Windowed tests must run from a graphical session, normally Wayland or X11 on
+  Debian, and on the main thread. They should not be part of the default
+  noninteractive test run.
 
-### macOS Prerequisites
+### Debian 13 Prerequisites
 
-Use Homebrew for the first macOS path because it supplies an SDL3 package with a
-CMake config file and keeps the developer workflow short. The initial
-verification matrix should cover both Apple Silicon and Intel macOS if possible,
-but one architecture is enough for the first local proof.
+Use Debian packages for the first Linux path because Debian 13/trixie supplies
+SDL3 development files and keeps the workflow close to the likely first target.
+The initial verification matrix should cover Debian 13 amd64; other Linux
+distributions and macOS can follow once the backend contract is stable.
 
 Install tools:
 
 ```sh
-xcode-select --install
-brew update
-brew install cmake ninja sdl3
+sudo apt update
+sudo apt install build-essential cmake ninja-build libsdl3-dev
 ```
 
 Use a dedicated build directory so X11 and SDL3 experiments never overwrite the
 known X11 build:
 
 ```sh
-cmake -S . -B build-sdl3-macos -G Ninja \
+cmake -S . -B build-sdl3-linux -G Ninja \
   -DCTH_BUILD_X11=OFF \
   -DCTH_BUILD_SDL3=ON \
   -DCTH_BUILD_TESTS=ON \
-  -DCTH_BUILD_BENCHMARKS=OFF \
-  -DCMAKE_PREFIX_PATH="$(brew --prefix sdl3)"
-cmake --build build-sdl3-macos
-ctest --test-dir build-sdl3-macos --output-on-failure
+  -DCTH_BUILD_BENCHMARKS=OFF
+cmake --build build-sdl3-linux
+ctest --test-dir build-sdl3-linux --output-on-failure
 ```
 
-If CMake cannot locate SDL3 through `brew --prefix sdl3`, retry with the broader
-Homebrew prefix:
+If CMake cannot locate SDL3 from the system package, first verify that the CMake
+config file is installed:
 
 ```sh
-cmake -S . -B build-sdl3-macos -G Ninja \
+dpkg -L libsdl3-dev | grep -E 'SDL3.*Config\.cmake|sdl3.*config\.cmake'
+```
+
+Then retry with the installed prefix if needed:
+
+```sh
+cmake -S . -B build-sdl3-linux -G Ninja \
   -DCTH_BUILD_X11=OFF \
   -DCTH_BUILD_SDL3=ON \
   -DCTH_BUILD_TESTS=ON \
-  -DCMAKE_PREFIX_PATH="$(brew --prefix)"
+  -DSDL3_DIR=/usr/lib/x86_64-linux-gnu/cmake/SDL3
 ```
 
-Do not require an app bundle for the first driver. A command-line executable run
-from Terminal is sufficient for development. App bundle, Info.plist, signing,
-and notarization concerns belong to a later packaging pass after the driver
-contract is stable.
+Do not require desktop integration packaging for the first driver. A command-line
+executable run from a terminal inside a graphical session is sufficient for
+development. `.desktop` files, AppImage/Flatpak packaging, and macOS app-bundle
+concerns belong to later packaging passes after the driver contract is stable.
 
 ### Build-System Shape
 
 The build must support three useful display configurations:
 
 1. `CTH_BUILD_X11=ON`, `CTH_BUILD_SDL3=OFF`: current Linux/X11 behavior.
-2. `CTH_BUILD_X11=OFF`, `CTH_BUILD_SDL3=ON`: macOS SDL3 behavior with no X11
-   requirement.
+2. `CTH_BUILD_X11=OFF`, `CTH_BUILD_SDL3=ON`: SDL3 behavior with no legacy X11
+   frontend target.
 3. `CTH_BUILD_X11=ON`, `CTH_BUILD_SDL3=ON`: one executable with runtime driver
    selection, useful on systems where both frontends are installed.
 
-Add these CMake controls:
+The top-level `CTH_BUILD_SDL3` option already exists. Keep it as the public
+switch for compiling the SDL3 display path:
 
 ```cmake
 option(CTH_BUILD_SDL3 "Build the SDL3 display driver" OFF)
 ```
 
-When `CTH_BUILD_SDL3` is enabled:
+When `CTH_BUILD_SDL3` is enabled, the remaining build wiring must:
 
 - call `find_package(SDL3 CONFIG REQUIRED)`;
-- add SDL3 driver sources to the display executable;
+- add SDL3 driver sources to a graphical executable target;
 - add a compile definition such as `CTH_SDL3`;
 - link `SDL3::SDL3`;
 - add the SDL3 include path only through the imported target, not manually;
 - keep SDL3 source files out of X11-only builds.
 
-The eventual target should be a display-neutral executable such as `cthugha`
-rather than an X11-named target. During migration, keep `xcthugha` working until
-the runtime registry exists. Once both drivers share the same display contract,
-rename or add the neutral target and optionally keep `xcthugha` as a compatibility
-alias only if the packaging path needs it.
+The runtime registry already exists, but the current source build still creates
+only the X11-named `xcthugha` target under `CTH_BUILD_X11`. Add a
+display-neutral executable such as `cthugha` for SDL3 and mixed-driver builds,
+or rename the graphical target once both frontends share the same source list.
+Keep `xcthugha` working for the X11-only path during migration and optionally
+leave it as a compatibility alias if packaging needs it.
 
-The build should not make X11 mandatory on macOS. `CTH_BUILD_X11=OFF` must skip
-all `find_package(X11 ...)`, X11 include directories, X11 libraries, and
-`CTH_XWIN` compile definitions. This is the key portability gate.
+The build should not make the legacy X11 frontend mandatory. `CTH_BUILD_X11=OFF`
+must skip all frontend-owned `find_package(X11 ...)`, X11 include directories,
+X11 libraries, and `CTH_XWIN` compile definitions. SDL3 may still use its own
+platform backends, including Wayland or X11, through the SDL3 package and
+imported target. The key portability gate is that Cthugha's X11 frontend is not
+required for an SDL3-only build.
 
 ### Configuration Shape
 
-Add a startup display-driver selection that is independent from driver-specific
-settings:
+Startup display-driver selection is already independent from driver-specific
+settings. Preserve the existing public shape:
 
 ```c++
 enum DisplayDriverId {
@@ -120,7 +131,7 @@ struct DisplayConfig {
 };
 ```
 
-Parse:
+Already parsed and tested:
 
 - ini key: `display.driver`;
 - command-line option: `--display-driver DRIVER`;
@@ -136,7 +147,8 @@ Selection rules:
 - an unavailable explicit driver is a configuration error, not a silent fallback.
 - the chosen driver id should be visible in debug/startup logs.
 
-Keep driver-specific config typed:
+Keep driver-specific config typed. `X11Config` is already compiled only under
+`CTH_XWIN`; `SDL3Config` is still to be added:
 
 - `X11Config` is only consumed by the X11 factory.
 - Add `SDL3Config` only for settings SDL3 genuinely owns.
@@ -162,47 +174,51 @@ widgets.
 
 ### Driver Contracts
 
-Introduce the driver seam before writing SDL3-specific code. The seam should be
-testable without opening a real SDL window.
-
-Core construction types:
+The driver seam has already been introduced, but its current shape differs from
+the earlier idealized module plan. Use the existing split rather than adding a
+parallel `DisplayDriver` abstraction:
 
 ```c++
 class DisplayOpenRequest {
 public:
-  DisplayConfig display;
-  X11Config* x11;       // null unless X11 is compiled and selected
-  SDL3Config* sdl3;     // null unless SDL3 is compiled and selected
-  PixelSize initialFrameSize;
+  const DisplayConfig& config;
+  DisplayPresentationSettings& presentationSettings;
   LogSink& log;
+  ...
 };
 
-class DisplayDriver {
+class DisplayBackend {
 public:
-  virtual ~DisplayDriver() { }
-  virtual int open(const DisplayOpenRequest& request) = 0;
-  virtual DisplayEventStats processEvents(InputEventSink& input,
-                                          DisplayLifecycleEventSink& lifecycle) = 0;
+  virtual ~DisplayBackend() { }
+  virtual DisplayEventStats processEvents(InputEventSink& input) = 0;
   virtual PixelSize outputSize() const = 0;
   virtual void present(const DisplayPresentation& presentation) = 0;
-  virtual void close() = 0;
 };
 
 class DisplayDriverFactory {
 public:
   virtual ~DisplayDriverFactory() { }
-  virtual DisplayDriverId id() const = 0;
-  virtual const char* name() const = 0;
-  virtual std::unique_ptr<DisplayDriver> create() = 0;
+  virtual DisplayDriverId driverId() const = 0;
+  virtual const char* driverName() const = 0;
+  virtual std::unique_ptr<DisplaySystemComponents> open(
+      const DisplayOpenRequest& request) = 0;
 };
 ```
+
+`DisplaySystemComponents` owns the driver device, backend, runtime, and display
+coordinator in shutdown-safe order. SDL3 should create equivalent components:
+a minimal SDL3 `DisplayDevice` for palette/text compatibility and the existing
+frame-palette handoff, a real SDL3 `DisplayBackend`, a `DisplayRuntime`, and a
+coordinator that reuses the backend-neutral composition path.
 
 `DisplayLifecycleEventSink` is important. Window close and app quit events are
 lifecycle events, not keyboard input. SDL3 should not translate
 `SDL_EVENT_QUIT` into a fake key and should not dispatch `RuntimeCommand`
 objects from inside the driver. It should publish a close request through a
 narrow lifecycle sink or through a typed field in `DisplayEventStats`, and
-`Application` should route that to `RuntimeShutdown`.
+`Application` should route that to `RuntimeShutdown`. This is still a required
+seam: `DisplayBackend::processEvents()` currently only accepts `InputEventSink`,
+and `DisplayEventStats` currently reports event counts but not close requests.
 
 The driver contract must be one-way:
 
@@ -232,8 +248,8 @@ Recommended objects:
   indexed pixels to the texture pixel format.
 - `Sdl3OverlayRenderer`: uses the existing `BitmapFont`/`dosVga9x14Font()` to
   draw overlay commands into the SDL renderer or into the streaming texture.
-- `Sdl3EventPump`: maps SDL events into `InputEventSink`,
-  `DisplayLifecycleEventSink`, and `DisplayEventStats`.
+- `Sdl3EventPump`: maps SDL events into `InputEventSink`, the chosen display
+  lifecycle seam, and `DisplayEventStats`.
 - `Sdl3FrameDumper`: optional diagnostic that writes the expanded frame or final
   pre-overlay frame to a portable image format for tests.
 
@@ -246,15 +262,17 @@ before returning failure.
 
 Open order:
 
-1. `DisplaySystem::open(...)` selects `DisplayDriverSDL3Factory`.
-2. `DisplayDriverSDL3` constructs empty owned members.
+1. `DisplaySystem::open(...)` selects the SDL3 `DisplayDriverFactory`.
+2. The SDL3 factory constructs empty owned SDL3 members and the matching
+   `DisplaySystemComponents`.
 3. `Sdl3VideoContext::open()` initializes SDL video.
-4. `Sdl3Window::open()` creates the window from common `DisplayConfig`.
+4. `Sdl3Window::open()` creates the window from common `DisplayConfig` plus
+   `SDL3Config`.
 5. `Sdl3Renderer::open()` creates the renderer from the window.
 6. `Sdl3Renderer` records the initial render output size.
-7. `Sdl3OverlayRenderer` receives `DisplayTextMetrics` and the shared bitmap
-   font.
-8. The driver reports open success only after window, renderer, and initial
+7. The SDL3 presentation coordinator receives the shared bitmap font metrics
+   needed to collect overlay commands.
+8. The factory returns components only after window, renderer, and initial
    output-size query all succeed.
 
 Close order:
@@ -294,14 +312,15 @@ Window flags:
 Separate these sizes:
 
 - logical window size: what the user asked for and what window events report;
-- render output size: actual drawable pixels, especially important on Retina;
+- render output size: actual drawable pixels, especially important on HiDPI
+  Linux desktops and later Retina/macOS testing;
 - source frame size: the indexed frame from Frame Generator;
 - composed indexed display frame size: output of `PresentationComposer`;
 - viewport destination: destination rectangle for rendering into output pixels.
 
-`DisplayDriverSDL3::outputSize()` should return render output pixels, not
-logical window points. On macOS Retina displays this distinction prevents blurry
-or incorrectly scaled output.
+The SDL3 backend `outputSize()` should return render output pixels, not logical
+window points. On HiDPI displays this distinction prevents blurry or incorrectly
+scaled output.
 
 On resize and pixel-size events:
 
@@ -403,7 +422,7 @@ make event behavior testable without opening a window.
 
 Event categories:
 
-- quit/close request: publish to `DisplayLifecycleEventSink`;
+- quit/close request: publish through the chosen display lifecycle seam;
 - key up: publish raw key text plus shift state to `InputEventSink`;
 - window resize/pixel-size changed: update output size and stats;
 - expose: mark a redraw/full-clear request and stats;
@@ -428,7 +447,7 @@ Keyboard mapping must match the current `KeyTranslator` expectations:
 Do not let SDL3-specific key names leak throughout the application. Keep them in
 `Sdl3KeyMapper`, and test that mapper directly.
 
-### macOS Test Layers
+### Test Layers
 
 Use four layers of tests. The first three run in normal `ctest`; the fourth is
 explicitly opt-in because it opens real windows.
@@ -450,7 +469,7 @@ explicitly opt-in because it opens real windows.
    - `DisplayConfig` parsing for `display.driver`;
    - `SDL3Config` parsing for any SDL3-specific keys;
    - SDL3 key-name mapper;
-   - viewport selection for Retina render-output sizes;
+   - viewport selection for HiDPI render-output sizes;
    - RGBA palette expansion for representative palette entries;
    - texture resize decision logic;
    - overlay layout and clipping;
@@ -467,11 +486,12 @@ explicitly opt-in because it opens real windows.
      order;
    - event pumping updates stats and sinks correctly.
 
-4. **Windowed macOS smoke tests.**
+4. **Windowed Linux smoke tests.**
    These run only when explicitly enabled, for example with
-   `CTH_RUN_WINDOW_TESTS=ON` or an environment variable. They require a logged-in
-   macOS GUI session. They should not run in default CI unless that CI has a
-   real window server.
+   `CTH_RUN_WINDOW_TESTS=ON` or an environment variable. They require a
+   graphical Linux session, usually Wayland or X11, unless a test is explicitly
+   designed for an SDL dummy/video-driver setup. They should not run in default
+   CI unless that CI has a deliberate window-server strategy.
 
 Windowed smoke targets:
 
@@ -485,10 +505,10 @@ Windowed smoke targets:
 
 The smoke binaries should be tiny and isolated from audio and full scene setup
 where possible. If the full application is used for a smoke run, pass options
-that avoid macOS audio-device dependency:
+that avoid audio-device dependency:
 
 ```sh
-./build-sdl3-macos/src/cthugha \
+./build-sdl3-linux/src/cthugha \
   --display-driver=sdl3 \
   --no-sound \
   --silent \
@@ -501,9 +521,10 @@ that avoid macOS audio-device dependency:
 If the executable is still named `xcthugha` during migration, use that name
 temporarily but do not encode it into new tests as the permanent SDL3 target.
 
-### macOS Manual Verification Matrix
+### Manual Verification Matrix
 
-After unit tests pass, run a short manual verification pass on macOS:
+After unit tests pass, run a short manual verification pass on Debian 13 amd64
+from a graphical Wayland or X11 session:
 
 1. **Startup and shutdown.**
    Launch SDL3, verify a window appears, then close the window. Confirm the app
@@ -516,10 +537,11 @@ After unit tests pass, run a short manual verification pass on macOS:
    `--display-driver=auto` and confirm the selected driver matches the compiled
    registry priority.
 
-3. **Retina output.**
-   On a Retina display, log logical window size and render output size. Confirm
-   viewport math uses render output pixels and that the image is sharp with
-   nearest-neighbor scaling.
+3. **HiDPI output.**
+   On a HiDPI display, or by moving the window between differently scaled
+   outputs where available, log logical window size and render output size.
+   Confirm viewport math uses render output pixels and that the image is sharp
+   with nearest-neighbor scaling.
 
 4. **Resize.**
    Resize the window smaller, larger, and across aspect ratios. Confirm the
@@ -550,9 +572,16 @@ After unit tests pass, run a short manual verification pass on macOS:
    test build. Confirm startup failure releases SDL resources and reports the
    reason.
 
-10. **No X11 dependency.**
-    Configure with `CTH_BUILD_X11=OFF`, uninstall or hide XQuartz if present,
-    and verify the SDL3 build still configures, builds, and runs.
+10. **No legacy X11 frontend dependency.**
+    Configure with `CTH_BUILD_X11=OFF` and verify the SDL3 build still
+    configures, builds, and runs. On Linux, SDL3 may still choose its own
+    Wayland or X11 platform backend at runtime; that is acceptable as long as
+    Cthugha's X11 frontend sources, compile definitions, and libraries are not
+    required by the SDL3-only target.
+
+After the Debian path is stable, repeat the same matrix on macOS as a
+compatibility pass. macOS windowed tests must run from a GUI login session and
+on the main thread.
 
 ### Debug And Diagnostics
 
@@ -579,20 +608,26 @@ driver-local:
 
 Dump either the expanded texture pixels before overlay or the final composited
 software buffer if the overlay renderer draws into software. Do not require
-macOS screenshots for automated pixel verification.
+desktop screenshots for automated pixel verification.
 
 ### Incremental Implementation Order
 
-1. Add `CTH_BUILD_SDL3` CMake option, SDL3 package lookup, and an empty
-   compiled-in SDL3 source file behind the option.
-2. Add `DisplayDriverId`, parser support, config tests, and help text.
-3. Add `DisplayDriverFactory`, `DisplayDriverRegistry`, and fake-factory tests.
-4. Refactor `Application` enough that driver selection lives in the Display
-   registry rather than in X11-specific calls.
-5. Add `DisplayLifecycleEventSink` or a close-request field in
-   `DisplayEventStats`.
-6. Add pure SDL3 key mapper and tests.
-7. Add pure SDL3 palette expansion and overlay layout tests.
+1. Add SDL3 package lookup, source-list wiring, compile definition, link target,
+   and a display-neutral graphical executable path behind the existing
+   `CTH_BUILD_SDL3` option.
+2. Add `SDL3Config`, parser/default support, and focused config tests for
+   SDL3-owned keys.
+3. Add the lifecycle seam: either `DisplayLifecycleEventSink` or a close-request
+   field in `DisplayEventStats`, plus routing from `Application` to
+   `RuntimeShutdown`.
+4. Register an SDL3 display factory from `Application` when `CTH_SDL3` is
+   compiled, preserving the existing registry behavior for `auto`, explicit
+   `x11`, explicit `sdl3`, unavailable explicit drivers, and no available
+   drivers.
+5. Add pure SDL3 key mapper and tests.
+6. Add pure SDL3 palette expansion and overlay layout tests.
+7. Extract or share the overlay-command collection currently living in the X11
+   coordinator so SDL3 can reuse it without including X11 headers.
 8. Implement `Sdl3VideoContext`, `Sdl3Window`, and `Sdl3Renderer` with fake API
    lifecycle tests.
 9. Implement the streaming texture present path with a deterministic unit test
@@ -600,7 +635,7 @@ macOS screenshots for automated pixel verification.
 10. Implement the real SDL3 event pump.
 11. Add a small window-open smoke binary gated behind an opt-in CMake option or
     environment variable.
-12. Run the macOS SDL3-only build with `CTH_BUILD_X11=OFF`.
+12. Run the Debian SDL3-only build with `CTH_BUILD_X11=OFF`.
 13. Run the full application with `--display-driver=sdl3 --no-sound --silent`.
 14. Add coexistence tests for builds where both X11 and SDL3 are compiled.
 15. Only after SDL3 is stable, decide whether the default `auto` priority should
@@ -608,14 +643,14 @@ macOS screenshots for automated pixel verification.
 
 ### Acceptance Criteria
 
-The SDL3 macOS buildout is complete when:
+The Linux-first SDL3 buildout is complete when:
 
-- `cmake -S . -B build-sdl3-macos -G Ninja -DCTH_BUILD_X11=OFF
-  -DCTH_BUILD_SDL3=ON -DCTH_BUILD_TESTS=ON` configures on macOS with Homebrew
-  SDL3;
-- `cmake --build build-sdl3-macos` succeeds;
+- `cmake -S . -B build-sdl3-linux -G Ninja -DCTH_BUILD_X11=OFF
+  -DCTH_BUILD_SDL3=ON -DCTH_BUILD_TESTS=ON` configures on Debian 13 amd64 with
+  the packaged SDL3 development files;
+- `cmake --build build-sdl3-linux` succeeds;
 - default `ctest` passes without opening windows;
-- opt-in SDL3 window smoke tests pass from a macOS GUI session;
+- opt-in SDL3 window smoke tests pass from a Debian graphical session;
 - the full application opens and presents frames with
   `--display-driver=sdl3 --no-sound --silent`;
 - explicit unsupported driver selection fails with a configuration diagnostic;

@@ -24,6 +24,10 @@ void FrameGeneratorPipeline::initialize(
     filterchainValue.reset(factoryValue.create(sequenceValue));
 }
 
+int FrameGeneratorPipeline::initialized() const {
+    return filterchainValue.get() != 0;
+}
+
 void FrameGeneratorPipeline::reset() {
     filterchainValue.reset();
     sequenceValue = FrameFilterchainSequence();

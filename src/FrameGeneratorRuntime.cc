@@ -71,6 +71,9 @@ int FrameGeneratorRuntime::observeQuiet(int quietLength,
 }
 
 void FrameGeneratorRuntime::initializePipeline() {
+    if (pipelineValue.initialized())
+        return;
+
     pipelineValue.initialize(sceneBindingValue.defaultFilterchainSequence());
 }
 

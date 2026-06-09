@@ -53,6 +53,8 @@ class SceneChangeScheduler;
 class SceneImageCatalog;
 class ScenePaletteCatalog;
 class SceneRuntime;
+class SceneScriptEvent;
+class SceneScriptPlayback;
 class SceneSnapshot;
 class SceneTranslationCatalog;
 class SceneWaveObjectCatalog;
@@ -97,6 +99,7 @@ class Application {
     std::unique_ptr<AutoChangeControls> autoChangeControlsValue;
     std::unique_ptr<AutoChangeQuietObserver> autoChangeQuietObserverValue;
     std::unique_ptr<SceneChangeScheduler> sceneChangeSchedulerValue;
+    std::unique_ptr<SceneScriptPlayback> sceneScriptPlaybackValue;
     std::unique_ptr<SceneImageCatalog> sceneImageCatalogValue;
     std::unique_ptr<ScenePaletteCatalog> scenePaletteCatalogValue;
     std::unique_ptr<SceneTranslationCatalog> sceneTranslationCatalogValue;
@@ -163,6 +166,15 @@ class Application {
 
     /** Destroys the audio frame pipeline and automatic scene-change state. */
     void shutdownAudioFramePipeline();
+
+    /** Loads deterministic scene-script playback when configured. */
+    int initSceneScript();
+
+    /** Applies all scene-script events due at the supplied process time. */
+    void runSceneScript(double nowSeconds);
+
+    /** Applies one scene-script scene change through normal runtime ports. */
+    void applySceneScriptEvent(const SceneScriptEvent& event);
 
     /**
      * Runs the audio side of one visual frame.

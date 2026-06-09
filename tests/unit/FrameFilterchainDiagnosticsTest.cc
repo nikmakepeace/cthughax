@@ -3,6 +3,7 @@
  */
 
 #include "FrameFilterchain.h"
+#include "FrameRenderTarget.h"
 #include "ProcessServices.h"
 
 #include <assert.h>
@@ -16,11 +17,13 @@ public:
     int debugWrites;
     int traceWrites;
     std::string lastDebug;
+    std::vector<std::string> traceMessages;
 
     RecordingLogSink()
         : debugWrites(0)
         , traceWrites(0)
-        , lastDebug() { }
+        , lastDebug()
+        , traceMessages() { }
 
     virtual int enabled(int level) const {
         return level <= CTH_LOG_TRACE;
@@ -34,8 +37,12 @@ protected:
             lastDebug = message;
             debugWrites++;
         }
-        if (level == CTH_LOG_TRACE)
+        if (level == CTH_LOG_TRACE) {
+            char message[512];
+            vsnprintf(message, sizeof(message), fmt, ap);
+            traceMessages.push_back(message);
             traceWrites++;
+        }
     }
 };
 
@@ -62,6 +69,24 @@ static void testFrameFilterchainUsesInjectedLogSink() {
 
     assert(filterchain.setStageMode(7, FrameFilterEnabled) == 1);
     assert(log.traceWrites == 1);
+
+    FrameRenderTarget target;
+    FrameGeneratorContext context;
+    filterchain.run(target, context);
+
+    int sawFilterTiming = 0;
+    int sawRunTiming = 0;
+    for (std::vector<std::string>::const_iterator it = log.traceMessages.begin();
+         it != log.traceMessages.end(); ++it) {
+        if (it->find("filter-ms=") != std::string::npos
+            && it->find("filter=test-filter") != std::string::npos)
+            sawFilterTiming = 1;
+        if (it->find("run-ms=") != std::string::npos)
+            sawRunTiming = 1;
+    }
+
+    assert(sawFilterTiming);
+    assert(sawRunTiming);
 }
 
 int main() {

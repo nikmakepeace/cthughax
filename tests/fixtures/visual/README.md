@@ -4,8 +4,9 @@
 fixtures. The benchmark also has synthetic `zero`, `impulse`, `gradient`, and
 `noise` fixtures, so this directory can be empty.
 
-The default benchmark buffer is `160x100`. Use `--cth-buffer-size=WIDTHxHEIGHT`
-to benchmark another size, for example `640x480`.
+The default benchmark buffer is `1600x1200`. Use
+`--cth-buffer-size=WIDTHxHEIGHT` to benchmark another size, for example
+`640x480`.
 
 Supported formats:
 

@@ -2,10 +2,10 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "Debug xcthugha",
+      "name": "Debug cthugha",
       "type": "cppdbg",
       "request": "launch",
-      "program": "${workspaceFolder}/build/src/xcthugha",
+      "program": "${workspaceFolder}/build/src/cthugha",
       "args": [],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -22,13 +22,13 @@
       ]
     },
     {
-      "name": "Debug xcthugha (prompt for args)",
+      "name": "Debug cthugha (prompt for args)",
       "type": "cppdbg",
       "request": "launch",
       "program": "/bin/bash",
       "args": [
         "-lc",
-        "exec \"${workspaceFolder}/build/src/xcthugha\" ${input:cthughaArgs}"
+        "exec \"${workspaceFolder}/build/src/cthugha\" ${input:cthughaArgs}"
       ],
       "stopAtEntry": false,
       "cwd": "${workspaceFolder}",
@@ -39,7 +39,7 @@
       "preLaunchTask": "CMake: build",
       "setupCommands": [
         {
-          "description": "Follow the shell exec into xcthugha",
+          "description": "Follow the shell exec into cthugha",
           "text": "set follow-exec-mode same",
           "ignoreFailures": true
         },
@@ -55,8 +55,8 @@
     {
       "id": "cthughaArgs",
       "type": "promptString",
-      "description": "Optional arguments for xcthugha, for example: -D 5 --no-joystick",
-      "default": "--no-mit-shm --play age-of-love.mp3 --buff-size 2 --display 13 --lock"
+      "description": "Optional arguments for cthugha, for example: -D 5 --no-joystick",
+      "default": "--play age-of-love.mp3 --buff-size 2 --display 13 --lock"
     }
   ]
 }

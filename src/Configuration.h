@@ -355,6 +355,18 @@ struct X11Config {
 };
 #endif
 
+struct SDL3Config {
+    int highPixelDensityEnabled;
+    int resizableWindowEnabled;
+    std::string rendererName;
+    std::string frameDumpDirectory;
+    int frameDumpLimit;
+    int frameDumpEvery;
+
+    /** Creates SDL3 display-driver configuration with default values. */
+    SDL3Config();
+};
+
 struct AutoChangeConfig {
     int quietMs;
     int waitMinMs;
@@ -424,6 +436,14 @@ struct SceneTransitionPolicy {
     SceneTransitionPolicy();
 };
 
+struct SceneScriptConfig {
+    std::string directory;
+    std::string script;
+
+    /** Creates disabled scene-script configuration. */
+    SceneScriptConfig();
+};
+
 struct MessagesConfig {
     int quietMessageMs;
     int quietMessageDurationMs;
@@ -449,9 +469,11 @@ struct Config {
 #ifdef CTH_XWIN
     X11Config x11;
 #endif
+    SDL3Config sdl3;
     AutoChangeConfig autoChange;
     EffectPolicy effectPolicy;
     SceneTransitionPolicy sceneTransition;
+    SceneScriptConfig sceneScript;
     MessagesConfig messages;
 };
 

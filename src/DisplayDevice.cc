@@ -1,3 +1,7 @@
+/** @file
+ * Shared display-device globals and legacy text rendering defaults.
+ */
+
 #include "cthugha.h"
 #include "DisplayDevice.h"
 #include "CthughaDisplay.h"
@@ -9,6 +13,13 @@ int bypp = 1; /* bytes per pixel */
 int bytes_per_line = 0;
 xy disp_size(0, 0); /* size of drawing area */
 enum draw_mode_t draw_mode = DM_mapped1; /* how drawing is done */
+
+xy screenSizes[]
+    = { xy(320, 200), xy(640, 480), xy(800, 600), xy(1024, 768), xy(1152, 864), xy(1280, 1024) };
+int nScreenSizes = sizeof(screenSizes) / sizeof(xy);
+xy bufferSizes[]
+    = { xy(160, 100), xy(320, 240), xy(400, 300), xy(512, 384), xy(576, 450), xy(600, 512) };
+int nBufferSizes = sizeof(bufferSizes) / sizeof(xy);
 
 //
 // prepare to set the global palette

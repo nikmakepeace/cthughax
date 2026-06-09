@@ -1,4 +1,6 @@
-// Defaults for typed startup configuration slices.
+/** @file
+ * Defaults for typed startup configuration slices.
+ */
 
 #ifndef CTHUGHA_CONFIGURATION_DEFAULTS_H
 #define CTHUGHA_CONFIGURATION_DEFAULTS_H
@@ -86,6 +88,13 @@ static const int X11_CONFIG_DEFAULT_PANEL_ENABLED = 0;
 static const int X11_CONFIG_DEFAULT_FRAME_DUMP_LIMIT = 1;
 static const int X11_CONFIG_DEFAULT_FRAME_DUMP_EVERY = 1;
 #endif
+
+static const int SDL3_CONFIG_DEFAULT_HIGH_PIXEL_DENSITY_ENABLED = 1;
+static const int SDL3_CONFIG_DEFAULT_RESIZABLE_WINDOW_ENABLED = 1;
+#define SDL3_CONFIG_DEFAULT_RENDERER_NAME ""
+#define SDL3_CONFIG_DEFAULT_FRAME_DUMP_DIRECTORY ""
+static const int SDL3_CONFIG_DEFAULT_FRAME_DUMP_LIMIT = 1;
+static const int SDL3_CONFIG_DEFAULT_FRAME_DUMP_EVERY = 1;
 
 #define PATH_CONFIG_DEFAULT_EXTRA_LIBRARY_PATH ""
 #define PATH_CONFIG_DEFAULT_INI_FILE_OVERRIDE_PATH ""

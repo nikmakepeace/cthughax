@@ -10,7 +10,13 @@
             "${workspaceFolder}",
             "-B",
             "${workspaceFolder}/build",
-            "-DCMAKE_BUILD_TYPE=Debug"
+            "-DCMAKE_BUILD_TYPE=Debug",
+            "-DCTH_BUILD_X11=OFF",
+            "-DCTH_BUILD_SDL3=ON",
+            "-DCTH_ENABLE_MINIAUDIO=ON",
+            "-DCTH_ENABLE_PULSE=OFF",
+            "-DCTH_BUILD_TESTS=ON",
+            "-DCTH_BUILD_BENCHMARKS=OFF"
         ],
         "options": {
             "cwd": "${workspaceFolder}"
@@ -124,12 +130,12 @@
         "problemMatcher": "$msCompile"
     },
     {
-        "label": "Run xcthugha",
+        "label": "Run cthugha",
         "type": "shell",
         "command": "bash",
         "args": [
             "-lc",
-            "exec \"${workspaceFolder}/build/src/xcthugha\" ${input:cthughaArgs}"
+            "exec \"${workspaceFolder}/build/src/cthugha\" ${input:cthughaArgs}"
         ],
         "options": {
             "cwd": "${workspaceFolder}"
@@ -142,7 +148,7 @@
     {
       "id": "cthughaArgs",
       "type": "promptString",
-      "description": "Optional arguments for xcthugha",
+      "description": "Optional arguments for cthugha",
       "default": ""
     }
   ]

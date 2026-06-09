@@ -41,6 +41,9 @@ public:
      */
     void initialize(const FrameFilterchainSequence& sequence);
 
+    /** @return Nonzero after the filterchain has been created. */
+    int initialized() const;
+
     /** Deletes the owned filterchain and published frame descriptor. */
     void reset();
 

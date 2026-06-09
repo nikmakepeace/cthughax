@@ -412,7 +412,11 @@ add_test(NAME frame_generator_context_test
 
 add_executable(frame_filterchain_diagnostics_test
     unit/FrameFilterchainDiagnosticsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalysisSnapshot.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
     ${CMAKE_SOURCE_DIR}/src/FrameFilterchain.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeneratorContext.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameRenderTarget.cc
     ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
 )
 
@@ -741,6 +745,23 @@ target_link_libraries(display_runtime_test PRIVATE m)
 
 add_test(NAME display_runtime_test COMMAND display_runtime_test)
 
+add_executable(sdl3_presentation_test
+    unit/Sdl3PresentationTest.cc
+    ${CMAKE_SOURCE_DIR}/src/Sdl3Presentation.cc
+    ${CMAKE_SOURCE_DIR}/src/OverlaySource.cc
+    ${CMAKE_SOURCE_DIR}/src/ColorPalette.cc
+)
+
+target_include_directories(sdl3_presentation_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(sdl3_presentation_test PRIVATE m)
+
+add_test(NAME sdl3_presentation_test COMMAND sdl3_presentation_test)
+
 add_executable(input_queue_test
     unit/InputQueueTest.cc
     ${CMAKE_SOURCE_DIR}/src/InputQueue.cc
@@ -896,6 +917,26 @@ target_include_directories(configuration_test PRIVATE
 target_link_libraries(configuration_test PRIVATE m)
 
 add_test(NAME configuration_test COMMAND configuration_test)
+
+add_executable(scene_script_test
+    unit/SceneScriptTest.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneScript.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+)
+
+target_compile_definitions(scene_script_test PRIVATE
+    CTH_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_include_directories(scene_script_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scene_script_test PRIVATE m)
+
+add_test(NAME scene_script_test COMMAND scene_script_test)
 
 add_executable(startup_configuration_test
     unit/StartupConfigurationTest.cc
