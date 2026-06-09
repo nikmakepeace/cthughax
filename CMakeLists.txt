@@ -56,6 +56,7 @@ set(TIME_WITH_SYS_TIME 1)
 set(WITH_SAVER 0)
 
 find_package(Threads REQUIRED)
+find_package(Python3 COMPONENTS Interpreter QUIET)
 if(CTH_BUILD_X11 OR CTH_BUILD_SDL3)
     find_package(ZLIB REQUIRED)
 endif()

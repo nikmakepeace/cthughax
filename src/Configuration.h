@@ -436,6 +436,14 @@ struct SceneTransitionPolicy {
     SceneTransitionPolicy();
 };
 
+struct SceneScriptConfig {
+    std::string directory;
+    std::string script;
+
+    /** Creates disabled scene-script configuration. */
+    SceneScriptConfig();
+};
+
 struct MessagesConfig {
     int quietMessageMs;
     int quietMessageDurationMs;
@@ -465,6 +473,7 @@ struct Config {
     AutoChangeConfig autoChange;
     EffectPolicy effectPolicy;
     SceneTransitionPolicy sceneTransition;
+    SceneScriptConfig sceneScript;
     MessagesConfig messages;
 };
 

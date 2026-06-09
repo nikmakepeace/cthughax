@@ -206,6 +206,8 @@ void usage() {
     PH(" --zoom N            Set Zoom factor to N (0 = fit window/screen)");
     PH(" --max-fps N         Set maximal frames per seond to N (0 = no limit)");
     PH(" --show-fps          Show a live FPS counter");
+    PH(" --scene-script-dir DIR  Directory containing scene-script ini files");
+    PH(" --scene-script FILE     Play deterministic scene script from DIR");
     PH("");
 
 #if WITH_X11 == 1

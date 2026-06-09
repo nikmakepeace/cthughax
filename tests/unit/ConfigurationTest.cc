@@ -105,6 +105,8 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.effectPolicy.presets.empty());
     assert(result.config.sceneTransition.paletteSmoothingChance == SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTHING_CHANCE);
     assert(result.config.sceneTransition.paletteSmoothSeconds == SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTH_SECONDS);
+    assert(result.config.sceneScript.directory.empty());
+    assert(result.config.sceneScript.script.empty());
     assert(result.config.messages.quietMessageMs == MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_MS);
     assert(result.config.messages.quietMessageDurationMs == MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_DURATION_MS);
     assert(result.config.messages.quietMessageFile == MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_FILE_PATH);
@@ -804,6 +806,22 @@ static void customDisplayAndBufferSizesAreAcceptedWithoutLegacyClamps() {
     assert(result.diagnostics.empty());
 }
 
+static void commandLineSourceBuildsSceneScriptConfig() {
+    ConfigurationBuilder builder;
+    ConfigBuildResult result = builder.addDefaults()
+        .addCommandLine(std::vector<std::string>{
+            "cthugha",
+            "--scene-script-dir",
+            "tests/fixtures/ini/perf",
+            "--scene-script=perf.scenescript",
+        })
+        .build();
+
+    assert(result.ok());
+    assert(result.config.sceneScript.directory == "tests/fixtures/ini/perf");
+    assert(result.config.sceneScript.script == "perf.scenescript");
+}
+
 static void invalidTypedValueProducesDeferredError() {
     ConfigurationBuilder builder;
     ConfigBuildResult result = builder.addDefaults()
@@ -850,6 +868,7 @@ int main() {
     iniTextSourceBuildsSdl3Config();
     commandLineSourceHandlesDisplayAndBufferSettings();
     customDisplayAndBufferSizesAreAcceptedWithoutLegacyClamps();
+    commandLineSourceBuildsSceneScriptConfig();
     invalidTypedValueProducesDeferredError();
 
     return 0;

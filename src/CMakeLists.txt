@@ -48,6 +48,7 @@ set(CTHUGHA_COMMON_SOURCES
     SceneVisualCatalogService.cc
     SceneRuntime.cc
     SceneSerializer.cc
+    SceneScript.cc
     RuntimeCommand.cc
     RuntimeDisplayControls.cc
     RuntimeAudioControls.cc
@@ -265,6 +266,18 @@ if(CTH_BUILD_SDL3)
 
     if(WITH_MINIAUDIO)
         target_link_libraries(cthugha PRIVATE cthugha_miniaudio)
+    endif()
+
+    if(Python3_Interpreter_FOUND)
+        add_custom_target(scene_script_benchmark_report
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_SOURCE_DIR}/tools/run_scene_script_benchmark.py
+                --build-dir ${CMAKE_BINARY_DIR}
+                --source-dir ${CMAKE_SOURCE_DIR}
+            DEPENDS cthugha
+            USES_TERMINAL
+            VERBATIM
+        )
     endif()
 
     install(TARGETS cthugha RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})

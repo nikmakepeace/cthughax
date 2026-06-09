@@ -52,8 +52,8 @@ struct FrameEffectsBenchConfig {
     std::string passiveImagePath;
 
     FrameEffectsBenchConfig()
-        : width(160)
-        , height(100) { }
+        : width(1600)
+        , height(1200) { }
 };
 
 FrameEffectsBenchConfig& config() {

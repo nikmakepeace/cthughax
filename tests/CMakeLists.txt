@@ -918,6 +918,26 @@ target_link_libraries(configuration_test PRIVATE m)
 
 add_test(NAME configuration_test COMMAND configuration_test)
 
+add_executable(scene_script_test
+    unit/SceneScriptTest.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneScript.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+)
+
+target_compile_definitions(scene_script_test PRIVATE
+    CTH_SOURCE_DIR="${CMAKE_SOURCE_DIR}"
+)
+
+target_include_directories(scene_script_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(scene_script_test PRIVATE m)
+
+add_test(NAME scene_script_test COMMAND scene_script_test)
+
 add_executable(startup_configuration_test
     unit/StartupConfigurationTest.cc
     ${CMAKE_SOURCE_DIR}/src/Configuration.cc

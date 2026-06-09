@@ -16,7 +16,7 @@ from pathlib import Path
 SCHEMA = "cthughanix.visual-effects-benchmarks.v1"
 DEFAULT_REPETITIONS = 20
 DEFAULT_MIN_TIME = "0.02s"
-DEFAULT_BUFFER_SIZE = "160x100"
+DEFAULT_BUFFER_SIZE = "1600x1200"
 VISIBLE_PIXELS_NOTE = "one item is one visible indexed pixel"
 
 

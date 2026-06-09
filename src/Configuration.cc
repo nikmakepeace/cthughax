@@ -105,6 +105,8 @@ static const char* KEY_SCENE_TRANSITION_PALETTE_SMOOTHING_CHANCE
     = "scene_transition.palette_smoothing_chance";
 static const char* KEY_SCENE_TRANSITION_PALETTE_SMOOTH_SECONDS
     = "scene_transition.palette_smooth_seconds";
+static const char* KEY_SCENE_SCRIPT_DIRECTORY = "scene_script.directory";
+static const char* KEY_SCENE_SCRIPT_FILE = "scene_script.file";
 static const char* KEY_AUTO_CHANGE_QUIET_MS = "auto_change.quiet_ms";
 static const char* KEY_AUTO_CHANGE_WAIT_MIN_MS = "auto_change.wait_min_ms";
 static const char* KEY_AUTO_CHANGE_WAIT_RANDOM_MS
@@ -1437,6 +1439,19 @@ static void applyCommandLineOption(ConfigPatch& patch,
             patch.set(KEY_DISPLAY_ZOOM_MODE, value, "command line");
     } else if (startsWith(arg, "--zoom=")) {
         patch.set(KEY_DISPLAY_ZOOM_MODE, arg.substr(7), "command line");
+    } else if (arg == "--scene-script-dir") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_SCENE_SCRIPT_DIRECTORY, value, "command line");
+    } else if (startsWith(arg, "--scene-script-dir=")) {
+        patch.set(KEY_SCENE_SCRIPT_DIRECTORY, arg.substr(19),
+            "command line");
+    } else if (arg == "--scene-script") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_SCENE_SCRIPT_FILE, value, "command line");
+    } else if (startsWith(arg, "--scene-script=")) {
+        patch.set(KEY_SCENE_SCRIPT_FILE, arg.substr(15), "command line");
 #ifdef CTH_XWIN
     } else if (arg == "--mit-shm") {
         setX11Boolean(patch, "command line", KEY_X11_MIT_SHM, 1);
@@ -2319,6 +2334,10 @@ SceneTransitionPolicy::SceneTransitionPolicy()
     , paletteSmoothSeconds(
         SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTH_SECONDS) { }
 
+SceneScriptConfig::SceneScriptConfig()
+    : directory()
+    , script() { }
+
 MessagesConfig::MessagesConfig()
     : quietMessageMs(MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_MS)
     , quietMessageDurationMs(MESSAGES_CONFIG_DEFAULT_QUIET_MESSAGE_DURATION_MS)
@@ -2558,6 +2577,10 @@ Config ConfigSchema::build(const ConfigPatch& patch,
     applyMinimumIntEntry(patch, diagnostics,
         KEY_SCENE_TRANSITION_PALETTE_SMOOTH_SECONDS, 0,
         &config.sceneTransition.paletteSmoothSeconds);
+    if (const std::string* value = patch.value(KEY_SCENE_SCRIPT_DIRECTORY))
+        config.sceneScript.directory = *value;
+    if (const std::string* value = patch.value(KEY_SCENE_SCRIPT_FILE))
+        config.sceneScript.script = *value;
 
     applyMinimumIntEntry(patch, diagnostics, KEY_AUTO_CHANGE_QUIET_MS, 0,
         &config.autoChange.quietMs);
@@ -2975,6 +2998,8 @@ ConfigPatch hardcodedDefaultConfigPatch() {
     defaults.set(KEY_SCENE_TRANSITION_PALETTE_SMOOTH_SECONDS,
         integerText(SCENE_TRANSITION_POLICY_DEFAULT_PALETTE_SMOOTH_SECONDS),
         "defaults");
+    defaults.set(KEY_SCENE_SCRIPT_DIRECTORY, "", "defaults");
+    defaults.set(KEY_SCENE_SCRIPT_FILE, "", "defaults");
 #ifdef CTH_XWIN
     defaults.set(KEY_X11_OVERRIDE_REDIRECT,
         booleanText(X11_CONFIG_DEFAULT_OVERRIDE_REDIRECT), "defaults");

@@ -48,6 +48,7 @@
 #include "ScenePaletteCatalog.h"
 #include "ScenePaletteCatalogLoader.h"
 #include "SceneRuntime.h"
+#include "SceneScript.h"
 #include "SceneTranslationCatalog.h"
 #include "SceneVisualCatalogServiceFactory.h"
 #include "SceneVisualSelectionFactory.h"
@@ -470,6 +471,62 @@ void Application::shutdownAudioFramePipeline() {
     audioFramePipelineValue.reset();
 }
 
+int Application::initSceneScript() {
+    const SceneScriptConfig& config = startupConfigValue.sceneScript;
+    if (config.script.empty()) {
+        if (!config.directory.empty()) {
+            logSinkValue.warn("Ignoring --scene-script-dir without --scene-script.\n");
+        }
+        return 0;
+    }
+
+    SceneScriptLoadResult script = loadSceneScript(config);
+    emitStartupConfigDiagnostics(script.diagnostics, logSinkValue);
+    if (!script.ok())
+        return 1;
+
+    sceneScriptPlaybackValue.reset(new SceneScriptPlayback(script.events));
+    logSinkValue.info("Loaded scene script `%s' from `%s' events=%d\n",
+        config.script.c_str(), config.directory.c_str(),
+        int(script.events.size()));
+    return 0;
+}
+
+void Application::applySceneScriptEvent(const SceneScriptEvent& event) {
+    logSinkValue.debug("scene script: step=%d file=%s elapsed-ms=%d\n",
+        event.step, event.fileName.c_str(), event.elapsedMs);
+
+    sceneRuntimeValue->applyStartupConfig(event.scene);
+    if (!event.scene.presentation.empty()
+        && runtimeDisplayControlsValue.get() != NULL)
+        runtimeDisplayControlsValue->changePresentationTo(
+            event.scene.presentation.c_str());
+    if (!event.scene.audioProcessing.empty()
+        && runtimeAudioControlsValue.get() != NULL)
+        runtimeAudioControlsValue->changeSoundProcessingTo(
+            event.scene.audioProcessing.c_str());
+}
+
+void Application::runSceneScript(double nowSeconds) {
+    if (sceneScriptPlaybackValue.get() == NULL)
+        return;
+
+    const SceneScriptEvent* event = 0;
+    while ((event = sceneScriptPlaybackValue->nextDue(nowSeconds)) != NULL) {
+        if (event->stop) {
+            logSinkValue.info("scene script: stop step=%d elapsed-ms=%d\n",
+                event->step, event->elapsedMs);
+            sceneScriptPlaybackValue->consumeDue();
+            if (runtimeShutdownValue.get() != NULL)
+                runtimeShutdownValue->requestClose();
+            return;
+        }
+
+        applySceneScriptEvent(*event);
+        sceneScriptPlaybackValue->consumeDue();
+    }
+}
+
 void Application::runAudioFramePipeline(AudioFrame& frame) {
     initAudioFramePipeline();
     audioFramePipelineValue->processFrame(frame);
@@ -515,6 +572,7 @@ void Application::shutdown() {
     shutdownAudioIngest();
     shutdownFrameGeneratorPipeline();
     shutdownSceneRuntime();
+    sceneScriptPlaybackValue.reset();
     shutdownMixerRuntime();
 }
 
@@ -548,6 +606,8 @@ int Application::initialize() {
         usage();
         return 0;
     }
+    if (initSceneScript())
+        return 0;
 
     commandsInputValue->configureInput(startupConfigValue.input);
     configureTranslationOptions(startupConfigValue.effectPolicy);
@@ -791,6 +851,9 @@ void Application::runFrame(int doDisplay) {
     // Analyze audio and run option-changing policy before visual filters read
     // SceneSettings.
     runAudioFramePipeline(audioFrame);
+    runSceneScript(secondsClockValue.nowSeconds());
+    if (closeRequested())
+        return;
     if (traceFrameTiming)
         frameTiming[3] = secondsClockValue.nowSeconds();
 
