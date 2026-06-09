@@ -77,26 +77,28 @@ The build must support three useful display configurations:
 3. `CTH_BUILD_X11=ON`, `CTH_BUILD_SDL3=ON`: one executable with runtime driver
    selection, useful on systems where both frontends are installed.
 
-Add these CMake controls:
+The top-level `CTH_BUILD_SDL3` option already exists. Keep it as the public
+switch for compiling the SDL3 display path:
 
 ```cmake
 option(CTH_BUILD_SDL3 "Build the SDL3 display driver" OFF)
 ```
 
-When `CTH_BUILD_SDL3` is enabled:
+When `CTH_BUILD_SDL3` is enabled, the remaining build wiring must:
 
 - call `find_package(SDL3 CONFIG REQUIRED)`;
-- add SDL3 driver sources to the display executable;
+- add SDL3 driver sources to a graphical executable target;
 - add a compile definition such as `CTH_SDL3`;
 - link `SDL3::SDL3`;
 - add the SDL3 include path only through the imported target, not manually;
 - keep SDL3 source files out of X11-only builds.
 
-The eventual target should be a display-neutral executable such as `cthugha`
-rather than an X11-named target. During migration, keep `xcthugha` working until
-the runtime registry exists. Once both drivers share the same display contract,
-rename or add the neutral target and optionally keep `xcthugha` as a compatibility
-alias only if the packaging path needs it.
+The runtime registry already exists, but the current source build still creates
+only the X11-named `xcthugha` target under `CTH_BUILD_X11`. Add a
+display-neutral executable such as `cthugha` for SDL3 and mixed-driver builds,
+or rename the graphical target once both frontends share the same source list.
+Keep `xcthugha` working for the X11-only path during migration and optionally
+leave it as a compatibility alias if packaging needs it.
 
 The build should not make X11 mandatory on macOS. `CTH_BUILD_X11=OFF` must skip
 all `find_package(X11 ...)`, X11 include directories, X11 libraries, and
@@ -104,8 +106,8 @@ all `find_package(X11 ...)`, X11 include directories, X11 libraries, and
 
 ### Configuration Shape
 
-Add a startup display-driver selection that is independent from driver-specific
-settings:
+Startup display-driver selection is already independent from driver-specific
+settings. Preserve the existing public shape:
 
 ```c++
 enum DisplayDriverId {
@@ -120,7 +122,7 @@ struct DisplayConfig {
 };
 ```
 
-Parse:
+Already parsed and tested:
 
 - ini key: `display.driver`;
 - command-line option: `--display-driver DRIVER`;
@@ -136,7 +138,8 @@ Selection rules:
 - an unavailable explicit driver is a configuration error, not a silent fallback.
 - the chosen driver id should be visible in debug/startup logs.
 
-Keep driver-specific config typed:
+Keep driver-specific config typed. `X11Config` is already compiled only under
+`CTH_XWIN`; `SDL3Config` is still to be added:
 
 - `X11Config` is only consumed by the X11 factory.
 - Add `SDL3Config` only for settings SDL3 genuinely owns.
@@ -162,47 +165,51 @@ widgets.
 
 ### Driver Contracts
 
-Introduce the driver seam before writing SDL3-specific code. The seam should be
-testable without opening a real SDL window.
-
-Core construction types:
+The driver seam has already been introduced, but its current shape differs from
+the earlier idealized module plan. Use the existing split rather than adding a
+parallel `DisplayDriver` abstraction:
 
 ```c++
 class DisplayOpenRequest {
 public:
-  DisplayConfig display;
-  X11Config* x11;       // null unless X11 is compiled and selected
-  SDL3Config* sdl3;     // null unless SDL3 is compiled and selected
-  PixelSize initialFrameSize;
+  const DisplayConfig& config;
+  DisplayPresentationSettings& presentationSettings;
   LogSink& log;
+  ...
 };
 
-class DisplayDriver {
+class DisplayBackend {
 public:
-  virtual ~DisplayDriver() { }
-  virtual int open(const DisplayOpenRequest& request) = 0;
-  virtual DisplayEventStats processEvents(InputEventSink& input,
-                                          DisplayLifecycleEventSink& lifecycle) = 0;
+  virtual ~DisplayBackend() { }
+  virtual DisplayEventStats processEvents(InputEventSink& input) = 0;
   virtual PixelSize outputSize() const = 0;
   virtual void present(const DisplayPresentation& presentation) = 0;
-  virtual void close() = 0;
 };
 
 class DisplayDriverFactory {
 public:
   virtual ~DisplayDriverFactory() { }
-  virtual DisplayDriverId id() const = 0;
-  virtual const char* name() const = 0;
-  virtual std::unique_ptr<DisplayDriver> create() = 0;
+  virtual DisplayDriverId driverId() const = 0;
+  virtual const char* driverName() const = 0;
+  virtual std::unique_ptr<DisplaySystemComponents> open(
+      const DisplayOpenRequest& request) = 0;
 };
 ```
+
+`DisplaySystemComponents` owns the driver device, backend, runtime, and display
+coordinator in shutdown-safe order. SDL3 should create equivalent components:
+a minimal SDL3 `DisplayDevice` for palette/text compatibility and the existing
+frame-palette handoff, a real SDL3 `DisplayBackend`, a `DisplayRuntime`, and a
+coordinator that reuses the backend-neutral composition path.
 
 `DisplayLifecycleEventSink` is important. Window close and app quit events are
 lifecycle events, not keyboard input. SDL3 should not translate
 `SDL_EVENT_QUIT` into a fake key and should not dispatch `RuntimeCommand`
 objects from inside the driver. It should publish a close request through a
 narrow lifecycle sink or through a typed field in `DisplayEventStats`, and
-`Application` should route that to `RuntimeShutdown`.
+`Application` should route that to `RuntimeShutdown`. This is still a required
+seam: `DisplayBackend::processEvents()` currently only accepts `InputEventSink`,
+and `DisplayEventStats` currently reports event counts but not close requests.
 
 The driver contract must be one-way:
 
@@ -232,8 +239,8 @@ Recommended objects:
   indexed pixels to the texture pixel format.
 - `Sdl3OverlayRenderer`: uses the existing `BitmapFont`/`dosVga9x14Font()` to
   draw overlay commands into the SDL renderer or into the streaming texture.
-- `Sdl3EventPump`: maps SDL events into `InputEventSink`,
-  `DisplayLifecycleEventSink`, and `DisplayEventStats`.
+- `Sdl3EventPump`: maps SDL events into `InputEventSink`, the chosen display
+  lifecycle seam, and `DisplayEventStats`.
 - `Sdl3FrameDumper`: optional diagnostic that writes the expanded frame or final
   pre-overlay frame to a portable image format for tests.
 
@@ -246,15 +253,17 @@ before returning failure.
 
 Open order:
 
-1. `DisplaySystem::open(...)` selects `DisplayDriverSDL3Factory`.
-2. `DisplayDriverSDL3` constructs empty owned members.
+1. `DisplaySystem::open(...)` selects the SDL3 `DisplayDriverFactory`.
+2. The SDL3 factory constructs empty owned SDL3 members and the matching
+   `DisplaySystemComponents`.
 3. `Sdl3VideoContext::open()` initializes SDL video.
-4. `Sdl3Window::open()` creates the window from common `DisplayConfig`.
+4. `Sdl3Window::open()` creates the window from common `DisplayConfig` plus
+   `SDL3Config`.
 5. `Sdl3Renderer::open()` creates the renderer from the window.
 6. `Sdl3Renderer` records the initial render output size.
-7. `Sdl3OverlayRenderer` receives `DisplayTextMetrics` and the shared bitmap
-   font.
-8. The driver reports open success only after window, renderer, and initial
+7. The SDL3 presentation coordinator receives the shared bitmap font metrics
+   needed to collect overlay commands.
+8. The factory returns components only after window, renderer, and initial
    output-size query all succeed.
 
 Close order:
@@ -299,9 +308,9 @@ Separate these sizes:
 - composed indexed display frame size: output of `PresentationComposer`;
 - viewport destination: destination rectangle for rendering into output pixels.
 
-`DisplayDriverSDL3::outputSize()` should return render output pixels, not
-logical window points. On macOS Retina displays this distinction prevents blurry
-or incorrectly scaled output.
+The SDL3 backend `outputSize()` should return render output pixels, not logical
+window points. On macOS Retina displays this distinction prevents blurry or
+incorrectly scaled output.
 
 On resize and pixel-size events:
 
@@ -403,7 +412,7 @@ make event behavior testable without opening a window.
 
 Event categories:
 
-- quit/close request: publish to `DisplayLifecycleEventSink`;
+- quit/close request: publish through the chosen display lifecycle seam;
 - key up: publish raw key text plus shift state to `InputEventSink`;
 - window resize/pixel-size changed: update output size and stats;
 - expose: mark a redraw/full-clear request and stats;
@@ -583,16 +592,22 @@ macOS screenshots for automated pixel verification.
 
 ### Incremental Implementation Order
 
-1. Add `CTH_BUILD_SDL3` CMake option, SDL3 package lookup, and an empty
-   compiled-in SDL3 source file behind the option.
-2. Add `DisplayDriverId`, parser support, config tests, and help text.
-3. Add `DisplayDriverFactory`, `DisplayDriverRegistry`, and fake-factory tests.
-4. Refactor `Application` enough that driver selection lives in the Display
-   registry rather than in X11-specific calls.
-5. Add `DisplayLifecycleEventSink` or a close-request field in
-   `DisplayEventStats`.
-6. Add pure SDL3 key mapper and tests.
-7. Add pure SDL3 palette expansion and overlay layout tests.
+1. Add SDL3 package lookup, source-list wiring, compile definition, link target,
+   and a display-neutral graphical executable path behind the existing
+   `CTH_BUILD_SDL3` option.
+2. Add `SDL3Config`, parser/default support, and focused config tests for
+   SDL3-owned keys.
+3. Add the lifecycle seam: either `DisplayLifecycleEventSink` or a close-request
+   field in `DisplayEventStats`, plus routing from `Application` to
+   `RuntimeShutdown`.
+4. Register an SDL3 display factory from `Application` when `CTH_SDL3` is
+   compiled, preserving the existing registry behavior for `auto`, explicit
+   `x11`, explicit `sdl3`, unavailable explicit drivers, and no available
+   drivers.
+5. Add pure SDL3 key mapper and tests.
+6. Add pure SDL3 palette expansion and overlay layout tests.
+7. Extract or share the overlay-command collection currently living in the X11
+   coordinator so SDL3 can reuse it without including X11 headers.
 8. Implement `Sdl3VideoContext`, `Sdl3Window`, and `Sdl3Renderer` with fake API
    lifecycle tests.
 9. Implement the streaming texture present path with a deterministic unit test
