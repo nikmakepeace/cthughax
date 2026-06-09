@@ -1,3 +1,7 @@
+/** @file
+ * Display driver registry and active display-system ownership.
+ */
+
 #include "DisplaySystem.h"
 
 #include "CthughaDisplay.h"
@@ -110,6 +114,8 @@ int DisplaySystem::open(DisplayDriverRegistry& registry,
             displayDriverIdName(request.config.driver));
         return 1;
     }
+
+    request.log.info("Using display driver `%s'.\n", factory->driverName());
 
     std::unique_ptr<DisplaySystemComponents> components = factory->open(request);
     if (components.get() == 0)
