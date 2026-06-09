@@ -28,6 +28,7 @@
 #cmakedefine01 TIME_WITH_SYS_TIME
 
 #cmakedefine01 WITH_DSP
+#cmakedefine01 WITH_MINIAUDIO
 #cmakedefine01 WITH_MINIMP3
 #cmakedefine01 WITH_MIXER
 #cmakedefine01 WITH_PULSE

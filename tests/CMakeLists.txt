@@ -1481,6 +1481,13 @@ add_executable(audio_device_negotiation_test
     ${CMAKE_SOURCE_DIR}/src/imath.cc
 )
 
+if(WITH_MINIAUDIO)
+    target_sources(audio_device_negotiation_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioCapturePcmSource.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioImplementation.cc
+    )
+endif()
+
 target_compile_definitions(audio_device_negotiation_test PRIVATE
     CTH_AUDIO_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/audio"
 )
@@ -1493,7 +1500,109 @@ target_include_directories(audio_device_negotiation_test PRIVATE
 
 target_link_libraries(audio_device_negotiation_test PRIVATE m)
 
+if(WITH_MINIAUDIO)
+    target_link_libraries(audio_device_negotiation_test PRIVATE
+        cthugha_miniaudio
+    )
+endif()
+
 add_test(NAME audio_device_negotiation_test COMMAND audio_device_negotiation_test)
+
+add_executable(runtime_factory_audio_output_test
+    unit/RuntimeFactoryAudioOutputTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioDSPOutput.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioInternal.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioOutputConfig.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioOutputDump.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioOutput.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioPulseOutput.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioSettings.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
+    ${CMAKE_SOURCE_DIR}/src/DspPcmSource.cc
+    ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
+    ${CMAKE_SOURCE_DIR}/src/PcmSourceFactory.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeFactory.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+if(WITH_MINIAUDIO)
+    target_sources(runtime_factory_audio_output_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/AudioMiniAudioOutput.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioCapturePcmSource.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioImplementation.cc
+    )
+endif()
+
+target_include_directories(runtime_factory_audio_output_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+    ${PULSE_INCLUDE_DIRS}
+)
+
+target_compile_options(runtime_factory_audio_output_test PRIVATE
+    ${PULSE_CFLAGS_OTHER}
+)
+
+target_compile_definitions(runtime_factory_audio_output_test PRIVATE
+    RUNTIME_FACTORY_TEST_HOOKS
+)
+
+target_link_libraries(runtime_factory_audio_output_test PRIVATE
+    Threads::Threads
+    m
+)
+
+if(WITH_PULSE)
+    target_link_libraries(runtime_factory_audio_output_test PRIVATE
+        ${PULSE_LIBRARIES}
+    )
+    target_link_directories(runtime_factory_audio_output_test PRIVATE
+        ${PULSE_LIBRARY_DIRS}
+    )
+endif()
+
+if(WITH_MINIAUDIO)
+    target_link_libraries(runtime_factory_audio_output_test PRIVATE
+        cthugha_miniaudio
+    )
+endif()
+
+add_test(NAME runtime_factory_audio_output_test
+    COMMAND runtime_factory_audio_output_test)
+
+if(WITH_MINIAUDIO)
+    add_executable(miniaudio_capture_pcm_source_test
+        unit/MiniAudioCapturePcmSourceTest.cc
+        ${CMAKE_SOURCE_DIR}/src/AudioSettings.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioCapturePcmSource.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioImplementation.cc
+        ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
+        ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+        ${CMAKE_SOURCE_DIR}/src/imath.cc
+    )
+
+    target_compile_definitions(miniaudio_capture_pcm_source_test PRIVATE
+        AUDIO_CAPTURE_TEST_HOOKS
+    )
+
+    target_include_directories(miniaudio_capture_pcm_source_test PRIVATE
+        ${CMAKE_BINARY_DIR}
+        ${CMAKE_BINARY_DIR}/src
+        ${CMAKE_SOURCE_DIR}/src
+    )
+
+    target_link_libraries(miniaudio_capture_pcm_source_test PRIVATE
+        cthugha_miniaudio
+        m
+    )
+
+    add_test(NAME miniaudio_capture_pcm_source_test
+        COMMAND miniaudio_capture_pcm_source_test)
+endif()
 
 add_executable(audio_output_config_test
     unit/AudioOutputConfigTest.cc
@@ -1505,10 +1614,23 @@ add_executable(audio_output_config_test
     ${CMAKE_SOURCE_DIR}/src/AudioOutput.cc
     ${CMAKE_SOURCE_DIR}/src/AudioPulseOutput.cc
     ${CMAKE_SOURCE_DIR}/src/AudioSettings.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
     ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
     ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
     ${CMAKE_SOURCE_DIR}/src/imath.cc
 )
+
+if(WITH_MINIAUDIO)
+    target_sources(audio_output_config_test PRIVATE
+        ${CMAKE_SOURCE_DIR}/src/AudioMiniAudioOutput.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioImplementation.cc
+        ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
+    )
+    target_compile_definitions(audio_output_config_test PRIVATE
+        AUDIO_OUTPUT_TEST_HOOKS
+        CTH_AUDIO_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/audio"
+    )
+endif()
 
 target_include_directories(audio_output_config_test PRIVATE
     ${CMAKE_BINARY_DIR}
@@ -1524,6 +1646,10 @@ target_link_libraries(audio_output_config_test PRIVATE m)
 if(WITH_PULSE)
     target_link_libraries(audio_output_config_test PRIVATE ${PULSE_LIBRARIES})
     target_link_directories(audio_output_config_test PRIVATE ${PULSE_LIBRARY_DIRS})
+endif()
+
+if(WITH_MINIAUDIO)
+    target_link_libraries(audio_output_config_test PRIVATE cthugha_miniaudio)
 endif()
 
 add_test(NAME audio_output_config_test COMMAND audio_output_config_test)
@@ -1549,6 +1675,80 @@ target_include_directories(audio_output_dump_test PRIVATE
 target_link_libraries(audio_output_dump_test PRIVATE m)
 
 add_test(NAME audio_output_dump_test COMMAND audio_output_dump_test)
+
+if(WITH_MINIAUDIO)
+    set(MINIAUDIO_SMOKE_SOURCES
+        ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
+        ${CMAKE_SOURCE_DIR}/src/AudioInternal.cc
+        ${CMAKE_SOURCE_DIR}/src/AudioMiniAudioOutput.cc
+        ${CMAKE_SOURCE_DIR}/src/AudioOutput.cc
+        ${CMAKE_SOURCE_DIR}/src/AudioOutputConfig.cc
+        ${CMAKE_SOURCE_DIR}/src/AudioOutputDump.cc
+        ${CMAKE_SOURCE_DIR}/src/DecodedAudioHistory.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioImplementation.cc
+        ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+        ${CMAKE_SOURCE_DIR}/src/imath.cc
+    )
+
+    add_executable(miniaudio_playback_open_smoke
+        smoke/MiniAudioPlaybackOpenSmoke.cc
+        ${MINIAUDIO_SMOKE_SOURCES}
+    )
+
+    add_executable(miniaudio_sine_smoke
+        smoke/MiniAudioSineSmoke.cc
+        ${MINIAUDIO_SMOKE_SOURCES}
+    )
+
+    add_executable(miniaudio_file_passthrough_smoke
+        smoke/MiniAudioFilePassthroughSmoke.cc
+        ${MINIAUDIO_SMOKE_SOURCES}
+        ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
+    )
+
+    add_executable(miniaudio_capture_smoke
+        smoke/MiniAudioCaptureSmoke.cc
+        ${CMAKE_SOURCE_DIR}/src/AudioSettings.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioCapturePcmSource.cc
+        ${CMAKE_SOURCE_DIR}/src/MiniAudioImplementation.cc
+        ${CMAKE_SOURCE_DIR}/src/PcmSource.cc
+        ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+        ${CMAKE_SOURCE_DIR}/src/imath.cc
+    )
+
+    foreach(MINIAUDIO_SMOKE_TARGET
+        miniaudio_playback_open_smoke
+        miniaudio_sine_smoke
+        miniaudio_file_passthrough_smoke
+        miniaudio_capture_smoke)
+        target_include_directories(${MINIAUDIO_SMOKE_TARGET} PRIVATE
+            ${CMAKE_BINARY_DIR}
+            ${CMAKE_BINARY_DIR}/src
+            ${CMAKE_SOURCE_DIR}/src
+        )
+
+        target_link_libraries(${MINIAUDIO_SMOKE_TARGET} PRIVATE
+            cthugha_miniaudio
+            Threads::Threads
+            m
+        )
+    endforeach()
+
+    target_compile_definitions(miniaudio_file_passthrough_smoke PRIVATE
+        CTH_AUDIO_FIXTURE_DIR="${CMAKE_SOURCE_DIR}/tests/fixtures/audio"
+    )
+
+    if(CTH_RUN_AUDIO_DEVICE_TESTS)
+        add_test(NAME miniaudio_playback_open_smoke
+            COMMAND miniaudio_playback_open_smoke)
+        add_test(NAME miniaudio_sine_smoke
+            COMMAND miniaudio_sine_smoke)
+        add_test(NAME miniaudio_file_passthrough_smoke
+            COMMAND miniaudio_file_passthrough_smoke)
+        add_test(NAME miniaudio_capture_smoke
+            COMMAND miniaudio_capture_smoke)
+    endif()
+endif()
 
 add_executable(audio_frame_pipeline_test
     unit/AudioFramePipelineTest.cc
@@ -1817,28 +2017,30 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target format_warning_clean
     )
 
-    add_library(xaw_warning_clean OBJECT
-        ${CMAKE_SOURCE_DIR}/src/DisplayDeviceX11-Panel.cc
-    )
+    if(CTH_BUILD_X11)
+        add_library(xaw_warning_clean OBJECT
+            ${CMAKE_SOURCE_DIR}/src/DisplayDeviceX11-Panel.cc
+        )
 
-    target_compile_definitions(xaw_warning_clean PRIVATE
-        CTH_LIBDIR="${CTH_DATA_DIR}"
-    )
+        target_compile_definitions(xaw_warning_clean PRIVATE
+            CTH_LIBDIR="${CTH_DATA_DIR}"
+        )
 
-    target_include_directories(xaw_warning_clean PRIVATE
-        ${CMAKE_BINARY_DIR}
-        ${CMAKE_BINARY_DIR}/src
-        ${CMAKE_SOURCE_DIR}/src
-        ${X11_INCLUDE_DIR}
-    )
+        target_include_directories(xaw_warning_clean PRIVATE
+            ${CMAKE_BINARY_DIR}
+            ${CMAKE_BINARY_DIR}/src
+            ${CMAKE_SOURCE_DIR}/src
+            ${X11_INCLUDE_DIR}
+        )
 
-    target_compile_options(xaw_warning_clean PRIVATE
-        -Werror=writable-strings
-    )
+        target_compile_options(xaw_warning_clean PRIVATE
+            -Werror=writable-strings
+        )
 
-    add_test(NAME xaw_warning_clean_build
-        COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target xaw_warning_clean
-    )
+        add_test(NAME xaw_warning_clean_build
+            COMMAND ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR} --target xaw_warning_clean
+        )
+    endif()
 
     add_library(waves_warning_clean OBJECT
         ${CMAKE_SOURCE_DIR}/src/waves.cc

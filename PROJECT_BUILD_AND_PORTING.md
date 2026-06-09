@@ -34,8 +34,11 @@ The main executable target is:
 Major CMake options:
 
 - `CTH_BUILD_X11`: build the X11 frontend. Default: `ON`.
+- `CTH_BUILD_TESTS`: build and register focused unit tests. Default: `ON`.
 - `CTH_BUILD_BENCHMARKS`: build Google Benchmark performance suites. Default:
   `OFF`.
+- `CTH_RUN_AUDIO_DEVICE_TESTS`: register opt-in smoke tests that open real
+  audio devices. Default: `OFF`.
 - `CTH_ENABLE_PULSE`: enable PulseAudio/PipeWire-Pulse output when
   `libpulse-simple` is available. Default: `ON`.
 - `CTH_ENABLE_DSP`: enable OSS `/dev/dsp` support when soundcard headers are
@@ -43,6 +46,11 @@ Major CMake options:
 - `CTH_ENABLE_MIXER`: enable OSS mixer controls when soundcard headers are
   available. Default: `ON`.
 - `CTH_ENABLE_MINIMP3`: enable embedded minimp3 decoding. Default: `ON`.
+- `CTH_ENABLE_MINIAUDIO`: enable vendored miniaudio playback and capture
+  devices. Default: `ON`.
+- `CTH_MINIAUDIO_NO_RUNTIME_LINKING`: on Apple builds, define
+  `MA_NO_RUNTIME_LINKING` and link miniaudio's required frameworks explicitly.
+  Default: `OFF`.
 - `CTH_DATA_DIR`: installed runtime data directory. Default:
   `${CMAKE_INSTALL_FULL_DATADIR}/cthughanix`.
 
@@ -76,9 +84,19 @@ X11 frontend:
 Audio and media:
 
 - embedded minimp3 for native MP3 decoding;
+- vendored miniaudio under `external/miniaudio` for cross-platform playback
+  and capture;
 - optional PulseAudio-compatible output via `libpulse-simple`;
 - optional OSS `/dev/dsp`;
 - optional OSS mixer ioctls.
+
+Miniaudio does not require a system miniaudio package. On Linux it runtime-loads
+native backends such as ALSA, PulseAudio, JACK, and sndio when available. The
+project disables miniaudio's legacy OSS/audio(4) backends and keeps the
+existing Cthugha OSS code as the only OSS path. On Apple, the default build uses
+miniaudio runtime framework loading; app-bundle/signing paths can configure
+with `CTH_MINIAUDIO_NO_RUNTIME_LINKING=ON` to link CoreFoundation, CoreAudio,
+and AudioToolbox explicitly.
 
 ## Verified Commands
 
@@ -91,6 +109,57 @@ ctest --test-dir build --output-on-failure
 tests/headers/check-headers.sh
 env -u DISPLAY build/src/xcthugha --help
 ```
+
+Useful miniaudio verification commands from a clean build directory:
+
+```sh
+cmake -S . -B build-miniaudio-x11 -G Ninja \
+  -DCTH_BUILD_X11=ON \
+  -DCTH_ENABLE_MINIAUDIO=ON \
+  -DCTH_BUILD_TESTS=ON \
+  -DCTH_BUILD_BENCHMARKS=OFF
+cmake --build build-miniaudio-x11
+ctest --test-dir build-miniaudio-x11 --output-on-failure
+```
+
+```sh
+cmake -S . -B build-miniaudio-no-pulse-oss -G Ninja \
+  -DCTH_BUILD_X11=OFF \
+  -DCTH_ENABLE_MINIAUDIO=ON \
+  -DCTH_ENABLE_PULSE=OFF \
+  -DCTH_ENABLE_DSP=OFF \
+  -DCTH_ENABLE_MIXER=OFF \
+  -DCTH_BUILD_TESTS=ON \
+  -DCTH_BUILD_BENCHMARKS=OFF
+cmake --build build-miniaudio-no-pulse-oss
+ctest --test-dir build-miniaudio-no-pulse-oss --output-on-failure
+```
+
+Real-device miniaudio smoke tests are opt-in because they open playback and
+capture devices:
+
+```sh
+cmake -S . -B build-miniaudio-device-tests -G Ninja \
+  -DCTH_ENABLE_MINIAUDIO=ON \
+  -DCTH_RUN_AUDIO_DEVICE_TESTS=ON
+cmake --build build-miniaudio-device-tests
+ctest --test-dir build-miniaudio-device-tests \
+  -R 'miniaudio_.*_smoke' --output-on-failure
+```
+
+Those smoke tests intentionally fail if miniaudio falls back to the Null
+backend, because passing them is evidence of a real audio device path.
+
+When the default device is not the target device, pass exact miniaudio device
+names at runtime:
+
+```sh
+./build-miniaudio-x11/src/xcthugha \
+  --audio-output-driver=miniaudio \
+  --miniaudio-playback-device "Built-in Output"
+```
+
+Live capture can similarly use `--miniaudio-capture-device NAME`.
 
 The help path should print usage before any X11 initialization. Normal runs now
 defer display startup until the display initialization section, after option
@@ -152,9 +221,11 @@ The audio seams are now the only playback/input model:
 
 Good next steps:
 
-- Add an ALSA/PipeWire-native input/output path through these interfaces.
-- Add targeted tests for raw PCM, EOF/drain handling, and latency-driven visual
-  sample selection.
+- Keep characterizing miniaudio against PulseAudio-compatible output on Linux
+  before changing Linux automatic output priority.
+- Add native sinks only if miniaudio fails a documented platform requirement.
+- Add more targeted tests for raw PCM, EOF/drain handling, and latency-driven
+  visual sample selection.
 - Keep visual code reading through `audioFrameRawData()` and
   `audioFrameProcessedWaveData()`.
 

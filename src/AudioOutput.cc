@@ -85,6 +85,11 @@ int AudioOutput::playbackComplete(const AudioOutputStream& stream, int inputFini
     return inputFinished && (stream.queuedForOutputSamples() == 0);
 }
 
+int AudioOutput::callbackDrainComplete(const AudioOutputStream& stream,
+    int inputFinished) const {
+    return playbackComplete(stream, inputFinished);
+}
+
 AudioNullOutput::AudioNullOutput(SecondsClock& clock_, LogSink& log_,
     const AudioOutputConfig& config,
     AudioOutputDump* outputDump)

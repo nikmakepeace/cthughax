@@ -1030,7 +1030,9 @@ After unit tests pass, run a short manual pass on each target platform:
 5. Run WAV `SF_s16_le`, MP3 decoded `SF_s16_le`, random `SF_u8`, and a raw
    format fixture if available.
 6. Test explicit `--audio-output-driver=miniaudio` and fallback behavior when
-   the device cannot open.
+   the device cannot open. On hosts with multiple devices, also test exact-name
+   selection with `--miniaudio-playback-device NAME` and
+   `--miniaudio-capture-device NAME`.
 7. On Linux, compare Pulse and miniaudio for underrun count, latency, and visual
    sync before changing automatic priority.
 8. After SDL3 lands, repeat the same miniaudio checks with

@@ -19,9 +19,12 @@
 #define PATH_MAX 4096
 #endif
 
+class AudioPlaybackClock;
 class AudioOutputStream;
 class DecodedAudioHistory;
 class AudioSettings;
+class MiniAudioCapturePcmSourceState;
+class AudioMiniAudioOutputState;
 class LogSink;
 class RandomSource;
 class SecondsClock;
@@ -188,6 +191,10 @@ public:
 
     /** Stops optional backend-owned callback draining. */
     virtual void stopCallbackDrain() { }
+
+    /** @return Nonzero when backend-owned callback drain is complete. */
+    virtual int callbackDrainComplete(const AudioOutputStream& stream,
+        int inputFinished) const;
 };
 
 class AudioNullOutput : public AudioOutput {
@@ -295,6 +302,10 @@ public:
     /** Stops PulseAudio callback drain and releases callback scratch state. */
     virtual void stopCallbackDrain();
 
+    /** @return Nonzero when PulseAudio callback drain has submitted all input. */
+    virtual int callbackDrainComplete(const AudioOutputStream& stream,
+        int inputFinished) const;
+
     /** Called by the PulseAudio write callback when bytes may be drained. */
     void pulseWritable(size_t requestedBytes);
 
@@ -318,6 +329,110 @@ public:
 
     /** @return Adaptive decoded-audio lead target for Pulse callback drain. */
     virtual int queuedTargetSamples() const;
+};
+
+class AudioMiniAudioOutput : public AudioOutput {
+    AudioMiniAudioOutputState* state;
+
+    void open(const PcmFormat& format);
+    void close();
+    void drainCallback(void* output, unsigned int frameCount);
+    void startCallbackDrainForStream(AudioOutputStream& stream,
+        const std::atomic<int>* inputFinished, int scratchSamples);
+
+protected:
+    virtual int defaultTargetLatencyMs() const;
+    virtual int timingScratchSamples(int inputChunkSamples, int targetDelaySamples) const;
+
+public:
+    enum MiniAudioDeviceSampleFormat {
+        MiniAudioDeviceSampleFormatUnknown = 0,
+        MiniAudioDeviceSampleFormatU8,
+        MiniAudioDeviceSampleFormatS16,
+        MiniAudioDeviceSampleFormatF32
+    };
+
+    /**
+     * Opens a miniaudio playback device for an explicit PCM format.
+     *
+     * Uses the configured miniaudio playback device name when one is supplied,
+     * otherwise opens the platform default playback device.
+     *
+     * @param format PCM format produced by the current audio session.
+     * @param clock_ Clock used for output diagnostics.
+     * @param log_ Sink for output diagnostics.
+     * @param config Output startup/session config.
+     * @param outputDump Optional submitted-PCM dump collaborator.
+     * @param autoOpen Nonzero to open miniaudio immediately.
+     */
+    explicit AudioMiniAudioOutput(const PcmFormat& format,
+        SecondsClock& clock_, LogSink& log_,
+        const AudioOutputConfig& config = AudioOutputConfig(),
+        AudioOutputDump* outputDump = NULL, int autoOpen = 1);
+
+    /** Stops callback drain and closes miniaudio resources. */
+    virtual ~AudioMiniAudioOutput();
+
+    /** Synchronous writes are not used by the miniaudio callback backend. */
+    virtual int write(const void* buffer, int size);
+
+    /** @return Nonzero when the miniaudio device is open. */
+    virtual int isOpen() const;
+
+    /** @return Nonzero because miniaudio provides hardware pacing. */
+    virtual int isRealtime() const;
+
+    /** Reopens miniaudio using the session PCM format. */
+    virtual void update();
+
+    /** @return Nonzero when miniaudio callback drain can run. */
+    virtual int supportsCallbackDrain() const;
+
+    /** Starts miniaudio callback drain over the provided output stream. */
+    virtual void startCallbackDrain(AudioOutputStream& stream,
+        const std::atomic<int>* inputFinished, int scratchSamples);
+
+    /** Miniaudio callbacks are device-driven; this is a no-op wake hint. */
+    virtual void notifyCallbackDrain();
+
+    /** Stops miniaudio callback drain without closing the device. */
+    virtual void stopCallbackDrain();
+
+    /** @return Nonzero when callback drain has submitted all finite input. */
+    virtual int callbackDrainComplete(const AudioOutputStream& stream,
+        int inputFinished) const;
+
+    /** @return Current miniaudio presentation-delay estimate. */
+    virtual int presentationDelaySamples() const;
+
+    /** @return Decoded-audio lead target for miniaudio callback drain. */
+    virtual int queuedTargetSamples() const;
+
+    /** @return Number of miniaudio callback underruns observed by this instance. */
+    int underflowCount() const;
+
+    /** @return Human-readable miniaudio backend name selected for this device. */
+    const char* backendName() const;
+
+#ifdef AUDIO_OUTPUT_TEST_HOOKS
+    static MiniAudioDeviceSampleFormat testDeviceSampleFormatFor(
+        const PcmFormat& format, int* directCopy);
+    static int testBackendNameIsNull(const char* backendName);
+    static int testPresentationDelaySamples(int sampleRate,
+        int targetLatencyMs, int internalPeriodFrames, int internalPeriods);
+    void testStartCallbackDrainWithoutDevice(AudioOutputStream& stream,
+        const std::atomic<int>* inputFinished, int scratchSamples);
+    void testStartCallbackDrainWithoutDeviceFormat(AudioOutputStream& stream,
+        const std::atomic<int>* inputFinished, int scratchSamples,
+        MiniAudioDeviceSampleFormat callbackFormat, int callbackChannels);
+    void testDrainCallback(void* output, unsigned int frameCount);
+    void testLogConnectedDiagnostics(const char* backendName,
+        const char* deviceName, int sampleRate, int channels,
+        MiniAudioDeviceSampleFormat callbackFormat, int directCopy,
+        int requestedPeriodMilliseconds, int requestedPeriods,
+        int internalPeriodFrames, int internalPeriods,
+        int presentationDelaySamples);
+#endif
 };
 
 class AudioDSPOutput : public AudioOutput {
@@ -450,6 +565,35 @@ public:
 };
 
 /**
+ * Atomic playback position shared by output callbacks and visual timing.
+ *
+ * Values are absolute PCM sample-frame positions, never ring-buffer offsets.
+ */
+class AudioPlaybackClock {
+    std::atomic<long long> submittedEndSample;
+    std::atomic<int> presentationDelaySampleCount;
+
+public:
+    /** Creates a clock at sample zero with no presentation delay. */
+    AudioPlaybackClock();
+
+    /** Publishes the absolute sample frame after the latest submitted output. */
+    void publishSubmittedEndSample(long long sample);
+
+    /** Publishes the estimated device/output delay in sample frames. */
+    void publishPresentationDelaySamples(int samples);
+
+    /** @return Absolute sample frame after the latest submitted output. */
+    long long submittedEndPosition() const;
+
+    /** @return Current presentation delay in sample frames. */
+    int presentationDelaySamples() const;
+
+    /** @return Submitted sample position minus delay, clamped to zero. */
+    long long presentationCenterSample() const;
+};
+
+/**
  * Output-side cursor over decoded PCM history.
  *
  * Audio passthrough owns this object. It advances independently of acquisition
@@ -458,6 +602,7 @@ public:
  */
 class AudioOutputStream {
     const DecodedAudioHistory& history;
+    AudioPlaybackClock* playbackClock;
     long long submittedEndSample;
     mutable std::mutex mutex;
 
@@ -467,8 +612,11 @@ public:
      *
      * @param history_ Decoded PCM history to read from. The referenced object
      *        must outlive this stream.
+     * @param playbackClock_ Optional clock to publish committed output
+     *        positions to. The referenced object must outlive this stream.
      */
-    AudioOutputStream(const DecodedAudioHistory& history_);
+    AudioOutputStream(const DecodedAudioHistory& history_,
+        AudioPlaybackClock* playbackClock_ = NULL);
 
     /** Resets the submitted cursor to the given absolute sample-frame position. */
     void reset(long long samplePosition = 0);
@@ -858,6 +1006,64 @@ public:
      * @param processedWaveData Destination buffer for 1024 processed samples.
      */
     void fft(char2* raw, char2* processedWaveData);
+};
+
+class MiniAudioCapturePcmSource : public PcmSource {
+    MiniAudioCapturePcmSourceState* state;
+
+    int open();
+    void close();
+
+public:
+    /**
+     * Opens a miniaudio capture device.
+     *
+     * Uses the configured miniaudio capture device name when one is supplied,
+     * otherwise opens the platform default capture device.
+     *
+     * @param settings Desired live-input PCM format.
+     * @param log_ Sink for capture diagnostics.
+     * @param autoOpen Nonzero to open miniaudio immediately.
+     */
+    explicit MiniAudioCapturePcmSource(const AudioSettings& settings,
+        LogSink& log_, int autoOpen = 1);
+
+    /** Stops capture and releases miniaudio resources. */
+    virtual ~MiniAudioCapturePcmSource();
+
+    /** Reads captured PCM frames from the miniaudio callback ring buffer. */
+    virtual int read(char* dst, int rawSize, int samplesRequested);
+
+    /** @return Byte capacity required for a capture read. */
+    virtual int rawBufferSize(int frameRawSize, int samplesRequested) const;
+
+    /** Reopens the miniaudio capture device using the negotiated format. */
+    virtual void update();
+
+    /** Writes capture callback frames into this source's PCM ring buffer. */
+    void writeCapturedFrames(const void* input, unsigned int frames);
+
+    /** @return Nonzero when the capture device is open. */
+    int isOpen() const;
+
+    /** @return Number of capture callback overruns observed by this instance. */
+    int overrunCount() const;
+
+    /** @return Human-readable miniaudio backend name selected for capture. */
+    const char* backendName() const;
+
+#ifdef AUDIO_CAPTURE_TEST_HOOKS
+    static int testBackendNameIsNull(const char* backendName);
+    void testInitializeRingWithoutDevice(int ringFrames);
+    void testInitializeRingWithoutDeviceFormat(int sampleRate, int channels,
+        int sampleFormat, int ringFrames);
+    void testWriteCapturedFrames(const void* input, unsigned int frames);
+    void testLogConnectedDiagnostics(const char* backendName,
+        const char* deviceName, int sampleRate, int channels,
+        int sampleFormat, int ringFrames);
+    int testAvailableReadFrames() const;
+    void testSetError(int value);
+#endif
 };
 
 class DspPcmSource : public PcmSource {

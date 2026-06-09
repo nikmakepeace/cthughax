@@ -87,7 +87,16 @@ void usage() {
         audioChannelsText(AUDIO_CONFIG_DEFAULT_CHANNELS));
     PH(" --snd-format FMT    Set sound format to FMT",
         audioSampleFormatText(AUDIO_CONFIG_DEFAULT_FORMAT));
+    PH(" --audio-output-driver DRIVER  Select auto, null, pulse, oss, or miniaudio");
     PH("");
+
+#if WITH_MINIAUDIO == 1
+    PH("miniaudio output options:");
+    PH(" --miniaudio-target-latency-ms N  Set miniaudio output target latency");
+    PH(" --miniaudio-playback-device NAME Set miniaudio playback device");
+    PH(" --miniaudio-capture-device NAME  Set miniaudio capture device");
+    PH("");
+#endif
 
 #if WITH_PULSE == 1
     PH("PulseAudio output options:");

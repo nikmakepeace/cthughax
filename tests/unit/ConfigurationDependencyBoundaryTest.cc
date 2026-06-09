@@ -3,10 +3,13 @@
  */
 
 #include <assert.h>
+#include <dirent.h>
 #include <stdio.h>
+#include <sys/stat.h>
 #include <fstream>
 #include <sstream>
 #include <string>
+#include <vector>
 
 #ifndef CTHUGHA_SOURCE_DIR
 #error CTHUGHA_SOURCE_DIR must point at the repository root
@@ -24,6 +27,79 @@ static std::string readSourceFile(const char* relativePath) {
     return contents.str();
 }
 
+static int stringEndsWith(const std::string& value, const char* suffix) {
+    std::string needle = suffix;
+    if (needle.size() > value.size())
+        return 0;
+    return value.compare(value.size() - needle.size(), needle.size(),
+        needle) == 0;
+}
+
+static int sourcePathIsScanned(const std::string& relativePath) {
+    return stringEndsWith(relativePath, ".cc")
+        || stringEndsWith(relativePath, ".h")
+        || stringEndsWith(relativePath, ".c")
+        || stringEndsWith(relativePath, ".hpp");
+}
+
+static void appendSourcePathsRecursive(const std::string& relativeDirectory,
+    std::vector<std::string>& paths) {
+    std::string absoluteDirectory = std::string(CTHUGHA_SOURCE_DIR) + "/"
+        + relativeDirectory;
+    DIR* dir = opendir(absoluteDirectory.c_str());
+    assert(dir != NULL);
+
+    struct dirent* entry = NULL;
+    while ((entry = readdir(dir)) != NULL) {
+        std::string name = entry->d_name;
+        if ((name == ".") || (name == ".."))
+            continue;
+
+        std::string relativePath = relativeDirectory + "/" + name;
+        std::string absolutePath = std::string(CTHUGHA_SOURCE_DIR) + "/"
+            + relativePath;
+        struct stat st;
+        if (stat(absolutePath.c_str(), &st) != 0)
+            continue;
+
+        if (S_ISDIR(st.st_mode)) {
+            appendSourcePathsRecursive(relativePath, paths);
+        } else if (S_ISREG(st.st_mode) && sourcePathIsScanned(relativePath)) {
+            paths.push_back(relativePath);
+        }
+    }
+
+    closedir(dir);
+}
+
+static int pathIsAllowed(const std::string& path, const char* const* allowed,
+    int allowedCount) {
+    for (int i = 0; i < allowedCount; i++) {
+        if (path == allowed[i])
+            return 1;
+    }
+    return 0;
+}
+
+static void assertOnlySourceFilesContain(const char* relativeDirectory,
+    const char* token, const char* const* allowed, int allowedCount) {
+    std::vector<std::string> paths;
+    appendSourcePathsRecursive(relativeDirectory, paths);
+
+    for (std::vector<std::string>::const_iterator it = paths.begin();
+         it != paths.end(); ++it) {
+        std::string contents = readSourceFile(it->c_str());
+        if (contents.find(token) == std::string::npos)
+            continue;
+
+        if (!pathIsAllowed(*it, allowed, allowedCount)) {
+            fprintf(stderr, "%s contains `%s` but is not on the allowlist\n",
+                it->c_str(), token);
+        }
+        assert(pathIsAllowed(*it, allowed, allowedCount));
+    }
+}
+
 static void assertSourceDoesNotContain(const char* relativePath,
     const char* token) {
     std::string path = std::string(CTHUGHA_SOURCE_DIR) + "/" + relativePath;
@@ -39,6 +115,12 @@ static void assertSourceDoesNotContain(const char* relativePath,
     assert(contents.find(token) == std::string::npos);
 }
 
+static void assertSourceFilesDoNotContain(const char* const* relativePaths,
+    int pathCount, const char* token) {
+    for (int i = 0; i < pathCount; i++)
+        assertSourceDoesNotContain(relativePaths[i], token);
+}
+
 static void assertSourceDoesNotExist(const char* relativePath) {
     std::string path = std::string(CTHUGHA_SOURCE_DIR) + "/" + relativePath;
     std::ifstream file(path.c_str());
@@ -52,6 +134,24 @@ static void assertSourceContains(const char* relativePath, const char* token) {
     if (contents.find(token) == std::string::npos)
         fprintf(stderr, "%s does not contain `%s`\n", relativePath, token);
     assert(contents.find(token) != std::string::npos);
+}
+
+static void assertSourceOccurrenceCount(const char* relativePath,
+    const char* token, int expectedCount) {
+    std::string contents = readSourceFile(relativePath);
+    std::string needle = token;
+    size_t position = 0;
+    int count = 0;
+
+    while ((position = contents.find(needle, position)) != std::string::npos) {
+        count++;
+        position += needle.size();
+    }
+
+    if (count != expectedCount)
+        fprintf(stderr, "%s contains `%s` %d times, expected %d\n",
+            relativePath, token, count, expectedCount);
+    assert(count == expectedCount);
 }
 
 static void testAudioIngestUsesAudioConfig() {
@@ -291,8 +391,10 @@ static void testAudioOutputSettingsAreSessionOwned() {
     assertSourceContains("src/RuntimeFactory.cc",
         "new AudioPulseOutput(format, clock, log,");
     assertSourceContains("src/RuntimeFactory.cc",
+        "new AudioMiniAudioOutput(format, clock,");
+    assertSourceContains("src/RuntimeFactory.cc",
         "new AudioDSPOutput(settings, outputConfig,\n"
-        "            visualMaxDimension, clock, log, outputDump)");
+        "                visualMaxDimension, clock, log, outputDump)");
     assertSourceContains("src/AudioOutput.cc",
         "AudioOutput::AudioOutput(int targetLatencyMs, AudioOutputDump* outputDump,\n"
         "    SecondsClock& clock_, LogSink& log_)");
@@ -308,6 +410,90 @@ static void testAudioOutputSettingsAreSessionOwned() {
     assertSourceContains("src/AudioPulseOutput.cc", "logSink().warn");
     assertSourceContains("src/AudioPulseOutput.cc", "logSink().error");
     assertSourceContains("src/AudioPulseOutput.cc", "logSink().trace");
+    assertSourceContains("src/AudioMiniAudioOutput.cc", "#include \"miniaudio.h\"");
+    assertSourceContains("src/MiniAudioCapturePcmSource.cc",
+        "#include \"miniaudio.h\"");
+    assertSourceContains("src/MiniAudioImplementation.cc",
+        "#define MINIAUDIO_IMPLEMENTATION");
+    assertSourceContains("src/MiniAudioImplementation.cc", "#include \"miniaudio.h\"");
+    assertSourceOccurrenceCount("src/MiniAudioImplementation.cc",
+        "MINIAUDIO_IMPLEMENTATION", 1);
+    const char* miniaudioSourceFiles[] = {
+        "src/AudioMiniAudioOutput.cc",
+        "src/MiniAudioCapturePcmSource.cc",
+        "src/MiniAudioImplementation.cc"
+    };
+    assertOnlySourceFilesContain("src", "#include \"miniaudio.h\"",
+        miniaudioSourceFiles, 3);
+    const char* miniaudioImplementationFiles[] = {
+        "src/MiniAudioImplementation.cc"
+    };
+    assertOnlySourceFilesContain("src", "MINIAUDIO_IMPLEMENTATION",
+        miniaudioImplementationFiles, 1);
+    assertSourceDoesNotContain("src/AudioMiniAudioOutput.cc",
+        "MINIAUDIO_IMPLEMENTATION");
+    assertSourceDoesNotContain("src/Audio.h", "miniaudio.h");
+    assertSourceDoesNotContain("src/RuntimeFactory.cc", "miniaudio.h");
+    assertSourceDoesNotContain("src/AudioMiniAudioOutput.cc", "#include <X11/");
+    assertSourceDoesNotContain("src/MiniAudioCapturePcmSource.cc",
+        "#include <X11/");
+    assertSourceDoesNotContain("src/AudioMiniAudioOutput.cc", "#include \"display.h\"");
+    assertSourceDoesNotContain("src/MiniAudioCapturePcmSource.cc",
+        "#include \"display.h\"");
+    assertSourceDoesNotContain("src/AudioMiniAudioOutput.cc", "#include \"CthughaDisplay");
+    assertSourceDoesNotContain("src/MiniAudioCapturePcmSource.cc",
+        "#include \"CthughaDisplay");
+    assertSourceDoesNotContain("src/AudioMiniAudioOutput.cc", "CTH_");
+    assertSourceDoesNotContain("src/MiniAudioCapturePcmSource.cc", "CTH_");
+    assertSourceDoesNotContain("src/AudioMiniAudioOutput.cc", "cth_log");
+    assertSourceDoesNotContain("src/MiniAudioCapturePcmSource.cc", "cth_log");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "#include <SDL3/");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "#include \"Display");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "#include \"Scene");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "#include \"Interface");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3,
+        "#include \"RuntimeCommand");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3,
+        "#include \"AudioFrame");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3,
+        "RuntimeCommand");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "FrameGenerator");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "FrameStore");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "AudioFrame");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "DisplaySystem");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3,
+        "DisplayPresentation");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "CthughaDisplay");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "InputQueue");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "Application");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "Scene");
+    assertSourceFilesDoNotContain(miniaudioSourceFiles, 3, "Interface");
+    assertSourceContains("external/miniaudio/README.md",
+        "Vendored miniaudio 0.11.25");
+    assertSourceContains("external/miniaudio/LICENSE",
+        "Copyright 2025 David Reid");
+    assertSourceContains(".gitignore", "!/external/miniaudio/");
+    assertSourceContains("CMakeLists.txt",
+        "option(CTH_ENABLE_MINIAUDIO \"Enable miniaudio playback/capture devices\" ON)");
+    assertSourceContains("CMakeLists.txt",
+        "option(CTH_MINIAUDIO_NO_RUNTIME_LINKING");
+    assertSourceContains("CMakeLists.txt",
+        "add_library(cthugha_miniaudio INTERFACE)");
+    assertSourceContains("CMakeLists.txt",
+        "${CMAKE_CURRENT_SOURCE_DIR}/external/miniaudio");
+    assertSourceContains("CMakeLists.txt", "${CMAKE_DL_LIBS}");
+    assertSourceContains("CMakeLists.txt", "MA_NO_RUNTIME_LINKING");
+    assertSourceContains("CMakeLists.txt", "CoreFoundation");
+    assertSourceContains("CMakeLists.txt", "CoreAudio");
+    assertSourceContains("CMakeLists.txt", "AudioToolbox");
+    assertSourceContains("CMakeLists.txt",
+        "message(STATUS \"  miniaudio devices  : ${WITH_MINIAUDIO}\")");
+    assertSourceContains("cmake/config.h.in", "#cmakedefine01 WITH_MINIAUDIO");
+    assertSourceContains("src/CMakeLists.txt", "AudioMiniAudioOutput.cc");
+    assertSourceContains("src/CMakeLists.txt", "MiniAudioCapturePcmSource.cc");
+    assertSourceContains("src/CMakeLists.txt", "MiniAudioImplementation.cc");
+    assertSourceContains("src/CMakeLists.txt",
+        "target_link_libraries(xcthugha PRIVATE cthugha_miniaudio)");
     assertSourceContains("src/AudioDSPOutput.cc", "logSink().debug");
     assertSourceContains("src/AudioDSPOutput.cc", "logSink().info");
     assertSourceContains("src/AudioDSPOutput.cc", "logSink().error");
@@ -342,6 +528,8 @@ static void testAudioOutputSettingsAreSessionOwned() {
     assertSourceContains("src/AudioOutput.cc",
         "outputDumpValue->append(format, data, bytes)");
     assertSourceContains("tests/CMakeLists.txt", "audio_output_config_test");
+    assertSourceContains("tests/CMakeLists.txt",
+        "runtime_factory_audio_output_test");
     assertSourceContains("tests/CMakeLists.txt", "audio_output_dump_test");
     assertSourceDoesNotContain("src/AudioOptions.h", "extern char pulse_server");
     assertSourceDoesNotContain("src/AudioOptions.h", "pulse_latency_msec");

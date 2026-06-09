@@ -53,15 +53,22 @@ static const char* KEY_AUDIO_DSP_FRAGMENTS = "audio.dsp_fragments";
 static const char* KEY_AUDIO_DSP_FRAGMENT_SIZE = "audio.dsp_fragment_size";
 static const char* KEY_AUDIO_DSP_SYNC = "audio.dsp_sync";
 static const char* KEY_AUDIO_SILENT = "audio.silent";
+static const char* KEY_AUDIO_OUTPUT_DRIVER = "audio.output_driver";
 static const char* KEY_AUDIO_PULSE_LATENCY = "audio.pulse_latency_ms";
 static const char* KEY_AUDIO_PULSE_SERVER = "audio.pulse_server";
 static const char* KEY_AUDIO_OUTPUT_DUMP = "audio.output_dump_path";
+static const char* KEY_AUDIO_MINIAUDIO_PLAYBACK_DEVICE
+    = "audio.miniaudio_playback_device_name";
+static const char* KEY_AUDIO_MINIAUDIO_CAPTURE_DEVICE
+    = "audio.miniaudio_capture_device_name";
 static const char* KEY_AUDIO_DSP_DEVICE = "audio.dsp_device_path";
 static const char* KEY_AUDIO_MIXER_DEVICE = "audio.mixer_device_path";
 static const char* KEY_AUDIO_MIXER_INITIAL_VOLUME
     = "audio.mixer_initial_volume";
 static const char* KEY_AUDIO_NULL_TARGET_LATENCY = "audio.null_target_latency_ms";
 static const char* KEY_AUDIO_PULSE_TARGET_LATENCY = "audio.pulse_target_latency_ms";
+static const char* KEY_AUDIO_MINIAUDIO_TARGET_LATENCY
+    = "audio.miniaudio_target_latency_ms";
 static const char* KEY_AUDIO_DSP_TARGET_LATENCY = "audio.dsp_target_latency_ms";
 static const char* KEY_DISPLAY_DRIVER = "display.driver";
 static const char* KEY_DISPLAY_MODE = "display.mode";
@@ -726,12 +733,22 @@ static void applyIniOption(ConfigPatch& patch, DeferredLogBuffer& diagnostics,
     } else if (key == "no-silent") {
         setIniBooleanOption(patch, diagnostics, source, key,
             KEY_AUDIO_SILENT, cleanedValue, 1, 1);
+    } else if (key == "audio-output-driver" || key == "output-driver") {
+        patch.set(KEY_AUDIO_OUTPUT_DRIVER, cleanedValue, source);
     } else if (key == "pulse-latency-ms") {
         patch.set(KEY_AUDIO_PULSE_LATENCY, cleanedValue, source);
+    } else if (key == "miniaudio-target-latency-ms") {
+        patch.set(KEY_AUDIO_MINIAUDIO_TARGET_LATENCY, cleanedValue, source);
     } else if (key == "pulse-server") {
         patch.set(KEY_AUDIO_PULSE_SERVER, cleanedValue, source);
     } else if (key == "audio-output-dump") {
         patch.set(KEY_AUDIO_OUTPUT_DUMP, cleanedValue, source);
+    } else if (key == "miniaudio-playback-device"
+        || key == "miniaudio-playback-device-name") {
+        patch.set(KEY_AUDIO_MINIAUDIO_PLAYBACK_DEVICE, cleanedValue, source);
+    } else if (key == "miniaudio-capture-device"
+        || key == "miniaudio-capture-device-name") {
+        patch.set(KEY_AUDIO_MINIAUDIO_CAPTURE_DEVICE, cleanedValue, source);
     } else if (key == "dev-dsp") {
         patch.set(KEY_AUDIO_DSP_DEVICE, cleanedValue, source);
     } else if (key == "dev-mixer") {
@@ -1266,12 +1283,26 @@ static void applyCommandLineOption(ConfigPatch& patch,
         setAudioBoolean(patch, "command line", KEY_AUDIO_SILENT, 1);
     } else if (arg == "--no-silent") {
         setAudioBoolean(patch, "command line", KEY_AUDIO_SILENT, 0);
+    } else if (arg == "--audio-output-driver") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUDIO_OUTPUT_DRIVER, value, "command line");
+    } else if (startsWith(arg, "--audio-output-driver=")) {
+        patch.set(KEY_AUDIO_OUTPUT_DRIVER, arg.substr(22), "command line");
     } else if (arg == "--pulse-latency-ms") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
             patch.set(KEY_AUDIO_PULSE_LATENCY, value, "command line");
     } else if (startsWith(arg, "--pulse-latency-ms=")) {
         patch.set(KEY_AUDIO_PULSE_LATENCY, arg.substr(19), "command line");
+    } else if (arg == "--miniaudio-target-latency-ms") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUDIO_MINIAUDIO_TARGET_LATENCY, value,
+                "command line");
+    } else if (startsWith(arg, "--miniaudio-target-latency-ms=")) {
+        patch.set(KEY_AUDIO_MINIAUDIO_TARGET_LATENCY, arg.substr(30),
+            "command line");
     } else if (arg == "--pulse-server") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -1284,6 +1315,22 @@ static void applyCommandLineOption(ConfigPatch& patch,
             patch.set(KEY_AUDIO_OUTPUT_DUMP, value, "command line");
     } else if (startsWith(arg, "--audio-output-dump=")) {
         patch.set(KEY_AUDIO_OUTPUT_DUMP, arg.substr(20), "command line");
+    } else if (arg == "--miniaudio-playback-device") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUDIO_MINIAUDIO_PLAYBACK_DEVICE, value,
+                "command line");
+    } else if (startsWith(arg, "--miniaudio-playback-device=")) {
+        patch.set(KEY_AUDIO_MINIAUDIO_PLAYBACK_DEVICE, arg.substr(28),
+            "command line");
+    } else if (arg == "--miniaudio-capture-device") {
+        std::string value;
+        if (readOptionValue(args, index, arg, &value, diagnostics))
+            patch.set(KEY_AUDIO_MINIAUDIO_CAPTURE_DEVICE, value,
+                "command line");
+    } else if (startsWith(arg, "--miniaudio-capture-device=")) {
+        patch.set(KEY_AUDIO_MINIAUDIO_CAPTURE_DEVICE, arg.substr(27),
+            "command line");
     } else if (arg == "--dev-dsp") {
         std::string value;
         if (readOptionValue(args, index, arg, &value, diagnostics))
@@ -1617,6 +1664,41 @@ static bool parseAudioSampleFormat(const std::string& text,
     return false;
 }
 
+static bool parseAudioOutputDriver(const std::string& text,
+    AudioOutputDriverId* driver) {
+    std::string cleaned = compactFormatName(text);
+    int value = 0;
+
+    if (cleaned == "auto") {
+        *driver = AudioOutputDriverAuto;
+        return true;
+    }
+    if (cleaned == "null" || cleaned == "none" || cleaned == "silent") {
+        *driver = AudioOutputDriverNull;
+        return true;
+    }
+    if (cleaned == "pulse" || cleaned == "pulseaudio") {
+        *driver = AudioOutputDriverPulse;
+        return true;
+    }
+    if (cleaned == "oss" || cleaned == "dsp") {
+        *driver = AudioOutputDriverOss;
+        return true;
+    }
+    if (cleaned == "miniaudio" || cleaned == "mini") {
+        *driver = AudioOutputDriverMiniAudio;
+        return true;
+    }
+
+    if (!parseInteger(text, &value))
+        return false;
+    if (value < 0 || value >= int(AudioOutputDriverMax))
+        return false;
+
+    *driver = AudioOutputDriverId(value);
+    return true;
+}
+
 static bool parseAudioChannels(const std::string& text, int* channels) {
     std::string cleaned = lowercase(trim(text));
 
@@ -1773,6 +1855,23 @@ static void applyAudioSampleFormatEntry(const ConfigPatch& patch,
     }
 
     *target = format;
+}
+
+static void applyAudioOutputDriverEntry(const ConfigPatch& patch,
+    DeferredLogBuffer& diagnostics, AudioOutputDriverId* target) {
+    const ConfigEntry* configEntry = patch.entry(KEY_AUDIO_OUTPUT_DRIVER);
+    AudioOutputDriverId driver = AUDIO_CONFIG_DEFAULT_OUTPUT_DRIVER;
+
+    if (configEntry == NULL)
+        return;
+
+    if (!parseAudioOutputDriver(configEntry->value, &driver)) {
+        diagnostics.error(configEntry->source, configEntry->key,
+            "expected one of auto, null, pulse, oss, or miniaudio");
+        return;
+    }
+
+    *target = driver;
 }
 
 static void applyMixerInitialVolumeEntries(const ConfigPatch& patch,
@@ -2082,14 +2181,21 @@ AudioConfig::AudioConfig()
     , dspFragmentSize(AUDIO_CONFIG_DEFAULT_DSP_FRAGMENT_SIZE)
     , dspSyncEnabled(AUDIO_CONFIG_DEFAULT_DSP_SYNC_ENABLED)
     , silentEnabled(AUDIO_CONFIG_DEFAULT_SILENT_ENABLED)
+    , outputDriver(AUDIO_CONFIG_DEFAULT_OUTPUT_DRIVER)
     , mixerVolume(AUDIO_CONFIG_DEFAULT_MIXER_VOLUME)
     , pulseLatencyMs(AUDIO_CONFIG_DEFAULT_PULSE_LATENCY_MS)
     , pulseServer(AUDIO_CONFIG_DEFAULT_PULSE_SERVER_TEXT)
     , outputDumpPath(AUDIO_CONFIG_DEFAULT_OUTPUT_DUMP_PATH)
+    , miniAudioPlaybackDeviceName(
+        AUDIO_CONFIG_DEFAULT_MINIAUDIO_PLAYBACK_DEVICE_NAME)
+    , miniAudioCaptureDeviceName(
+        AUDIO_CONFIG_DEFAULT_MINIAUDIO_CAPTURE_DEVICE_NAME)
     , dspDevicePath(AUDIO_CONFIG_DEFAULT_DSP_DEVICE_PATH)
     , mixerDevicePath(AUDIO_CONFIG_DEFAULT_MIXER_DEVICE_PATH)
     , nullOutputTargetLatencyMs(AUDIO_CONFIG_DEFAULT_NULL_TARGET_LATENCY_MS)
     , pulseOutputTargetLatencyMs(AUDIO_CONFIG_DEFAULT_PULSE_TARGET_LATENCY_MS)
+    , miniAudioOutputTargetLatencyMs(
+        AUDIO_CONFIG_DEFAULT_MINIAUDIO_TARGET_LATENCY_MS)
     , dspOutputTargetLatencyMs(AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS) { }
 
 DisplayConfig::DisplayConfig()
@@ -2263,6 +2369,8 @@ Config ConfigSchema::build(const ConfigPatch& patch,
         &config.audio.dspSyncEnabled);
     applyBoolEntry(patch, diagnostics, KEY_AUDIO_SILENT,
         &config.audio.silentEnabled);
+    applyAudioOutputDriverEntry(patch, diagnostics,
+        &config.audio.outputDriver);
     applyMinimumIntEntry(patch, diagnostics, KEY_AUDIO_PULSE_LATENCY, 50,
         &config.audio.pulseLatencyMs);
     if (const ConfigEntry* entry = patch.entry(KEY_AUDIO_PULSE_LATENCY)) {
@@ -2273,6 +2381,12 @@ Config ConfigSchema::build(const ConfigPatch& patch,
         config.audio.pulseServer = *value;
     if (const std::string* value = patch.value(KEY_AUDIO_OUTPUT_DUMP))
         config.audio.outputDumpPath = *value;
+    if (const std::string* value
+        = patch.value(KEY_AUDIO_MINIAUDIO_PLAYBACK_DEVICE))
+        config.audio.miniAudioPlaybackDeviceName = *value;
+    if (const std::string* value
+        = patch.value(KEY_AUDIO_MINIAUDIO_CAPTURE_DEVICE))
+        config.audio.miniAudioCaptureDeviceName = *value;
     if (const std::string* value = patch.value(KEY_AUDIO_DSP_DEVICE))
         config.audio.dspDevicePath = *value;
     if (const std::string* value = patch.value(KEY_AUDIO_MIXER_DEVICE))
@@ -2282,6 +2396,9 @@ Config ConfigSchema::build(const ConfigPatch& patch,
         &config.audio.nullOutputTargetLatencyMs);
     applyMinimumIntEntry(patch, diagnostics, KEY_AUDIO_PULSE_TARGET_LATENCY, 0,
         &config.audio.pulseOutputTargetLatencyMs);
+    applyMinimumIntEntry(patch, diagnostics,
+        KEY_AUDIO_MINIAUDIO_TARGET_LATENCY, 0,
+        &config.audio.miniAudioOutputTargetLatencyMs);
     applyMinimumIntEntry(patch, diagnostics, KEY_AUDIO_DSP_TARGET_LATENCY, 0,
         &config.audio.dspOutputTargetLatencyMs);
 
@@ -2740,6 +2857,8 @@ ConfigPatch hardcodedDefaultConfigPatch() {
         booleanText(AUDIO_CONFIG_DEFAULT_DSP_SYNC_ENABLED), "defaults");
     defaults.set(KEY_AUDIO_SILENT,
         booleanText(AUDIO_CONFIG_DEFAULT_SILENT_ENABLED), "defaults");
+    defaults.set(KEY_AUDIO_OUTPUT_DRIVER,
+        integerText(AUDIO_CONFIG_DEFAULT_OUTPUT_DRIVER), "defaults");
     defaults.set(KEY_AUDIO_PULSE_LATENCY,
         integerText(AUDIO_CONFIG_DEFAULT_PULSE_LATENCY_MS), "defaults");
     defaults.set(KEY_AUDIO_PULSE_SERVER, AUDIO_CONFIG_DEFAULT_PULSE_SERVER_TEXT,
@@ -2754,6 +2873,9 @@ ConfigPatch hardcodedDefaultConfigPatch() {
         integerText(AUDIO_CONFIG_DEFAULT_NULL_TARGET_LATENCY_MS), "defaults");
     defaults.set(KEY_AUDIO_PULSE_TARGET_LATENCY,
         integerText(AUDIO_CONFIG_DEFAULT_PULSE_TARGET_LATENCY_MS), "defaults");
+    defaults.set(KEY_AUDIO_MINIAUDIO_TARGET_LATENCY,
+        integerText(AUDIO_CONFIG_DEFAULT_MINIAUDIO_TARGET_LATENCY_MS),
+        "defaults");
     defaults.set(KEY_AUDIO_DSP_TARGET_LATENCY,
         integerText(AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS), "defaults");
     defaults.set(KEY_DISPLAY_DRIVER, displayDriverIdName(DisplayDriverAuto),

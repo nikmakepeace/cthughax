@@ -54,6 +54,9 @@ public:
     /** Startup OSS/DSP device path. */
     char dspDevicePath[PATH_MAX];
 
+    /** Optional miniaudio capture device name. Empty selects default input. */
+    char miniAudioCaptureDeviceName[PATH_MAX];
+
     /** Creates an empty/default audio settings snapshot. */
     AudioSettings();
 

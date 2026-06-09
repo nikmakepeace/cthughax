@@ -59,6 +59,15 @@ public:
      */
     PcmSource* create(const AudioSettings& settings, int visualMaxDimension,
         RandomSource& randomSource) const;
+
+    /**
+     * Creates a miniaudio live-capture PCM source when compiled in.
+     *
+     * @param settings Snapshot of live-input audio options.
+     * @return Newly allocated source, or NULL when miniaudio capture is not
+     *         compiled in.
+     */
+    PcmSource* createMiniAudioCapture(const AudioSettings& settings) const;
 };
 
 #endif

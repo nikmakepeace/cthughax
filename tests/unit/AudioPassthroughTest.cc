@@ -138,6 +138,52 @@ static void testPresentationClockSubtractsTargetDelay() {
     assert(passthrough.presentationSamplePosition() == 0);
 }
 
+static void testPlaybackClockPublishesAbsoluteCenterSample() {
+    AudioPlaybackClock clock;
+
+    assert(clock.submittedEndPosition() == 0);
+    assert(clock.presentationDelaySamples() == 0);
+    assert(clock.presentationCenterSample() == 0);
+
+    clock.publishSubmittedEndSample(12);
+    clock.publishPresentationDelaySamples(5);
+    assert(clock.submittedEndPosition() == 12);
+    assert(clock.presentationDelaySamples() == 5);
+    assert(clock.presentationCenterSample() == 7);
+
+    clock.publishPresentationDelaySamples(20);
+    assert(clock.presentationCenterSample() == 0);
+
+    clock.publishSubmittedEndSample(-4);
+    clock.publishPresentationDelaySamples(-3);
+    assert(clock.submittedEndPosition() == 0);
+    assert(clock.presentationDelaySamples() == 0);
+    assert(clock.presentationCenterSample() == 0);
+}
+
+static void testOutputStreamPublishesPlaybackClockOnCommitAndResync() {
+    FakeLogSink log;
+    DecodedAudioHistory history(16, signed8MonoFormat(), 8, log);
+    AudioPlaybackClock clock;
+    AudioOutputStream stream(history, &clock);
+    char first[5] = { 0, 1, 2, 3, 4 };
+    char second[11] = { 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15 };
+
+    assert(history.appendDecodedPcm(first, 5) == 5);
+    assert(stream.commitOutputSamples(2) == 2);
+    assert(stream.submittedEndPosition() == 2);
+    assert(clock.submittedEndPosition() == 2);
+
+    stream.reset(1);
+    assert(clock.submittedEndPosition() == 1);
+
+    assert(history.appendDecodedPcm(second, 11) == 11);
+    assert(history.oldestAvailablePosition() == 8);
+    assert(stream.resyncIfBehind() == 7);
+    assert(stream.submittedEndPosition() == 8);
+    assert(clock.submittedEndPosition() == 8);
+}
+
 static void testPassthroughReportsAdaptiveQueueTarget() {
     FakeLogSink log;
     DecodedAudioHistory history(16, signed8MonoFormat(), 8, log);
@@ -155,6 +201,8 @@ int main() {
     testPassthroughAdvancesOnlyItsCursor();
     testPassthroughResyncsWhenHistoryMovedOn();
     testPresentationClockSubtractsTargetDelay();
+    testPlaybackClockPublishesAbsoluteCenterSample();
+    testOutputStreamPublishesPlaybackClockOnCommitAndResync();
     testPassthroughReportsAdaptiveQueueTarget();
     return 0;
 }

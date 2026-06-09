@@ -124,15 +124,14 @@ static void testMp3FactoryFollowsConfiguredMinimp3Availability() {
 }
 
 static void testRawSourceUsesExplicitFormat() {
-    char path[PATH_MAX];
-    snprintf(path, sizeof(path), "/tmp/cthughanix-raw-format-%ld.raw",
-        (long)getpid());
-
-    FILE* file = fopen(path, "wb");
+    char path[] = "/tmp/cthughanix-raw-format-XXXXXX";
+    int fd = mkstemp(path);
+    assert(fd != -1);
+    FILE* file = fdopen(fd, "wb");
     assert(file != NULL);
     const unsigned char data[8] = { 0, 1, 2, 3, 4, 5, 6, 7 };
     assert(fwrite(data, 1, sizeof(data), file) == sizeof(data));
-    fclose(file);
+    assert(fclose(file) == 0);
 
     PcmFormat requested = formatFor(22050, 1, SF_u8);
     FakeLogSink log;

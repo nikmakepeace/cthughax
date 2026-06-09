@@ -116,3 +116,15 @@ PcmSource* PcmSourceFactory::create(const AudioSettings& settings,
         return NULL;
     }
 }
+
+PcmSource* PcmSourceFactory::createMiniAudioCapture(
+    const AudioSettings& settings) const {
+#if WITH_MINIAUDIO == 1
+    log.debug("    pcm source strategy: creating MiniAudioCapturePcmSource\n");
+    return new MiniAudioCapturePcmSource(settings, log);
+#else
+    (void)settings;
+    log.debug("    pcm source strategy: no miniaudio capture driver is compiled in\n");
+    return NULL;
+#endif
+}

@@ -12,10 +12,13 @@ option(CTH_BUILD_X11 "Build the modern X11 frontend" ON)
 option(CTH_BUILD_SDL3 "Build the SDL3 display driver" OFF)
 option(CTH_BUILD_TESTS "Build and register focused unit tests" ON)
 option(CTH_BUILD_BENCHMARKS "Build Google Benchmark performance suites" OFF)
+option(CTH_RUN_AUDIO_DEVICE_TESTS "Register opt-in tests that open real audio devices" OFF)
 option(CTH_ENABLE_PULSE "Enable PulseAudio-compatible output when libpulse-simple is available" ON)
 option(CTH_ENABLE_DSP "Enable OSS /dev/dsp support when soundcard headers are available" ON)
 option(CTH_ENABLE_MIXER "Enable OSS mixer controls when soundcard headers are available" ON)
 option(CTH_ENABLE_MINIMP3 "Enable embedded minimp3 decoding" ON)
+option(CTH_ENABLE_MINIAUDIO "Enable miniaudio playback/capture devices" ON)
+option(CTH_MINIAUDIO_NO_RUNTIME_LINKING "Build miniaudio without runtime library/framework loading (Apple app-bundle path)" OFF)
 
 set(CTH_DEV_DSP "/dev/dsp" CACHE STRING "Default OSS DSP device")
 set(CTH_DEV_MIXER "/dev/mixer" CACHE STRING "Default OSS mixer device")
@@ -81,6 +84,42 @@ else()
     set(WITH_MINIMP3 0)
 endif()
 
+if(CTH_ENABLE_MINIAUDIO)
+    set(WITH_MINIAUDIO 1)
+else()
+    set(WITH_MINIAUDIO 0)
+endif()
+
+if(WITH_MINIAUDIO)
+    if(CTH_MINIAUDIO_NO_RUNTIME_LINKING AND NOT APPLE)
+        message(FATAL_ERROR "CTH_MINIAUDIO_NO_RUNTIME_LINKING is currently supported only for Apple builds")
+    endif()
+
+    add_library(cthugha_miniaudio INTERFACE)
+    target_include_directories(cthugha_miniaudio INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/external/miniaudio
+    )
+    target_link_libraries(cthugha_miniaudio INTERFACE
+        Threads::Threads
+        ${CMAKE_DL_LIBS}
+    )
+
+    if(CTH_MINIAUDIO_NO_RUNTIME_LINKING)
+        target_compile_definitions(cthugha_miniaudio INTERFACE
+            MA_NO_RUNTIME_LINKING
+        )
+
+        find_library(CTH_COREFOUNDATION_FRAMEWORK CoreFoundation REQUIRED)
+        find_library(CTH_COREAUDIO_FRAMEWORK CoreAudio REQUIRED)
+        find_library(CTH_AUDIOTOOLBOX_FRAMEWORK AudioToolbox REQUIRED)
+        target_link_libraries(cthugha_miniaudio INTERFACE
+            ${CTH_COREFOUNDATION_FRAMEWORK}
+            ${CTH_COREAUDIO_FRAMEWORK}
+            ${CTH_AUDIOTOOLBOX_FRAMEWORK}
+        )
+    endif()
+endif()
+
 set(WITH_X11 0)
 if(CTH_BUILD_X11)
     set(WITH_X11 1)
@@ -131,5 +170,8 @@ message(STATUS "  Pulse output       : ${WITH_PULSE}")
 message(STATUS "  OSS DSP input/output: ${WITH_DSP} (${CTH_DEV_DSP})")
 message(STATUS "  OSS mixer          : ${WITH_MIXER} (${CTH_DEV_MIXER})")
 message(STATUS "  minimp3 decoder    : ${WITH_MINIMP3}")
+message(STATUS "  miniaudio devices  : ${WITH_MINIAUDIO}")
+message(STATUS "  miniaudio no runtime linking: ${CTH_MINIAUDIO_NO_RUNTIME_LINKING}")
+message(STATUS "  audio device tests : ${CTH_RUN_AUDIO_DEVICE_TESTS}")
 message(STATUS "  Benchmarks         : ${CTH_BUILD_BENCHMARKS}")
 message(STATUS "  Runtime data dir   : ${CTH_DATA_DIR}")

@@ -269,15 +269,19 @@ struct AudioConfig {
     int dspFragmentSize;
     int dspSyncEnabled;
     int silentEnabled;
+    AudioOutputDriverId outputDriver;
     int mixerVolume;
     int pulseLatencyMs;
     std::string pulseServer;
     std::string outputDumpPath;
+    std::string miniAudioPlaybackDeviceName;
+    std::string miniAudioCaptureDeviceName;
     std::string dspDevicePath;
     std::string mixerDevicePath;
     std::vector<AudioMixerInitialVolumeConfig> mixerInitialVolumes;
     int nullOutputTargetLatencyMs;
     int pulseOutputTargetLatencyMs;
+    int miniAudioOutputTargetLatencyMs;
     int dspOutputTargetLatencyMs;
 
     /** Creates audio configuration with default values. */

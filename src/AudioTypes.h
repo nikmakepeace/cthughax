@@ -45,6 +45,15 @@ enum AudioInputMode {
     AIM_Max
 };
 
+enum AudioOutputDriverId {
+    AudioOutputDriverAuto = 0,
+    AudioOutputDriverNull,
+    AudioOutputDriverPulse,
+    AudioOutputDriverOss,
+    AudioOutputDriverMiniAudio,
+    AudioOutputDriverMax
+};
+
 /**
  * Converts a sample count to bytes.
  *

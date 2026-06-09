@@ -664,6 +664,11 @@ void AudioPulseOutput::stopCallbackDrain() {
     delete[] oldScratch;
 }
 
+int AudioPulseOutput::callbackDrainComplete(const AudioOutputStream& stream,
+    int inputFinished) const {
+    return callbackDrainActive.load() && playbackComplete(stream, inputFinished);
+}
+
 void AudioPulseOutput::pulseWritable(size_t requestedBytes) {
     drainUnlocked(requestedBytes);
     if (mainloop != NULL)
@@ -837,6 +842,8 @@ int AudioPulseOutput::supportsCallbackDrain() const { return 0; }
 void AudioPulseOutput::startCallbackDrain(AudioOutputStream&, const std::atomic<int>*, int) { }
 void AudioPulseOutput::notifyCallbackDrain() { }
 void AudioPulseOutput::stopCallbackDrain() { }
+int AudioPulseOutput::callbackDrainComplete(const AudioOutputStream& stream,
+    int inputFinished) const { return playbackComplete(stream, inputFinished); }
 void AudioPulseOutput::pulseWritable(size_t) { }
 void AudioPulseOutput::pulseUnderflow() { underflowCountValue.fetch_add(1); }
 const char* AudioPulseOutput::serverName() const { return outputConfigValue.pulseServerName(); }

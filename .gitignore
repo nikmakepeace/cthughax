@@ -142,6 +142,8 @@ __pycache__/
 /external/*
 !/external/minimp3/
 !/external/minimp3/*
+!/external/miniaudio/
+!/external/miniaudio/*
 
 # build dumps
 /dumps

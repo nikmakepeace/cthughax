@@ -19,6 +19,7 @@ AudioSettings::AudioSettings()
     , silent(0) {
     fileName[0] = '\0';
     dspDevicePath[0] = '\0';
+    miniAudioCaptureDeviceName[0] = '\0';
 }
 
 void AudioSettings::refreshFromConfig(const AudioConfig& config) {
@@ -36,6 +37,9 @@ void AudioSettings::refreshFromConfig(const AudioConfig& config) {
     fileName[PATH_MAX - 1] = '\0';
     strncpy(dspDevicePath, config.dspDevicePath.c_str(), PATH_MAX);
     dspDevicePath[PATH_MAX - 1] = '\0';
+    strncpy(miniAudioCaptureDeviceName,
+        config.miniAudioCaptureDeviceName.c_str(), PATH_MAX);
+    miniAudioCaptureDeviceName[PATH_MAX - 1] = '\0';
 }
 
 AudioSettings AudioSettings::fromConfig(const AudioConfig& config,
@@ -43,10 +47,11 @@ AudioSettings AudioSettings::fromConfig(const AudioConfig& config,
     AudioSettings settings;
     settings.refreshFromConfig(config);
 
-    log.debug("runtime settings: audio-input-mode=%d rate=%d channels=%d format=%d sound-dsp-method=%d silent=%d file=`%s'\n",
+    log.debug("runtime settings: audio-input-mode=%d rate=%d channels=%d format=%d sound-dsp-method=%d silent=%d file=`%s' miniaudio-capture-device=`%s'\n",
         settings.audioInputMode, settings.pcmFormat.sampleRate,
         settings.pcmFormat.channels, settings.pcmFormat.sampleFormat,
-        settings.soundDSPMethod, settings.silent, settings.fileName);
+        settings.soundDSPMethod, settings.silent, settings.fileName,
+        settings.miniAudioCaptureDeviceName);
 
     return settings;
 }

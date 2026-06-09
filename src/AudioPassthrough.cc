@@ -11,7 +11,8 @@ AudioPassthrough::AudioPassthrough(AudioOutput* output,
     DecodedAudioHistory& history, const std::atomic<int>& inputFinished_,
     LogSink& log_)
     : outputValue(output)
-    , streamValue(history)
+    , playbackClockValue()
+    , streamValue(history, &playbackClockValue)
     , inputFinished(inputFinished_)
     , log(log_)
     , scratch(NULL)
@@ -34,6 +35,8 @@ int AudioPassthrough::start(int samplesPerSecond, int bytesPerSample,
 
     outputValue->configureTiming(samplesPerSecond, bytesPerSample,
         inputChunkSamples);
+    playbackClockValue.publishPresentationDelaySamples(
+        outputValue->presentationDelaySamples());
     scratchSamplesValue = outputValue->scratchSamples();
     if (scratchSamplesValue <= 0)
         scratchSamplesValue = inputChunkSamples;
@@ -107,6 +110,9 @@ int AudioPassthrough::enabled() const {
 int AudioPassthrough::complete() const {
     if (!enabled())
         return 1;
+    if (callbackDrainStarted.load()
+        && outputValue->callbackDrainComplete(streamValue, inputFinished.load()))
+        return 1;
     return completeValue.load();
 }
 
@@ -115,18 +121,13 @@ int AudioPassthrough::providesPresentationClock() const {
 }
 
 long long AudioPassthrough::presentationSamplePosition() const {
-    long long sample = streamValue.submittedEndPosition();
-
-    if (enabled())
-        sample -= outputValue->presentationDelaySamples();
-    if (sample < 0)
-        sample = 0;
-
-    return sample;
+    if (!enabled())
+        return 0;
+    return playbackClockValue.presentationCenterSample();
 }
 
 long long AudioPassthrough::submittedSamplePosition() const {
-    return streamValue.submittedEndPosition();
+    return playbackClockValue.submittedEndPosition();
 }
 
 int AudioPassthrough::queuedSamples() const {

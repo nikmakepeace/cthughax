@@ -7,15 +7,20 @@
 
 #include <string>
 
+#include "AudioTypes.h"
+
 struct AudioConfig;
 
 /** Output-related startup options copied from AudioConfig. */
 struct AudioOutputConfig {
+    AudioOutputDriverId outputDriver;
     std::string pulseServer;
     int pulseLatencyMs;
     std::string outputDumpPath;
+    std::string miniAudioPlaybackDeviceName;
     int nullOutputTargetLatencyMs;
     int pulseOutputTargetLatencyMs;
+    int miniAudioOutputTargetLatencyMs;
     int dspOutputTargetLatencyMs;
 
     /** Creates output config with default startup values. */

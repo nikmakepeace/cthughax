@@ -22,6 +22,7 @@ class LogSink;
  */
 class AudioPassthrough {
     std::unique_ptr<AudioOutput> outputValue;
+    AudioPlaybackClock playbackClockValue;
     AudioOutputStream streamValue;
     const std::atomic<int>& inputFinished;
     LogSink& log;

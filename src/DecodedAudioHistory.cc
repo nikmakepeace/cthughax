@@ -122,8 +122,40 @@ int DecodedAudioHistory::readPcmAt(long long samplePosition, char* dst, int samp
     return copyAt(samplePosition, dst, samples);
 }
 
-AudioOutputStream::AudioOutputStream(const DecodedAudioHistory& history_)
+AudioPlaybackClock::AudioPlaybackClock()
+    : submittedEndSample(0)
+    , presentationDelaySampleCount(0) { }
+
+void AudioPlaybackClock::publishSubmittedEndSample(long long sample) {
+    if (sample < 0)
+        sample = 0;
+    submittedEndSample.store(sample);
+}
+
+void AudioPlaybackClock::publishPresentationDelaySamples(int samples) {
+    if (samples < 0)
+        samples = 0;
+    presentationDelaySampleCount.store(samples);
+}
+
+long long AudioPlaybackClock::submittedEndPosition() const {
+    return submittedEndSample.load();
+}
+
+int AudioPlaybackClock::presentationDelaySamples() const {
+    return presentationDelaySampleCount.load();
+}
+
+long long AudioPlaybackClock::presentationCenterSample() const {
+    long long sample = submittedEndSample.load()
+        - presentationDelaySampleCount.load();
+    return sample > 0 ? sample : 0;
+}
+
+AudioOutputStream::AudioOutputStream(const DecodedAudioHistory& history_,
+    AudioPlaybackClock* playbackClock_)
     : history(history_)
+    , playbackClock(playbackClock_)
     , submittedEndSample(0) { }
 
 void AudioOutputStream::reset(long long samplePosition) {
@@ -131,6 +163,8 @@ void AudioOutputStream::reset(long long samplePosition) {
     submittedEndSample = samplePosition;
     if (submittedEndSample < 0)
         submittedEndSample = 0;
+    if (playbackClock != NULL)
+        playbackClock->publishSubmittedEndSample(submittedEndSample);
 }
 
 int AudioOutputStream::bytesPerSample() const {
@@ -193,6 +227,8 @@ int AudioOutputStream::commitOutputSamples(int samples) {
         committedSamples = int(queuedSamples);
 
     submittedEndSample += committedSamples;
+    if (playbackClock != NULL)
+        playbackClock->publishSubmittedEndSample(submittedEndSample);
 
     return committedSamples;
 }
@@ -206,6 +242,8 @@ int AudioOutputStream::resyncIfBehind() {
 
     int skippedSamples = int(oldestSample - submittedEndSample);
     submittedEndSample = oldestSample;
+    if (playbackClock != NULL)
+        playbackClock->publishSubmittedEndSample(submittedEndSample);
     return skippedSamples;
 }
 

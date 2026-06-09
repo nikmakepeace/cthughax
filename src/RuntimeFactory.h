@@ -14,11 +14,18 @@ class LogSink;
 class RandomSource;
 class SecondsClock;
 
+enum AudioInputDriverId {
+    AudioInputDriverOss = 0,
+    AudioInputDriverMiniAudio
+};
+
 class Environment {
 public:
     int ossInputAvailable;
     int ossOutputAvailable;
     int pulseOutputAvailable;
+    int miniAudioOutputAvailable;
+    int miniAudioCaptureAvailable;
 
     /** Creates an environment with no detected backend availability. */
     Environment();
@@ -43,6 +50,10 @@ class RuntimeFactory {
     SecondsClock& clock;
     LogSink& log;
     PcmSourceFactory pcmSourceFactory;
+
+    AudioOutput* createAudioOutputCandidate(AudioOutputDriverId driver,
+        const PcmFormat& format) const;
+    AudioInput* createLineInAudioInputCandidate(AudioInputDriverId driver) const;
 
 public:
     /**
@@ -78,6 +89,13 @@ public:
      * @return Strategy selected from the current settings and environment.
      */
     AudioSourceStrategy selectAudioSourceStrategy() const;
+
+#ifdef RUNTIME_FACTORY_TEST_HOOKS
+    static int testAutomaticOutputCandidates(const Environment& environment,
+        int prefersMiniAudio, AudioOutputDriverId* drivers, int capacity);
+    static int testAutomaticInputCandidates(const Environment& environment,
+        int prefersMiniAudio, AudioInputDriverId* drivers, int capacity);
+#endif
 };
 
 #endif

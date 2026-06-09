@@ -58,14 +58,18 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.audio.dspFragmentSize == AUDIO_CONFIG_DEFAULT_DSP_FRAGMENT_SIZE);
     assert(result.config.audio.dspSyncEnabled == AUDIO_CONFIG_DEFAULT_DSP_SYNC_ENABLED);
     assert(result.config.audio.silentEnabled == AUDIO_CONFIG_DEFAULT_SILENT_ENABLED);
+    assert(result.config.audio.outputDriver == AUDIO_CONFIG_DEFAULT_OUTPUT_DRIVER);
     assert(result.config.audio.pulseLatencyMs == AUDIO_CONFIG_DEFAULT_PULSE_LATENCY_MS);
     assert(result.config.audio.pulseServer == AUDIO_CONFIG_DEFAULT_PULSE_SERVER_TEXT);
     assert(result.config.audio.outputDumpPath == AUDIO_CONFIG_DEFAULT_OUTPUT_DUMP_PATH);
+    assert(result.config.audio.miniAudioPlaybackDeviceName == AUDIO_CONFIG_DEFAULT_MINIAUDIO_PLAYBACK_DEVICE_NAME);
+    assert(result.config.audio.miniAudioCaptureDeviceName == AUDIO_CONFIG_DEFAULT_MINIAUDIO_CAPTURE_DEVICE_NAME);
     assert(result.config.audio.dspDevicePath == AUDIO_CONFIG_DEFAULT_DSP_DEVICE_PATH);
     assert(result.config.audio.mixerDevicePath == AUDIO_CONFIG_DEFAULT_MIXER_DEVICE_PATH);
     assert(result.config.audio.mixerInitialVolumes.empty());
     assert(result.config.audio.nullOutputTargetLatencyMs == AUDIO_CONFIG_DEFAULT_NULL_TARGET_LATENCY_MS);
     assert(result.config.audio.pulseOutputTargetLatencyMs == AUDIO_CONFIG_DEFAULT_PULSE_TARGET_LATENCY_MS);
+    assert(result.config.audio.miniAudioOutputTargetLatencyMs == AUDIO_CONFIG_DEFAULT_MINIAUDIO_TARGET_LATENCY_MS);
     assert(result.config.audio.dspOutputTargetLatencyMs == AUDIO_CONFIG_DEFAULT_DSP_TARGET_LATENCY_MS);
     assert(result.config.display.driver == DisplayDriverAuto);
     assert(result.config.display.displayMode == DISPLAY_CONFIG_DEFAULT_MODE);
@@ -152,10 +156,14 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
         "cthugha.sound-fragment-size: 10\n"
         "cthugha.snd-sync: on\n"
         "cthugha.silent: yes\n"
+        "cthugha.audio-output-driver: miniaudio\n"
         "cthugha.min-noise: 12\n"
         "cthugha.pulse-latency-ms: 150\n"
+        "cthugha.miniaudio-target-latency-ms: 90\n"
         "cthugha.pulse-server: local\n"
         "cthugha.audio-output-dump: dump.raw\n"
+        "cthugha.miniaudio-playback-device: Speakers\n"
+        "cthugha.miniaudio-capture-device: Microphone\n"
         "cthugha.dev-dsp: /tmp/dsp\n"
         "cthugha.dev-mixer: /tmp/mixer\n"
         "cthugha.line: 12\n"
@@ -226,10 +234,14 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "audio.dsp_fragment_size") == "10");
     assert(*patchValue(patch, "audio.dsp_sync") == "1");
     assert(*patchValue(patch, "audio.silent") == "1");
+    assert(*patchValue(patch, "audio.output_driver") == "miniaudio");
     assert(*patchValue(patch, "audio_analysis.min_noise") == "12");
     assert(*patchValue(patch, "audio.pulse_latency_ms") == "150");
+    assert(*patchValue(patch, "audio.miniaudio_target_latency_ms") == "90");
     assert(*patchValue(patch, "audio.pulse_server") == "local");
     assert(*patchValue(patch, "audio.output_dump_path") == "dump.raw");
+    assert(*patchValue(patch, "audio.miniaudio_playback_device_name") == "Speakers");
+    assert(*patchValue(patch, "audio.miniaudio_capture_device_name") == "Microphone");
     assert(*patchValue(patch, "audio.dsp_device_path") == "/tmp/dsp");
     assert(*patchValue(patch, "audio.mixer_device_path") == "/tmp/mixer");
     const std::vector<ConfigEntry>* mixerInitials
@@ -461,11 +473,17 @@ static void commandLineSourceBuildsFullAudioConfig() {
             "10",
             "--snd-sync",
             "--silent",
+            "--audio-output-driver=miniaudio",
             "--pulse-latency-ms=40",
+            "--miniaudio-target-latency-ms",
+            "80",
             "--pulse-server",
             "local",
             "--audio-output-dump",
             "dump.raw",
+            "--miniaudio-playback-device",
+            "Speakers",
+            "--miniaudio-capture-device=Microphone",
             "--dev-dsp",
             "/tmp/dsp",
             "--dev-mixer",
@@ -490,9 +508,13 @@ static void commandLineSourceBuildsFullAudioConfig() {
     assert(result.config.audio.dspFragmentSize == 10);
     assert(result.config.audio.dspSyncEnabled == 1);
     assert(result.config.audio.silentEnabled == 1);
+    assert(result.config.audio.outputDriver == AudioOutputDriverMiniAudio);
     assert(result.config.audio.pulseLatencyMs == 50);
+    assert(result.config.audio.miniAudioOutputTargetLatencyMs == 80);
     assert(result.config.audio.pulseServer == "local");
     assert(result.config.audio.outputDumpPath == "dump.raw");
+    assert(result.config.audio.miniAudioPlaybackDeviceName == "Speakers");
+    assert(result.config.audio.miniAudioCaptureDeviceName == "Microphone");
     assert(result.config.audio.dspDevicePath == "/tmp/dsp");
     assert(result.config.audio.mixerDevicePath == "/tmp/mixer");
     assert(result.config.audio.mixerInitialVolumes.size() == 3);

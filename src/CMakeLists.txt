@@ -151,6 +151,14 @@ set(CTHUGHA_COMMON_SOURCES
     FpsOverlay.cc
 )
 
+if(WITH_MINIAUDIO)
+    list(APPEND CTHUGHA_COMMON_SOURCES
+        AudioMiniAudioOutput.cc
+        MiniAudioCapturePcmSource.cc
+        MiniAudioImplementation.cc
+    )
+endif()
+
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/default.keymap.str
     COMMAND ${CMAKE_COMMAND}
@@ -206,6 +214,10 @@ if(CTH_BUILD_X11)
     if(WITH_PULSE)
         target_link_libraries(xcthugha PRIVATE ${PULSE_LIBRARIES})
         target_link_directories(xcthugha PRIVATE ${PULSE_LIBRARY_DIRS})
+    endif()
+
+    if(WITH_MINIAUDIO)
+        target_link_libraries(xcthugha PRIVATE cthugha_miniaudio)
     endif()
 
     install(TARGETS xcthugha RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
