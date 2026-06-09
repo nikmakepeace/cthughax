@@ -7,13 +7,12 @@
 
 #include "ApplicationDisplayFrontend.h"
 #include "AudioAnalyzer.h"
+#include "CommandsInputRuntime.h"
 #include "PlatformLifecycle.h"
 #include "Configuration.h"
 #include "DisplaySystem.h"
 #include "FrameGeneratorRuntime.h"
 #include "FramePacer.h"
-#include "InputQueue.h"
-#include "keymap.h"
 #include "ProcessServices.h"
 
 #include <memory>
@@ -76,10 +75,7 @@ class Application {
     CStdRandomSource randomSourceValue;
     LoggingRuntime loggingRuntimeValue;
     ConsoleLogSink logSinkValue;
-    InputQueue inputQueueValue;
-    CommandRegistry commandsValue;
-    CommandDispatcher dispatcherValue;
-    KeymapRegistry keymapsValue;
+    std::unique_ptr<CommandsInputRuntime> commandsInputValue;
     int exitStatusValue;
     Config startupConfigValue;
     std::vector<ConfigDiagnostic> startupConfigDiagnostics;
@@ -105,8 +101,6 @@ class Application {
     std::unique_ptr<SceneVisualCatalogFactory> sceneVisualCatalogFactoryValue;
     std::unique_ptr<SceneRuntime> sceneRuntimeValue;
     std::unique_ptr<RuntimeConfigRegistry> runtimeConfigRegistryValue;
-    std::unique_ptr<InterfaceRuntime> interfaceRuntimeValue;
-    std::unique_ptr<ErrorMessages> errorMessagesValue;
     std::unique_ptr<LegacyRuntimeConfigContributor> runtimeConfigContributorValue;
     std::unique_ptr<RuntimePersistence> runtimePersistenceValue;
     std::unique_ptr<RuntimeShutdown> runtimeShutdownValue;

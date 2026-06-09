@@ -180,10 +180,8 @@ Application::Application(int argc, char* argv[])
     cthugha_install_logging_runtime(loggingRuntimeValue);
     imageOptionValue.reset(new ImageOption(0, "image"));
     quietMessageOptionValue.reset(new OptionTime("change-msg-time", 0));
-    interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));
-    errorMessagesValue.reset(new ErrorMessages());
-    registerDefaultInterfaces(*interfaceRuntimeValue,
-        *quietMessageOptionValue, displaySystemValue.settings());
+    commandsInputValue.reset(new CommandsInputRuntime(millisecondClockValue,
+        *quietMessageOptionValue, displaySystemValue.settings()));
 }
 
 Application::Application(int argc, char* argv[],
@@ -205,10 +203,8 @@ Application::Application(int argc, char* argv[],
     cthugha_install_logging_runtime(loggingRuntimeValue);
     imageOptionValue.reset(new ImageOption(0, "image"));
     quietMessageOptionValue.reset(new OptionTime("change-msg-time", 0));
-    interfaceRuntimeValue.reset(new InterfaceRuntime(millisecondClockValue));
-    errorMessagesValue.reset(new ErrorMessages());
-    registerDefaultInterfaces(*interfaceRuntimeValue,
-        *quietMessageOptionValue, displaySystemValue.settings());
+    commandsInputValue.reset(new CommandsInputRuntime(millisecondClockValue,
+        *quietMessageOptionValue, displaySystemValue.settings()));
 }
 
 Application::~Application() {
@@ -278,7 +274,7 @@ void Application::initSceneRuntime() {
     if (sceneRuntimeValue.get() == NULL)
         sceneRuntimeValue.reset(new SceneRuntime(frameGeneratorValue.sceneGeometry(),
             *sceneVisualCatalogFactoryValue, randomSourceValue));
-    interfaceRuntimeValue->setSceneVisualSelections(
+    commandsInputValue->interfaceRuntime().setSceneVisualSelections(
         sceneRuntimeValue->visualSelections());
 
     frameGeneratorValue.bindScene(sceneRuntimeValue->scene());
@@ -312,8 +308,10 @@ void Application::initSceneRuntime() {
             *quietMessageOptionValue));
     runtimeEffectControlsValue.reset(
         new DefaultRuntimeEffectControls(randomSourceValue));
-    interfaceRuntimeValue->setRuntimeConfigRegistry(runtimeConfigRegistryValue.get());
-    interfaceRuntimeValue->setAudioProcessingSelector(audioProcessingSelectorValue.get());
+    commandsInputValue->interfaceRuntime().setRuntimeConfigRegistry(
+        runtimeConfigRegistryValue.get());
+    commandsInputValue->interfaceRuntime().setAudioProcessingSelector(
+        audioProcessingSelectorValue.get());
     runtimeChangeMediatorValue.reset(new RuntimeChangeMediator(
         sceneRuntimeValue->commandTarget(), *runtimePersistenceValue,
         *runtimeShutdownValue, *runtimeDisplayControlsValue,
@@ -323,15 +321,16 @@ void Application::initSceneRuntime() {
         *runtimeChangeMediatorValue, *runtimeDisplayControlsValue,
         *runtimeAudioControlsValue,
         *runtimeAutoChangeControlsValue, *runtimeEffectControlsValue));
-    interfaceRuntimeValue->setAutoChangeControls(autoChangeControlsValue.get());
+    commandsInputValue->interfaceRuntime().setAutoChangeControls(
+        autoChangeControlsValue.get());
 }
 
 void Application::shutdownSceneRuntime() {
-    interfaceRuntimeValue->setAutoChangeControls(NULL);
-    interfaceRuntimeValue->setSceneVisualSelections(NULL);
+    commandsInputValue->interfaceRuntime().setAutoChangeControls(NULL);
+    commandsInputValue->interfaceRuntime().setSceneVisualSelections(NULL);
     frameGeneratorValue.unbindScene();
-    interfaceRuntimeValue->setAudioProcessingSelector(NULL);
-    interfaceRuntimeValue->setRuntimeConfigRegistry(NULL);
+    commandsInputValue->interfaceRuntime().setAudioProcessingSelector(NULL);
+    commandsInputValue->interfaceRuntime().setRuntimeConfigRegistry(NULL);
     runtimeCommandRouterValue.reset();
     runtimeChangeMediatorValue.reset();
     runtimeEffectControlsValue.reset();
@@ -375,7 +374,7 @@ int Application::initMixerRuntime() {
     }
 
     mixerControlsValue.reset(new MixerControls(*mixerSessionValue, logSinkValue));
-    Interface* mixerInterface = interfaceRuntimeValue->find("Mixer");
+    Interface* mixerInterface = commandsInputValue->interfaceRuntime().find("Mixer");
     if (mixerInterface == NULL) {
         logSinkValue.error("Mixer interface is not registered.\n");
         return 1;
@@ -386,7 +385,7 @@ int Application::initMixerRuntime() {
 
 void Application::shutdownMixerRuntime() {
     if (mixerControlsValue.get() != NULL) {
-        Interface* mixerInterface = interfaceRuntimeValue->find("Mixer");
+        Interface* mixerInterface = commandsInputValue->interfaceRuntime().find("Mixer");
         if (mixerInterface != NULL)
             mixerControlsValue->clearInterface(*mixerInterface);
     }
@@ -447,12 +446,12 @@ void Application::initAudioFramePipeline() {
             *autoChangeSettingsValue, acousticContextValue,
             millisecondClockValue, randomSourceValue,
             *autoChangeQuietObserverValue, logSinkValue));
-    interfaceRuntimeValue->setSceneChangeStatusProvider(
+    commandsInputValue->interfaceRuntime().setSceneChangeStatusProvider(
         sceneChangeSchedulerValue.get());
 }
 
 void Application::shutdownAudioFramePipeline() {
-    interfaceRuntimeValue->setSceneChangeStatusProvider(NULL);
+    commandsInputValue->interfaceRuntime().setSceneChangeStatusProvider(NULL);
     sceneChangeSchedulerValue.reset();
     autoChangeQuietObserverValue.reset();
     audioFramePipelineValue.reset();
@@ -537,7 +536,7 @@ int Application::initialize() {
         return 0;
     }
 
-    inputQueueValue.configure(startupConfigValue.input);
+    commandsInputValue->configureInput(startupConfigValue.input);
     configureTranslationOptions(startupConfigValue.effectPolicy);
     configureWaveOptions(startupConfigValue.effectPolicy);
     configurePaletteOptions(startupConfigValue.effectPolicy);
@@ -614,14 +613,13 @@ int Application::initialize() {
     // Interface/keymaps are available before display creation so early display
     // events and option panels can route input immediately.
     logSinkValue.info("Initializing interface...\n");
-    interfaceRuntimeValue->set("main");
+    commandsInputValue->interfaceRuntime().set("main");
 
     logSinkValue.info("Registering key actions...\n");
-    registerDefaultKeyActions(commandsValue);
-    registerInterfaceKeyActions(commandsValue);
+    commandsInputValue->registerBuiltins();
 
     logSinkValue.info("Initializing keymaps...\n");
-    keymapsValue.init(startupConfigValue.input, commandsValue);
+    commandsInputValue->initializeKeymaps(startupConfigValue.input);
 
     logSinkValue.info("Initializing display...\n");
     int displayArgc = int(displayArgv.size());
@@ -636,8 +634,9 @@ int Application::initialize() {
         sceneRuntimeValue->visualSelections(), *runtimeChangeMediatorValue,
         *runtimeCommandRouterValue, *runtimeConfigRegistryValue,
         startupConfigValue.display, displaySystemValue.settings(),
-        secondsClockValue, *interfaceRuntimeValue, *errorMessagesValue,
-        logSinkValue, &displayArgc, displayArgv.data());
+        secondsClockValue, commandsInputValue->interfaceRuntime(),
+        commandsInputValue->errorMessages(), logSinkValue, &displayArgc,
+        displayArgv.data());
     if (displaySystemValue.open(displayDrivers, displayOpenRequest))
         return 0;
     initFrameGeneratorPipeline();
@@ -677,17 +676,17 @@ void Application::run() {
         CthughaDisplay& display = displaySystemValue.coordinator();
 
         DisplayEventStats eventStats
-            = displaySystemValue.runtime().processEvents(inputQueueValue);
+            = displaySystemValue.runtime().processEvents(
+                commandsInputValue->inputQueue());
         if (traceDisplayTiming)
             eventsEnd = secondsClockValue.nowSeconds();
 
-        CommandContext commandContext(*interfaceRuntimeValue,
+        CommandContext commandContext(commandsInputValue->interfaceRuntime(),
             runtimeChangeMediatorValue.get(), runtimeCommandRouterValue.get());
 
         if (traceDisplayTiming)
             preInterfaceStart = secondsClockValue.nowSeconds();
-        interfaceRuntimeValue->runCurrent(inputQueueValue, keymapsValue,
-            commandsValue, dispatcherValue, commandContext);
+        commandsInputValue->runCurrent(commandContext);
         if (traceDisplayTiming)
             preInterfaceEnd = secondsClockValue.nowSeconds();
 
@@ -703,8 +702,7 @@ void Application::run() {
 
         if (traceDisplayTiming)
             postInterfaceStart = secondsClockValue.nowSeconds();
-        interfaceRuntimeValue->runCurrent(inputQueueValue, keymapsValue,
-            commandsValue, dispatcherValue, commandContext);
+        commandsInputValue->runCurrent(commandContext);
         if (traceDisplayTiming)
             postInterfaceEnd = secondsClockValue.nowSeconds();
 

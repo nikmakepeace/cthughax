@@ -155,7 +155,7 @@ static void testAudioDeviceSettingsAreStartupOnly() {
     assertSourceContains("src/Application.cc",
         "new MixerControls(*mixerSessionValue, logSinkValue)");
     assertSourceContains("src/Application.cc",
-        "interfaceRuntimeValue->find(\"Mixer\")");
+        "commandsInputValue->interfaceRuntime().find(\"Mixer\")");
     assertSourceContains("src/Application.cc",
         "mixerControlsValue->installInto(*mixerInterface)");
     assertSourceDoesNotContain("src/Application.cc",
@@ -622,7 +622,7 @@ static void testAudioFrameOwnsPerFrameMetrics() {
     assertSourceContains("src/InterfaceRuntime.h",
         "const SceneChangeStatusProvider* sceneChangeStatusProviderValue");
     assertSourceContains("src/Application.cc",
-        "interfaceRuntimeValue->setSceneChangeStatusProvider(\n"
+        "commandsInputValue->interfaceRuntime().setSceneChangeStatusProvider(\n"
         "        sceneChangeSchedulerValue.get())");
     assertSourceContains("src/Application.cc", "class FrameGeneratorQuietObserver");
     assertSourceContains("src/Application.cc",
@@ -708,7 +708,8 @@ static void testAutoChangeSettingsAreApplicationOwned() {
         "frameGeneratorValue(randomSourceValue, countdownTimerFactoryValue,\n"
         "          logSinkValue)");
     assertSourceContains("src/Application.cc",
-        "interfaceRuntimeValue->setAutoChangeControls(autoChangeControlsValue.get())");
+        "commandsInputValue->interfaceRuntime().setAutoChangeControls(\n"
+        "        autoChangeControlsValue.get())");
     assertSourceContains("src/Application.cc",
         "sceneRuntimeValue->commandTarget()");
     assertSourceContains("src/Application.cc",
@@ -1084,22 +1085,26 @@ static void testLegacyTestOptionWasRemoved() {
 static void testApplicationProvidesStartupConfigSlices() {
     assertSourceContains("src/Application.cc",
         "startupConfigValue.app.optionsSaveEnabled");
-    assertSourceContains("src/Application.h", "InputQueue inputQueueValue");
-    assertSourceContains("src/Application.h", "CommandRegistry commandsValue");
-    assertSourceContains("src/Application.h", "CommandDispatcher dispatcherValue");
-    assertSourceContains("src/Application.h", "KeymapRegistry keymapsValue");
+    assertSourceContains("src/Application.h",
+        "std::unique_ptr<CommandsInputRuntime> commandsInputValue");
+    assertSourceDoesNotContain("src/Application.h", "InputQueue inputQueueValue");
+    assertSourceDoesNotContain("src/Application.h", "CommandRegistry commandsValue");
+    assertSourceDoesNotContain("src/Application.h", "CommandDispatcher dispatcherValue");
+    assertSourceDoesNotContain("src/Application.h", "KeymapRegistry keymapsValue");
     assertSourceContains("src/Application.cc",
-        "inputQueueValue.configure(startupConfigValue.input)");
+        "commandsInputValue->configureInput(startupConfigValue.input)");
     assertSourceContains("src/Application.cc",
-        "processEvents(inputQueueValue)");
+        "commandsInputValue->inputQueue()");
     assertSourceContains("src/Application.cc",
-        "runCurrent(inputQueueValue, keymapsValue,");
+        "commandsInputValue->runCurrent(commandContext)");
     assertSourceContains("src/Application.cc",
-        "commandsValue, dispatcherValue, commandContext)");
-    assertSourceContains("src/Application.cc", "registerDefaultKeyActions(commandsValue)");
-    assertSourceContains("src/Application.cc", "registerInterfaceKeyActions(commandsValue)");
-    assertSourceContains("src/Application.cc",
-        "keymapsValue.init(startupConfigValue.input, commandsValue)");
+        "commandsInputValue->registerBuiltins()");
+    assertSourceContains("src/CommandsInputRuntime.cc",
+        "registerDefaultKeyActions(commandsValue)");
+    assertSourceContains("src/CommandsInputRuntime.cc",
+        "registerInterfaceKeyActions(commandsValue)");
+    assertSourceContains("src/CommandsInputRuntime.cc",
+        "keymapsValue.init(config, commandsValue)");
     assertSourceDoesNotContain("src/Application.cc", "Keymap::init");
     assertSourceContains("src/Application.cc",
         "remove_continuation_ini(startupConfigValue.paths, logSinkValue)");
@@ -1856,12 +1861,13 @@ static void testRuntimeLifecycleRequestsUseMediator() {
     assertSourceContains("src/Application.h", "SystemMillisecondClock millisecondClockValue");
     assertSourceContains("src/Application.cc", "secondsClockValue.nowSeconds()");
     assertSourceContains("src/Application.cc",
-        "new InterfaceRuntime(millisecondClockValue)");
+        "new CommandsInputRuntime(millisecondClockValue,");
     assertSourceContains("src/Application.cc",
         "startupConfigValue.display, displaySystemValue.settings(),\n"
         "        secondsClockValue");
     assertSourceContains("src/Application.cc",
-        "displaySystemValue.runtime().processEvents(inputQueueValue)");
+        "displaySystemValue.runtime().processEvents(\n"
+        "                commandsInputValue->inputQueue())");
     assertSourceDoesNotContain("src/Application.cc", "getTime()");
     assertSourceContains("src/InterfaceRuntime.h", "MillisecondClock& clock");
     assertSourceContains("src/InterfaceRuntime.cc", "clock.milliseconds()");
@@ -2089,7 +2095,7 @@ static void testRuntimeCommandsUseSubsystemControlPorts() {
     assertSourceContains("src/Application.cc",
         "new RoutedRuntimeCommandTargetRouter(");
     assertSourceContains("src/Application.cc",
-        "CommandContext commandContext(*interfaceRuntimeValue,");
+        "CommandContext commandContext(commandsInputValue->interfaceRuntime(),");
     assertSourceContains("src/Application.cc",
         "runtimeCommandRouterValue.get())");
     assertSourceDoesNotContain("src/Application.cc",
@@ -2361,7 +2367,8 @@ static void testSelectionDisplaysUseRuntimeConfigRegistry() {
     assertSourceDoesNotContain("src/RuntimeConfigSelection.cc",
         "currentName()");
     assertSourceContains("src/Application.cc",
-        "interfaceRuntimeValue->setRuntimeConfigRegistry(runtimeConfigRegistryValue.get())");
+        "commandsInputValue->interfaceRuntime().setRuntimeConfigRegistry(\n"
+        "        runtimeConfigRegistryValue.get())");
     assertSourceContains("src/Application.cc",
         "*runtimeConfigRegistryValue,\n        startupConfigValue.display");
 }
@@ -2417,13 +2424,13 @@ static void testRemainingSharedRuntimeStateWasRemoved() {
         "audioDebugSubmittedPcm");
 
     assertSourceContains("src/InterfaceRuntime.h", "class InterfaceRuntime");
-    assertSourceContains("src/Application.h",
+    assertSourceDoesNotContain("src/Application.h",
         "std::unique_ptr<InterfaceRuntime> interfaceRuntimeValue");
-    assertSourceContains("src/Application.h",
+    assertSourceDoesNotContain("src/Application.h",
         "std::unique_ptr<ErrorMessages> errorMessagesValue");
-    assertSourceContains("src/Application.cc",
-        "registerDefaultInterfaces(*interfaceRuntimeValue,\n"
-        "        *quietMessageOptionValue, displaySystemValue.settings())");
+    assertSourceContains("src/CommandsInputRuntime.cc",
+        "registerDefaultInterfaces(*interfaceRuntimeValue, quietMessageOption,\n"
+        "        displaySettings)");
     assertSourceContains("src/Application.cc",
         "quietMessageOptionValue->setValue(startupConfigValue.messages.quietMessageMs)");
     assertSourceDoesNotContain("src/FrameGeneratorRuntime.h",

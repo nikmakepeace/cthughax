@@ -79,6 +79,7 @@ set(CTHUGHA_COMMON_SOURCES
     RuntimeConfigSelection.cc
     LegacyRuntimeConfigContributor.cc
     IniFiles.cc
+    CommandsInputRuntime.cc
     InputQueue.cc
     Interface.cc
     InterfaceRuntime.cc

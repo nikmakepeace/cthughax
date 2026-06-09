@@ -758,6 +758,29 @@ target_link_libraries(input_queue_test PRIVATE m)
 
 add_test(NAME input_queue_test COMMAND input_queue_test)
 
+add_executable(commands_input_runtime_test
+    unit/CommandsInputRuntimeTest.cc
+    ${CMAKE_SOURCE_DIR}/src/CommandsInputRuntime.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/DisplayPresentationOptions.cc
+    ${CMAKE_SOURCE_DIR}/src/InterfaceRuntime.cc
+    ${CMAKE_SOURCE_DIR}/src/InputQueue.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/keys.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_include_directories(commands_input_runtime_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(commands_input_runtime_test PRIVATE m)
+
+add_test(NAME commands_input_runtime_test COMMAND commands_input_runtime_test)
+
 add_executable(display_ownership_test
     unit/DisplayOwnershipTest.cc
     ${CMAKE_SOURCE_DIR}/src/DisplayPresentationOptions.cc
