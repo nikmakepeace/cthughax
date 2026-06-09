@@ -4,16 +4,6 @@ the person who can question the answers."
 %
 "A little fire, Scarecrow?"
 %
-"A programmer is a person who passes as an exacting expert on the basis of
-being able to turn out, after innumerable punching, an infinite series of
-incomprehensive answers calculated with micrometric precisions from vague
-assumptions based on debatable figures taken from inconclusive documents
-and carried out on instruments of problematical accuracy by persons of
-dubious reliability and questionable mentality for the avowed purpose of
-annoying and confounding a hopelessly defenseless department that was
-unfortunate enough to ask for the information in the first place."
-        ― IEEE Grid newsmagazine
-%
 "Acting is an art which consists of keeping the audience from coughing."
 %
 "Anchovies? You've got the wrong man! I spell my name DANGER! (click)"
@@ -42,16 +32,6 @@ about the bytes?"
 "Contrariwise," continued Tweedledee, "if it was so, it might be; and
 if it were so, it would be; but as it isn't, it ain't. That's logic!"
         ― Lewis Carroll, "Through the Looking Glass"
-%
-"Creation science" has not entered the curriculum for a reason so simple
-and so basic that we often forget to mention it: because it is false, and
-because good teachers understand exactly why it is false. What could be
-more destructive of that most fragile yet most precious commodity in our
-entire intellectual heritage ― good teaching ― than a bill forcing
-honorable teachers to sully their sacred trust by granting equal treatment
-to a doctrine not only known to be false, but calculated to undermine any
-general understanding of science as an enterprise?
-        ― Stephen Jay Gould, "The Skeptical Inquirer", Vol. 12, page 186
 %
 "Deep" is a word like "theory" or "semantic" ― it implies all sorts of
 marvelous things. It's one thing to be able to say "I've got a theory",
@@ -239,22 +219,6 @@ into the Thames, it would be a misfortune. But if someone dragged him
 out again, it would be a calamity."
         ― Benjamin Disraeli
 %
-The brain is a beautifully engineered get-out-of-the-way machine that
-constantly scans the environment for things out of whose way it should
-right now get. That's what brains did for several hundred million years ―
-and then, just a few million years ago, the mammalian brain learned a new
-trick: to predict the timing and location of dangers before they actually
-happened.
-
-Our ability to duck that which is not yet coming is one of the brain's most
-stunning innovations, and we wouldn't have dental floss or 401(k) plans
-without it. But this innovation is in the early stages of development. The
-application that allows us to respond to visible baseballs is ancient and
-reliable, but the add-on utility that allows us to respond to threats that
-loom in an unseen future is still in beta testing.
-        ― Daniel Gilbert, professor of psychology at Harvard University,
-           in an op-ed piece in the Los Angeles Times; 6 July, 2006
-%
 "The illegal we do immediately. The unconstitutional takes a bit longer."
         ― Henry Kissinger
 %
@@ -362,15 +326,6 @@ the time, they have been right.
 White House, the Secret Service would count the silverware."
         ― Woody Allen, "Sleeper"
 %
-"Yes, well, that's just the sort of blinkered, Philistine pig-ignorance I've
-come to expect from you non-creative garbage. You sit there on your loathsome
-spotty behinds squeezing blackheads, not caring a tinker's cuss for the
-struggling artist, you excrement! You whining, hypocritical toadies with your
-Tony Jacklin golf clubs, your colour TVs and your bleedin' Masonic handshakes!
-You wouldn't let me join, would you, you blackballing bastards?! WELL I
-WOULDN'T BECOME A FREEMASON NOW IF YOU GOT DOWN ON YOUR LOUSY STINKING KNEES
-AND BEGGED ME!"
-%
 "You can't teach people to be lazy - either they have it, or they don't."
         ― Dagwood Bumstead
 %
@@ -401,26 +356,6 @@ might as well have been written by someone else.
         ― Eagleson's Law
 %
 Any resemblance between the above and my own views is non-deterministic.
-%
-... But if we laugh with derision, we will never understand. Human
-intellectual capacity has not altered for thousands of years so far as we
-can tell. If intelligent people invested intense energy in issues that now
-seem foolish to us, then the failure lies in our understanding of their
-world, not in their distorted perceptions. Even the standard example of
-ancient nonsense ― the debate about angels on pinheads ― makes sense once
-you realize that theologians were not discussing whether five or eighteen
-would fit, but whether a pin could house a finite or an infinite number.
-        ― S. J. Gould, "Wide Hats and Narrow Minds"
-%
-... Fortunately, the responsibility for providing evidence is on the part of
-the person making the claim, not the critic. It is not the responsibility
-of UFO skeptics to prove that a UFO has never existed, nor is it the
-responsibility of paranormal-health-claims skeptics to prove that crystals
-or colored lights never healed anyone. The skeptic's role is to point out
-claims that are not adequately supported by acceptable evidence and to
-provide plausible alternative explanations that are more in keeping with
-the accepted body of scientific evidence. ...
-        ― Thomas L. Creed, The Skeptical Inquirer, Vol. XII No. 2, pg. 215
 %
 ... Had this been an actual emergency, we would have fled in terror,
 and you would not have been informed.
@@ -605,14 +540,6 @@ A diva who specializes in risque arias is an off-coloratura soprano ...
 %
 A door is what a dog is perpetually on the wrong side of.
         ― Ogden Nash
-%
-A famous Lisp Hacker noticed an Undergraduate sitting in front of a Xerox
-1108, trying to edit a complex Klone network via a browser. Wanting to
-help, the Hacker clicked one of the nodes in the network with the mouse,
-and asked "what do you see?" Very earnestly, the Undergraduate replied "I
-see a cursor." The Hacker then quickly pressed the boot toggle at the back
-of the keyboard, while simultaneously hitting the Undergraduate over the
-head with a thick Interlisp Manual. The Undergraduate was then Enlightened.
 %
 A fanatic is a person who can't change his mind and won't change the subject.
         ― Winston Churchill
@@ -970,15 +897,6 @@ All in all it's just another brick in the wall.
 %
 All my life I wanted to be someone; I guess I should have been more specific.
         ― Jane Wagner
-%
-All programmers are optimists. Perhaps this modern sorcery especially attracts
-those who believe in happy endings and fairy godmothers. Perhaps the hundreds
-of nitty frustrations drive away all but those who habitually focus on the end
-goal. Perhaps it is merely that computers are young, programmers are younger,
-and the young are always optimists. But however the selection process works,
-the result is indisputable: "This time it will surely run," or "I just found
-the last bug."
-        ― Frederick Brooks, Jr., The Mythical Man Month
 %
 All programmers are playwrights and all computers are lousy actors.
 %
@@ -1346,17 +1264,6 @@ the creative mind seems more likely to hinder than to help, but this is
 quite untrue in practice. Disciplined thinking focuses inspiration rather
 than blinkers it.
         ― G. L. Glegg, The Design of Design
-%
-At the heart of science is an essential tension between two seemingly
-contradictory attitudes ― an openness to new ideas, no matter how bizarre
-or counterintuitive they may be, and the most ruthless skeptical scrutiny
-of all ideas, old and new. This is how deep truths are winnowed from deep
-nonsense. Of course, scientists make mistakes in trying to understand the
-world, but there is a built-in error-correcting mechanism: The collective
-enterprise of creative thinking and skeptical thinking together keeps the
-field on track.
-        ― Carl Sagan, "The Fine Art of Baloney Detection," Parade,
-           February 1, 1987
 %
 At the source of every error which is blamed on the computer you will
 find at least two human errors, including the error of blaming it on
@@ -2024,17 +1931,6 @@ one else has thought.
 Distress, n.: A disease incurred by exposure to the prosperity of a friend.
         ― Ambrose Bierce, "The Devil's Dictionary"
 %
-Do not allow this language (Ada) in its present state to be used in
-applications where reliability is critical, i.e., nuclear power stations,
-cruise missiles, early warning systems, anti-ballistic missle defense
-systems. The next rocket to go astray as a result of a programming language
-error may not be an exploratory space rocket on a harmless trip to Venus:
-It may be a nuclear warhead exploding over one of our cities. An unreliable
-programming language generating unreliable programs constitutes a far
-greater risk to our environment and to our society than unsafe cars, toxic
-pesticides, or accidents at nuclear power stations.
-        ― C. A. R. Hoare
-%
 Do not merely believe in miracles, rely on them.
 %
 Do not clog intellect's sluices with bits of knowledge of questionable uses.
@@ -2295,16 +2191,6 @@ aliases 5 years ago?
 %
 Every 4 seconds a woman has a baby. Our problem is to find this woman
 and stop her.
-%
-Every Horse has an Infinite Number of Legs (proof by intimidation):
-Horses have an even number of legs. Behind they have two legs, and in
-front they have fore-legs. This makes six legs, which is certainly an
-odd number of legs for a horse. But the only number that is both even
-and odd is infinity. Therefore, horses have an infinite number of
-legs. Now to show this for the general case, suppose that somewhere,
-there is a horse that has a finite number of legs. But that is a horse
-of another color, and by the [above] lemma ["All horses are the same
-color"], that does not exist.
 %
 Every Solidarity center had piles and piles of paper .... everyone was
 eating paper and a policeman was at the door. Now all you have to do is
@@ -2611,18 +2497,6 @@ Friends: people who borrow my books and set wet glasses on them.
 Frisbeetarianism, n.: The belief that when you die, your soul goes up on the
 roof and gets stuck.
 %
-Frobnicate, v.:
-        To manipulate or adjust, to tweak. Derived from FROBNITZ.
-Usually abbreviated to FROB. Thus one has the saying "to frob a
-frob". See TWEAK and TWIDDLE. Usage: FROB, TWIDDLE, and TWEAK
-sometimes connote points along a continuum. FROB connotes aimless
-manipulation; TWIDDLE connotes gross manipulation, often a coarse
-search for a proper setting; TWEAK connotes fine-tuning. If someone is
-turning a knob on an oscilloscope, then if he's carefully adjusting it
-he is probably tweaking it; if he is just turning it but looking at the
-screen he is probably twiddling it; but if he's just doing it because
-turning a knob is fun, he's frobbing it.
-%
 From the ice-age to the dole-age
 there is but one concern
 and I have just discovered:
@@ -2737,15 +2611,6 @@ and then pulled an all-nighter.
 God does not play dice with the universe.
 %
 God gives us relatives; thank goodness we can choose our friends.
-%
-God has intended the great to be great and the little to be little ... The
-trade unions, under the European system, destroy liberty ... I do not mean
-to say that a dollar a day is enough to support a workingman ... not enough
-to support a man and five children if he insists on smoking and drinking
-beer. But the man who cannot live on bread and water is not fit to live!
-A family may live on good bread and water in the morning, water and bread
-at midday, and good bread and water at night!
-        ― Rev. Henry Ward Beecher
 %
 God is a comedian playing to an audience too afraid to laugh.
         ― Voltaire
@@ -3250,18 +3115,6 @@ I'm also not very analytical. You know, I don't spend a lot of time thinking
 about myself, about why I do things.
         ― George W. Bush, aboard Air Force One; June 4, 2003
 %
-I'm an evolutionist because I judge the evidence for the unity of life by
-common descent over billions of years to be overwhelming, not so that I can
-cheat on my wife or kick the cat with impunity. I live in no hope of heaven
-or fear of hell, but like most of my fellow Americans of all religious
-persuasions, I try to live a decent life. Folks like Tom DeLay just can't
-get it through their heads that a person can choose to live ethically
-because civilized life requires doing unto others as you would have them do
-unto you.
-        ― Chet Raymo, science columnist for The Boston Globe, in a
-           5 Sep, 1999, article on the anti-evolution decision by Kansas
-           School Board
-%
 I am a member of a party of one, and I live in an age of fear. Nothing
 lately has unsettled my party and raised my fears so much as your
 editorial, on Thanksgiving Day, suggesting that employees should be
@@ -3550,19 +3403,6 @@ kind of Fourth of July plumes on them that were red and yellow and blue and
 I wasn't tempted to buy one but I was reminded of the fact that I had been
 avoiding the beach.
         ― Lucinda Childs (Philip Glass: Einstein On The Beach)
-%
-I went on to test the program in every way I could devise. I strained
-it to expose its weaknesses. I ran it for high-mass stars and low-mass
-stars, for stars born exceedingly hot and those born relatively cold.
-I ran it assuming the superfluid currents beneath the crust to be
-absent ― not because I wanted to know the answer, but because I had
-developed an intuitive feel for the answer in this particular case.
-Finally I got a run in which the computer showed the pulsar's
-temperature to be less than absolute zero. I had found an error. I
-chased down the error and fixed it. Now I had improved the program to
-the point where it would not run at all.
-        ― George Greenstein, "Frozen Star: Of Pulsars, Black
-                   Holes and the Fate of Stars"
 %
 I will never use biometrics. I'm afraid they'll make me change my password.
         ― Drew Sudell
@@ -4035,19 +3875,6 @@ In an organization, each person rises to the level of his own incompetence.
 %
 In any formula, constants (especially those obtained from handbooks)
 are to be treated as variables.
-%
-In arguing that current theories of brain function cast suspicion on ESP,
-psychokinesis, reincarnation, and so on, I am frequently challenged with
-the most popular of all neuro-mythologies ― the notion that we ordinarily
-use only 10 percent of our brains...
-
-This "cerebral spare tire" concept continues to nourish the clientele of
-"pop psychologists" and their many recycling self-improvement schemes. As
-a metaphor for the fact that few of us fully exploit our talents, who could
-deny it? As a refuge for occultists seeking a neural basis of the miraculous,
-it leaves much to be desired.
-        ― Barry L. Beyerstein, "The Brain and Conciousness: Implications for
-           Psi Phenomena", The Skeptical Enquirer, Vol. XII, No. 2, pg. 171
 %
 In every country and every age, the priest has been hostile to Liberty. He
 is always in alliance with the despot.
@@ -4631,19 +4458,6 @@ Law of Selective Gravity: An object will fall so as to do the most damage.
 %
 Lawrence's Axiom: Anger is one letter short of danger.
 %
-Laws of Computer Programming
-(1) Any given program, when running, is obsolete.
-(2) Any given program costs more and takes longer.
-(3) If a program is useful, it will have to be changed.
-(4) If a program is useless, it will have to be documented.
-(5) Any given program will expand to fill all available memory.
-(6) The value of a program is proportional to the weight of its output.
-(7) Program complexity grows until it exceeds the capability of the
-    programmer who must maintain it.
-(8) Make it possible for programmers to write programs in English, and you
-    will find that programmers cannot write in English.
-        ― SIGPLAN Notices, Vol. 2, No. 2
-%
 Lazlo's Chinese Relativity Axiom: No matter how great your triumphs or how
 tragic your defeats ― approximately one billion Chinese couldn't care less.
 %
@@ -4995,17 +4809,6 @@ Millions long for immortality who do not know what to do with
 themselves on a rainy Sunday afternoon.
         ― Susan Ertz
 %
-Millions of sensible people are too high-minded to concede that politics is
-almost always the choice of the lesser evil. "Tweedledum and Tweedledee,"
-they say, "I will not vote." Having abstained, they are presented with a
-President who appoints the people who are going to rummage around in their
-lives for the next four years. Consider all the people who sat home in a
-stew in 1968 rather than vote for Hubert Humphrey. They showed Humphrey.
-Those people who taught Hubert Humphrey a lesson will still be enjoying the
-Nixon Supreme Court when Tricia and Julie begin to find silver threads
-among the gold and the black.
-        ― Russel Baker, "Ford without Flummery"
-%
 Mirrors should reflect a little before throwing back images.
         ― Jean Cocteau
 %
@@ -5097,16 +4900,6 @@ My mother is a fish.
         ― William Faulkner
 %
 My opinions may have changed, but not the fact that I am right.
-%
-My own life has been spent chronicling the rise and fall of human systems,
-and I am convinced that we are terribly vulnerable.... We should be
-reluctant to turn back upon the frontier of this epoch. Space is
-indifferent to what we do; it has no feeling, no design, no interest in
-whether or not we grapple with it. But we cannot be indifferent to space,
-because the grand, slow march of intelligence has brought us, in our
-generation, to a point from which we can explore and understand and utilize
-it. To turn back now would be to deny our history, our capabilities.
-        ― James A. Michener
 %
 My past is my own.
         ― The Shadow (DC Comics)
@@ -6054,17 +5847,6 @@ paraphrase the question back at him.
 %
 Speak softly and carry a +6 two-handed sword.
 %
-Speaking as someone who has delved into the intricacies of PL/I, I am sure
-that only Real Men could have written such a machine-hogging,
-cycle-grabbing, all-encompassing monster. Allocate an array and free the
-middle third? Sure! Why not? Multiply a character string times a bit
-string and assign the result to a float decimal? Go ahead! Free a
-controlled variable procedure parameter and reallocate it before passing it
-back? Overlay three different types of variable on the same memory
-location? Anything you say! Write a recursive macro? Well, no, but Real
-Men use rescan. How could a language so obviously designed and written by
-Real Men not be intended for Real Man use?
-%
 Spiritual leadership should remain spiritual leadership and the temporal
 power should not become too important in any church.
         ― Eleanor Roosevelt
@@ -6775,17 +6557,6 @@ The rain it raineth on the just
 But chiefly on the just, because
         The unjust steals the just's umbrella.
 %
-The reason ESP, for example, is not considered a viable topic in
-contemporary psychology is simply that its investigation has not proven
-fruitful...After more than 70 years of study, there still does not exist
-one example of an ESP phenomenon that is replicable under controlled
-conditions. This simple but basic scientific criterion has not been met
-despite dozens of studies conducted over many decades... It is for this
-reason alone that the topic is now of little interest to psychology... In
-short, there is no demonstrated phenomenon that needs explanation.
-        ― Keith E. Stanovich, "How to Think Straight About Psychology",
-           pp. 160-161
-%
 The reason computer chips are so small is computers don't eat much.
 %
 The reason we struggle with insecurity is because we compare our
@@ -6862,15 +6633,6 @@ The superfluous is very necessary.
 %
 The sweetest of all sounds is praise.
         ― Xenophon
-%
-The tar pit of software engineering will continue to be sticky for a long time
-to come. One can expect the human race to continue attempting systems just
-within or just beyond our reach; and software systems are perhaps the most
-intricate and complex of man's handiworks. The management of this complex
-craft will demand our best use of new languages and systems, our best
-adaptation of proven engineering management methods, liberal doses of common
-sense, and ... humility to recognize our fallibility and limitations.
-        ― Frederick Brooks, Jr., The Mythical Man Month
 %
 The Three Laws of Thermodynamics
 The First Law: You can't get anything without working for it.
@@ -7028,10 +6790,6 @@ make it so complicated that there are no obvious deficiencies.
 %
 There are two ways to write error-free programs. Only the third one works.
 %
-There are two ways to be fooled. One is to believe what isn't true. The other
-is to refuse to accept what is true.
-        ― Søren Kierkegaard
-%
 There are very few personal problems that cannot be solved through a
 suitable application of high explosives.
 %
@@ -7134,17 +6892,6 @@ away at the sons of his father and going blurp blurp in between as if it were
 a filthy old orchestra in his stinking rotten guts. I could never stand to
 see anyone like that, especially when they were old like this one was.
         ― Alex in "Clockwork Orange"
-%
-There were in this country two very large monopolies. The larger of the
-two had the following record: the Vietnam War, Watergate, double- digit
-inflation, fuel and energy shortages, bankrupt airlines, and the 8-cent
-postcard. The second was responsible for such things as the transistor,
-the solar cell, lasers, synthetic crystals, high fidelity stereo recording,
-sound motion pictures, radio astronomy, negative feedback, magnetic tape,
-magnetic "bubbles", electronic switching systems, microwave radio and TV
-relay systems, information theory, the first electrical digital computer,
-and the first communications satellite. Guess which one got to tell the
-other how to run the telephone business?
 %
 There will always be survivors.
         ― Robert Heinlen
@@ -7408,15 +7155,6 @@ To steal from one person is theft. To steal from many is taxation.
         ― Daiell's Law (a take-off on Felson's Law)
 %
 To teach is to learn.
-%
-To those accustomed to the precise, structured methods of conventional
-system development, exploratory development techniques may seem messy,
-inelegant, and unsatisfying. But it's a question of congruence: precision
-and flexibility may be just as disfunctional in novel, uncertain situations
-as sloppiness and vacillation are in familiar, well-defined ones. Those
-who admire the massive, rigid bone structures of dinosaurs should remember
-that jellyfish still enjoy their very secure ecological niche.
-        ― Beau Sheil, "Power Tools for Programmers"
 %
 Today is the first day of the rest of your lossage.
 %
@@ -8110,16 +7848,6 @@ Writing in C or C++ is like running a chain saw with all the safety guards
 removed.
         ― Bob Gray
 %
-Writing programs needs genius to save the last order or the last millisecond.
-It is great fun, but it is a young man's game. You start it with great
-enthusiasm when you first start programming, but after ten years you get a
-bit bored with it, and then you turn to automatic-programming languages and
-use them because they enable you to get to the heart of the problem that you
-want to do, instead of having to concentrate on the mechanics of getting the
-program going as fast as you possibly can, which is really nothing more than
-doing a sort of crossword puzzle.
-        ― Christopher Strachey, 1962
-%
 Xerox does it again and again and again and ...
 %
 Xerox never comes up with anything original.
@@ -8440,30 +8168,9 @@ The most costly of all follies is to believe passionately in the palpably not
 true. It is the chief occupation of mankind.
         ― H.L. Mencken, A Mencken Chrestomathy, 1949.
 %
-The notion that science does not concern itself with first causes―that
-it leaves the field to theology or metaphysics, and confines itself to mere
-effects―this notion has no support in the plain facts. If it could,
-science would explain the origin of life on earth at once ― and there is
-every reason to believe that it will do so on some not too remote tomorrow.
-To argue that gaps in knowledge which will confront the seeker must be
-filled, not by patient inquiry, but by intuition or revelation, is simply
-to give ignorance a gratuitous and preposterous dignity....
-        ― H. L. Mencken, 1930
-%
 The one permanent emotion of the inferior man is fear―fear of the unknown,
 the complex, the inexplicable. What he wants beyond everything else is safety.
         ― H.L. Mencken, Prejudices, 1920.
-%
-The truth is that Christian theology, like every other theology, is not only
-opposed to the scientific spirit; it is also opposed to all other attempts
-at rational thinking. Not by accident does Genesis 3 make the father of
-knowledge a serpent ― slimy, sneaking and abominable. Since the earliest
-days the church as an organization has thrown itself violently against every
-effort to liberate the body and mind of man. It has been, at all times and
-everywhere, the habitual and incorrigible defender of bad governments, bad
-laws, bad social theories, bad institutions. It was, for centuries, an
-apologist for slavery, as it was the apologist for the divine right of kings.
-        ― H. L. Mencken
 %
 The whole aim of practical politics is to keep the populace alarmed (and hence
 clamorous to be led to safety) by menacing it with an endless series of
@@ -8482,21 +8189,6 @@ To sum up: 1. The cosmos is a gigantic fly-wheel making 10,000 revolutions
 a minute. 2. Man is a sick fly taking a dizzy ride on it. 3. Religion is the
 theory that the wheel was designed and set spinning to give him the ride.
         ― H. L. Mencken, Coda from "Smart Set", 1920
-%
-When a candidate for public office faces the voters he does not face men of
-sense; he faces a mob of men whose chief distinguishing mark is the fact that
-they are quite incapable of weighing ideas, or even of comprehending any save
-the most elemental — men whose whole thinking is done in terms of emotion, and
-whose dominant emotion is dread of what they cannot understand. So confronted,
-the candidate must either bark with the pack or be lost... All the odds are on
-the man who is, intrinsically, the most devious and mediocre — the man who can
-most adeptly disperse the notion that his mind is a virtual vacuum. The
-Presidency tends, year by year, to go to such men. As democracy is perfected,
-the office represents, more and more closely, the inner soul of the people. We
-move toward a lofty ideal. On some great and glorious day the plain folks of
-the land will reach their heart's desire at last, and the White House will be
-adorned by a downright moron.
-        ― H. L. Mencken
 %
 When women kiss it always reminds one of prize-fighters shaking hands.
         ― H. L. Mencken, "Sententiae," The Vintage Mencken, 1955.
@@ -8860,16 +8552,6 @@ wanna get out there before the Christian Right finds out what we're up to
 and shits all over it.
         ― Lewis Black
 %
-[The Weather Channel] is the most watched cable channel in America. I'll
-repeat that. It is the most watched cable channel in America. They were
-worried about the terrorists immobilizing us, and a portion of our
-countrymen watch weather. 'Kay, you don't get any more immobile than
-that... unless you're in a goddamn coma. That means you're saying, "I'd go
-to the window, but it's too far." If you want to know what the weather is
-you go to a window and stick your hand out and if you want to know what the
-temperature is you drive by a bank.
-        ― Lewis Black
-%
 There's no such thing as soy milk. It's soy juice. But they couldn't sell
 soy juice, so they called it soy milk. Because anytime you say soy juice,
 you actually... start to gag.
@@ -8913,15 +8595,6 @@ the abyss, saying, "My God, what have I done?"
 "That hardly ever happens" is another way of saying, "It happens".
         ― Douglas Crockford, during his keynote at YUIConf 2011
 %
-I used to think everyone should learn programming. When I first starting
-programming...I thought, "Wow, this is such an amazing way to organize
-information! Everybody should learn to do this!" I don't think that any more. I
-think there has to be something seriously wrong with you, in order to do this
-work. A normal person, once they've looked into the abyss, will say, "I'm done.
-This is stupid. I'm going to go to something else." But not us, 'cause there's
-something really wrong with us.
-        ― Douglas Crockford, during his keynote at YUIConf 2011
-%
 Confusion must be avoided. Confusion is the enemy. Confusion is what causes
 bugs and security mishaps and all the other things that make us miserable.
         ― Douglas Crockford, during his keynote at YUIConf 2011
@@ -8951,22 +8624,6 @@ with mystery. The very fact of its being, and of our own, is a mystery
 absolute, and the only miracle worthy of the name.
         ― Sam Harris, "The End of Faith"
 %
-What is so unnerving about the candidacy of Sarah Palin is the degree to which
-she represents—and her supporters celebrate—the joyful marriage of confidence
-and ignorance . . . Ask yourself: how has "elitism" become a bad word in
-American politics? There is simply no other walk of life in which extraordinary
-talent and rigorous training are denigrated. We want elite pilots to fly our
-planes, elite troops to undertake our most critical missions, elite athletes to
-represent us in competition and elite scientists to devote the most productive
-years of their lives to curing our diseases. And yet, when it comes time to
-vest people with even greater responsibilities, we consider it a virtue to shun
-any and all standards of excellence. When it comes to choosing the people whose
-thoughts and actions will decide the fates of millions, then we suddenly want
-someone just like us, someone fit to have a beer with, someone down-to-earth—in
-fact, almost anyone, provided that he or she doesn't seem too intelligent or
-well educated.
-        ― Sam Harris
-%
 Unreason is now ascendant in the United States—in our schools, in our courts,
 and in each branch of the federal government.
         ― Sam Harris, "The Politics of Ignorance" (2005)
@@ -8976,19 +8633,6 @@ remains an open question, but anyone who would dogmatically insist that these
 traits must arise coincident with the moment of conception has nothing to
 contribute, apart from his ignorance, to this debate.
         ― Sam Harris
-%
-Water is two parts hydrogen and one part oxygen. This seems as value-free an
-utterance as human beings ever make. But what do we do when someone doubts the
-truth of this proposition? Ok, all we can do is appeal to scientific values.
-The value of understanding the world. The value of evidence. The value of
-logical consistency. What if someone says, “Well, that’s not how I choose to
-think about water. Ok, what can we say to such a person? Ok, all we can do is
-appeal to scientific values. And if he doesn’t share those values, the
-conversation is over. Ok, if someone doesn’t value evidence, what evidence are
-you going to provide to prove that they should value it? If someone doesn’t
-value logic, what logical argument could you provide to show the importance of
-logic?
-        ― Sam Harris, during a Notre Dame debate with William Lane Craig
 %
 I love living in the future. ― Bill Cheswick
 %
@@ -9030,15 +8674,6 @@ sick for quite a while.
 %
 Anyone who is capable of getting themselves made President should on no
 account be allowed to do the job.
-        ― Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
-%
-Bypasses are devices that allow some people to dash from point A to point B
-very fast while other people dash from point B to point A very fast. People
-living at point C, being a point directly in between, are often given to wonder
-what's so great about point A that so many people from point B are so keen to
-get there and what's so great about point B that so many people from point A
-are so keen to get THERE. They often wish that people would just once and for
-all work out where the hell they wanted to be.
         ― Douglas Adams, "The Hitchhiker's Guide to the Galaxy"
 %
 Far out in the uncharted backwaters of the unfashionable end of the Western
@@ -9333,31 +8968,10 @@ knowin' he's out there. The Dude. Takin' 'er easy for all us sinners. Shoosh. I
 sure hope he makes the finals.
         ― The Stranger ("The Big Lebowski")
 %
-We’ve bought into the idea that education is about training and
-"success", defined monetarily, rather than learning to think critically
-and to challenge. We should not forget that the true purpose of education
-is to make minds, not careers. A culture that does not grasp the vital
-interplay between morality and power, which mistakes management techniques
-for wisdom, which fails to understand that the measure of a civilization
-is its compassion, not its speed or ability to consume, condemns itself
-to death.
-        ― Chris Hedges, "Empire of Illusion: The End of Literacy and the
-          Triumph of Spectacle"
-%
 Inverted totalitarianism, unlike classical totalitarianism, does not
 revolve around a demagogue or charismatic leader. It finds expression in
 the anonymity of the Corporate State. It purports to cherish democracy,
 patriotism, and the Constitution while manipulating internal levers.
-        ― Chris Hedges, "Empire of Illusion: The End of Literacy and the
-          Triumph of Spectacle"
-%
-Washington has become our Versailles. We are ruled, entertained,
-and informed by courtiers―and the media has evolved into a class of
-courtiers. The Democrats, like the Republicans, are mostly courtiers. Our
-pundits and experts, at least those with prominent public platforms,
-are courtiers. We are captivated by the hollow stagecraft of political
-theater as we are ruthlessly stripped of power. It is smoke and mirrors,
-tricks and con games, and the purpose behind it is deception.
         ― Chris Hedges, "Empire of Illusion: The End of Literacy and the
           Triumph of Spectacle"
 %
@@ -9367,20 +8981,6 @@ who, numbed by isolation and despair, now seek meaning in a mythical world
 of intuition, a world that is no longer reality-based, a world of magic.
         ― Chris Hedges, American Fascists: The Christian Right and the War
           On America 
-%
-Hope has a cost. Hope is not comfortable or easy. Hope requires personal
-risk. It is not about the right attitude. Hope is not about peace of
-mind. Hope is action. Hope is doing something. The more futile, the more
-useless, the more irrelevant and incomprehensible an act of rebellion is,
-the vaster and more potent hope becomes.  Hope never makes sense. Hope is
-weak, unorganized and absurd. Hope, which is always nonviolent, exposes in
-its powerlessness, the lies, fraud and coercion employed by the state. Hope
-knows that an injustice visited on our neighbor is an injustice visited on
-all of us. Hope posits that people are drawn to the good by the good. This
-is the secret of hope's power. Hope demands for others what we demand for
-ourselves. Hope does not separate us from them. Hope sees in our enemy
-our own face.
-        ― Chris Hedges
 %
 Racism towards Muslims is as evil as anti-Semitism, but try to express
 this simple truth on a partisan Palestinian or Israeli website.
