@@ -71,6 +71,9 @@ class FrameFilter {
 public:
     virtual ~FrameFilter();
 
+    /** @return Stable human-readable filter name for diagnostics. */
+    virtual const char* name() const;
+
     /** Rebuilds internal lookup/cache state after display or scene changes. */
     virtual void refresh() { }
 

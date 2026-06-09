@@ -17,6 +17,10 @@ ImageFilter::ImageFilter()
     , placement()
     , overlayPassiveBuffer(1) { }
 
+const char* ImageFilter::name() const {
+    return "image";
+}
+
 void ImageFilter::setImage(const IndexedImage* image_) {
     image = image_;
 }
@@ -64,6 +68,10 @@ FlameFilter::FlameFilter()
     : flame(0)
     , generalFlame(0) { }
 
+const char* FlameFilter::name() const {
+    return "flame";
+}
+
 void FlameFilter::setFlame(const Flame* flame_) {
     flame = flame_;
 }
@@ -82,6 +90,10 @@ void FlameFilter::execute(FrameFilterFrame& frame) {
 TranslateFilter::TranslateFilter()
     : translate() { }
 
+const char* TranslateFilter::name() const {
+    return "translate";
+}
+
 void TranslateFilter::setTranslate(const TranslationTable& table) {
     translate = Translate(table);
 }
@@ -99,6 +111,10 @@ WaveFilter::WaveFilter()
     , randomSourceValue(0)
     , configured(0)
     , needsConfiguration(1) { }
+
+const char* WaveFilter::name() const {
+    return "wave";
+}
 
 void WaveFilter::setWave(Wave* wave_, const WaveConfig& config_) {
     if (wave != wave_) {
@@ -135,6 +151,10 @@ TextInjectionFilter::TextInjectionFilter()
     , marginPixels(0)
     , horizontalAlign(TextInjectionAlignCenter)
     , verticalAlign(TextInjectionAlignMiddle) { }
+
+const char* TextInjectionFilter::name() const {
+    return "text-injection";
+}
 
 void TextInjectionFilter::setMessage(const char* message_, int frameCount) {
     if (message_ == 0 || frameCount <= 0) {
@@ -365,6 +385,10 @@ FrameCommitFilter::FrameCommitFilter()
     , tableName("unknown")
     , debugReports(0) { }
 
+const char* FrameCommitFilter::name() const {
+    return "frame-commit";
+}
+
 void FrameCommitFilter::setSceneNames(const char* flameName_, const char* waveName_,
     const char* waveScaleName_, const char* tableName_) {
     flameName = (flameName_ != 0) ? flameName_ : "unknown";
@@ -404,6 +428,10 @@ void FrameCommitFilter::execute(FrameFilterFrame& frame) {
 
 FlashlightFilter::FlashlightFilter() { }
 
+const char* FlashlightFilter::name() const {
+    return "flashlight";
+}
+
 void FlashlightFilter::execute(FrameFilterFrame& frame) {
     frame.log().trace("frame filterchain", "executing flashlight stage\n");
     FramePalette* framePalette = frame.framePalette();
@@ -413,6 +441,10 @@ void FlashlightFilter::execute(FrameFilterFrame& frame) {
 
 BorderFilter::BorderFilter()
     : borderMode(0) { }
+
+const char* BorderFilter::name() const {
+    return "border";
+}
 
 void BorderFilter::setBorderMode(int borderMode_) {
     borderMode = borderMode_;
@@ -425,6 +457,10 @@ void BorderFilter::execute(FrameFilterFrame& frame) {
 }
 
 PaletteFilter::PaletteFilter() { }
+
+const char* PaletteFilter::name() const {
+    return "palette";
+}
 
 FramePalette& PaletteFilter::framePalette() {
     return framePaletteValue;
@@ -453,6 +489,10 @@ void PaletteFilter::execute(FrameFilterFrame& frame) {
 }
 
 IndexedFrameFilter::IndexedFrameFilter() { }
+
+const char* IndexedFrameFilter::name() const {
+    return "indexed-frame";
+}
 
 void IndexedFrameFilter::execute(FrameFilterFrame& frame) {
     frame.log().trace("frame filterchain", "publishing indexed frame\n");
