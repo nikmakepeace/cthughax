@@ -1084,6 +1084,21 @@ target_link_libraries(control_protocol_test PRIVATE m)
 
 add_test(NAME control_protocol_test COMMAND control_protocol_test)
 
+add_executable(control_transport_test
+    unit/ControlTransportTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlTransport.cc
+)
+
+target_include_directories(control_transport_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_transport_test PRIVATE Threads::Threads m)
+
+add_test(NAME control_transport_test COMMAND control_transport_test)
+
 add_executable(scene_choice_list_catalog_test
     unit/SceneChoiceListCatalogTest.cc
     ${CMAKE_SOURCE_DIR}/src/SceneChoiceListCatalog.cc
