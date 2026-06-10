@@ -45,6 +45,21 @@ If CMake cannot find Google Benchmark on macOS, pass the package directory when
 you configure:
 
 ```sh
+cmake -S . -B build -DCTH_BUILD_BENCHMARKS=ON
+cmake --build build --target audio_pipeline_bench
+cmake --build build --target visual_effects_bench
+cmake --build build --target display_screens_bench
+```
+
+## Scene Script Macro Benchmark
+
+`scene_script_benchmark_report` runs `cthugha` at `1600x1200` with the perf
+scene script in `tests/fixtures/ini/perf/perf.scenescript`, a fixed audio
+fixture, trace logging, and autochange locked by default. It summarizes the real
+app path, including per-filter timings grouped by scene, filterchain run timing,
+audio-frame timing, display timing, and main-loop timing.
+
+Configure an SDL3 build and run the report target:
 -Dbenchmark_DIR="$(brew --prefix google-benchmark)/lib/cmake/benchmark"
 ```
 
@@ -397,3 +412,71 @@ Results are noisy:
 - Close other CPU-heavy work.
 - Compare runs with the same build type, buffer size, fixtures, and machine.
 - Rerun and look for repeated trends rather than one-off changes.
+
+## Display Screens
+
+`display_screens_bench` focuses on the classic screen/display renderers that
+map a source indexed buffer into the displayed indexed frame. It measures each
+`ScreenEntry` directly, without opening X11 or SDL.
+
+The benchmark has built-in synthetic source patterns:
+
+- `zero`
+- `gradient`
+- `checker`
+- `noise`
+
+Run the default 1600x1200 source-buffer suite:
+
+```sh
+build/tests/benchmarks/display_screens_bench
+```
+
+Run selected patterns:
+
+```sh
+build/tests/benchmarks/display_screens_bench --cth-patterns=gradient,noise
+```
+
+Run a different source-buffer size:
+
+```sh
+build/tests/benchmarks/display_screens_bench --cth-buffer-size=640x480
+```
+
+Filter to one screen:
+
+```sh
+build/tests/benchmarks/display_screens_bench --benchmark_filter='Screen/Source'
+```
+
+Write a timestamped report:
+
+```sh
+cmake --build build --target display_screens_benchmark_report
+```
+
+The report runner defaults to:
+
+- 20 benchmark repetitions;
+- 20 ms minimum time per measured repetition;
+- microsecond timing units;
+- spread metrics over all measured repetitions;
+- `1600x1200` benchmark buffers unless a different size is passed to the
+  runner;
+- `zero`, `gradient`, and `noise` source patterns.
+
+Run the report runner directly:
+
+```sh
+tools/run_display_screens_benchmarks.py --build-dir build
+```
+
+Reports are written under:
+
+```text
+build/test-results/display-screens/
+```
+
+Each report directory contains `summary.md`, `trace.log`,
+`google-benchmark.json`, and `spread-metrics.json`.

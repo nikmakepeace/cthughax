@@ -96,11 +96,50 @@ target_link_libraries(visual_effects_bench PRIVATE
     m
 )
 
+add_executable(display_screens_bench
+    DisplayScreensBench.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectChoice.cc
+    ${CMAKE_SOURCE_DIR}/src/EffectControl.cc
+    ${CMAKE_SOURCE_DIR}/src/IndexedDisplayFrame.cc
+    ${CMAKE_SOURCE_DIR}/src/Option.cc
+    ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/Screen.cc
+    ${CMAKE_SOURCE_DIR}/src/ScreenRenderContext.cc
+    ${CMAKE_SOURCE_DIR}/src/display.cc
+    ${CMAKE_SOURCE_DIR}/src/imath.cc
+)
+
+target_compile_definitions(display_screens_bench PRIVATE
+    CTH_LIBDIR="${CTH_DATA_DIR}"
+)
+
+target_include_directories(display_screens_bench PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(display_screens_bench PRIVATE
+    benchmark::benchmark
+    Threads::Threads
+    m
+)
+
 add_custom_target(visual_effects_benchmark_report
     COMMAND ${Python3_EXECUTABLE}
         ${CMAKE_SOURCE_DIR}/tools/run_visual_effects_benchmarks.py
         --build-dir ${CMAKE_BINARY_DIR}
     DEPENDS visual_effects_bench
+    USES_TERMINAL
+    VERBATIM
+)
+
+add_custom_target(display_screens_benchmark_report
+    COMMAND ${Python3_EXECUTABLE}
+        ${CMAKE_SOURCE_DIR}/tools/run_display_screens_benchmarks.py
+        --build-dir ${CMAKE_BINARY_DIR}
+        --source-dir ${CMAKE_SOURCE_DIR}
+    DEPENDS display_screens_bench
     USES_TERMINAL
     VERBATIM
 )
