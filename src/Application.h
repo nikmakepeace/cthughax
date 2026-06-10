@@ -29,6 +29,7 @@ class AudioProcessor;
 class AutoChangeControls;
 class AutoChangeQuietObserver;
 class AutoChangeSettings;
+class ControlPanelService;
 class ErrorMessages;
 class IndexedFrame;
 class ImageOption;
@@ -119,6 +120,7 @@ class Application {
     std::unique_ptr<RuntimeEffectControls> runtimeEffectControlsValue;
     std::unique_ptr<RuntimeChangeMediator> runtimeChangeMediatorValue;
     std::unique_ptr<RuntimeCommandTargetRouter> runtimeCommandRouterValue;
+    std::unique_ptr<ControlPanelService> controlPanelValue;
     std::unique_ptr<MixerDevice> mixerDeviceValue;
     std::unique_ptr<MixerSession> mixerSessionValue;
     std::unique_ptr<MixerControls> mixerControlsValue;
@@ -166,6 +168,12 @@ class Application {
 
     /** Destroys the audio frame pipeline and automatic scene-change state. */
     void shutdownAudioFramePipeline();
+
+    /** Creates the optional runtime control panel service. */
+    void initControlPanelRuntime();
+
+    /** Destroys the optional runtime control panel before runtime ports vanish. */
+    void shutdownControlPanelRuntime();
 
     /** Loads deterministic scene-script playback when configured. */
     int initSceneScript();

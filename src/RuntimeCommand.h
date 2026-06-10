@@ -57,7 +57,8 @@ enum RuntimeCommandType {
     RuntimeCommandChangeOptionTo,
     RuntimeCommandToggleEffectControlLock,
     RuntimeCommandSavePaletteMetadata,
-    RuntimeCommandRevertPaletteMetadata
+    RuntimeCommandRevertPaletteMetadata,
+    RuntimeCommandToggleControlPanel
 };
 
 /** Interface for palette metadata commands that need a concrete target. */
@@ -356,6 +357,13 @@ struct RuntimeCommand {
      * @return Runtime command.
      */
     static RuntimeCommand revertPaletteMetadata(RuntimePaletteMetadataTarget& target);
+
+    /**
+     * Creates a control-panel show/hide toggle command.
+     *
+     * @return Runtime command.
+     */
+    static RuntimeCommand toggleControlPanel();
 };
 
 #endif

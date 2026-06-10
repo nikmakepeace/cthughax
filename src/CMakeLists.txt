@@ -50,6 +50,7 @@ set(CTHUGHA_COMMON_SOURCES
     SceneSerializer.cc
     SceneScript.cc
     RuntimeCommand.cc
+    ControlPanelService.cc
     RuntimeDisplayControls.cc
     RuntimeAudioControls.cc
     RuntimeAutoChangeControls.cc
@@ -258,6 +259,29 @@ if(CTH_BUILD_SDL3)
         ZLIB::ZLIB
         m
     )
+
+    if(CTH_BUILD_WX_PANEL)
+        target_sources(cthugha PRIVATE
+            ${CMAKE_SOURCE_DIR}/wx/CthughaPanelBase.cpp
+            ${CMAKE_SOURCE_DIR}/wx/CthughaPanel.cpp
+            ${CMAKE_SOURCE_DIR}/wx/WxControlPanelService.cpp
+        )
+        target_compile_definitions(cthugha PRIVATE
+            CTH_WX_PANEL
+            ${wxWidgets_DEFINITIONS}
+        )
+        if(wxWidgets_DEFINITIONS_DEBUG)
+            target_compile_definitions(cthugha PRIVATE
+                ${wxWidgets_DEFINITIONS_DEBUG}
+            )
+        endif()
+        target_include_directories(cthugha PRIVATE
+            ${CMAKE_SOURCE_DIR}/wx
+            ${wxWidgets_INCLUDE_DIRS}
+        )
+        target_compile_options(cthugha PRIVATE ${wxWidgets_CXX_FLAGS})
+        target_link_libraries(cthugha PRIVATE ${wxWidgets_LIBRARIES})
+    endif()
 
     if(WITH_PULSE)
         target_link_libraries(cthugha PRIVATE ${PULSE_LIBRARIES})

@@ -83,6 +83,9 @@ static void testRuntimeCommandFactoriesCaptureIntent() {
         = RuntimeCommand::revertPaletteMetadata(paletteTarget);
     assert(revertPalette.type == RuntimeCommandRevertPaletteMetadata);
     assert(revertPalette.paletteMetadataTarget == &paletteTarget);
+
+    RuntimeCommand togglePanel = RuntimeCommand::toggleControlPanel();
+    assert(togglePanel.type == RuntimeCommandToggleControlPanel);
 }
 
 static void testRuntimeChangeSetMergesFlags() {

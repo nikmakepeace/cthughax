@@ -3,6 +3,7 @@
  */
 
 #include "EffectControl.h"
+#include "ControlPanelService.h"
 #include "RuntimeAudioControls.h"
 #include "RuntimeAutoChangeControls.h"
 #include "RuntimeChangeMediator.h"
@@ -604,6 +605,26 @@ public:
     }
 };
 
+class RecordingControlPanelService : public ControlPanelService {
+public:
+    int toggles;
+    int hides;
+    int pumps;
+    int syncs;
+
+    RecordingControlPanelService()
+        : toggles(0)
+        , hides(0)
+        , pumps(0)
+        , syncs(0) { }
+
+    virtual void prepare() { }
+    virtual void toggle() { toggles++; }
+    virtual void hide() { hides++; }
+    virtual void pumpEvents() { pumps++; }
+    virtual void syncFromRuntime() { syncs++; }
+};
+
 class MediatorHarness {
 public:
     RecordingRuntimePersistence persistence;
@@ -733,6 +754,28 @@ static void testReportsNonSceneRuntimeChanges() {
     RuntimeChangeSet persist = harness.mediator.apply(RuntimeCommand::writeIni());
     assert(persist.persistenceRequested == 1);
     assert(harness.persistence.currentWrites == 1);
+}
+
+static void testToggleControlPanelReachesInstalledService() {
+    MediatorHarness harness;
+    RecordingControlPanelService controlPanel;
+
+    RuntimeChangeSet missingPanel
+        = harness.mediator.apply(RuntimeCommand::toggleControlPanel());
+    assert(missingPanel.uiChanged == 0);
+    assert(controlPanel.toggles == 0);
+
+    harness.mediator.setControlPanelService(&controlPanel);
+    RuntimeChangeSet toggled
+        = harness.mediator.apply(RuntimeCommand::toggleControlPanel());
+    assert(toggled.uiChanged == 1);
+    assert(controlPanel.toggles == 1);
+
+    harness.mediator.setControlPanelService(NULL);
+    RuntimeChangeSet disabled
+        = harness.mediator.apply(RuntimeCommand::toggleControlPanel());
+    assert(disabled.uiChanged == 0);
+    assert(controlPanel.toggles == 1);
 }
 
 static void testWriteIniDelegatesToPersistence() {
@@ -961,6 +1004,7 @@ int main() {
     testRoutesSceneCommandsThroughSceneCommands();
     testRoutesDisplayCommandsThroughDisplayControls();
     testReportsNonSceneRuntimeChanges();
+    testToggleControlPanelReachesInstalledService();
     testWriteIniDelegatesToPersistence();
     testStopAndContinuePersistsCurrentConfigBeforeClosing();
     testRoutesPaletteMetadataCommandsThroughTarget();

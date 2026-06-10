@@ -822,6 +822,7 @@ ACTION(toggleStatus) {
     context.runtime().toggleStatus();
 }
 ACTION(toggleFPS) { applyRuntimeCommand(RuntimeCommand::toggleShowFps(), context); }
+ACTION(togglePanel) { applyRuntimeCommand(RuntimeCommand::toggleControlPanel(), context); }
 
 ACTION(changeAll) { applyRuntimeCommand(RuntimeCommand::changeAll(), context); }
 ACTION(changeOne) { applyRuntimeCommand(RuntimeCommand::changeOne(), context); }
@@ -880,6 +881,7 @@ void registerDefaultKeyActions(CommandRegistry& registry) {
     REGISTER_ACTION(saveOrRestore);
     REGISTER_ACTION(toggleStatus);
     REGISTER_ACTION(toggleFPS);
+    REGISTER_ACTION(togglePanel);
     REGISTER_ACTION(changeAll);
     REGISTER_ACTION(changeOne);
     REGISTER_ACTION(credits);

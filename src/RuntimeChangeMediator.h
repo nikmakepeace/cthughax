@@ -13,6 +13,7 @@ class RuntimeDisplayControls;
 class RuntimeAudioControls;
 class RuntimeAutoChangeControls;
 class RuntimeEffectControls;
+class ControlPanelService;
 class SceneCommandTarget;
 
 class RuntimeChangeMediator : public RuntimeCommandSink {
@@ -23,6 +24,7 @@ class RuntimeChangeMediator : public RuntimeCommandSink {
     RuntimeAudioControls& audioControls;
     RuntimeAutoChangeControls& autoChangeControls;
     RuntimeEffectControls& effectControls;
+    ControlPanelService* controlPanel;
 
     RuntimeChangeSet applySceneBy(RuntimeSceneTarget target, int by);
     RuntimeChangeSet applySceneTo(RuntimeSceneTarget target, const char* to);
@@ -46,6 +48,13 @@ public:
         RuntimeAudioControls& audioControls_,
         RuntimeAutoChangeControls& autoChangeControls_,
         RuntimeEffectControls& effectControls_);
+
+    /**
+     * Installs an optional UI control-panel service.
+     *
+     * @param controlPanel_ Borrowed service pointer, or NULL to disable.
+     */
+    void setControlPanelService(ControlPanelService* controlPanel_);
 
     /**
      * Applies a runtime command and reports the areas changed by it.

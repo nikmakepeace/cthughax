@@ -15,6 +15,7 @@
 #include "AutoChangeControls.h"
 #include "AutoChangeSettings.h"
 #include "BorderOption.h"
+#include "ControlPanelService.h"
 #include "EffectChoiceLoader.h"
 #include "CthughaDisplay.h"
 #include "DisplayPresentationOptions.h"
@@ -67,6 +68,8 @@
 #include "xcthugha.h"
 #endif
 
+#include <signal.h>
+#include <string.h>
 #include <unistd.h>
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
@@ -77,10 +80,107 @@ static int initializeVisualCatalogs(const FrameGeometry& geometry,
 static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
     const PathConfig& pathConfig, const FrameGeometry& geometry,
     ImageOption& images, LogSink& log);
+
+#if !defined(_WIN32)
+static volatile sig_atomic_t applicationInterruptRequested = 0;
+static int applicationInterruptHandlersInstalled = 0;
+static int previousSigintValid = 0;
+static int previousSigtermValid = 0;
+static struct sigaction previousSigintAction;
+static struct sigaction previousSigtermAction;
+
+static void applicationInterruptSignalHandler(int) {
+    applicationInterruptRequested = 1;
+}
+
+static int installApplicationInterruptSignal(int signo,
+    struct sigaction& previousAction, int& previousValid,
+    const char* signalName, LogSink& log) {
+    struct sigaction currentAction;
+    memset(&currentAction, 0, sizeof(currentAction));
+    if (sigaction(signo, 0, &currentAction) != 0) {
+        log.warn("Could not inspect %s handler; terminal interrupt disabled.\n",
+            signalName);
+        return 0;
+    }
+    if (currentAction.sa_handler == SIG_IGN)
+        return 0;
+
+    struct sigaction action;
+    memset(&action, 0, sizeof(action));
+    sigemptyset(&action.sa_mask);
+    action.sa_handler = applicationInterruptSignalHandler;
+#ifdef SA_RESETHAND
+    action.sa_flags = SA_RESETHAND;
+#endif
+
+    if (sigaction(signo, &action, &previousAction) != 0) {
+        log.warn("Could not install %s handler; terminal interrupt disabled.\n",
+            signalName);
+        return 0;
+    }
+
+    previousValid = 1;
+    return 1;
+}
+
+static void installApplicationInterruptHandlers(LogSink& log) {
+    if (applicationInterruptHandlersInstalled)
+        return;
+
+    applicationInterruptRequested = 0;
+    int installed = 0;
+    installed |= installApplicationInterruptSignal(SIGINT,
+        previousSigintAction, previousSigintValid, "SIGINT", log);
+    installed |= installApplicationInterruptSignal(SIGTERM,
+        previousSigtermAction, previousSigtermValid, "SIGTERM", log);
+    applicationInterruptHandlersInstalled = installed;
+}
+
+static void restoreApplicationInterruptSignal(int signo,
+    struct sigaction& previousAction, int& previousValid) {
+    if (!previousValid)
+        return;
+
+    sigaction(signo, &previousAction, 0);
+    previousValid = 0;
+}
+
+static void shutdownApplicationInterruptHandlers() {
+    restoreApplicationInterruptSignal(SIGINT,
+        previousSigintAction, previousSigintValid);
+    restoreApplicationInterruptSignal(SIGTERM,
+        previousSigtermAction, previousSigtermValid);
+    applicationInterruptHandlersInstalled = 0;
+    applicationInterruptRequested = 0;
+}
+
+static int consumeApplicationInterruptRequest() {
+    if (!applicationInterruptRequested)
+        return 0;
+
+    applicationInterruptRequested = 0;
+    return 1;
+}
+#else
+static void installApplicationInterruptHandlers(LogSink&) { }
+static void shutdownApplicationInterruptHandlers() { }
+static int consumeApplicationInterruptRequest() { return 0; }
+#endif
+
+static void accumulateDisplayEventStats(DisplayEventStats& target,
+    const DisplayEventStats& source) {
+    target.eventCount += source.eventCount;
+    target.resizeEvents += source.resizeEvents;
+    target.exposeEvents += source.exposeEvents;
+    target.closeRequested |= source.closeRequested;
+}
 static void emitStartupConfigDiagnostics(
     const std::vector<ConfigDiagnostic>& diagnostics, LogSink& log);
 static void applyDisplayPresentationStartupChoice(const SceneConfig& sceneConfig,
     RandomSource& randomSource);
+static std::unique_ptr<ControlPanelService> createApplicationControlPanelService(
+    const ControlPanelRuntimePorts& ports, LogSink& log);
 
 class FrameGeneratorQuietObserver : public AutoChangeQuietObserver {
     FrameGeneratorRuntime& frameGeneratorValue;
@@ -164,6 +264,17 @@ static int loadEffectPolicyImages(const EffectPolicy& effectPolicy,
 static void applyDisplayPresentationStartupChoice(const SceneConfig& sceneConfig,
     RandomSource& randomSource) {
     screen.change(sceneConfig.presentation.c_str(), randomSource, 0);
+}
+
+static std::unique_ptr<ControlPanelService> createApplicationControlPanelService(
+    const ControlPanelRuntimePorts& ports, LogSink& log) {
+#ifdef CTH_WX_PANEL
+    return createWxControlPanelService(ports, log);
+#else
+    (void)ports;
+    (void)log;
+    return createNullControlPanelService();
+#endif
 }
 
 Application::Application(int argc, char* argv[])
@@ -471,6 +582,40 @@ void Application::shutdownAudioFramePipeline() {
     audioFramePipelineValue.reset();
 }
 
+void Application::initControlPanelRuntime() {
+    if (controlPanelValue.get() != NULL)
+        return;
+
+    ControlPanelRuntimePorts ports;
+    ports.processArgc = argcValue;
+    ports.processArgv = argvValue;
+    ports.sceneVisualSelections = sceneRuntimeValue.get() != NULL
+        ? sceneRuntimeValue->visualSelections()
+        : NULL;
+    ports.runtimeCommands = runtimeChangeMediatorValue.get();
+    ports.runtimeCommandRouter = runtimeCommandRouterValue.get();
+    ports.runtimeConfigRegistry = runtimeConfigRegistryValue.get();
+    ports.displaySettings = &displaySystemValue.settings();
+    ports.audioProcessingSelector = audioProcessingSelectorValue.get();
+
+    controlPanelValue = createApplicationControlPanelService(ports, logSinkValue);
+    controlPanelValue->prepare();
+#ifdef CTH_WX_PANEL
+    if (runtimeChangeMediatorValue.get() != NULL)
+        runtimeChangeMediatorValue->setControlPanelService(
+            controlPanelValue.get());
+#endif
+}
+
+void Application::shutdownControlPanelRuntime() {
+    if (runtimeChangeMediatorValue.get() != NULL)
+        runtimeChangeMediatorValue->setControlPanelService(NULL);
+
+    if (controlPanelValue.get() != NULL)
+        controlPanelValue->hide();
+    controlPanelValue.reset();
+}
+
 int Application::initSceneScript() {
     const SceneScriptConfig& config = startupConfigValue.sceneScript;
     if (config.script.empty()) {
@@ -561,11 +706,13 @@ void Application::shutdown() {
         return;
 
     shutdownComplete = 1;
+    shutdownApplicationInterruptHandlers();
 
     if (startupInitialized && startupConfigValue.app.optionsSaveEnabled
         && runtimePersistenceValue.get() != NULL)
         runtimePersistenceValue->writeCurrentConfig();
 
+    shutdownControlPanelRuntime();
     shutdownAudioFramePipeline();
     displaySystemValue.close();
     platformLifecycle.shutdown();
@@ -694,6 +841,8 @@ int Application::initialize() {
     logSinkValue.info("Initializing keymaps...\n");
     commandsInputValue->initializeKeymaps(startupConfigValue.input);
 
+    initControlPanelRuntime();
+
     logSinkValue.info("Initializing display...\n");
     int displayArgc = int(displayArgv.size());
     DisplayDriverRegistry displayDrivers;
@@ -724,6 +873,7 @@ int Application::initialize() {
 
     // Install platform hooks last; callbacks assume audio/display state exists.
     platformLifecycle.install();
+    installApplicationInterruptHandlers(logSinkValue);
 
     startupInitialized = 1;
     exitStatusValue = 0;
@@ -753,13 +903,32 @@ void Application::run() {
         double visualFrameStart = 0.0;
         CthughaDisplay& display = displaySystemValue.coordinator();
 
+        if (consumeApplicationInterruptRequest()
+            && runtimeShutdownValue.get() != NULL)
+            runtimeShutdownValue->requestClose();
+
         DisplayEventStats eventStats
             = displaySystemValue.runtime().processEvents(
                 commandsInputValue->inputQueue());
         if (eventStats.closeRequested && runtimeShutdownValue.get() != NULL)
             runtimeShutdownValue->requestClose();
+        if (controlPanelValue.get() != NULL) {
+            controlPanelValue->pumpEvents();
+            DisplayEventStats postPanelStats
+                = displaySystemValue.runtime().processEvents(
+                    commandsInputValue->inputQueue());
+            accumulateDisplayEventStats(eventStats, postPanelStats);
+            if (postPanelStats.closeRequested
+                && runtimeShutdownValue.get() != NULL)
+                runtimeShutdownValue->requestClose();
+        }
+        if (consumeApplicationInterruptRequest()
+            && runtimeShutdownValue.get() != NULL)
+            runtimeShutdownValue->requestClose();
         if (traceDisplayTiming)
             eventsEnd = secondsClockValue.nowSeconds();
+        if (closeRequested())
+            break;
 
         CommandContext commandContext(commandsInputValue->interfaceRuntime(),
             runtimeChangeMediatorValue.get(), runtimeCommandRouterValue.get());
@@ -769,6 +938,8 @@ void Application::run() {
         commandsInputValue->runCurrent(commandContext);
         if (traceDisplayTiming)
             preInterfaceEnd = secondsClockValue.nowSeconds();
+        if (closeRequested())
+            break;
 
         if (!closeRequested()) {
             if (traceDisplayTiming)
@@ -785,6 +956,11 @@ void Application::run() {
         commandsInputValue->runCurrent(commandContext);
         if (traceDisplayTiming)
             postInterfaceEnd = secondsClockValue.nowSeconds();
+        if (closeRequested())
+            break;
+
+        if (controlPanelValue.get() != NULL)
+            controlPanelValue->syncFromRuntime();
 
         if (frameWasRun && !closeRequested()) {
             if (traceDisplayTiming)

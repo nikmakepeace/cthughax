@@ -53,7 +53,7 @@
       <property name="size">300,399</property>
       <property name="style">wxDEFAULT_FRAME_STYLE</property>
       <property name="subclass">; ; forward_declare</property>
-      <property name="title"></property>
+      <property name="title">Cthugha Controls</property>
       <property name="tooltip"></property>
       <property name="two_step_creation">0</property>
       <property name="window_extra_style"></property>
@@ -1390,11 +1390,11 @@
                       <property name="hidden">0</property>
                       <property name="id">wxID_ANY</property>
                       <property name="initial">25</property>
-                      <property name="max">100</property>
+                      <property name="max">300</property>
                       <property name="max_size"></property>
                       <property name="maximize_button">0</property>
                       <property name="maximum_size"></property>
-                      <property name="min">5</property>
+                      <property name="min">0</property>
                       <property name="min_size"></property>
                       <property name="minimize_button">0</property>
                       <property name="minimum_size"></property>

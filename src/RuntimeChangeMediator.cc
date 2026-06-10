@@ -4,6 +4,7 @@
 
 #include "RuntimeChangeMediator.h"
 
+#include "ControlPanelService.h"
 #include "RuntimeAudioControls.h"
 #include "RuntimeAutoChangeControls.h"
 #include "RuntimeCommandTargets.h"
@@ -58,7 +59,13 @@ RuntimeChangeMediator::RuntimeChangeMediator(SceneCommandTarget& sceneCommands_,
     , displayControls(displayControls_)
     , audioControls(audioControls_)
     , autoChangeControls(autoChangeControls_)
-    , effectControls(effectControls_) { }
+    , effectControls(effectControls_)
+    , controlPanel(0) { }
+
+void RuntimeChangeMediator::setControlPanelService(
+    ControlPanelService* controlPanel_) {
+    controlPanel = controlPanel_;
+}
 
 RuntimeChangeSet RuntimeChangeMediator::applySceneBy(RuntimeSceneTarget target, int by) {
     RuntimeChangeSet changes;
@@ -215,6 +222,12 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
     case RuntimeCommandRevertPaletteMetadata:
         if (command.paletteMetadataTarget != 0) {
             command.paletteMetadataTarget->revertPaletteMetadata();
+            changes.uiChanged = 1;
+        }
+        break;
+    case RuntimeCommandToggleControlPanel:
+        if (controlPanel != 0) {
+            controlPanel->toggle();
             changes.uiChanged = 1;
         }
         break;

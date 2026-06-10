@@ -205,6 +205,10 @@ RuntimeCommand RuntimeCommand::revertPaletteMetadata(
     return command;
 }
 
+RuntimeCommand RuntimeCommand::toggleControlPanel() {
+    return RuntimeCommand(RuntimeCommandToggleControlPanel);
+}
+
 RuntimeChangeSet::RuntimeChangeSet()
     : sceneChanges(0)
     , displayChanged(0)
