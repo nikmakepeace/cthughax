@@ -3,6 +3,7 @@
  */
 
 #include "RuntimeAudioControls.h"
+#include "AudioAnalyzer.h"
 #include "AudioProcessing.h"
 #include "AudioProcessor.h"
 #include "Mixer.h"
@@ -103,7 +104,8 @@ static void testDirectCommandsChangeOnlyAudioProcessing() {
     FakeLogSink log;
     AudioProcessingState state(randomSource);
     AudioProcessingSelector selector(state, processor, log);
-    DefaultRuntimeAudioControls controls(selector);
+    AcousticContext acousticContext;
+    DefaultRuntimeAudioControls controls(selector, acousticContext);
 
     controls.changeSoundProcessingBy(3);
     assert(strcmp(selector.text(), "FFT") == 0);
@@ -118,7 +120,8 @@ static void testGenericOptionRoutingClaimsOnlyAudioProcessing() {
     FakeLogSink log;
     AudioProcessingState state(randomSource);
     AudioProcessingSelector selector(state, processor, log);
-    DefaultRuntimeAudioControls controls(selector);
+    AcousticContext acousticContext;
+    DefaultRuntimeAudioControls controls(selector, acousticContext);
 
     RuntimeChangeSet byChanges;
     int handled = controls.changeAudioOptionBy(selector.option(), 2, byChanges);
@@ -158,7 +161,9 @@ static void testGenericOptionRoutingClaimsMixerOptionsAsUiChanges() {
         std::vector<MixerInitialVolume>());
     assert(mixerSession.initialize() == 0);
     MixerControls mixerControls(mixerSession, log);
-    DefaultRuntimeAudioControls controls(selector, &mixerControls);
+    AcousticContext acousticContext;
+    DefaultRuntimeAudioControls controls(
+        selector, acousticContext, &mixerControls);
 
     RuntimeChangeSet byChanges;
     int handled = controls.changeAudioOptionBy(
@@ -197,10 +202,57 @@ static void testUnknownAudioProcessingSelectionUsesInjectedRandomSource() {
     assert(randomSource.calls == 2);
 }
 
+static void testFireSensitivityMutatesAcousticContext() {
+    AudioProcessor processor;
+    FakeRandomSource randomSource;
+    FakeLogSink log;
+    AudioProcessingState state(randomSource);
+    AudioProcessingSelector selector(state, processor, log);
+    AcousticContext acousticContext;
+    DefaultRuntimeAudioControls controls(selector, acousticContext);
+
+    controls.changeFireSensitivityTo(37);
+    assert(acousticContext.fireSensitivity() == 37);
+
+    controls.changeFireSensitivityTo(150);
+    assert(acousticContext.fireSensitivity() == 100);
+
+    controls.changeFireSensitivityTo(-5);
+    assert(acousticContext.fireSensitivity() == 0);
+}
+
+static void testFireSourceMutatesAcousticContextAndFireInput() {
+    AudioProcessor processor;
+    FakeRandomSource randomSource;
+    FakeLogSink log;
+    AudioProcessingState state(randomSource);
+    AudioProcessingSelector selector(state, processor, log);
+    AcousticContext acousticContext;
+    DefaultRuntimeAudioControls controls(selector, acousticContext);
+    AudioMetrics metrics;
+
+    assert(strcmp(acousticContext.fireSourceName(), "raw-amplitude") == 0);
+    controls.changeFireSourceTo("low-pass-150hz-amplitude");
+    assert(strcmp(acousticContext.fireSourceName(),
+        "low-pass-150hz-amplitude") == 0);
+
+    metrics.amplitude = 0;
+    metrics.lowPass150HzAmplitude = 12;
+    acousticContext.update(metrics);
+    metrics.lowPass150HzAmplitude = 6;
+    acousticContext.update(metrics);
+    assert(acousticContext.fire() == 12);
+
+    controls.changeFireSourceTo("raw-amplitude");
+    assert(strcmp(acousticContext.fireSourceName(), "raw-amplitude") == 0);
+}
+
 int main() {
     testDirectCommandsChangeOnlyAudioProcessing();
     testGenericOptionRoutingClaimsOnlyAudioProcessing();
     testGenericOptionRoutingClaimsMixerOptionsAsUiChanges();
     testUnknownAudioProcessingSelectionUsesInjectedRandomSource();
+    testFireSensitivityMutatesAcousticContext();
+    testFireSourceMutatesAcousticContextAndFireInput();
     return 0;
 }

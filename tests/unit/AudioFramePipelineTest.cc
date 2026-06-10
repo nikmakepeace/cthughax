@@ -80,6 +80,9 @@ static void testPipelineProcessesAndAnalyzesSuppliedFrame() {
     assert(frame.metrics.amplitudeLeft == 3);
     assert(frame.metrics.amplitudeRight == 4);
     assert(frame.metrics.amplitude == 3);
+    assert(frame.metrics.lowPass150HzAmplitudeLeft == 3);
+    assert(frame.metrics.lowPass150HzAmplitudeRight == 4);
+    assert(frame.metrics.lowPass150HzAmplitude == 3);
     assert(frame.metrics.noisy == 1);
     assert(frame.processedWaveData[0][0] == 3);
     assert(frame.processedWaveData[0][1] == 4);

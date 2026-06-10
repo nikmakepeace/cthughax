@@ -45,12 +45,23 @@ static void fillPseudoMusic(AudioFrame& frame) {
     }
 }
 
+static void fillAlternating(AudioFrame& frame, int left, int right) {
+    for (int i = 0; i < 1024; i++) {
+        int polarity = (i & 1) == 0 ? 1 : -1;
+        frame.raw[i][0] = char(left * polarity);
+        frame.raw[i][1] = char(right * polarity);
+    }
+}
+
 static void testAudioFrameOwnsMetrics() {
     AudioFrame frame;
 
     frame.metrics.amplitude = 12;
     frame.metrics.amplitudeLeft = 10;
     frame.metrics.amplitudeRight = 14;
+    frame.metrics.lowPass150HzAmplitude = 8;
+    frame.metrics.lowPass150HzAmplitudeLeft = 7;
+    frame.metrics.lowPass150HzAmplitudeRight = 9;
     frame.metrics.noisy = 1;
 
     frame.clear();
@@ -58,6 +69,9 @@ static void testAudioFrameOwnsMetrics() {
     assert(frame.metrics.amplitude == 0);
     assert(frame.metrics.amplitudeLeft == 0);
     assert(frame.metrics.amplitudeRight == 0);
+    assert(frame.metrics.lowPass150HzAmplitude == 0);
+    assert(frame.metrics.lowPass150HzAmplitudeLeft == 0);
+    assert(frame.metrics.lowPass150HzAmplitudeRight == 0);
     assert(frame.metrics.noisy == 0);
 }
 
@@ -71,13 +85,34 @@ static void testAudioProcessorAnalyzesRawFrame() {
     assert(quietMetrics.amplitudeLeft == 3);
     assert(quietMetrics.amplitudeRight == 4);
     assert(quietMetrics.amplitude == 3);
+    assert(quietMetrics.lowPass150HzAmplitudeLeft == 3);
+    assert(quietMetrics.lowPass150HzAmplitudeRight == 4);
+    assert(quietMetrics.lowPass150HzAmplitude == 3);
     assert(quietMetrics.noisy == 0);
 
     processor.analyze(frame, 4);
     assert(frame.metrics.amplitudeLeft == 3);
     assert(frame.metrics.amplitudeRight == 4);
     assert(frame.metrics.amplitude == 3);
+    assert(frame.metrics.lowPass150HzAmplitudeLeft == 3);
+    assert(frame.metrics.lowPass150HzAmplitudeRight == 4);
+    assert(frame.metrics.lowPass150HzAmplitude == 3);
     assert(frame.metrics.noisy == 1);
+}
+
+static void testLowPassAmplitudeSuppressesFastAlternation() {
+    AudioProcessor processor(44000);
+    AudioFrame frame;
+
+    fillAlternating(frame, 100, 80);
+
+    AudioMetrics metrics = processor.analyze(frame.raw, 5);
+
+    assert(metrics.amplitudeLeft == 100);
+    assert(metrics.amplitudeRight == 80);
+    assert(metrics.lowPass150HzAmplitudeLeft < metrics.amplitudeLeft);
+    assert(metrics.lowPass150HzAmplitudeRight < metrics.amplitudeRight);
+    assert(metrics.lowPass150HzAmplitude < metrics.amplitude);
 }
 
 class RecordingFftProcessor : public AudioFftProcessor {
@@ -195,6 +230,7 @@ static void testFixedPointFftProducesCharacterizedOutput() {
 int main() {
     testAudioFrameOwnsMetrics();
     testAudioProcessorAnalyzesRawFrame();
+    testLowPassAmplitudeSuppressesFastAlternation();
     testAudioProcessorDelegatesFftToInjectedProcessor();
     testDefaultAudioProcessorFftProducesSilentOutputForSilentInput();
     testFixedPointFftProducesCharacterizedOutput();

@@ -51,6 +51,34 @@ static void testRuntimeCommandFactoriesCaptureIntent() {
     assert(sceneLock.type == RuntimeCommandToggleSceneLock);
     assert(sceneLock.sceneTarget == RuntimeSceneWave);
 
+    RuntimeCommand maxFps = RuntimeCommand::changeMaxFpsTo(60);
+    assert(maxFps.type == RuntimeCommandChangeMaxFpsTo);
+    assert(maxFps.value == 60);
+
+    RuntimeCommand screen = RuntimeCommand::changeScreenTo("Source");
+    assert(screen.type == RuntimeCommandChangeScreenTo);
+    assert(strcmp(screen.text, "Source") == 0);
+
+    RuntimeCommand autoChangeLock = RuntimeCommand::changeAutoChangeLockTo(1);
+    assert(autoChangeLock.type == RuntimeCommandChangeAutoChangeLockTo);
+    assert(autoChangeLock.value == 1);
+
+    RuntimeCommand fireSensitivity
+        = RuntimeCommand::changeFireSensitivityTo(37);
+    assert(fireSensitivity.type == RuntimeCommandChangeFireSensitivityTo);
+    assert(fireSensitivity.value == 37);
+
+    RuntimeCommand fireSource
+        = RuntimeCommand::changeFireSourceTo("low-pass-150hz-amplitude");
+    assert(fireSource.type == RuntimeCommandChangeFireSourceTo);
+    assert(strcmp(fireSource.text, "low-pass-150hz-amplitude") == 0);
+
+    RuntimeCommand cumulativeFire
+        = RuntimeCommand::changeAutoChangeCumulativeFireLevelTo(420);
+    assert(cumulativeFire.type
+        == RuntimeCommandChangeAutoChangeCumulativeFireLevelTo);
+    assert(cumulativeFire.value == 420);
+
     RuntimeCommand sceneChoiceUse
         = RuntimeCommand::toggleSceneChoiceUse(RuntimeScenePalette, 2);
     assert(sceneChoiceUse.type == RuntimeCommandToggleSceneChoiceUse);

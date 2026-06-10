@@ -122,6 +122,10 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
         displayControls.changeZoomTo(command.text);
         changes.displayChanged = 1;
         break;
+    case RuntimeCommandChangeMaxFpsTo:
+        displayControls.changeMaxFpsTo(command.value);
+        changes.fpsChanged = 1;
+        break;
     case RuntimeCommandChangeSoundProcessingBy:
         audioControls.changeSoundProcessingBy(command.value);
         changes.audioProcessingChanged = 1;
@@ -130,8 +134,24 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
         audioControls.changeSoundProcessingTo(command.text);
         changes.audioProcessingChanged = 1;
         break;
+    case RuntimeCommandChangeFireSensitivityTo:
+        audioControls.changeFireSensitivityTo(command.value);
+        changes.audioProcessingChanged = 1;
+        break;
+    case RuntimeCommandChangeFireSourceTo:
+        audioControls.changeFireSourceTo(command.text);
+        changes.audioProcessingChanged = 1;
+        break;
     case RuntimeCommandToggleAutoChangeLock:
         autoChangeControls.toggleLock();
+        changes.autoChangeChanged = 1;
+        break;
+    case RuntimeCommandChangeAutoChangeLockTo:
+        autoChangeControls.changeLockTo(command.value);
+        changes.autoChangeChanged = 1;
+        break;
+    case RuntimeCommandChangeAutoChangeCumulativeFireLevelTo:
+        autoChangeControls.changeCumulativeFireLevelTo(command.value);
         changes.autoChangeChanged = 1;
         break;
     case RuntimeCommandWriteIni:

@@ -10,6 +10,7 @@
 #include <vector>
 
 class AutoChangeSettings;
+class AcousticContext;
 class AudioProcessingState;
 class DisplayPresentationSettings;
 class Option;
@@ -118,6 +119,7 @@ public:
  */
 class ApplicationRuntimeConfigContributor : public RuntimeConfigContributor {
     const AutoChangeSettings& autoChangeSettings;
+    const AcousticContext& acousticContext;
     const Option& quietMessageOption;
 
 public:
@@ -125,10 +127,12 @@ public:
      * Creates a contributor over Application-owned runtime settings.
      *
      * @param autoChangeSettings_ Runtime-owned automatic scene-change settings.
+     * @param acousticContext_ Runtime-owned acoustic analysis settings.
      * @param quietMessageOption_ Runtime quiet-message threshold option.
      */
     ApplicationRuntimeConfigContributor(
         const AutoChangeSettings& autoChangeSettings_,
+        const AcousticContext& acousticContext_,
         const Option& quietMessageOption_);
 
     /**

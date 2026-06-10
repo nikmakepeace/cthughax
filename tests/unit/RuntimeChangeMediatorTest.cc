@@ -320,6 +320,8 @@ public:
     int lastZoomBy;
     int zoomToCalls;
     const char* lastZoomTo;
+    int maxFpsToCalls;
+    int lastMaxFpsTo;
     int fpsToggles;
     int displayEffectByCalls;
     int displayEffectToCalls;
@@ -343,6 +345,8 @@ public:
         , lastZoomBy(0)
         , zoomToCalls(0)
         , lastZoomTo(0)
+        , maxFpsToCalls(0)
+        , lastMaxFpsTo(0)
         , fpsToggles(0)
         , displayEffectByCalls(0)
         , displayEffectToCalls(0)
@@ -375,6 +379,11 @@ public:
     virtual void changeZoomTo(const char* to) {
         zoomToCalls++;
         lastZoomTo = to;
+    }
+
+    virtual void changeMaxFpsTo(int to) {
+        maxFpsToCalls++;
+        lastMaxFpsTo = to;
     }
 
     virtual void toggleFpsOverlay() {
@@ -443,6 +452,10 @@ public:
     int lastSoundBy;
     int soundToCalls;
     const char* lastSoundTo;
+    int fireSensitivityToCalls;
+    int lastFireSensitivity;
+    int fireSourceToCalls;
+    const char* lastFireSource;
     int audioOptionByCalls;
     int audioOptionToCalls;
     int handlesAudioOption;
@@ -456,6 +469,10 @@ public:
         , lastSoundBy(0)
         , soundToCalls(0)
         , lastSoundTo(0)
+        , fireSensitivityToCalls(0)
+        , lastFireSensitivity(0)
+        , fireSourceToCalls(0)
+        , lastFireSource(0)
         , audioOptionByCalls(0)
         , audioOptionToCalls(0)
         , handlesAudioOption(0)
@@ -472,6 +489,16 @@ public:
     virtual void changeSoundProcessingTo(const char* to) {
         soundToCalls++;
         lastSoundTo = to;
+    }
+
+    virtual void changeFireSensitivityTo(int sensitivity) {
+        fireSensitivityToCalls++;
+        lastFireSensitivity = sensitivity;
+    }
+
+    virtual void changeFireSourceTo(const char* to) {
+        fireSourceToCalls++;
+        lastFireSource = to;
     }
 
     virtual int changeAudioOptionBy(
@@ -500,6 +527,10 @@ public:
 class RecordingRuntimeAutoChangeControls : public RuntimeAutoChangeControls {
 public:
     int lockToggles;
+    int lockToCalls;
+    int lastLockValue;
+    int cumulativeFireToCalls;
+    int lastCumulativeFireValue;
     int autoChangeOptionByCalls;
     int autoChangeOptionToCalls;
     int handlesAutoChangeOption;
@@ -510,6 +541,10 @@ public:
 
     RecordingRuntimeAutoChangeControls()
         : lockToggles(0)
+        , lockToCalls(0)
+        , lastLockValue(0)
+        , cumulativeFireToCalls(0)
+        , lastCumulativeFireValue(0)
         , autoChangeOptionByCalls(0)
         , autoChangeOptionToCalls(0)
         , handlesAutoChangeOption(0)
@@ -520,6 +555,16 @@ public:
 
     virtual void toggleLock() {
         lockToggles++;
+    }
+
+    virtual void changeLockTo(int locked) {
+        lockToCalls++;
+        lastLockValue = locked;
+    }
+
+    virtual void changeCumulativeFireLevelTo(int threshold) {
+        cumulativeFireToCalls++;
+        lastCumulativeFireValue = threshold;
     }
 
     virtual int changeAutoChangeOptionBy(
@@ -704,6 +749,12 @@ static void testRoutesDisplayCommandsThroughDisplayControls() {
     RuntimeChangeSet fps = harness.mediator.apply(RuntimeCommand::toggleShowFps());
     assert(fps.fpsChanged == 1);
     assert(harness.displayControls.fpsToggles == 1);
+
+    RuntimeChangeSet maxFps
+        = harness.mediator.apply(RuntimeCommand::changeMaxFpsTo(72));
+    assert(maxFps.fpsChanged == 1);
+    assert(harness.displayControls.maxFpsToCalls == 1);
+    assert(harness.displayControls.lastMaxFpsTo == 72);
 }
 
 static void testReportsNonSceneRuntimeChanges() {
@@ -725,10 +776,36 @@ static void testReportsNonSceneRuntimeChanges() {
     assert(harness.audioControls.soundToCalls == 1);
     assert(strcmp(harness.audioControls.lastSoundTo, "fft") == 0);
 
+    RuntimeChangeSet fireSensitivity
+        = harness.mediator.apply(RuntimeCommand::changeFireSensitivityTo(37));
+    assert(fireSensitivity.audioProcessingChanged == 1);
+    assert(harness.audioControls.fireSensitivityToCalls == 1);
+    assert(harness.audioControls.lastFireSensitivity == 37);
+
+    RuntimeChangeSet fireSource
+        = harness.mediator.apply(RuntimeCommand::changeFireSourceTo(
+            "low-pass-150hz-amplitude"));
+    assert(fireSource.audioProcessingChanged == 1);
+    assert(harness.audioControls.fireSourceToCalls == 1);
+    assert(strcmp(harness.audioControls.lastFireSource,
+        "low-pass-150hz-amplitude") == 0);
+
     RuntimeChangeSet autoChange
         = harness.mediator.apply(RuntimeCommand::toggleAutoChangeLock());
     assert(autoChange.autoChangeChanged == 1);
     assert(harness.autoChangeControls.lockToggles == 1);
+
+    RuntimeChangeSet autoChangeTo
+        = harness.mediator.apply(RuntimeCommand::changeAutoChangeLockTo(1));
+    assert(autoChangeTo.autoChangeChanged == 1);
+    assert(harness.autoChangeControls.lockToCalls == 1);
+    assert(harness.autoChangeControls.lastLockValue == 1);
+
+    RuntimeChangeSet cumulativeFire = harness.mediator.apply(
+        RuntimeCommand::changeAutoChangeCumulativeFireLevelTo(420));
+    assert(cumulativeFire.autoChangeChanged == 1);
+    assert(harness.autoChangeControls.cumulativeFireToCalls == 1);
+    assert(harness.autoChangeControls.lastCumulativeFireValue == 420);
 
     RuntimeChangeSet persist = harness.mediator.apply(RuntimeCommand::writeIni());
     assert(persist.persistenceRequested == 1);

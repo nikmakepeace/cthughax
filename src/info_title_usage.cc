@@ -158,6 +158,10 @@ void usage() {
     PH(" --qotd-prefetch-timeout-ms N  QOTD fetch timeout", qotdPrefetchTimeoutDefault);
     PH(" --min-noise N       Set level for quiet sound",
         PHInt(AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE));
+    PH(" --fire-sensitivity N  Set fire detection sensitivity 0..100",
+        PHInt(AUDIO_ANALYSIS_CONFIG_DEFAULT_FIRE_SENSITIVITY));
+    PH(" --fire-source NAME  Fire source: raw-amplitude or low-pass-150hz-amplitude",
+        AUDIO_ANALYSIS_CONFIG_DEFAULT_FIRE_SOURCE_TEXT);
     PH("");
 
     PH("General Effect Controls (\"Buffer\" options):");

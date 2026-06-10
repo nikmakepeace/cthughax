@@ -15,6 +15,13 @@
 #include "AutoChangeControls.h"
 #include "AutoChangeSettings.h"
 #include "BorderOption.h"
+#include "ControlPanelLauncher.h"
+#ifdef CTH_CONTROL_IPC
+#include "ControlDisplayCatalogs.h"
+#include "ControlRuntimeMetrics.h"
+#include "ControlRuntimeObserver.h"
+#include "ControlService.h"
+#endif
 #include "EffectChoiceLoader.h"
 #include "CthughaDisplay.h"
 #include "DisplayPresentationOptions.h"
@@ -317,7 +324,12 @@ void Application::initSceneRuntime() {
 
     frameGeneratorValue.bindScene(sceneRuntimeValue->scene());
     runtimeConfigRegistryValue.reset(new RuntimeConfigRegistry(startupConfigValue));
-    audioProcessorValue.reset(new AudioProcessor());
+    acousticContextValue.setFireSensitivity(
+        startupConfigValue.audioAnalysis.fireSensitivity);
+    acousticContextValue.setFireSource(
+        startupConfigValue.audioAnalysis.fireSource.c_str());
+    audioProcessorValue.reset(
+        new AudioProcessor(startupConfigValue.audio.sampleRateHz));
     audioProcessingStateValue.reset(new AudioProcessingState(randomSourceValue));
     audioProcessingSelectorValue.reset(
         new AudioProcessingSelector(*audioProcessingStateValue,
@@ -335,7 +347,7 @@ void Application::initSceneRuntime() {
     runtimeConfigRegistryValue->addContributor(*audioConfigContributorValue);
     appConfigContributorValue.reset(
         new ApplicationRuntimeConfigContributor(*autoChangeSettingsValue,
-            *quietMessageOptionValue));
+            acousticContextValue, *quietMessageOptionValue));
     runtimeConfigRegistryValue->addContributor(*appConfigContributorValue);
     legacyConfigContributorValue.reset(new LegacyRuntimeConfigContributor());
     runtimeConfigRegistryValue->addContributor(*legacyConfigContributorValue);
@@ -347,15 +359,12 @@ void Application::initSceneRuntime() {
             displaySystemValue.settings()));
     runtimeAudioControlsValue.reset(
         new DefaultRuntimeAudioControls(*audioProcessingSelectorValue,
-            mixerControlsValue.get()));
+            acousticContextValue, mixerControlsValue.get()));
     runtimeAutoChangeControlsValue.reset(
         new DefaultRuntimeAutoChangeControls(*autoChangeControlsValue,
             *quietMessageOptionValue));
     runtimeEffectControlsValue.reset(
         new DefaultRuntimeEffectControls(randomSourceValue));
-    autoChangeTargetValue.reset(new ApplicationAutoChangeTarget(
-        sceneRuntimeValue->commandTarget(), *runtimeDisplayControlsValue,
-        *runtimeAudioControlsValue));
     commandsInputValue->interfaceRuntime().setRuntimeConfigRegistry(
         runtimeConfigRegistryValue.get());
     commandsInputValue->interfaceRuntime().setAudioProcessingSelector(
@@ -365,8 +374,41 @@ void Application::initSceneRuntime() {
         *runtimeShutdownValue, *runtimeDisplayControlsValue,
         *runtimeAudioControlsValue, *runtimeAutoChangeControlsValue,
         *runtimeEffectControlsValue));
+#ifdef CTH_CONTROL_IPC
+    controlDisplayCatalogsValue.reset(new BuiltInControlDisplayCatalogs());
+    controlRuntimeMetricsValue.reset(
+        new AcousticControlRuntimeMetrics(acousticContextValue));
+    controlServiceValue.reset(new ControlService(*runtimeChangeMediatorValue,
+        *runtimeConfigRegistryValue, *sceneRuntimeValue->visualSelections(),
+        *controlDisplayCatalogsValue, *controlRuntimeMetricsValue,
+        logSinkValue));
+    std::string controlError;
+    if (!controlServiceValue->start("", &controlError))
+        logSinkValue.warn("Control IPC unavailable: %s\n",
+            controlError.c_str());
+    controlRuntimeCommandSinkValue.reset(
+        new ControlObservedRuntimeCommandSink(*runtimeChangeMediatorValue,
+            *controlServiceValue));
+    controlSceneCommandTargetValue.reset(
+        new ControlObservedSceneCommandTarget(
+            sceneRuntimeValue->commandTarget(), *controlServiceValue));
+#endif
+    SceneCommandTarget* autoChangeSceneCommands
+        = &sceneRuntimeValue->commandTarget();
+#ifdef CTH_CONTROL_IPC
+    if (controlSceneCommandTargetValue.get() != NULL)
+        autoChangeSceneCommands = controlSceneCommandTargetValue.get();
+#endif
+    autoChangeTargetValue.reset(new ApplicationAutoChangeTarget(
+        *autoChangeSceneCommands, *runtimeDisplayControlsValue,
+        *runtimeAudioControlsValue));
+    RuntimeCommandSink* runtimeCommandSink = runtimeChangeMediatorValue.get();
+#ifdef CTH_CONTROL_IPC
+    if (controlRuntimeCommandSinkValue.get() != NULL)
+        runtimeCommandSink = controlRuntimeCommandSinkValue.get();
+#endif
     runtimeCommandRouterValue.reset(new RoutedRuntimeCommandTargetRouter(
-        *runtimeChangeMediatorValue, *runtimeDisplayControlsValue,
+        *runtimeCommandSink, *runtimeDisplayControlsValue,
         *runtimeAudioControlsValue,
         *runtimeAutoChangeControlsValue, *runtimeEffectControlsValue));
     commandsInputValue->interfaceRuntime().setAutoChangeControls(
@@ -380,8 +422,15 @@ void Application::shutdownSceneRuntime() {
     commandsInputValue->interfaceRuntime().setAudioProcessingSelector(NULL);
     commandsInputValue->interfaceRuntime().setRuntimeConfigRegistry(NULL);
     runtimeCommandRouterValue.reset();
-    runtimeChangeMediatorValue.reset();
     autoChangeTargetValue.reset();
+#ifdef CTH_CONTROL_IPC
+    controlSceneCommandTargetValue.reset();
+    controlRuntimeCommandSinkValue.reset();
+    controlServiceValue.reset();
+    controlRuntimeMetricsValue.reset();
+    controlDisplayCatalogsValue.reset();
+#endif
+    runtimeChangeMediatorValue.reset();
     runtimeEffectControlsValue.reset();
     runtimeAutoChangeControlsValue.reset();
     runtimeAudioControlsValue.reset();
@@ -544,6 +593,10 @@ void Application::applySceneScriptEvent(const SceneScriptEvent& event) {
         && runtimeAudioControlsValue.get() != NULL)
         runtimeAudioControlsValue->changeSoundProcessingTo(
             event.scene.audioProcessing.c_str());
+#ifdef CTH_CONTROL_IPC
+    if (controlServiceValue.get() != NULL)
+        controlServiceValue->runtimeStateChanged();
+#endif
 }
 
 void Application::runSceneScript(double nowSeconds) {
@@ -748,7 +801,14 @@ int Application::initialize() {
     displayDrivers.add(*sdl3DisplayDriverFactory);
 #endif
     DisplayOpenRequest displayOpenRequest(scene(), *imageOptionValue,
-        sceneRuntimeValue->visualSelections(), *runtimeChangeMediatorValue,
+        sceneRuntimeValue->visualSelections(),
+#ifdef CTH_CONTROL_IPC
+        controlRuntimeCommandSinkValue.get() != NULL
+            ? static_cast<RuntimeCommandSink&>(*controlRuntimeCommandSinkValue)
+            : static_cast<RuntimeCommandSink&>(*runtimeChangeMediatorValue),
+#else
+        *runtimeChangeMediatorValue,
+#endif
         *runtimeCommandRouterValue, *runtimeConfigRegistryValue,
         startupConfigValue.display, displaySystemValue.settings(),
         secondsClockValue, commandsInputValue->interfaceRuntime(),
@@ -800,8 +860,18 @@ void Application::run() {
         if (traceDisplayTiming)
             eventsEnd = secondsClockValue.nowSeconds();
 
+        RuntimeCommandSink* runtimeCommandSink = runtimeChangeMediatorValue.get();
+        ControlPanelLauncher* controlPanelLauncher = 0;
+#ifdef CTH_CONTROL_IPC
+        if (controlRuntimeCommandSinkValue.get() != NULL)
+            runtimeCommandSink = controlRuntimeCommandSinkValue.get();
+        controlPanelLauncher = controlServiceValue.get();
+        if (controlServiceValue.get() != NULL)
+            controlServiceValue->serviceFrame(4);
+#endif
         CommandContext commandContext(commandsInputValue->interfaceRuntime(),
-            runtimeChangeMediatorValue.get(), runtimeCommandRouterValue.get());
+            runtimeCommandSink, runtimeCommandRouterValue.get(),
+            controlPanelLauncher);
 
         if (traceDisplayTiming)
             preInterfaceStart = secondsClockValue.nowSeconds();

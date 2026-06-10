@@ -1,5 +1,6 @@
 #include "cthugha.h"
 #include "Configuration.h"
+#include "ControlPanelLauncher.h"
 #include "keymap.h"
 #include "InterfaceRuntime.h"
 #include "Interface.h"
@@ -233,10 +234,12 @@ Keymap::~Keymap() {
 
 CommandContext::CommandContext(InterfaceRuntime& runtime,
     RuntimeCommandSink* runtimeCommandSink,
-    RuntimeCommandTargetRouter* commandRouter)
+    RuntimeCommandTargetRouter* commandRouter,
+    ControlPanelLauncher* controlPanelLauncher)
     : runtimeValue(&runtime)
     , runtimeCommandSinkValue(runtimeCommandSink)
     , commandRouterValue(commandRouter)
+    , controlPanelLauncherValue(controlPanelLauncher)
     , optionValue(NULL)
     , effectControlValue(NULL)
     , sceneTargetValue(RuntimeSceneFlame)
@@ -254,6 +257,10 @@ RuntimeCommandSink* CommandContext::runtimeCommandSink() const {
 
 RuntimeCommandTargetRouter* CommandContext::commandRouter() const {
     return commandRouterValue;
+}
+
+ControlPanelLauncher* CommandContext::controlPanelLauncher() const {
+    return controlPanelLauncherValue;
 }
 
 void CommandContext::targetOption(Option& option,
@@ -840,6 +847,12 @@ ACTION(newRandomPalette) {
     applyRuntimeCommand(RuntimeCommand::addRandomPalette(), context);
 }
 
+ACTION(openControlPanel) {
+    ControlPanelLauncher* launcher = context.controlPanelLauncher();
+    if (launcher != 0)
+        launcher->launchControlPanel();
+}
+
 void registerDefaultKeyActions(CommandRegistry& registry) {
 #define REGISTER_ACTION(a) registry.registerAction(new a##Action())
     REGISTER_ACTION(quit);
@@ -886,5 +899,6 @@ void registerDefaultKeyActions(CommandRegistry& registry) {
     REGISTER_ACTION(setInterface);
     REGISTER_ACTION(randomPalette);
     REGISTER_ACTION(newRandomPalette);
+    REGISTER_ACTION(openControlPanel);
 #undef REGISTER_ACTION
 }

@@ -18,6 +18,7 @@ class RuntimeCommandTargetRouter;
 
 struct ActionInvocation;
 class CommandContext;
+class ControlPanelLauncher;
 
 class Action {
     const char* name;
@@ -60,6 +61,7 @@ class CommandContext {
     InterfaceRuntime* runtimeValue;
     RuntimeCommandSink* runtimeCommandSinkValue;
     RuntimeCommandTargetRouter* commandRouterValue;
+    ControlPanelLauncher* controlPanelLauncherValue;
     Option* optionValue;
     EffectControl* effectControlValue;
     RuntimeSceneTarget sceneTargetValue;
@@ -70,11 +72,13 @@ class CommandContext {
 public:
     CommandContext(InterfaceRuntime& runtime,
         RuntimeCommandSink* runtimeCommandSink,
-        RuntimeCommandTargetRouter* commandRouter);
+        RuntimeCommandTargetRouter* commandRouter,
+        ControlPanelLauncher* controlPanelLauncher = 0);
 
     InterfaceRuntime& runtime() const;
     RuntimeCommandSink* runtimeCommandSink() const;
     RuntimeCommandTargetRouter* commandRouter() const;
+    ControlPanelLauncher* controlPanelLauncher() const;
 
     void targetOption(Option& option, InterfaceElementOption& element);
     void targetEffectControl(EffectControl& effectControl,

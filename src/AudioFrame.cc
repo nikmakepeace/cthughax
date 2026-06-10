@@ -6,6 +6,9 @@ AudioMetrics::AudioMetrics()
     : amplitude(0)
     , amplitudeLeft(0)
     , amplitudeRight(0)
+    , lowPass150HzAmplitude(0)
+    , lowPass150HzAmplitudeLeft(0)
+    , lowPass150HzAmplitudeRight(0)
     , noisy(0) { }
 
 AudioFrame::AudioFrame() {

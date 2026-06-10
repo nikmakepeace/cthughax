@@ -14,6 +14,7 @@
             "-DCTH_BUILD_X11=OFF",
             "-DCTH_BUILD_SDL3=ON",
             "-DCTH_ENABLE_MINIAUDIO=ON",
+            "-DCTH_BUILD_WX_PANEL=ON",
             "-DCTH_ENABLE_PULSE=OFF",
             "-DCTH_BUILD_TESTS=ON",
             "-DCTH_BUILD_BENCHMARKS=OFF"
@@ -30,7 +31,7 @@
         "args": [
             "--build",
             "${workspaceFolder}/build",
-            "--parallel"
+            "--parallel 8"
         ],
         "options": {
             "cwd": "${workspaceFolder}"

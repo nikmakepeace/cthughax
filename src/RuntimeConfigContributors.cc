@@ -4,6 +4,7 @@
 
 #include "RuntimeConfigRegistry.h"
 
+#include "AudioAnalyzer.h"
 #include "AudioProcessing.h"
 #include "AutoChangeSettings.h"
 #include "DisplayPresentationOptions.h"
@@ -42,11 +43,15 @@ void AudioRuntimeConfigContributor::contribute(Config& config) const {
 
 ApplicationRuntimeConfigContributor::ApplicationRuntimeConfigContributor(
     const AutoChangeSettings& autoChangeSettings_,
+    const AcousticContext& acousticContext_,
     const Option& quietMessageOption_)
     : autoChangeSettings(autoChangeSettings_)
+    , acousticContext(acousticContext_)
     , quietMessageOption(quietMessageOption_) { }
 
 void ApplicationRuntimeConfigContributor::contribute(Config& config) const {
     config.autoChange = autoChangeSettings.config();
+    config.audioAnalysis.fireSensitivity = acousticContext.fireSensitivity();
+    config.audioAnalysis.fireSource = acousticContext.fireSourceName();
     config.messages.quietMessageMs = int(quietMessageOption);
 }

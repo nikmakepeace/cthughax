@@ -48,6 +48,15 @@ public:
     /** @return Right-channel RMS amplitude. */
     int amplitudeRight() const;
 
+    /** @return Average 150 Hz low-pass RMS amplitude across channels. */
+    int lowPass150HzAmplitude() const;
+
+    /** @return Left-channel 150 Hz low-pass RMS amplitude. */
+    int lowPass150HzAmplitudeLeft() const;
+
+    /** @return Right-channel 150 Hz low-pass RMS amplitude. */
+    int lowPass150HzAmplitudeRight() const;
+
     /** @return Nonzero when the source frame is above the noise floor. */
     int noisy() const;
 

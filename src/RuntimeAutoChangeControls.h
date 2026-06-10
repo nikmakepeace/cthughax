@@ -20,6 +20,20 @@ public:
     virtual void toggleLock() = 0;
 
     /**
+     * Sets automatic scene-change lock setting.
+     *
+     * @param locked Nonzero to lock/disable automatic scene changes.
+     */
+    virtual void changeLockTo(int locked) = 0;
+
+    /**
+     * Sets cumulative fire threshold for automatic scene changes.
+     *
+     * @param threshold Fire accumulation threshold; 0 disables this trigger.
+     */
+    virtual void changeCumulativeFireLevelTo(int threshold) = 0;
+
+    /**
      * Attempts to change an automatic scene-change option by relative offset.
      *
      * @param option Option to inspect and possibly change.
@@ -61,6 +75,12 @@ public:
 
     /** Toggles automatic scene-change lock setting. */
     virtual void toggleLock();
+
+    /** Sets automatic scene-change lock setting. */
+    virtual void changeLockTo(int locked);
+
+    /** Sets cumulative fire threshold for automatic scene changes. */
+    virtual void changeCumulativeFireLevelTo(int threshold);
 
     /**
      * Attempts to change an automatic scene-change option by relative offset.

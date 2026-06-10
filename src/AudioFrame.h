@@ -18,6 +18,15 @@ struct AudioMetrics {
     /** Right-channel RMS amplitude, in signed 8-bit sample units. */
     int amplitudeRight;
 
+    /** Average RMS amplitude after a 150 Hz low-pass filter. */
+    int lowPass150HzAmplitude;
+
+    /** Left-channel RMS amplitude after a 150 Hz low-pass filter. */
+    int lowPass150HzAmplitudeLeft;
+
+    /** Right-channel RMS amplitude after a 150 Hz low-pass filter. */
+    int lowPass150HzAmplitudeRight;
+
     /** Nonzero when either channel is at or above the configured noise floor. */
     int noisy;
 

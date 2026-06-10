@@ -36,9 +36,14 @@ enum RuntimeCommandType {
     RuntimeCommandChangeScreenTo,
     RuntimeCommandChangeZoomBy,
     RuntimeCommandChangeZoomTo,
+    RuntimeCommandChangeMaxFpsTo,
     RuntimeCommandChangeSoundProcessingBy,
     RuntimeCommandChangeSoundProcessingTo,
+    RuntimeCommandChangeFireSensitivityTo,
+    RuntimeCommandChangeFireSourceTo,
     RuntimeCommandToggleAutoChangeLock,
+    RuntimeCommandChangeAutoChangeLockTo,
+    RuntimeCommandChangeAutoChangeCumulativeFireLevelTo,
     RuntimeCommandWriteIni,
     RuntimeCommandStopAndContinue,
     RuntimeCommandToggleShowFps,
@@ -179,6 +184,14 @@ struct RuntimeCommand {
     static RuntimeCommand changeZoomTo(const char* to);
 
     /**
+     * Creates an absolute max-FPS change command.
+     *
+     * @param to Max frames per second; 0 disables pacing.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeMaxFpsTo(int to);
+
+    /**
      * Creates a relative sound-processing change command.
      *
      * @param by Relative offset to apply.
@@ -195,11 +208,44 @@ struct RuntimeCommand {
     static RuntimeCommand changeSoundProcessingTo(const char* to);
 
     /**
+     * Creates an absolute fire-sensitivity change command.
+     *
+     * @param sensitivity 0..100, where lower values suppress smaller bursts.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeFireSensitivityTo(int sensitivity);
+
+    /**
+     * Creates an absolute fire-source change command.
+     *
+     * @param to Stable fire source name.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeFireSourceTo(const char* to);
+
+    /**
      * Creates an auto-change lock toggle command.
      *
      * @return Runtime command.
      */
     static RuntimeCommand toggleAutoChangeLock();
+
+    /**
+     * Creates an absolute auto-change lock command.
+     *
+     * @param locked Nonzero to lock/disable automatic scene changes.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeAutoChangeLockTo(int locked);
+
+    /**
+     * Creates an absolute cumulative-fire threshold command.
+     *
+     * @param threshold Fire accumulation threshold; 0 disables this trigger.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeAutoChangeCumulativeFireLevelTo(
+        int threshold);
 
     /**
      * Creates a command that persists the current runtime configuration.

@@ -12,6 +12,8 @@ option(CTH_BUILD_X11 "Build the modern X11 frontend" ON)
 option(CTH_BUILD_SDL3 "Build the SDL3 display driver" OFF)
 option(CTH_BUILD_TESTS "Build and register focused unit tests" ON)
 option(CTH_BUILD_BENCHMARKS "Build Google Benchmark performance suites" OFF)
+option(CTH_ENABLE_CONTROL_IPC "Enable JSONL local control IPC in the visualiser" ON)
+option(CTH_BUILD_WX_PANEL "Build the separate wxWidgets control panel executable" OFF)
 option(CTH_RUN_AUDIO_DEVICE_TESTS "Register opt-in tests that open real audio devices" OFF)
 option(CTH_ENABLE_PULSE "Enable PulseAudio-compatible output when libpulse-simple is available" ON)
 option(CTH_ENABLE_DSP "Enable OSS /dev/dsp support when soundcard headers are available" ON)
@@ -155,6 +157,38 @@ configure_file(
 
 add_subdirectory(src)
 
+if(CTH_BUILD_WX_PANEL)
+    find_package(wxWidgets REQUIRED COMPONENTS core base)
+    include(${wxWidgets_USE_FILE})
+
+    add_executable(cthugha-panel
+        wx/CthughaPanelApp.cc
+        wx/CthughaPanelBase.cpp
+        wx/CthughaPanelFrame.cpp
+        src/ControlPanelClient.cc
+        src/ControlProtocol.cc
+        src/ControlTransport.cc
+    )
+
+    target_include_directories(cthugha-panel PRIVATE
+        ${CMAKE_BINARY_DIR}
+        ${CMAKE_BINARY_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_SOURCE_DIR}/wx
+    )
+
+    target_link_libraries(cthugha-panel PRIVATE
+        ${wxWidgets_LIBRARIES}
+        Threads::Threads
+    )
+
+    if(NOT MSVC)
+        target_link_libraries(cthugha-panel PRIVATE m)
+    endif()
+
+    install(TARGETS cthugha-panel RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
+endif()
+
 if(CTH_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)
@@ -182,6 +216,8 @@ message(STATUS "  OSS mixer          : ${WITH_MIXER} (${CTH_DEV_MIXER})")
 message(STATUS "  minimp3 decoder    : ${WITH_MINIMP3}")
 message(STATUS "  miniaudio devices  : ${WITH_MINIAUDIO}")
 message(STATUS "  miniaudio no runtime linking: ${CTH_MINIAUDIO_NO_RUNTIME_LINKING}")
+message(STATUS "  control IPC       : ${CTH_ENABLE_CONTROL_IPC}")
+message(STATUS "  wx control panel  : ${CTH_BUILD_WX_PANEL}")
 message(STATUS "  audio device tests : ${CTH_RUN_AUDIO_DEVICE_TESTS}")
 message(STATUS "  Benchmarks         : ${CTH_BUILD_BENCHMARKS}")
 message(STATUS "  Runtime data dir   : ${CTH_DATA_DIR}")

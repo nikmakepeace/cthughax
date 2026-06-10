@@ -30,6 +30,13 @@ class AutoChangeControls;
 class AutoChangeQuietObserver;
 class AutoChangeSettings;
 class AutoChangeTarget;
+#ifdef CTH_CONTROL_IPC
+class ControlDisplayCatalogs;
+class ControlObservedRuntimeCommandSink;
+class ControlObservedSceneCommandTarget;
+class ControlRuntimeMetrics;
+class ControlService;
+#endif
 class ErrorMessages;
 class IndexedFrame;
 class ImageOption;
@@ -120,6 +127,15 @@ class Application {
     std::unique_ptr<RuntimeAutoChangeControls> runtimeAutoChangeControlsValue;
     std::unique_ptr<RuntimeEffectControls> runtimeEffectControlsValue;
     std::unique_ptr<RuntimeChangeMediator> runtimeChangeMediatorValue;
+#ifdef CTH_CONTROL_IPC
+    std::unique_ptr<ControlDisplayCatalogs> controlDisplayCatalogsValue;
+    std::unique_ptr<ControlRuntimeMetrics> controlRuntimeMetricsValue;
+    std::unique_ptr<ControlService> controlServiceValue;
+    std::unique_ptr<ControlObservedRuntimeCommandSink>
+        controlRuntimeCommandSinkValue;
+    std::unique_ptr<ControlObservedSceneCommandTarget>
+        controlSceneCommandTargetValue;
+#endif
     std::unique_ptr<RuntimeCommandTargetRouter> runtimeCommandRouterValue;
     std::unique_ptr<MixerDevice> mixerDeviceValue;
     std::unique_ptr<MixerSession> mixerSessionValue;

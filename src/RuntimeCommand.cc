@@ -77,6 +77,12 @@ RuntimeCommand RuntimeCommand::changeZoomTo(const char* to) {
     return command;
 }
 
+RuntimeCommand RuntimeCommand::changeMaxFpsTo(int to) {
+    RuntimeCommand command(RuntimeCommandChangeMaxFpsTo);
+    command.value = to;
+    return command;
+}
+
 RuntimeCommand RuntimeCommand::changeSoundProcessingBy(int by) {
     RuntimeCommand command(RuntimeCommandChangeSoundProcessingBy);
     command.value = by;
@@ -89,8 +95,34 @@ RuntimeCommand RuntimeCommand::changeSoundProcessingTo(const char* to) {
     return command;
 }
 
+RuntimeCommand RuntimeCommand::changeFireSensitivityTo(int sensitivity) {
+    RuntimeCommand command(RuntimeCommandChangeFireSensitivityTo);
+    command.value = sensitivity;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::changeFireSourceTo(const char* to) {
+    RuntimeCommand command(RuntimeCommandChangeFireSourceTo);
+    command.text = to;
+    return command;
+}
+
 RuntimeCommand RuntimeCommand::toggleAutoChangeLock() {
     return RuntimeCommand(RuntimeCommandToggleAutoChangeLock);
+}
+
+RuntimeCommand RuntimeCommand::changeAutoChangeLockTo(int locked) {
+    RuntimeCommand command(RuntimeCommandChangeAutoChangeLockTo);
+    command.value = locked;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::changeAutoChangeCumulativeFireLevelTo(
+    int threshold) {
+    RuntimeCommand command(
+        RuntimeCommandChangeAutoChangeCumulativeFireLevelTo);
+    command.value = threshold;
+    return command;
 }
 
 RuntimeCommand RuntimeCommand::writeIni() {

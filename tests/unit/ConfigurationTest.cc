@@ -97,6 +97,10 @@ static void defaultsProduceTypedConfig() {
     assert(result.config.autoChange.locked == AUTO_CHANGE_CONFIG_DEFAULT_LOCKED);
     assert(result.config.autoChange.changeLittle == AUTO_CHANGE_CONFIG_DEFAULT_CHANGE_LITTLE);
     assert(result.config.audioAnalysis.minNoise == AUDIO_ANALYSIS_CONFIG_DEFAULT_MIN_NOISE);
+    assert(result.config.audioAnalysis.fireSensitivity
+        == AUDIO_ANALYSIS_CONFIG_DEFAULT_FIRE_SENSITIVITY);
+    assert(result.config.audioAnalysis.fireSource
+        == AUDIO_ANALYSIS_CONFIG_DEFAULT_FIRE_SOURCE_TEXT);
     assert(result.config.effectPolicy.imageFilesEnabled == EFFECT_POLICY_DEFAULT_IMAGE_FILES_ENABLED);
     assert(result.config.effectPolicy.paletteSetFilterText == EFFECT_POLICY_DEFAULT_PALETTE_SET_FILTER_TEXT);
     assert(result.config.effectPolicy.useTranslatesEnabled == EFFECT_POLICY_DEFAULT_USE_TRANSLATES_ENABLED);
@@ -170,6 +174,8 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
         "cthugha.silent: yes\n"
         "cthugha.audio-output-driver: miniaudio\n"
         "cthugha.min-noise: 12\n"
+        "cthugha.fire-sensitivity: 72\n"
+        "cthugha.fire-source: low-pass-150hz\n"
         "cthugha.pulse-latency-ms: 150\n"
         "cthugha.miniaudio-target-latency-ms: 90\n"
         "cthugha.pulse-server: local\n"
@@ -254,6 +260,9 @@ static void iniTextSourceProducesPatchWithoutGlobals() {
     assert(*patchValue(patch, "audio.silent") == "1");
     assert(*patchValue(patch, "audio.output_driver") == "miniaudio");
     assert(*patchValue(patch, "audio_analysis.min_noise") == "12");
+    assert(*patchValue(patch, "audio_analysis.fire_sensitivity") == "72");
+    assert(*patchValue(patch, "audio_analysis.fire_source")
+        == "low-pass-150hz");
     assert(*patchValue(patch, "audio.pulse_latency_ms") == "150");
     assert(*patchValue(patch, "audio.miniaudio_target_latency_ms") == "90");
     assert(*patchValue(patch, "audio.pulse_server") == "local");
@@ -587,6 +596,8 @@ static void commandLineSourceBuildsAutoChangeConfig() {
             "--cumulative-fire-level",
             "78",
             "--min-noise=300",
+            "--fire-sensitivity=37",
+            "--fire-source=lowpass150hz",
         })
         .build();
 
@@ -598,6 +609,9 @@ static void commandLineSourceBuildsAutoChangeConfig() {
     assert(result.config.autoChange.quietMs == 5600);
     assert(result.config.autoChange.cumulativeFireLevel == 78);
     assert(result.config.audioAnalysis.minNoise == 255);
+    assert(result.config.audioAnalysis.fireSensitivity == 37);
+    assert(result.config.audioAnalysis.fireSource
+        == AUDIO_ANALYSIS_FIRE_SOURCE_LOW_PASS_150HZ_AMPLITUDE_TEXT);
     assert(result.diagnostics.size() == 1);
     assert(result.diagnostics[0].severity == ConfigDiagnosticWarning);
 }

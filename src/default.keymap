@@ -41,6 +41,7 @@ end  end()
 #keymap main
 q credits()
 Q quit()
+c openControlPanel()
 C stopAndContinue()
     
 d screenChg(+1)

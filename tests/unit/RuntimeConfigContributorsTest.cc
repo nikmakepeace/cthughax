@@ -4,6 +4,7 @@
 
 #include "RuntimeConfigRegistry.h"
 
+#include "AudioAnalyzer.h"
 #include "AudioProcessing.h"
 #include "AutoChangeSettings.h"
 #include "DisplayPresentationOptions.h"
@@ -61,10 +62,13 @@ static void testApplicationContributorSnapshotsApplicationOwnedSettings() {
     autoChange.locked = 1;
     autoChange.changeLittle = 1;
     OwnedAutoChangeSettings autoChangeSettings(autoChange);
+    AcousticContext acousticContext;
+    acousticContext.setFireSensitivity(42);
+    acousticContext.setFireSource("low-pass-150hz-amplitude");
     OptionTime quietMessageOption("quiet-message", 0);
     quietMessageOption.setValue(1234);
     ApplicationRuntimeConfigContributor contributor(
-        autoChangeSettings, quietMessageOption);
+        autoChangeSettings, acousticContext, quietMessageOption);
 
     contributor.contribute(config);
 
@@ -74,6 +78,8 @@ static void testApplicationContributorSnapshotsApplicationOwnedSettings() {
     assert(config.autoChange.cumulativeFireLevel == 500);
     assert(config.autoChange.locked == 1);
     assert(config.autoChange.changeLittle == 1);
+    assert(config.audioAnalysis.fireSensitivity == 42);
+    assert(config.audioAnalysis.fireSource == "low-pass-150hz-amplitude");
     assert(config.messages.quietMessageMs == 1234);
 }
 
@@ -99,10 +105,13 @@ static void testRegistryComposesModuleContributors() {
     AutoChangeConfig autoChange;
     autoChange.quietMs = 1500;
     OwnedAutoChangeSettings autoChangeSettings(autoChange);
+    AcousticContext acousticContext;
+    acousticContext.setFireSensitivity(54);
+    acousticContext.setFireSource("low-pass-150hz-amplitude");
     OptionTime quietMessageOption("quiet-message", 0);
     quietMessageOption.setValue(750);
     ApplicationRuntimeConfigContributor appContributor(
-        autoChangeSettings, quietMessageOption);
+        autoChangeSettings, acousticContext, quietMessageOption);
     registry.addContributor(appContributor);
 
     Config current = registry.currentConfig();
@@ -112,6 +121,8 @@ static void testRegistryComposesModuleContributors() {
     assert(current.display.zoomMode == 2);
     assert(current.scene.audioProcessing == "FFT");
     assert(current.autoChange.quietMs == 1500);
+    assert(current.audioAnalysis.fireSensitivity == 54);
+    assert(current.audioAnalysis.fireSource == "low-pass-150hz-amplitude");
     assert(current.messages.quietMessageMs == 750);
 }
 

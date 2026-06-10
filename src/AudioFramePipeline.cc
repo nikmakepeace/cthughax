@@ -36,20 +36,20 @@ void DefaultAudioFramePipeline::processFrame(AudioFrame& frame) {
         AudioMetrics processedMetrics = audioProcessorValue.analyze(
             frame.processedWaveData, minNoiseValue);
         debugReportsValue++;
-        log.debug("processed wave audio: mode=%s amplitude=%d left=%d right=%d noisy=%d\n",
+        log.debug("processed wave audio: mode=%s amplitude=%d left=%d right=%d lowpass150hz=%d noisy=%d\n",
             audioProcessingSelectorValue.text(), processedMetrics.amplitude,
             processedMetrics.amplitudeLeft, processedMetrics.amplitudeRight,
-            processedMetrics.noisy);
+            processedMetrics.lowPass150HzAmplitude, processedMetrics.noisy);
     }
 
     audioProcessorValue.analyze(frame, minNoiseValue);
     acousticContextValue.update(frame.metrics);
 
     if (log.debugEnabled() && (debugReportsValue < 16)) {
-        log.debug("audio analysis: amplitude=%d left=%d right=%d noisy=%d frame-samples=%d center-sample=%lld\n",
+        log.debug("audio analysis: amplitude=%d left=%d right=%d lowpass150hz=%d noisy=%d frame-samples=%d center-sample=%lld\n",
             frame.metrics.amplitude, frame.metrics.amplitudeLeft,
-            frame.metrics.amplitudeRight, frame.metrics.noisy,
-            frame.samples, frame.centerSample);
+            frame.metrics.amplitudeRight, frame.metrics.lowPass150HzAmplitude,
+            frame.metrics.noisy, frame.samples, frame.centerSample);
     }
 
     if (traceFrame) {

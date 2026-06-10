@@ -920,10 +920,18 @@ public:
 class AudioProcessor {
     FixedPointAudioFftProcessor defaultFftProcessorValue;
     AudioFftProcessor* fftProcessorValue;
+    int sampleRateHzValue;
 
 public:
     /** Creates an audio processor using the default FFT implementation. */
     AudioProcessor();
+
+    /**
+     * Creates an audio processor using the default FFT implementation.
+     *
+     * @param sampleRateHz PCM sample rate used for frequency-domain metrics.
+     */
+    explicit AudioProcessor(int sampleRateHz);
 
     /**
      * Creates an audio processor with an injected FFT implementation.
@@ -934,11 +942,21 @@ public:
     explicit AudioProcessor(AudioFftProcessor& fftProcessor);
 
     /**
+     * Creates an audio processor with an injected FFT implementation.
+     *
+     * @param fftProcessor FFT processor used by fft() calls. The referenced
+     *        object must outlive this AudioProcessor.
+     * @param sampleRateHz PCM sample rate used for frequency-domain metrics.
+     */
+    AudioProcessor(AudioFftProcessor& fftProcessor, int sampleRateHz);
+
+    /**
      * Measures one signed 8-bit stereo audio frame.
      *
      * @param frame Pointer to 1024 stereo samples in Cthugha's char2 format.
      * @param minNoise Noise-floor threshold used to set AudioMetrics::noisy.
-     * @return Frame-local RMS amplitudes and noisy/quiet flag.
+     * @return Frame-local RMS amplitudes, low-pass RMS amplitudes, and
+     *         noisy/quiet flag.
      */
     AudioMetrics analyze(const char2* frame, int minNoise) const;
 

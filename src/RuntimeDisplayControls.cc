@@ -29,6 +29,10 @@ void DefaultRuntimeDisplayControls::changeZoomTo(const char* to) {
     settings.zoom.change(to);
 }
 
+void DefaultRuntimeDisplayControls::changeMaxFpsTo(int to) {
+    settings.maxFramesPerSecond.setValue(to);
+}
+
 void DefaultRuntimeDisplayControls::toggleFpsOverlay() {
     settings.showFPS.change(+1);
 }

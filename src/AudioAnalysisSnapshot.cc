@@ -33,6 +33,18 @@ int AudioAnalysisSnapshot::amplitudeRight() const {
     return metricsValue.amplitudeRight;
 }
 
+int AudioAnalysisSnapshot::lowPass150HzAmplitude() const {
+    return metricsValue.lowPass150HzAmplitude;
+}
+
+int AudioAnalysisSnapshot::lowPass150HzAmplitudeLeft() const {
+    return metricsValue.lowPass150HzAmplitudeLeft;
+}
+
+int AudioAnalysisSnapshot::lowPass150HzAmplitudeRight() const {
+    return metricsValue.lowPass150HzAmplitudeRight;
+}
+
 int AudioAnalysisSnapshot::noisy() const {
     return metricsValue.noisy;
 }

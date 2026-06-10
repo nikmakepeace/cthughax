@@ -1069,6 +1069,125 @@ target_link_libraries(runtime_command_test PRIVATE m)
 
 add_test(NAME runtime_command_test COMMAND runtime_command_test)
 
+add_executable(control_protocol_test
+    unit/ControlProtocolTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlProtocol.cc
+)
+
+target_include_directories(control_protocol_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_protocol_test PRIVATE m)
+
+add_test(NAME control_protocol_test COMMAND control_protocol_test)
+
+add_executable(control_transport_test
+    unit/ControlTransportTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlTransport.cc
+)
+
+target_include_directories(control_transport_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_transport_test PRIVATE Threads::Threads m)
+
+add_test(NAME control_transport_test COMMAND control_transport_test)
+
+add_executable(control_command_mapper_test
+    unit/ControlCommandMapperTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlCommandMapper.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlProtocol.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+)
+
+target_include_directories(control_command_mapper_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_command_mapper_test PRIVATE m)
+
+add_test(NAME control_command_mapper_test COMMAND control_command_mapper_test)
+
+add_executable(control_runtime_observer_test
+    unit/ControlRuntimeObserverTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlRuntimeObserver.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+)
+
+target_include_directories(control_runtime_observer_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_runtime_observer_test PRIVATE m)
+
+add_test(NAME control_runtime_observer_test
+    COMMAND control_runtime_observer_test)
+
+add_executable(control_snapshot_test
+    unit/ControlSnapshotTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlProtocol.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlRuntimeMetrics.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlSnapshot.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeConfigRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneChoiceSelection.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneVisualSelections.cc
+)
+
+target_include_directories(control_snapshot_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_snapshot_test PRIVATE m)
+
+add_test(NAME control_snapshot_test COMMAND control_snapshot_test)
+
+add_executable(control_service_integration_test
+    unit/ControlServiceIntegrationTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlCommandMapper.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlPanelClient.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlProtocol.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlRuntimeMetrics.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlService.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlSnapshot.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlTransport.cc
+    ${CMAKE_SOURCE_DIR}/src/Configuration.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeCommand.cc
+    ${CMAKE_SOURCE_DIR}/src/RuntimeConfigRegistry.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneChoiceSelection.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneVisualSelections.cc
+)
+
+target_include_directories(control_service_integration_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_service_integration_test PRIVATE
+    Threads::Threads
+    m
+)
+
+add_test(NAME control_service_integration_test
+    COMMAND control_service_integration_test)
+
 add_executable(scene_choice_list_catalog_test
     unit/SceneChoiceListCatalogTest.cc
     ${CMAKE_SOURCE_DIR}/src/SceneChoiceListCatalog.cc
@@ -1883,6 +2002,7 @@ add_test(NAME runtime_auto_change_controls_test
 
 add_executable(runtime_audio_controls_test
     unit/RuntimeAudioControlsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFftProcessor.cc
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
     ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
@@ -1923,12 +2043,14 @@ add_test(NAME runtime_config_selection_test
 
 add_executable(runtime_config_contributors_test
     unit/RuntimeConfigContributorsTest.cc
+    ${CMAKE_SOURCE_DIR}/src/AudioAnalyzer.cc
     ${CMAKE_SOURCE_DIR}/src/AudioProcessingState.cc
     ${CMAKE_SOURCE_DIR}/src/AutoChangeSettings.cc
     ${CMAKE_SOURCE_DIR}/src/Configuration.cc
     ${CMAKE_SOURCE_DIR}/src/DisplayPresentationOptions.cc
     ${CMAKE_SOURCE_DIR}/src/Option.cc
     ${CMAKE_SOURCE_DIR}/src/OptionInt.cc
+    ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
     ${CMAKE_SOURCE_DIR}/src/RuntimeConfigContributors.cc
     ${CMAKE_SOURCE_DIR}/src/RuntimeConfigRegistry.cc
     ${CMAKE_SOURCE_DIR}/src/imath.cc

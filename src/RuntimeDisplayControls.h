@@ -46,6 +46,13 @@ public:
      */
     virtual void changeZoomTo(const char* to) = 0;
 
+    /**
+     * Changes the max-FPS option by absolute integer value.
+     *
+     * @param to Max frames per second; 0 disables pacing.
+     */
+    virtual void changeMaxFpsTo(int to) = 0;
+
     /** Toggles the FPS overlay. */
     virtual void toggleFpsOverlay() = 0;
 
@@ -152,6 +159,9 @@ public:
      * @param to Value text to select.
      */
     virtual void changeZoomTo(const char* to);
+
+    /** Changes the max-FPS option by absolute integer value. */
+    virtual void changeMaxFpsTo(int to);
 
     /** Toggles the FPS overlay. */
     virtual void toggleFpsOverlay();

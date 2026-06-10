@@ -161,6 +161,19 @@ if(WITH_MINIAUDIO)
     )
 endif()
 
+if(CTH_ENABLE_CONTROL_IPC)
+    list(APPEND CTHUGHA_COMMON_SOURCES
+        ControlCommandMapper.cc
+        ControlDisplayCatalogs.cc
+        ControlProtocol.cc
+        ControlRuntimeMetrics.cc
+        ControlRuntimeObserver.cc
+        ControlService.cc
+        ControlSnapshot.cc
+        ControlTransport.cc
+    )
+endif()
+
 add_custom_command(
     OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/default.keymap.str
     COMMAND ${CMAKE_COMMAND}
@@ -190,6 +203,10 @@ if(CTH_BUILD_X11)
         CTH_XWIN
         CTH_LIBDIR="${CTH_DATA_DIR}"
     )
+
+    if(CTH_ENABLE_CONTROL_IPC)
+        target_compile_definitions(xcthugha PRIVATE CTH_CONTROL_IPC)
+    endif()
 
     target_include_directories(xcthugha PRIVATE
         ${CMAKE_BINARY_DIR}/src
@@ -241,6 +258,10 @@ if(CTH_BUILD_SDL3)
         CTH_SDL3
         CTH_LIBDIR="${CTH_DATA_DIR}"
     )
+
+    if(CTH_ENABLE_CONTROL_IPC)
+        target_compile_definitions(cthugha PRIVATE CTH_CONTROL_IPC)
+    endif()
 
     target_include_directories(cthugha PRIVATE
         ${CMAKE_BINARY_DIR}/src
