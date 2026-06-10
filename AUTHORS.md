@@ -1,10 +1,14 @@
-# CthughaNix Authors and Contributors
+# Cthugha-X Authors and Contributors
 
 This file is reconstructed from the source tree, documentation, credits,
 ChangeLog, and release metadata. It is probably incomplete; please update it if
 you know of missing or misattributed contributors.
 
-## Current CthughaNix Work
+## 2026 Cthugha-X
+**Nik Makepeace** <github@nikmakepeace.com>
+Near total overhaul, including complete application lifecycle rewrite and SDL3 display frontend.
+
+## 2007 CthughaNix Work
 
 **Brandon Barker** <brandon.barker@gmail.com>  
 2007 CthughaNix relicensing, renaming, modernization, and maintenance.
@@ -12,7 +16,7 @@ you know of missing or misattributed contributors.
 ## Cthugha-L
 
 **Harald Deischinger** <deischi@geocities.com>  
-Author and maintainer of Cthugha-L, the Linux/Unix port on which CthughaNix is
+Author and maintainer of Cthugha-L, the Linux/Unix port on which CthughaNix was
 based.
 
 ## Original Cthugha
