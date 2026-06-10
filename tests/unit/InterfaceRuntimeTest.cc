@@ -176,10 +176,12 @@ Action* CommandRegistry::findLongestPrefix(const char*) const { return NULL; }
 
 CommandContext::CommandContext(InterfaceRuntime& runtime,
     RuntimeCommandSink* runtimeCommandSink,
-    RuntimeCommandTargetRouter* commandRouter)
+    RuntimeCommandTargetRouter* commandRouter,
+    ControlPanelLauncher* controlPanelLauncher)
     : runtimeValue(&runtime)
     , runtimeCommandSinkValue(runtimeCommandSink)
     , commandRouterValue(commandRouter)
+    , controlPanelLauncherValue(controlPanelLauncher)
     , optionValue(NULL)
     , effectControlValue(NULL)
     , sceneTargetValue(RuntimeSceneFlame)
@@ -194,6 +196,9 @@ RuntimeCommandSink* CommandContext::runtimeCommandSink() const {
 }
 RuntimeCommandTargetRouter* CommandContext::commandRouter() const {
     return commandRouterValue;
+}
+ControlPanelLauncher* CommandContext::controlPanelLauncher() const {
+    return controlPanelLauncherValue;
 }
 void CommandContext::targetOption(Option& option,
     InterfaceElementOption& element) {
