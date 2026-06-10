@@ -17,7 +17,7 @@ CthughaPanelBase::CthughaPanelBase( wxWindow* parent, wxWindowID id, const wxStr
 	bSizer3 = new wxBoxSizer( wxVERTICAL );
 
 	m_scrolledWindow1 = new wxScrolledWindow( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHSCROLL|wxVSCROLL );
-	m_scrolledWindow1->SetMinSize( wxSize( 360,400 ) );
+	m_scrolledWindow1->SetMinSize( wxSize( 380,520 ) );
 
 	m_scrolledWindow1->SetScrollRate( 5, 5 );
 	wxFlexGridSizer* fgSizer2;

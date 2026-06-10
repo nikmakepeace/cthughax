@@ -50,7 +50,7 @@
       <property name="minimum_size"></property>
       <property name="name">CthughaPanelBase</property>
       <property name="pos"></property>
-      <property name="size">400,470</property>
+      <property name="size">420,600</property>
       <property name="style">wxDEFAULT_FRAME_STYLE</property>
       <property name="subclass">; ; forward_declare</property>
       <property name="title"></property>
@@ -117,7 +117,7 @@
                 <property name="max_size"></property>
                 <property name="maximize_button">0</property>
                 <property name="maximum_size"></property>
-                <property name="min_size">360,400</property>
+                <property name="min_size">380,520</property>
                 <property name="minimize_button">0</property>
                 <property name="minimum_size"></property>
                 <property name="moveable">1</property>

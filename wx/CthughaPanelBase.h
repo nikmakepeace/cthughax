@@ -49,7 +49,7 @@ class CthughaPanelBase : public wxFrame
 
 	public:
 
-		CthughaPanelBase( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 400,470 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
+		CthughaPanelBase( wxWindow* parent, wxWindowID id = wxID_ANY, const wxString& title = wxEmptyString, const wxPoint& pos = wxDefaultPosition, const wxSize& size = wxSize( 420,600 ), long style = wxDEFAULT_FRAME_STYLE|wxTAB_TRAVERSAL );
 
 		~CthughaPanelBase();
 
