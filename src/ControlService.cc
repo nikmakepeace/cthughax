@@ -10,7 +10,9 @@
 #include "ProcessServices.h"
 #include "RuntimeCommandSink.h"
 
+#include <errno.h>
 #include <stdio.h>
+#include <string.h>
 #include <vector>
 
 #ifdef _WIN32
@@ -19,8 +21,14 @@
 #endif
 #include <windows.h>
 #else
+#include <fcntl.h>
+#include <limits.h>
 #include <sys/types.h>
+#include <sys/wait.h>
 #include <unistd.h>
+#ifdef __APPLE__
+#include <mach-o/dyld.h>
+#endif
 #endif
 
 namespace {
@@ -49,41 +57,194 @@ static bool writeMessage(ControlStream& stream, const ControlJsonValue& message,
         == ControlIoReady;
 }
 
+static std::string directoryOf(const std::string& path) {
+    size_t slash = path.find_last_of("/\\");
+    if (slash == std::string::npos)
+        return "";
+    if (slash == 0)
+        return path.substr(0, 1);
+    return path.substr(0, slash);
+}
+
+static std::string parentDirectoryOf(const std::string& path) {
+    return directoryOf(directoryOf(path));
+}
+
+static void appendUnique(
+    std::vector<std::string>& values, const std::string& value) {
+    if (value.empty())
+        return;
+    for (std::vector<std::string>::const_iterator it = values.begin();
+         it != values.end(); ++it) {
+        if (*it == value)
+            return;
+    }
+    values.push_back(value);
+}
+
+#ifdef _WIN32
+
+static std::string quotedWindowsArg(const std::string& value) {
+    std::string quoted = "\"";
+    for (std::string::const_iterator it = value.begin(); it != value.end();
+         ++it) {
+        if (*it == '"')
+            quoted += "\\\"";
+        else
+            quoted.push_back(*it);
+    }
+    quoted += "\"";
+    return quoted;
+}
+
+#else
+
+static int pathUsesDirectory(const std::string& path) {
+    return path.find('/') != std::string::npos;
+}
+
+static std::string currentExecutablePath() {
+#ifdef __APPLE__
+    uint32_t size = 0;
+    _NSGetExecutablePath(0, &size);
+    if (size == 0)
+        return "";
+    std::vector<char> buffer(size + 1, '\0');
+    if (_NSGetExecutablePath(buffer.data(), &size) != 0)
+        return "";
+    return buffer.data();
+#else
+    char path[PATH_MAX];
+    ssize_t length = readlink("/proc/self/exe", path, sizeof(path) - 1);
+    if (length <= 0)
+        return "";
+    path[length] = '\0';
+    return path;
+#endif
+}
+
+static bool launchUnixPanelCandidate(const std::string& program,
+    const std::string& endpoint, std::string* error) {
+    int execStatusPipe[2];
+    if (pipe(execStatusPipe) != 0) {
+        if (error != 0)
+            *error = std::string("pipe failed for cthugha-panel launch: ")
+                + strerror(errno);
+        return false;
+    }
+
+    pid_t pid = fork();
+    if (pid < 0) {
+        int err = errno;
+        close(execStatusPipe[0]);
+        close(execStatusPipe[1]);
+        if (error != 0)
+            *error = std::string("fork failed for cthugha-panel: ")
+                + strerror(err);
+        return false;
+    }
+
+    if (pid == 0) {
+        close(execStatusPipe[0]);
+        fcntl(execStatusPipe[1], F_SETFD, FD_CLOEXEC);
+        if (pathUsesDirectory(program)) {
+            execl(program.c_str(), "cthugha-panel", "--control-endpoint",
+                endpoint.c_str(), static_cast<char*>(0));
+        } else {
+            execlp(program.c_str(), "cthugha-panel", "--control-endpoint",
+                endpoint.c_str(), static_cast<char*>(0));
+        }
+        int err = errno;
+        ssize_t ignored = write(execStatusPipe[1], &err, sizeof(err));
+        (void)ignored;
+        _exit(127);
+    }
+
+    close(execStatusPipe[1]);
+    int childErrno = 0;
+    ssize_t bytes = read(execStatusPipe[0], &childErrno, sizeof(childErrno));
+    close(execStatusPipe[0]);
+    if (bytes == 0)
+        return true;
+
+    int status = 0;
+    waitpid(pid, &status, 0);
+    if (error != 0)
+        *error = std::string("exec failed for ") + program + ": "
+            + strerror(childErrno);
+    return false;
+}
+
+#endif
+
+static std::vector<std::string> controlPanelExecutableCandidates() {
+    std::vector<std::string> candidates;
+#ifdef _WIN32
+    char modulePath[MAX_PATH];
+    DWORD length = GetModuleFileNameA(NULL, modulePath, MAX_PATH);
+    if (length > 0 && length < MAX_PATH) {
+        std::string executable = modulePath;
+        std::string directory = directoryOf(executable);
+        appendUnique(candidates, directory + "\\cthugha-panel.exe");
+        appendUnique(candidates,
+            parentDirectoryOf(executable) + "\\cthugha-panel.exe");
+    }
+    appendUnique(candidates, "cthugha-panel.exe");
+#else
+    std::string executable = currentExecutablePath();
+    if (!executable.empty()) {
+        std::string directory = directoryOf(executable);
+        appendUnique(candidates, directory + "/cthugha-panel");
+        appendUnique(candidates,
+            parentDirectoryOf(executable) + "/cthugha-panel");
+    }
+    appendUnique(candidates, "cthugha-panel");
+#endif
+    return candidates;
+}
+
 }
 
 bool SystemControlPanelProcessLauncher::launchPanel(
     const std::string& endpoint, std::string* error) {
 #ifdef _WIN32
-    std::string command = "cthugha-panel.exe --control-endpoint \"" + endpoint + "\"";
-    STARTUPINFOA startupInfo;
-    PROCESS_INFORMATION processInfo;
-    ZeroMemory(&startupInfo, sizeof(startupInfo));
-    ZeroMemory(&processInfo, sizeof(processInfo));
-    startupInfo.cb = sizeof(startupInfo);
-    std::vector<char> mutableCommand(command.begin(), command.end());
-    mutableCommand.push_back('\0');
-    if (!CreateProcessA(NULL, mutableCommand.data(), NULL, NULL, FALSE, 0,
-            NULL, NULL, &startupInfo, &processInfo)) {
-        if (error != 0)
-            *error = "CreateProcess failed for cthugha-panel";
-        return false;
+    std::vector<std::string> candidates = controlPanelExecutableCandidates();
+    for (std::vector<std::string>::const_iterator it = candidates.begin();
+         it != candidates.end(); ++it) {
+        std::string command = quotedWindowsArg(*it)
+            + " --control-endpoint " + quotedWindowsArg(endpoint);
+        STARTUPINFOA startupInfo;
+        PROCESS_INFORMATION processInfo;
+        ZeroMemory(&startupInfo, sizeof(startupInfo));
+        ZeroMemory(&processInfo, sizeof(processInfo));
+        startupInfo.cb = sizeof(startupInfo);
+        std::vector<char> mutableCommand(command.begin(), command.end());
+        mutableCommand.push_back('\0');
+        if (!CreateProcessA(NULL, mutableCommand.data(), NULL, NULL, FALSE, 0,
+                NULL, NULL, &startupInfo, &processInfo)) {
+            if (error != 0)
+                *error = "CreateProcess failed for " + *it;
+            continue;
+        }
+        CloseHandle(processInfo.hThread);
+        CloseHandle(processInfo.hProcess);
+        return true;
     }
-    CloseHandle(processInfo.hThread);
-    CloseHandle(processInfo.hProcess);
-    return true;
+    return false;
 #else
-    pid_t pid = fork();
-    if (pid < 0) {
-        if (error != 0)
-            *error = "fork failed for cthugha-panel";
-        return false;
+    std::vector<std::string> candidates = controlPanelExecutableCandidates();
+    std::string lastError;
+    for (std::vector<std::string>::const_iterator it = candidates.begin();
+         it != candidates.end(); ++it) {
+        std::string candidateError;
+        if (launchUnixPanelCandidate(*it, endpoint, &candidateError))
+            return true;
+        lastError = candidateError;
     }
-    if (pid == 0) {
-        execlp("cthugha-panel", "cthugha-panel", "--control-endpoint",
-            endpoint.c_str(), static_cast<char*>(0));
-        _exit(127);
-    }
-    return true;
+    if (error != 0)
+        *error = lastError.empty() ? "could not launch cthugha-panel"
+                                   : lastError;
+    return false;
 #endif
 }
 
