@@ -1069,6 +1069,21 @@ target_link_libraries(runtime_command_test PRIVATE m)
 
 add_test(NAME runtime_command_test COMMAND runtime_command_test)
 
+add_executable(control_protocol_test
+    unit/ControlProtocolTest.cc
+    ${CMAKE_SOURCE_DIR}/src/ControlProtocol.cc
+)
+
+target_include_directories(control_protocol_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(control_protocol_test PRIVATE m)
+
+add_test(NAME control_protocol_test COMMAND control_protocol_test)
+
 add_executable(scene_choice_list_catalog_test
     unit/SceneChoiceListCatalogTest.cc
     ${CMAKE_SOURCE_DIR}/src/SceneChoiceListCatalog.cc
