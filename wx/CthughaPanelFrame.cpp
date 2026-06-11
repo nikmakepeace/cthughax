@@ -434,6 +434,16 @@ void CthughaPanelFrame::updateEnabledState() {
     setControlsEnabled(client->connected() && receivedState);
 }
 
+void CthughaPanelFrame::bringToForeground() {
+    if (IsIconized())
+        Iconize(false);
+    if (!IsShown())
+        Show(true);
+    Raise();
+    SetFocus();
+    RequestUserAttention(wxUSER_ATTENTION_INFO);
+}
+
 void CthughaPanelFrame::onPollTimer(wxTimerEvent&) {
     updateLabelFlashes();
     std::vector<ControlPanelClientEvent> events = client->pollEvents();
@@ -531,6 +541,8 @@ void CthughaPanelFrame::handleProtocolMessage(
         applyCatalogs(message);
     } else if (type == "state") {
         applyState(message);
+    } else if (type == "focus") {
+        bringToForeground();
     } else if (type == "ack") {
         SetStatusText(wxT("Connected"));
     } else if (type == "error") {

@@ -493,11 +493,21 @@ void ControlService::launchControlPanel() {
     if (endpointText.empty())
         return;
 
+    int shouldFocusPanel = 0;
     {
         std::lock_guard<std::mutex> lock(mutex);
-        if (clientConnectedValue || launchPending)
+        if (clientConnectedValue) {
+            shouldFocusPanel = 1;
+        } else if (launchPending) {
             return;
-        launchPending = 1;
+        } else {
+            launchPending = 1;
+        }
+    }
+
+    if (shouldFocusPanel) {
+        enqueueOutbound(controlFocusPanelMessage());
+        return;
     }
 
     std::string error;

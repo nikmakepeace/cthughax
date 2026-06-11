@@ -580,3 +580,10 @@ ControlJsonValue controlErrorMessage(int id, const std::string& code,
     result.set("message", ControlJsonValue::stringValueOf(message));
     return result;
 }
+
+ControlJsonValue controlFocusPanelMessage() {
+    ControlJsonValue result = ControlJsonValue::objectValueOf();
+    result.set("v", ControlJsonValue::numberValueOf(1));
+    result.set("type", ControlJsonValue::stringValueOf("focus"));
+    return result;
+}

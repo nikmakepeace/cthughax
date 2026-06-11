@@ -448,6 +448,8 @@ static void testServiceClientSynchronizesBothDirections() {
 
     service.launchControlPanel();
     assert(launcher.calls == 1);
+    pump(service, client, observed, 200);
+    assert(latestMessageOfType(observed, "focus") != 0);
 
     int id = client.sendSetNumber("display.maxFps", 72);
     pump(service, client, observed, 500);

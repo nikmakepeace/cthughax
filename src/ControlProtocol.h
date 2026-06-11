@@ -94,5 +94,6 @@ public:
 ControlJsonValue controlAckMessage(int id);
 ControlJsonValue controlErrorMessage(int id, const std::string& code,
     const std::string& message);
+ControlJsonValue controlFocusPanelMessage();
 
 #endif

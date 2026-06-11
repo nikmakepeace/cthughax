@@ -50,6 +50,7 @@ class CthughaPanelFrame : public CthughaPanelBase {
     void bindControlEvents();
     void setControlsEnabled(int enabled);
     void updateEnabledState();
+    void bringToForeground();
     void onPollTimer(wxTimerEvent& event);
     void onChoiceChanged(wxCommandEvent& event);
     void onLockChanged(wxCommandEvent& event);

@@ -98,12 +98,14 @@ static void testLineReaderHandlesChunks() {
 static void testAckAndErrorHelpers() {
     ControlJsonValue ack = controlAckMessage(7);
     ControlJsonValue error = controlErrorMessage(8, "bad-target", "Nope");
+    ControlJsonValue focus = controlFocusPanelMessage();
 
     assert(ack.member("type")->asString() == "ack");
     assert(ack.member("id")->asNumber() == 7);
     assert(error.member("type")->asString() == "error");
     assert(error.member("code")->asString() == "bad-target");
     assert(error.member("message")->asString() == "Nope");
+    assert(focus.member("type")->asString() == "focus");
 }
 
 int main() {
