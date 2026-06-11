@@ -24,6 +24,7 @@
 #include <wx/sizer.h>
 #include <wx/gauge.h>
 #include <wx/scrolwin.h>
+#include <wx/statusbr.h>
 #include <wx/frame.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -78,6 +79,7 @@ class CthughaPanelBase : public wxFrame
 		wxStaticText* m_fireSensitivity_text;
 		wxSlider* m_maxFps_slider;
 		wxStaticText* m_maxFps_text;
+		wxStatusBar* m_connected_statusBar;
 
 	public:
 

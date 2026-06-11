@@ -14,7 +14,7 @@ CthughaPanelBase::CthughaPanelBase( wxWindow* parent, wxWindowID id, const wxStr
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
 	wxFlexGridSizer* fgSizer1;
-	fgSizer1 = new wxFlexGridSizer( 0, 2, 0, 0 );
+	fgSizer1 = new wxFlexGridSizer( 0, 1, 0, 0 );
 	fgSizer1->AddGrowableCol( 0 );
 	fgSizer1->AddGrowableRow( 0 );
 	fgSizer1->SetFlexibleDirection( wxBOTH );
@@ -297,6 +297,7 @@ CthughaPanelBase::CthughaPanelBase( wxWindow* parent, wxWindowID id, const wxStr
 
 	this->SetSizer( fgSizer1 );
 	this->Layout();
+	m_connected_statusBar = this->CreateStatusBar( 1, wxSTB_DEFAULT_STYLE|wxSTB_SIZEGRIP, wxID_ANY );
 
 	this->Centre( wxBOTH );
 }

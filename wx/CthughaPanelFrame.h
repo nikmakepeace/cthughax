@@ -35,6 +35,7 @@ class CthughaPanelFrame : public CthughaPanelBase {
     int everConnected;
     int updatingControls;
 
+    void setConnectionStatus(const wxString& text);
     void repairGeneratedLayout();
     void initializeLabelFlashes();
     void registerFlashLabel(const char* key, const char* label);

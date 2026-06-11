@@ -151,7 +151,6 @@ CthughaPanelFrame::CthughaPanelFrame(const std::string& endpoint)
     , receivedState(0)
     , everConnected(0)
     , updatingControls(0) {
-    CreateStatusBar();
     repairGeneratedLayout();
     initializeLabelFlashes();
     setControlsEnabled(0);
@@ -161,9 +160,9 @@ CthughaPanelFrame::CthughaPanelFrame(const std::string& endpoint)
         pollTimer.GetId());
 
     if (endpoint.empty()) {
-        SetStatusText(wxT("No control endpoint"));
+        setConnectionStatus(wxT("No control endpoint"));
     } else {
-        SetStatusText(wxT("Connecting"));
+        setConnectionStatus(wxT("Connecting"));
         client->start();
     }
     pollTimer.Start(33);
@@ -173,6 +172,14 @@ CthughaPanelFrame::~CthughaPanelFrame() {
     pollTimer.Stop();
     if (client.get() != 0)
         client->stop();
+}
+
+void CthughaPanelFrame::setConnectionStatus(const wxString& text) {
+    if (m_connected_statusBar != 0) {
+        m_connected_statusBar->SetStatusText(text);
+    } else {
+        SetStatusText(text);
+    }
 }
 
 void CthughaPanelFrame::repairGeneratedLayout() {
@@ -544,7 +551,7 @@ void CthughaPanelFrame::handleClientEvent(
     switch (event.type) {
     case ControlPanelClientEvent::Connected:
         everConnected = 1;
-        SetStatusText(wxT("Connected"));
+        setConnectionStatus(wxT("Connected"));
         updateEnabledState();
         break;
     case ControlPanelClientEvent::Disconnected:
@@ -552,12 +559,12 @@ void CthughaPanelFrame::handleClientEvent(
             Close();
             return;
         }
-        SetStatusText(wxT("Disconnected"));
+        setConnectionStatus(wxT("Disconnected"));
         receivedState = 0;
         updateEnabledState();
         break;
     case ControlPanelClientEvent::Error:
-        SetStatusText(utf8ToWx(event.text));
+        setConnectionStatus(utf8ToWx(event.text));
         updateEnabledState();
         break;
     case ControlPanelClientEvent::Message:
@@ -576,9 +583,9 @@ void CthughaPanelFrame::handleProtocolMessage(
     } else if (type == "focus") {
         bringToForeground();
     } else if (type == "ack") {
-        SetStatusText(wxT("Connected"));
+        setConnectionStatus(wxT("Connected"));
     } else if (type == "error") {
-        SetStatusText(utf8ToWx(stringMember(&message, "message")));
+        setConnectionStatus(utf8ToWx(stringMember(&message, "message")));
     }
 }
 
@@ -670,7 +677,7 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
     updatingControls = 0;
 
     receivedState = 1;
-    SetStatusText(wxT("Connected"));
+    setConnectionStatus(wxT("Connected"));
     updateEnabledState();
 }
 
