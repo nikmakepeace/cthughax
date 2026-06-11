@@ -354,7 +354,7 @@ class DisplayBackendSDL3 : public DisplayBackend {
             return 0;
         }
 
-        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_NEAREST);
+        SDL_SetTextureScaleMode(texture, SDL_SCALEMODE_LINEAR);
         textureSize = size;
         return 1;
     }
