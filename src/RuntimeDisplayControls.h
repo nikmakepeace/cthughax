@@ -33,6 +33,13 @@ public:
     virtual void changePresentationTo(const char* to) = 0;
 
     /**
+     * Sets presentation auto-change lock.
+     *
+     * @param locked Nonzero to suppress automatic/random presentation changes.
+     */
+    virtual void changePresentationLockTo(int locked) = 0;
+
+    /**
      * Changes the zoom option by relative offset.
      *
      * @param by Relative offset to apply.
@@ -145,6 +152,9 @@ public:
      * @param to Choice text to select.
      */
     virtual void changePresentationTo(const char* to);
+
+    /** Sets presentation auto-change lock. */
+    virtual void changePresentationLockTo(int locked);
 
     /**
      * Changes the zoom option by relative offset.

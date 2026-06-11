@@ -114,6 +114,32 @@ static void testDirectCommandsChangeOnlyAudioProcessing() {
     assert(strcmp(selector.text(), "Filter1") == 0);
 }
 
+static void testSoundProcessingLockBlocksOnlyRandomSelection() {
+    AudioProcessor processor;
+    FakeRandomSource randomSource;
+    FakeLogSink log;
+    AudioProcessingState state(randomSource);
+    AudioProcessingSelector selector(state, processor, log);
+    AcousticContext acousticContext;
+    DefaultRuntimeAudioControls controls(selector, acousticContext);
+
+    controls.changeSoundProcessingTo("Filter1");
+    controls.changeSoundProcessingLockTo(1);
+    randomSource.value = 3;
+    controls.changeSoundProcessingTo("");
+    assert(strcmp(selector.text(), "Filter1") == 0);
+    assert(randomSource.calls == 0);
+
+    controls.changeSoundProcessingTo("FFT");
+    assert(strcmp(selector.text(), "FFT") == 0);
+
+    controls.changeSoundProcessingLockTo(0);
+    randomSource.value = 2;
+    controls.changeSoundProcessingTo("");
+    assert(strcmp(selector.text(), "Filter2") == 0);
+    assert(randomSource.calls == 1);
+}
+
 static void testGenericOptionRoutingClaimsOnlyAudioProcessing() {
     AudioProcessor processor;
     FakeRandomSource randomSource;
@@ -249,6 +275,7 @@ static void testFireSourceMutatesAcousticContextAndFireInput() {
 
 int main() {
     testDirectCommandsChangeOnlyAudioProcessing();
+    testSoundProcessingLockBlocksOnlyRandomSelection();
     testGenericOptionRoutingClaimsOnlyAudioProcessing();
     testGenericOptionRoutingClaimsMixerOptionsAsUiChanges();
     testUnknownAudioProcessingSelectionUsesInjectedRandomSource();

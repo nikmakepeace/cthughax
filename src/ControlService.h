@@ -7,6 +7,7 @@
 
 #include "ControlPanelLauncher.h"
 #include "ControlProtocol.h"
+#include "ControlSnapshot.h"
 #include "RuntimeStateObserver.h"
 
 #include <deque>
@@ -68,6 +69,8 @@ class ControlService : public ControlPanelLauncher,
     ControlDisplayCatalogs& displayCatalogs;
     ControlRuntimeMetrics& runtimeMetrics;
     LogSink& log;
+    std::unique_ptr<ControlExtraLockState> ownedExtraLockState;
+    ControlExtraLockState& extraLockState;
     std::unique_ptr<ControlPanelProcessLauncher> ownedProcessLauncher;
     ControlPanelProcessLauncher& processLauncher;
 
@@ -105,6 +108,12 @@ public:
         SceneVisualSelections& sceneVisualSelections_,
         ControlDisplayCatalogs& displayCatalogs_,
         ControlRuntimeMetrics& runtimeMetrics_, LogSink& log_);
+    ControlService(RuntimeCommandSink& runtimeCommands_,
+        RuntimeConfigRegistry& runtimeConfigRegistry_,
+        SceneVisualSelections& sceneVisualSelections_,
+        ControlDisplayCatalogs& displayCatalogs_,
+        ControlRuntimeMetrics& runtimeMetrics_, LogSink& log_,
+        ControlExtraLockState& extraLockState_);
     ControlService(RuntimeCommandSink& runtimeCommands_,
         RuntimeConfigRegistry& runtimeConfigRegistry_,
         SceneVisualSelections& sceneVisualSelections_,

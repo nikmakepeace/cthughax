@@ -31,6 +31,36 @@ static void testMapsSceneSetCommand() {
     assert(mapped.textStorage == "fire");
 }
 
+static void testMapsWaveSetCommand() {
+    ControlMappedCommand mapped;
+    std::string code;
+    std::string message;
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"id\":12,\"op\":\"set\",\"target\":\"scene.wave\","
+        "\"value\":\"LineHor\"}"),
+        &mapped, &code, &message));
+
+    assert(mapped.command.type == RuntimeCommandChangeSceneTo);
+    assert(mapped.command.sceneTarget == RuntimeSceneWave);
+    assert(strcmp(mapped.command.text, "LineHor") == 0);
+}
+
+static void testMapsSceneLockCommand() {
+    ControlMappedCommand mapped;
+    std::string code;
+    std::string message;
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"op\":\"set\",\"target\":\"scene.wave.locked\","
+        "\"value\":true}"),
+        &mapped, &code, &message));
+
+    assert(mapped.command.type == RuntimeCommandChangeSceneLockTo);
+    assert(mapped.command.sceneTarget == RuntimeSceneWave);
+    assert(mapped.command.value == 1);
+}
+
 static void testMapsAudioProcessingCommand() {
     ControlMappedCommand mapped;
     std::string code;
@@ -102,6 +132,20 @@ static void testMapsScreenCommand() {
     assert(strcmp(mapped.command.text, "Source") == 0);
 }
 
+static void testMapsScreenLockCommand() {
+    ControlMappedCommand mapped;
+    std::string code;
+    std::string message;
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"op\":\"set\",\"target\":\"display.screen.locked\","
+        "\"value\":true}"),
+        &mapped, &code, &message));
+
+    assert(mapped.command.type == RuntimeCommandChangeScreenLockTo);
+    assert(mapped.command.value == 1);
+}
+
 static void testMapsAutoChangeEnabledCommand() {
     ControlMappedCommand mapped;
     std::string code;
@@ -113,6 +157,35 @@ static void testMapsAutoChangeEnabledCommand() {
         &mapped, &code, &message));
 
     assert(mapped.command.type == RuntimeCommandChangeAutoChangeLockTo);
+    assert(mapped.command.value == 1);
+}
+
+static void testMapsAutoChangeLittleCommand() {
+    ControlMappedCommand mapped;
+    std::string code;
+    std::string message;
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"op\":\"set\",\"target\":\"autoChange.changeLittle\","
+        "\"value\":true}"),
+        &mapped, &code, &message));
+
+    assert(mapped.command.type
+        == RuntimeCommandChangeAutoChangeChangeLittleTo);
+    assert(mapped.command.value == 1);
+}
+
+static void testMapsSoundProcessingLockCommand() {
+    ControlMappedCommand mapped;
+    std::string code;
+    std::string message;
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"op\":\"set\",\"target\":\"audio.processing.locked\","
+        "\"value\":true}"),
+        &mapped, &code, &message));
+
+    assert(mapped.command.type == RuntimeCommandChangeSoundProcessingLockTo);
     assert(mapped.command.value == 1);
 }
 
@@ -160,12 +233,17 @@ static void testRejectsUnsupportedVersion() {
 
 int main() {
     testMapsSceneSetCommand();
+    testMapsWaveSetCommand();
+    testMapsSceneLockCommand();
     testMapsAudioProcessingCommand();
     testMapsFireSensitivityCommand();
     testMapsFireSourceCommand();
     testMapsMaxFpsCommand();
     testMapsScreenCommand();
+    testMapsScreenLockCommand();
     testMapsAutoChangeEnabledCommand();
+    testMapsAutoChangeLittleCommand();
+    testMapsSoundProcessingLockCommand();
     testMapsCumulativeFireThresholdCommand();
     testRejectsUnknownTargets();
     testRejectsUnsupportedVersion();

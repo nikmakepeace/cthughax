@@ -85,6 +85,12 @@ void ControlObservedSceneCommandTarget::toggleLock(SceneSelectionTarget target) 
     changed();
 }
 
+void ControlObservedSceneCommandTarget::setLock(
+    SceneSelectionTarget target, int enabled) {
+    inner.setLock(target, enabled);
+    changed();
+}
+
 void ControlObservedSceneCommandTarget::toggleChoiceUse(
     SceneSelectionTarget target, int index) {
     inner.toggleChoiceUse(target, index);

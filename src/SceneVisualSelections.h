@@ -42,6 +42,9 @@ public:
     /** Toggles the selection lock when the concrete selection has one. */
     virtual void toggleLock();
 
+    /** Sets the selection lock when the concrete selection has one. */
+    virtual void setLock(int enabled);
+
     /** Toggles choice availability when choices are exposed. */
     virtual void toggleChoiceUse(int index);
 

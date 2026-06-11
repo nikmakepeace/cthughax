@@ -42,6 +42,7 @@ public:
     virtual void change(SceneSelectionTarget target, const char* to);
     virtual void activate(SceneSelectionTarget target, int index);
     virtual void toggleLock(SceneSelectionTarget target);
+    virtual void setLock(SceneSelectionTarget target, int enabled);
     virtual void toggleChoiceUse(SceneSelectionTarget target, int index);
 };
 

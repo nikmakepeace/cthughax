@@ -154,7 +154,9 @@ public:
     SceneSelectionTarget activatedTarget;
     int activatedIndex;
     int toggleLockCalls;
+    int setLockCalls;
     SceneSelectionTarget lockedTarget;
+    int lockValue;
     int toggleChoiceUseCalls;
     SceneSelectionTarget choiceUseTarget;
     int choiceUseIndex;
@@ -173,7 +175,9 @@ public:
         , activatedTarget(SceneSelectionFlame)
         , activatedIndex(-1)
         , toggleLockCalls(0)
+        , setLockCalls(0)
         , lockedTarget(SceneSelectionFlame)
+        , lockValue(0)
         , toggleChoiceUseCalls(0)
         , choiceUseTarget(SceneSelectionFlame)
         , choiceUseIndex(-1)
@@ -215,6 +219,12 @@ public:
     virtual void toggleLock(SceneSelectionTarget target) {
         toggleLockCalls++;
         lockedTarget = target;
+    }
+
+    virtual void setLock(SceneSelectionTarget target, int enabled) {
+        setLockCalls++;
+        lockedTarget = target;
+        lockValue = enabled;
     }
 
     virtual void toggleChoiceUse(SceneSelectionTarget target, int index) {

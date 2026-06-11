@@ -32,6 +32,7 @@ class AutoChangeSettings;
 class AutoChangeTarget;
 #ifdef CTH_CONTROL_IPC
 class ControlDisplayCatalogs;
+class ControlExtraLockState;
 class ControlObservedRuntimeCommandSink;
 class ControlObservedSceneCommandTarget;
 class ControlRuntimeMetrics;
@@ -130,6 +131,7 @@ class Application {
 #ifdef CTH_CONTROL_IPC
     std::unique_ptr<ControlDisplayCatalogs> controlDisplayCatalogsValue;
     std::unique_ptr<ControlRuntimeMetrics> controlRuntimeMetricsValue;
+    std::unique_ptr<ControlExtraLockState> controlExtraLockStateValue;
     std::unique_ptr<ControlService> controlServiceValue;
     std::unique_ptr<ControlObservedRuntimeCommandSink>
         controlRuntimeCommandSinkValue;

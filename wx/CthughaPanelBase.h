@@ -18,10 +18,11 @@
 #include <wx/settings.h>
 #include <wx/choice.h>
 #include <wx/checkbox.h>
+#include <wx/statline.h>
+#include <wx/radiobut.h>
+#include <wx/sizer.h>
 #include <wx/gauge.h>
 #include <wx/slider.h>
-#include <wx/spinctrl.h>
-#include <wx/sizer.h>
 #include <wx/scrolwin.h>
 #include <wx/frame.h>
 
@@ -36,22 +37,44 @@ class CthughaPanelBase : public wxFrame
 
 	protected:
 		wxScrolledWindow* m_scrolledWindow1;
+		wxStaticText* m_staticText171;
+		wxStaticText* m_staticText32;
+		wxChoice* m_wave_choice;
+		wxCheckBox* m_lockWave_checkBox;
 		wxChoice* m_flame_choice;
+		wxCheckBox* m_lockFlame_checkBox;
 		wxChoice* m_translation_choice;
+		wxCheckBox* m_lockTranslation_checkBox;
 		wxChoice* m_image_choice;
+		wxCheckBox* m_lockImage_checkBox;
 		wxChoice* m_object_choice;
+		wxCheckBox* m_lockObject_checkBox;
 		wxChoice* m_waveTable_choice;
+		wxCheckBox* m_lockWaveTable_checkBox;
 		wxChoice* m_waveScale_choice;
+		wxCheckBox* m_lockWaveScale_checkBox;
 		wxChoice* m_screen_choice;
+		wxCheckBox* m_lockScreen_checkBox;
 		wxChoice* m_soundProcessing_choice;
+		wxCheckBox* m_lockSoundProcessing_checkBox;
 		wxChoice* m_palette_choice;
+		wxCheckBox* m_lockPalette_checkBox;
 		wxCheckBox* m_flashlight_checkBox;
-		wxCheckBox* m_autoChange_checkBox;
+		wxCheckBox* m_lockFlashlight_checkBox;
+		wxStaticLine* m_staticline1;
+		wxStaticLine* m_staticline11;
+		wxStaticLine* m_staticline12;
+		wxRadioButton* m_autochangeAll_radioBtn;
+		wxRadioButton* m_autochangeLittle_radioBtn;
+		wxRadioButton* m_autochangeNone_radioBtn;
 		wxGauge* m_fireLevel_gauge;
 		wxChoice* m_fireSource_choice;
 		wxSlider* m_fireThreshold_slider;
+		wxStaticText* m_fireThreshold_text;
 		wxSlider* m_fireSensitivity_slider;
-		wxSpinCtrl* m_maxFps_spinCtrl;
+		wxStaticText* m_fireSensitivity_text;
+		wxSlider* m_maxFps_slider;
+		wxStaticText* m_maxFps_text;
 
 	public:
 

@@ -33,6 +33,13 @@ public:
     virtual void changeSoundProcessingTo(const char* to) = 0;
 
     /**
+     * Sets sound-processing auto-change lock.
+     *
+     * @param locked Nonzero to suppress automatic/random processing changes.
+     */
+    virtual void changeSoundProcessingLockTo(int locked) = 0;
+
+    /**
      * Sets fire detection sensitivity.
      *
      * @param sensitivity 0..100, where lower values suppress smaller bursts.
@@ -103,6 +110,9 @@ public:
      * @param to Choice text to select.
      */
     virtual void changeSoundProcessingTo(const char* to);
+
+    /** Sets sound-processing auto-change lock. */
+    virtual void changeSoundProcessingLockTo(int locked);
 
     /**
      * Sets fire detection sensitivity.

@@ -275,6 +275,10 @@ void SceneChoiceSelection::toggleLock() {
     selectionLock().change(selectionLock().enabled() ? "off" : "on");
 }
 
+void SceneChoiceSelection::setLock(int enabled) {
+    selectionLock().change(enabled ? "on" : "off");
+}
+
 void SceneChoiceSelection::toggleChoiceUse(int index) {
     SceneChoice* choice = choiceAt(index);
     if (choice != 0)

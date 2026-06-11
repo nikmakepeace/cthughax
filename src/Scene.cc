@@ -270,6 +270,10 @@ void SceneCommands::toggleLock(SceneSelectionTarget target) {
     dependencies.visualCatalogs.toggleLock(target);
 }
 
+void SceneCommands::setLock(SceneSelectionTarget target, int enabled) {
+    dependencies.visualCatalogs.setLock(target, enabled);
+}
+
 void SceneCommands::toggleChoiceUse(SceneSelectionTarget target, int index) {
     dependencies.visualCatalogs.toggleChoiceUse(target, index);
 }
@@ -355,6 +359,11 @@ void SceneCommandsTarget::activate(SceneSelectionTarget target, int index) {
 
 void SceneCommandsTarget::toggleLock(SceneSelectionTarget target) {
     sceneCommands.toggleLock(target);
+}
+
+void SceneCommandsTarget::setLock(
+    SceneSelectionTarget target, int enabled) {
+    sceneCommands.setLock(target, enabled);
 }
 
 void SceneCommandsTarget::toggleChoiceUse(

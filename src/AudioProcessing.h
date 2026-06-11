@@ -34,6 +34,7 @@ enum AudioProcessingMode {
 class AudioProcessingState {
     RandomSource& randomSource;
     int selectedMode;
+    int lockedValue;
     std::string initialEntry;
 
     int entryCount() const;
@@ -73,6 +74,12 @@ public:
      * @param to Entry name, numeric index text, or NULL/empty to choose random.
      */
     void changeTo(const char* to);
+
+    /** @return Nonzero when automatic/random processing changes are suppressed. */
+    int locked() const;
+
+    /** @param locked Nonzero to suppress automatic/random processing changes. */
+    void setLocked(int locked);
 
     /**
      * @return Name of the selected processing mode, or "unknown" if invalid.
@@ -163,6 +170,12 @@ public:
      * @param to Entry name, numeric index text, or NULL/empty to choose random.
      */
     void changeTo(const char* to);
+
+    /** @return Nonzero when automatic/random processing changes are suppressed. */
+    int locked() const;
+
+    /** @param locked Nonzero to suppress automatic/random processing changes. */
+    void setLocked(int locked);
 
     /**
      * @return Name of the selected processing mode.

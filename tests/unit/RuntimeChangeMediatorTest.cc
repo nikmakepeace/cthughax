@@ -160,6 +160,9 @@ public:
     virtual void toggleLock(SceneSelectionTarget target) {
         recordSceneCommand("toggle-scene-lock", 0, 0, 0, target);
     }
+    virtual void setLock(SceneSelectionTarget target, int enabled) {
+        recordSceneCommand("set-scene-lock", enabled, 0, 0, target);
+    }
     virtual void toggleChoiceUse(SceneSelectionTarget target, int index) {
         recordSceneCommand("toggle-scene-choice-use", index, 0, 0, target);
     }
@@ -316,6 +319,8 @@ public:
     int lastPresentationBy;
     int presentationToCalls;
     const char* lastPresentationTo;
+    int presentationLockToCalls;
+    int lastPresentationLock;
     int zoomByCalls;
     int lastZoomBy;
     int zoomToCalls;
@@ -341,6 +346,8 @@ public:
         , lastPresentationBy(0)
         , presentationToCalls(0)
         , lastPresentationTo(0)
+        , presentationLockToCalls(0)
+        , lastPresentationLock(0)
         , zoomByCalls(0)
         , lastZoomBy(0)
         , zoomToCalls(0)
@@ -369,6 +376,11 @@ public:
     virtual void changePresentationTo(const char* to) {
         presentationToCalls++;
         lastPresentationTo = to;
+    }
+
+    virtual void changePresentationLockTo(int locked) {
+        presentationLockToCalls++;
+        lastPresentationLock = locked;
     }
 
     virtual void changeZoomBy(int by) {
@@ -452,6 +464,8 @@ public:
     int lastSoundBy;
     int soundToCalls;
     const char* lastSoundTo;
+    int soundLockToCalls;
+    int lastSoundLock;
     int fireSensitivityToCalls;
     int lastFireSensitivity;
     int fireSourceToCalls;
@@ -469,6 +483,8 @@ public:
         , lastSoundBy(0)
         , soundToCalls(0)
         , lastSoundTo(0)
+        , soundLockToCalls(0)
+        , lastSoundLock(0)
         , fireSensitivityToCalls(0)
         , lastFireSensitivity(0)
         , fireSourceToCalls(0)
@@ -489,6 +505,11 @@ public:
     virtual void changeSoundProcessingTo(const char* to) {
         soundToCalls++;
         lastSoundTo = to;
+    }
+
+    virtual void changeSoundProcessingLockTo(int locked) {
+        soundLockToCalls++;
+        lastSoundLock = locked;
     }
 
     virtual void changeFireSensitivityTo(int sensitivity) {
@@ -529,6 +550,8 @@ public:
     int lockToggles;
     int lockToCalls;
     int lastLockValue;
+    int littleToCalls;
+    int lastLittleValue;
     int cumulativeFireToCalls;
     int lastCumulativeFireValue;
     int autoChangeOptionByCalls;
@@ -543,6 +566,8 @@ public:
         : lockToggles(0)
         , lockToCalls(0)
         , lastLockValue(0)
+        , littleToCalls(0)
+        , lastLittleValue(0)
         , cumulativeFireToCalls(0)
         , lastCumulativeFireValue(0)
         , autoChangeOptionByCalls(0)
@@ -560,6 +585,11 @@ public:
     virtual void changeLockTo(int locked) {
         lockToCalls++;
         lastLockValue = locked;
+    }
+
+    virtual void changeLittleTo(int enabled) {
+        littleToCalls++;
+        lastLittleValue = enabled;
     }
 
     virtual void changeCumulativeFireLevelTo(int threshold) {

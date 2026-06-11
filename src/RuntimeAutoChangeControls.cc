@@ -27,6 +27,10 @@ void DefaultRuntimeAutoChangeControls::changeLockTo(int locked) {
     autoChangeControls.lockedOption().setValue(locked ? 1 : 0);
 }
 
+void DefaultRuntimeAutoChangeControls::changeLittleTo(int enabled) {
+    autoChangeControls.changeLittleOption().setValue(enabled ? 1 : 0);
+}
+
 void DefaultRuntimeAutoChangeControls::changeCumulativeFireLevelTo(
     int threshold) {
     autoChangeControls.cumulativeFireLevelOption().setValue(threshold);

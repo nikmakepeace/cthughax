@@ -54,6 +54,8 @@ int SceneOptionSelection::lockEnabled() const {
 
 void SceneOptionSelection::toggleLock() { }
 
+void SceneOptionSelection::setLock(int) { }
+
 void SceneOptionSelection::toggleChoiceUse(int) { }
 
 SceneVisualSelections::~SceneVisualSelections() { }

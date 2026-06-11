@@ -232,6 +232,11 @@ void SceneVisualCatalogService::toggleLock(SceneSelectionTarget target) {
     sceneSelectionForTarget(selections, target).toggleLock();
 }
 
+void SceneVisualCatalogService::setLock(
+    SceneSelectionTarget target, int enabled) {
+    sceneSelectionForTarget(selections, target).setLock(enabled);
+}
+
 void SceneVisualCatalogService::toggleChoiceUse(
     SceneSelectionTarget target, int index) {
     sceneSelectionForTarget(selections, target).toggleChoiceUse(index);

@@ -27,6 +27,13 @@ public:
     virtual void changeLockTo(int locked) = 0;
 
     /**
+     * Sets automatic scene-change little mode.
+     *
+     * @param enabled Nonzero to change one option at a time.
+     */
+    virtual void changeLittleTo(int enabled) = 0;
+
+    /**
      * Sets cumulative fire threshold for automatic scene changes.
      *
      * @param threshold Fire accumulation threshold; 0 disables this trigger.
@@ -78,6 +85,9 @@ public:
 
     /** Sets automatic scene-change lock setting. */
     virtual void changeLockTo(int locked);
+
+    /** Sets automatic scene-change little mode. */
+    virtual void changeLittleTo(int enabled);
 
     /** Sets cumulative fire threshold for automatic scene changes. */
     virtual void changeCumulativeFireLevelTo(int threshold);

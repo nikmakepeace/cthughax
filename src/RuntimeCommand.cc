@@ -117,11 +117,37 @@ RuntimeCommand RuntimeCommand::changeAutoChangeLockTo(int locked) {
     return command;
 }
 
+RuntimeCommand RuntimeCommand::changeAutoChangeChangeLittleTo(int enabled) {
+    RuntimeCommand command(RuntimeCommandChangeAutoChangeChangeLittleTo);
+    command.value = enabled;
+    return command;
+}
+
 RuntimeCommand RuntimeCommand::changeAutoChangeCumulativeFireLevelTo(
     int threshold) {
     RuntimeCommand command(
         RuntimeCommandChangeAutoChangeCumulativeFireLevelTo);
     command.value = threshold;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::changeSceneLockTo(
+    RuntimeSceneTarget target, int locked) {
+    RuntimeCommand command(RuntimeCommandChangeSceneLockTo);
+    command.sceneTarget = target;
+    command.value = locked;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::changeScreenLockTo(int locked) {
+    RuntimeCommand command(RuntimeCommandChangeScreenLockTo);
+    command.value = locked;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::changeSoundProcessingLockTo(int locked) {
+    RuntimeCommand command(RuntimeCommandChangeSoundProcessingLockTo);
+    command.value = locked;
     return command;
 }
 

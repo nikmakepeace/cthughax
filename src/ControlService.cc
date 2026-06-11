@@ -48,6 +48,13 @@ static long long steadyMilliseconds() {
         elapsed).count();
 }
 
+class NullControlExtraLockState : public ControlExtraLockState {
+public:
+    virtual int targetLocked(const char*) const {
+        return 0;
+    }
+};
+
 static std::string processInstanceId() {
     char text[64];
 #ifdef _WIN32
@@ -338,6 +345,42 @@ ControlService::ControlService(RuntimeCommandSink& runtimeCommands_,
     , displayCatalogs(displayCatalogs_)
     , runtimeMetrics(runtimeMetrics_)
     , log(log_)
+    , ownedExtraLockState(new NullControlExtraLockState())
+    , extraLockState(*ownedExtraLockState)
+    , ownedProcessLauncher(new SystemControlPanelProcessLauncher())
+    , processLauncher(*ownedProcessLauncher)
+    , listenerValue()
+    , workerThread()
+    , mutex()
+    , inbound()
+    , outbound()
+    , stopRequested(0)
+    , clientConnectedValue(0)
+    , launchPending(0)
+    , launchedPanelValue(0)
+    , dirtyValue(0)
+    , revisionValue(0)
+    , metricsSnapshotKnown(0)
+    , lastCumulativeFireLevel(0)
+    , lastFireSensitivity(0)
+    , lastMetricsPublishMs(0)
+    , metricsPublishIntervalMs(100)
+    , maxOutboundMessages(32) { }
+
+ControlService::ControlService(RuntimeCommandSink& runtimeCommands_,
+    RuntimeConfigRegistry& runtimeConfigRegistry_,
+    SceneVisualSelections& sceneVisualSelections_,
+    ControlDisplayCatalogs& displayCatalogs_,
+    ControlRuntimeMetrics& runtimeMetrics_, LogSink& log_,
+    ControlExtraLockState& extraLockState_)
+    : runtimeCommands(runtimeCommands_)
+    , runtimeConfigRegistry(runtimeConfigRegistry_)
+    , sceneVisualSelections(sceneVisualSelections_)
+    , displayCatalogs(displayCatalogs_)
+    , runtimeMetrics(runtimeMetrics_)
+    , log(log_)
+    , ownedExtraLockState()
+    , extraLockState(extraLockState_)
     , ownedProcessLauncher(new SystemControlPanelProcessLauncher())
     , processLauncher(*ownedProcessLauncher)
     , listenerValue()
@@ -370,6 +413,8 @@ ControlService::ControlService(RuntimeCommandSink& runtimeCommands_,
     , displayCatalogs(displayCatalogs_)
     , runtimeMetrics(runtimeMetrics_)
     , log(log_)
+    , ownedExtraLockState(new NullControlExtraLockState())
+    , extraLockState(*ownedExtraLockState)
     , ownedProcessLauncher()
     , processLauncher(processLauncher_)
     , listenerValue()
@@ -499,7 +544,8 @@ void ControlService::publishState() {
     ControlRuntimeMetricsSnapshot metrics = runtimeMetrics.snapshot();
     revisionValue++;
     enqueueOutbound(buildControlStateSnapshot(
-        runtimeConfigRegistry, metrics, revisionValue));
+        runtimeConfigRegistry, sceneVisualSelections, extraLockState,
+        metrics, revisionValue));
     metricsSnapshotKnown = 1;
     lastCumulativeFireLevel = metrics.cumulativeFireLevel;
     lastFireSensitivity = metrics.fireSensitivity;

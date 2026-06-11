@@ -74,6 +74,7 @@
 #include "xcthugha.h"
 #endif
 
+#include <string.h>
 #include <unistd.h>
 
 static int initializeVisualCatalogs(const FrameGeometry& geometry,
@@ -122,6 +123,27 @@ public:
         }
     }
 };
+
+#ifdef CTH_CONTROL_IPC
+class ApplicationControlExtraLockState : public ControlExtraLockState {
+    const AudioProcessingState& audioProcessingState;
+
+public:
+    explicit ApplicationControlExtraLockState(
+        const AudioProcessingState& audioProcessingState_)
+        : audioProcessingState(audioProcessingState_) { }
+
+    virtual int targetLocked(const char* target) const {
+        if (target == 0)
+            return 0;
+        if (strcmp(target, "display.screen") == 0)
+            return int(screen.lock);
+        if (strcmp(target, "audio.processing") == 0)
+            return audioProcessingState.locked();
+        return 0;
+    }
+};
+#endif
 
 class FrameGeneratorQuietObserver : public AutoChangeQuietObserver {
     FrameGeneratorRuntime& frameGeneratorValue;
@@ -378,10 +400,12 @@ void Application::initSceneRuntime() {
     controlDisplayCatalogsValue.reset(new BuiltInControlDisplayCatalogs());
     controlRuntimeMetricsValue.reset(
         new AcousticControlRuntimeMetrics(acousticContextValue));
+    controlExtraLockStateValue.reset(
+        new ApplicationControlExtraLockState(*audioProcessingStateValue));
     controlServiceValue.reset(new ControlService(*runtimeChangeMediatorValue,
         *runtimeConfigRegistryValue, *sceneRuntimeValue->visualSelections(),
         *controlDisplayCatalogsValue, *controlRuntimeMetricsValue,
-        logSinkValue));
+        logSinkValue, *controlExtraLockStateValue));
     std::string controlError;
     if (!controlServiceValue->start("", &controlError))
         logSinkValue.warn("Control IPC unavailable: %s\n",
@@ -427,6 +451,7 @@ void Application::shutdownSceneRuntime() {
     controlSceneCommandTargetValue.reset();
     controlRuntimeCommandSinkValue.reset();
     controlServiceValue.reset();
+    controlExtraLockStateValue.reset();
     controlRuntimeMetricsValue.reset();
     controlDisplayCatalogsValue.reset();
 #endif

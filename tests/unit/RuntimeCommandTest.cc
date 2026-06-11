@@ -51,6 +51,12 @@ static void testRuntimeCommandFactoriesCaptureIntent() {
     assert(sceneLock.type == RuntimeCommandToggleSceneLock);
     assert(sceneLock.sceneTarget == RuntimeSceneWave);
 
+    RuntimeCommand sceneLockTo
+        = RuntimeCommand::changeSceneLockTo(RuntimeSceneWave, 1);
+    assert(sceneLockTo.type == RuntimeCommandChangeSceneLockTo);
+    assert(sceneLockTo.sceneTarget == RuntimeSceneWave);
+    assert(sceneLockTo.value == 1);
+
     RuntimeCommand maxFps = RuntimeCommand::changeMaxFpsTo(60);
     assert(maxFps.type == RuntimeCommandChangeMaxFpsTo);
     assert(maxFps.value == 60);
@@ -59,9 +65,19 @@ static void testRuntimeCommandFactoriesCaptureIntent() {
     assert(screen.type == RuntimeCommandChangeScreenTo);
     assert(strcmp(screen.text, "Source") == 0);
 
+    RuntimeCommand screenLock = RuntimeCommand::changeScreenLockTo(1);
+    assert(screenLock.type == RuntimeCommandChangeScreenLockTo);
+    assert(screenLock.value == 1);
+
     RuntimeCommand autoChangeLock = RuntimeCommand::changeAutoChangeLockTo(1);
     assert(autoChangeLock.type == RuntimeCommandChangeAutoChangeLockTo);
     assert(autoChangeLock.value == 1);
+
+    RuntimeCommand autoChangeLittle
+        = RuntimeCommand::changeAutoChangeChangeLittleTo(1);
+    assert(autoChangeLittle.type
+        == RuntimeCommandChangeAutoChangeChangeLittleTo);
+    assert(autoChangeLittle.value == 1);
 
     RuntimeCommand fireSensitivity
         = RuntimeCommand::changeFireSensitivityTo(37);
@@ -72,6 +88,11 @@ static void testRuntimeCommandFactoriesCaptureIntent() {
         = RuntimeCommand::changeFireSourceTo("low-pass-150hz-amplitude");
     assert(fireSource.type == RuntimeCommandChangeFireSourceTo);
     assert(strcmp(fireSource.text, "low-pass-150hz-amplitude") == 0);
+
+    RuntimeCommand soundLock
+        = RuntimeCommand::changeSoundProcessingLockTo(1);
+    assert(soundLock.type == RuntimeCommandChangeSoundProcessingLockTo);
+    assert(soundLock.value == 1);
 
     RuntimeCommand cumulativeFire
         = RuntimeCommand::changeAutoChangeCumulativeFireLevelTo(420);

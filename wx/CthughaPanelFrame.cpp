@@ -7,8 +7,9 @@
 #include <wx/choice.h>
 #include <wx/checkbox.h>
 #include <wx/gauge.h>
+#include <wx/radiobut.h>
 #include <wx/slider.h>
-#include <wx/spinctrl.h>
+#include <wx/stattext.h>
 #include <wx/string.h>
 
 namespace {
@@ -98,6 +99,7 @@ CthughaPanelFrame::CthughaPanelFrame(const std::string& endpoint)
     repairGeneratedLayout();
     setControlsEnabled(0);
     bindControlEvents();
+    updateSliderTexts();
     Bind(wxEVT_TIMER, &CthughaPanelFrame::onPollTimer, this,
         pollTimer.GetId());
 
@@ -122,6 +124,8 @@ void CthughaPanelFrame::repairGeneratedLayout() {
 }
 
 void CthughaPanelFrame::bindControlEvents() {
+    m_wave_choice->Bind(wxEVT_CHOICE,
+        &CthughaPanelFrame::onChoiceChanged, this);
     m_flame_choice->Bind(wxEVT_CHOICE,
         &CthughaPanelFrame::onChoiceChanged, this);
     m_translation_choice->Bind(wxEVT_CHOICE,
@@ -142,21 +146,46 @@ void CthughaPanelFrame::bindControlEvents() {
         &CthughaPanelFrame::onChoiceChanged, this);
     m_palette_choice->Bind(wxEVT_CHOICE,
         &CthughaPanelFrame::onChoiceChanged, this);
+    m_lockWave_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockFlame_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockTranslation_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockImage_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockObject_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockWaveTable_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockWaveScale_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockScreen_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockSoundProcessing_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockPalette_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
+    m_lockFlashlight_checkBox->Bind(wxEVT_CHECKBOX,
+        &CthughaPanelFrame::onLockChanged, this);
     m_flashlight_checkBox->Bind(wxEVT_CHECKBOX,
         &CthughaPanelFrame::onFlashlightChanged, this);
-    m_autoChange_checkBox->Bind(wxEVT_CHECKBOX,
-        &CthughaPanelFrame::onAutoChangeChanged, this);
+    m_autochangeAll_radioBtn->Bind(wxEVT_RADIOBUTTON,
+        &CthughaPanelFrame::onAutoChangeModeChanged, this);
+    m_autochangeLittle_radioBtn->Bind(wxEVT_RADIOBUTTON,
+        &CthughaPanelFrame::onAutoChangeModeChanged, this);
+    m_autochangeNone_radioBtn->Bind(wxEVT_RADIOBUTTON,
+        &CthughaPanelFrame::onAutoChangeModeChanged, this);
     m_fireThreshold_slider->Bind(wxEVT_SLIDER,
         &CthughaPanelFrame::onFireThresholdChanged, this);
     m_fireSensitivity_slider->Bind(wxEVT_SLIDER,
         &CthughaPanelFrame::onFireSensitivityChanged, this);
-    m_maxFps_spinCtrl->Bind(wxEVT_SPINCTRL,
-        &CthughaPanelFrame::onMaxFpsSpin, this);
-    m_maxFps_spinCtrl->Bind(wxEVT_TEXT,
-        &CthughaPanelFrame::onMaxFpsText, this);
+    m_maxFps_slider->Bind(wxEVT_SLIDER,
+        &CthughaPanelFrame::onMaxFpsChanged, this);
 }
 
 void CthughaPanelFrame::setControlsEnabled(int enabled) {
+    m_wave_choice->Enable(enabled != 0);
     m_flame_choice->Enable(enabled != 0);
     m_translation_choice->Enable(enabled != 0);
     m_image_choice->Enable(enabled != 0);
@@ -167,12 +196,25 @@ void CthughaPanelFrame::setControlsEnabled(int enabled) {
     m_soundProcessing_choice->Enable(enabled != 0);
     m_fireSource_choice->Enable(enabled != 0);
     m_palette_choice->Enable(enabled != 0);
+    m_lockWave_checkBox->Enable(enabled != 0);
+    m_lockFlame_checkBox->Enable(enabled != 0);
+    m_lockTranslation_checkBox->Enable(enabled != 0);
+    m_lockImage_checkBox->Enable(enabled != 0);
+    m_lockObject_checkBox->Enable(enabled != 0);
+    m_lockWaveTable_checkBox->Enable(enabled != 0);
+    m_lockWaveScale_checkBox->Enable(enabled != 0);
+    m_lockScreen_checkBox->Enable(enabled != 0);
+    m_lockSoundProcessing_checkBox->Enable(enabled != 0);
+    m_lockPalette_checkBox->Enable(enabled != 0);
+    m_lockFlashlight_checkBox->Enable(enabled != 0);
     m_flashlight_checkBox->Enable(enabled != 0);
-    m_autoChange_checkBox->Enable(enabled != 0);
+    m_autochangeAll_radioBtn->Enable(enabled != 0);
+    m_autochangeLittle_radioBtn->Enable(enabled != 0);
+    m_autochangeNone_radioBtn->Enable(enabled != 0);
     m_fireLevel_gauge->Enable(enabled != 0);
     m_fireThreshold_slider->Enable(enabled != 0);
     m_fireSensitivity_slider->Enable(enabled != 0);
-    m_maxFps_spinCtrl->Enable(enabled != 0);
+    m_maxFps_slider->Enable(enabled != 0);
 }
 
 void CthughaPanelFrame::updateEnabledState() {
@@ -196,6 +238,15 @@ void CthughaPanelFrame::onChoiceChanged(wxCommandEvent& event) {
         sendChoiceValue(target.c_str(), choice);
 }
 
+void CthughaPanelFrame::onLockChanged(wxCommandEvent& event) {
+    if (updatingControls)
+        return;
+    wxCheckBox* checkBox = dynamic_cast<wxCheckBox*>(event.GetEventObject());
+    std::string target = targetForLock(checkBox);
+    if (!target.empty())
+        client->sendSetBool(target.c_str(), checkBox->IsChecked());
+}
+
 void CthughaPanelFrame::onFlashlightChanged(wxCommandEvent&) {
     if (updatingControls)
         return;
@@ -203,14 +254,14 @@ void CthughaPanelFrame::onFlashlightChanged(wxCommandEvent&) {
         m_flashlight_checkBox->IsChecked());
 }
 
-void CthughaPanelFrame::onAutoChangeChanged(wxCommandEvent&) {
+void CthughaPanelFrame::onAutoChangeModeChanged(wxCommandEvent&) {
     if (updatingControls)
         return;
-    client->sendSetBool("autoChange.enabled",
-        m_autoChange_checkBox->IsChecked());
+    sendAutoChangeMode();
 }
 
 void CthughaPanelFrame::onFireThresholdChanged(wxCommandEvent&) {
+    updateSliderText(m_fireThreshold_slider, m_fireThreshold_text);
     if (updatingControls)
         return;
     client->sendSetNumber("autoChange.cumulativeFireLevel",
@@ -218,18 +269,18 @@ void CthughaPanelFrame::onFireThresholdChanged(wxCommandEvent&) {
 }
 
 void CthughaPanelFrame::onFireSensitivityChanged(wxCommandEvent&) {
+    updateSliderText(m_fireSensitivity_slider, m_fireSensitivity_text);
     if (updatingControls)
         return;
     client->sendSetNumber("audio.fireSensitivity",
         m_fireSensitivity_slider->GetValue());
 }
 
-void CthughaPanelFrame::onMaxFpsSpin(wxSpinEvent&) {
-    sendMaxFps();
-}
-
-void CthughaPanelFrame::onMaxFpsText(wxCommandEvent&) {
-    sendMaxFps();
+void CthughaPanelFrame::onMaxFpsChanged(wxCommandEvent&) {
+    updateSliderText(m_maxFps_slider, m_maxFps_text);
+    if (updatingControls)
+        return;
+    client->sendSetNumber("display.maxFps", m_maxFps_slider->GetValue());
 }
 
 void CthughaPanelFrame::handleClientEvent(
@@ -279,6 +330,7 @@ void CthughaPanelFrame::applyCatalogs(const ControlJsonValue& message) {
         return;
 
     updatingControls = 1;
+    updateCatalogForTarget("scene.wave", m_wave_choice, *targets);
     updateCatalogForTarget("scene.flame", m_flame_choice, *targets);
     updateCatalogForTarget(
         "scene.translation", m_translation_choice, *targets);
@@ -299,8 +351,11 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
     const ControlJsonValue* display = message.member("display");
     const ControlJsonValue* audio = message.member("audio");
     const ControlJsonValue* autoChange = message.member("autoChange");
+    const ControlJsonValue* locks = message.member("locks");
 
     updatingControls = 1;
+    selectChoiceValue("scene.wave", m_wave_choice,
+        stringMember(scene, "wave"));
     selectChoiceValue("scene.flame", m_flame_choice,
         stringMember(scene, "flame"));
     selectChoiceValue("scene.translation", m_translation_choice,
@@ -323,8 +378,8 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
         stringMember(scene, "palette"));
     m_flashlight_checkBox->SetValue(
         boolLikeMember(scene, "flashlight") != 0);
-    m_autoChange_checkBox->SetValue(
-        boolLikeMember(autoChange, "enabled") != 0);
+    applyLocks(locks);
+    applyAutoChangeMode(autoChange);
     int fireThreshold = intMember(autoChange, "cumulativeFireLevel",
         m_fireThreshold_slider->GetValue());
     int cumulativeFireLevel = intMember(audio, "cumulativeFireLevel", 0);
@@ -337,13 +392,67 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
         intMember(audio, "fireSensitivity",
             m_fireSensitivity_slider->GetValue()),
         0, 100));
-    m_maxFps_spinCtrl->SetValue(
-        intMember(display, "maxFps", m_maxFps_spinCtrl->GetValue()));
+    int maxFps = intMember(display, "maxFps", m_maxFps_slider->GetValue());
+    int maxFpsMaximum = maxFps > 120 ? maxFps : 120;
+    m_maxFps_slider->SetMax(maxFpsMaximum);
+    m_maxFps_slider->SetValue(clampInt(maxFps, 5, maxFpsMaximum));
+    updateSliderTexts();
     updatingControls = 0;
 
     receivedState = 1;
     SetStatusText(wxT("Connected"));
     updateEnabledState();
+}
+
+void CthughaPanelFrame::applyLocks(const ControlJsonValue* locks) {
+    m_lockWave_checkBox->SetValue(
+        boolLikeMember(locks, "scene.wave") != 0);
+    m_lockFlame_checkBox->SetValue(
+        boolLikeMember(locks, "scene.flame") != 0);
+    m_lockTranslation_checkBox->SetValue(
+        boolLikeMember(locks, "scene.translation") != 0);
+    m_lockImage_checkBox->SetValue(
+        boolLikeMember(locks, "scene.image") != 0);
+    m_lockObject_checkBox->SetValue(
+        boolLikeMember(locks, "scene.object") != 0);
+    m_lockWaveTable_checkBox->SetValue(
+        boolLikeMember(locks, "scene.table") != 0);
+    m_lockWaveScale_checkBox->SetValue(
+        boolLikeMember(locks, "scene.waveScale") != 0);
+    m_lockScreen_checkBox->SetValue(
+        boolLikeMember(locks, "display.screen") != 0);
+    m_lockSoundProcessing_checkBox->SetValue(
+        boolLikeMember(locks, "audio.processing") != 0);
+    m_lockPalette_checkBox->SetValue(
+        boolLikeMember(locks, "scene.palette") != 0);
+    m_lockFlashlight_checkBox->SetValue(
+        boolLikeMember(locks, "scene.flashlight") != 0);
+}
+
+void CthughaPanelFrame::applyAutoChangeMode(
+    const ControlJsonValue* autoChange) {
+    int enabled = boolLikeMember(autoChange, "enabled");
+    int changeLittle = boolLikeMember(autoChange, "changeLittle");
+    if (!enabled) {
+        m_autochangeNone_radioBtn->SetValue(true);
+    } else if (changeLittle) {
+        m_autochangeLittle_radioBtn->SetValue(true);
+    } else {
+        m_autochangeAll_radioBtn->SetValue(true);
+    }
+}
+
+void CthughaPanelFrame::updateSliderText(
+    wxSlider* slider, wxStaticText* text) {
+    if (slider == 0 || text == 0)
+        return;
+    text->SetLabel(wxString::Format(wxT("%d"), slider->GetValue()));
+}
+
+void CthughaPanelFrame::updateSliderTexts() {
+    updateSliderText(m_fireThreshold_slider, m_fireThreshold_text);
+    updateSliderText(m_fireSensitivity_slider, m_fireSensitivity_text);
+    updateSliderText(m_maxFps_slider, m_maxFps_text);
 }
 
 void CthughaPanelFrame::updateCatalogForTarget(const char* target,
@@ -415,6 +524,8 @@ std::string CthughaPanelFrame::currentChoiceValue(
 }
 
 std::string CthughaPanelFrame::targetForChoice(wxChoice* choice) const {
+    if (choice == m_wave_choice)
+        return "scene.wave";
     if (choice == m_flame_choice)
         return "scene.flame";
     if (choice == m_translation_choice)
@@ -438,6 +549,32 @@ std::string CthughaPanelFrame::targetForChoice(wxChoice* choice) const {
     return "";
 }
 
+std::string CthughaPanelFrame::targetForLock(wxCheckBox* checkBox) const {
+    if (checkBox == m_lockWave_checkBox)
+        return "scene.wave.locked";
+    if (checkBox == m_lockFlame_checkBox)
+        return "scene.flame.locked";
+    if (checkBox == m_lockTranslation_checkBox)
+        return "scene.translation.locked";
+    if (checkBox == m_lockImage_checkBox)
+        return "scene.image.locked";
+    if (checkBox == m_lockObject_checkBox)
+        return "scene.object.locked";
+    if (checkBox == m_lockWaveTable_checkBox)
+        return "scene.table.locked";
+    if (checkBox == m_lockWaveScale_checkBox)
+        return "scene.waveScale.locked";
+    if (checkBox == m_lockScreen_checkBox)
+        return "display.screen.locked";
+    if (checkBox == m_lockSoundProcessing_checkBox)
+        return "audio.processing.locked";
+    if (checkBox == m_lockPalette_checkBox)
+        return "scene.palette.locked";
+    if (checkBox == m_lockFlashlight_checkBox)
+        return "scene.flashlight.locked";
+    return "";
+}
+
 void CthughaPanelFrame::sendChoiceValue(
     const char* target, wxChoice* choice) {
     std::string value = currentChoiceValue(target, choice);
@@ -445,8 +582,13 @@ void CthughaPanelFrame::sendChoiceValue(
         client->sendSet(target, value);
 }
 
-void CthughaPanelFrame::sendMaxFps() {
-    if (updatingControls)
+void CthughaPanelFrame::sendAutoChangeMode() {
+    if (m_autochangeNone_radioBtn->GetValue()) {
+        client->sendSetBool("autoChange.enabled", false);
         return;
-    client->sendSetNumber("display.maxFps", m_maxFps_spinCtrl->GetValue());
+    }
+
+    client->sendSetBool("autoChange.enabled", true);
+    client->sendSetBool("autoChange.changeLittle",
+        m_autochangeLittle_radioBtn->GetValue());
 }

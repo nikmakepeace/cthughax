@@ -209,6 +209,9 @@ public:
     /** Toggles the lock state for a named scene selection. */
     virtual void toggleLock(SceneSelectionTarget target) = 0;
 
+    /** Sets the lock state for a named scene selection. */
+    virtual void setLock(SceneSelectionTarget target, int enabled) = 0;
+
     /** Toggles choice-use state for a named scene selection choice. */
     virtual void toggleChoiceUse(SceneSelectionTarget target, int index) = 0;
 };
@@ -249,6 +252,7 @@ public:
     void change(SceneSelectionTarget target, const char* to);
     void activate(SceneSelectionTarget target, int index);
     void toggleLock(SceneSelectionTarget target);
+    void setLock(SceneSelectionTarget target, int enabled);
     void toggleChoiceUse(SceneSelectionTarget target, int index);
 
     void randomPalette();
@@ -278,6 +282,7 @@ public:
     virtual void change(SceneSelectionTarget target, const char* to);
     virtual void activate(SceneSelectionTarget target, int index);
     virtual void toggleLock(SceneSelectionTarget target);
+    virtual void setLock(SceneSelectionTarget target, int enabled);
     virtual void toggleChoiceUse(SceneSelectionTarget target, int index);
 };
 

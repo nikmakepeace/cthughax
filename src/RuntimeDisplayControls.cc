@@ -18,7 +18,14 @@ void DefaultRuntimeDisplayControls::changePresentationBy(int by) {
 }
 
 void DefaultRuntimeDisplayControls::changePresentationTo(const char* to) {
+    if (((to == 0) || (to[0] == '\0')) && screen.lock)
+        return;
+
     screen.change(to, randomSource, 0);
+}
+
+void DefaultRuntimeDisplayControls::changePresentationLockTo(int locked) {
+    screen.lock.setValue(locked ? 1 : 0);
 }
 
 void DefaultRuntimeDisplayControls::changeZoomBy(int by) {

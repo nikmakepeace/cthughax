@@ -65,6 +65,9 @@ public:
     /** Toggles the lock for a Scene visual selection. */
     virtual void toggleLock(SceneSelectionTarget target) = 0;
 
+    /** Sets the lock for a Scene visual selection. */
+    virtual void setLock(SceneSelectionTarget target, int enabled) = 0;
+
     /** Toggles use for one indexed choice on a Scene visual selection. */
     virtual void toggleChoiceUse(SceneSelectionTarget target, int index) = 0;
 

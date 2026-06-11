@@ -21,7 +21,14 @@ void DefaultRuntimeAudioControls::changeSoundProcessingBy(int by) {
 }
 
 void DefaultRuntimeAudioControls::changeSoundProcessingTo(const char* to) {
+    if (((to == 0) || (to[0] == '\0')) && audioProcessingSelector.locked())
+        return;
+
     audioProcessingSelector.changeTo(to);
+}
+
+void DefaultRuntimeAudioControls::changeSoundProcessingLockTo(int locked) {
+    audioProcessingSelector.setLocked(locked);
 }
 
 void DefaultRuntimeAudioControls::changeFireSensitivityTo(int sensitivity) {

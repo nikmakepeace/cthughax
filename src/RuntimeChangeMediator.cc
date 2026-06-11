@@ -150,9 +150,27 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
         autoChangeControls.changeLockTo(command.value);
         changes.autoChangeChanged = 1;
         break;
+    case RuntimeCommandChangeAutoChangeChangeLittleTo:
+        autoChangeControls.changeLittleTo(command.value);
+        changes.autoChangeChanged = 1;
+        break;
     case RuntimeCommandChangeAutoChangeCumulativeFireLevelTo:
         autoChangeControls.changeCumulativeFireLevelTo(command.value);
         changes.autoChangeChanged = 1;
+        break;
+    case RuntimeCommandChangeSceneLockTo:
+        sceneCommands.setLock(
+            sceneSelectionTargetFromRuntime(command.sceneTarget),
+            command.value);
+        changes.uiChanged = 1;
+        break;
+    case RuntimeCommandChangeScreenLockTo:
+        displayControls.changePresentationLockTo(command.value);
+        changes.displayChanged = 1;
+        break;
+    case RuntimeCommandChangeSoundProcessingLockTo:
+        audioControls.changeSoundProcessingLockTo(command.value);
+        changes.audioProcessingChanged = 1;
         break;
     case RuntimeCommandWriteIni:
         runtimePersistence.writeCurrentConfig();

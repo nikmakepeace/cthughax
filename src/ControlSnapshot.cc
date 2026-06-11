@@ -21,6 +21,7 @@ static ControlJsonValue stringMember(const std::string& value) {
 
 static void addSceneState(ControlJsonValue& scene, const Config& config) {
     scene.set("flame", stringMember(config.scene.flame));
+    scene.set("wave", stringMember(config.scene.wave));
     scene.set("translation", stringMember(config.scene.translation));
     scene.set("image", stringMember(config.scene.image));
     scene.set("object", stringMember(config.scene.object));
@@ -28,6 +29,33 @@ static void addSceneState(ControlJsonValue& scene, const Config& config) {
     scene.set("waveScale", stringMember(config.scene.waveScale));
     scene.set("palette", stringMember(config.scene.palette));
     scene.set("flashlight", stringMember(config.scene.flashlight));
+}
+
+static void addSelectionLock(ControlJsonValue& locks, const char* target,
+    const SceneOptionSelection& selection) {
+    locks.set(target,
+        ControlJsonValue::boolValueOf(selection.lockEnabled() != 0));
+}
+
+static ControlJsonValue lockStateFor(SceneVisualSelections& selections,
+    const ControlExtraLockState& extraLocks) {
+    ControlJsonValue locks = ControlJsonValue::objectValueOf();
+    addSelectionLock(locks, "scene.flame", selections.flame());
+    addSelectionLock(locks, "scene.generalFlame", selections.generalFlame());
+    addSelectionLock(locks, "scene.wave", selections.wave());
+    addSelectionLock(locks, "scene.waveScale", selections.waveScale());
+    addSelectionLock(locks, "scene.table", selections.table());
+    addSelectionLock(locks, "scene.object", selections.object());
+    addSelectionLock(locks, "scene.translation", selections.translation());
+    addSelectionLock(locks, "scene.palette", selections.palette());
+    addSelectionLock(locks, "scene.border", selections.border());
+    addSelectionLock(locks, "scene.flashlight", selections.flashlight());
+    addSelectionLock(locks, "scene.image", selections.images());
+    locks.set("display.screen", ControlJsonValue::boolValueOf(
+        extraLocks.targetLocked("display.screen") != 0));
+    locks.set("audio.processing", ControlJsonValue::boolValueOf(
+        extraLocks.targetLocked("audio.processing") != 0));
+    return locks;
 }
 
 static ControlJsonValue catalogEntryFor(
@@ -127,6 +155,8 @@ static ControlJsonValue screenCatalog(
 
 ControlJsonValue buildControlStateSnapshot(
     const RuntimeConfigRegistry& registry,
+    SceneVisualSelections& selections,
+    const ControlExtraLockState& extraLocks,
     const ControlRuntimeMetricsSnapshot& metrics, int revision) {
     Config config = registry.currentConfig();
 
@@ -172,6 +202,7 @@ ControlJsonValue buildControlStateSnapshot(
     state.set("display", display);
     state.set("audio", audio);
     state.set("autoChange", autoChange);
+    state.set("locks", lockStateFor(selections, extraLocks));
     return state;
 }
 
@@ -180,6 +211,7 @@ ControlJsonValue buildControlCatalogSnapshot(
     const ControlDisplayCatalogs& displayCatalogs) {
     ControlJsonValue targets = ControlJsonValue::objectValueOf();
     addCatalog(targets, "scene.flame", selections.flame());
+    addCatalog(targets, "scene.wave", selections.wave());
     addCatalog(targets, "scene.translation", selections.translation());
     addCatalog(targets, "scene.image", selections.images());
     addCatalog(targets, "scene.object", selections.object());

@@ -43,7 +43,11 @@ enum RuntimeCommandType {
     RuntimeCommandChangeFireSourceTo,
     RuntimeCommandToggleAutoChangeLock,
     RuntimeCommandChangeAutoChangeLockTo,
+    RuntimeCommandChangeAutoChangeChangeLittleTo,
     RuntimeCommandChangeAutoChangeCumulativeFireLevelTo,
+    RuntimeCommandChangeSceneLockTo,
+    RuntimeCommandChangeScreenLockTo,
+    RuntimeCommandChangeSoundProcessingLockTo,
     RuntimeCommandWriteIni,
     RuntimeCommandStopAndContinue,
     RuntimeCommandToggleShowFps,
@@ -239,6 +243,14 @@ struct RuntimeCommand {
     static RuntimeCommand changeAutoChangeLockTo(int locked);
 
     /**
+     * Creates an absolute auto-change little-mode command.
+     *
+     * @param enabled Nonzero to change one option at a time.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeAutoChangeChangeLittleTo(int enabled);
+
+    /**
      * Creates an absolute cumulative-fire threshold command.
      *
      * @param threshold Fire accumulation threshold; 0 disables this trigger.
@@ -246,6 +258,32 @@ struct RuntimeCommand {
      */
     static RuntimeCommand changeAutoChangeCumulativeFireLevelTo(
         int threshold);
+
+    /**
+     * Creates an absolute scene-selection lock command.
+     *
+     * @param target Scene target whose lock should be set.
+     * @param locked Nonzero to suppress automatic/random changes.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeSceneLockTo(
+        RuntimeSceneTarget target, int locked);
+
+    /**
+     * Creates an absolute presentation-screen lock command.
+     *
+     * @param locked Nonzero to suppress automatic/random screen changes.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeScreenLockTo(int locked);
+
+    /**
+     * Creates an absolute sound-processing lock command.
+     *
+     * @param locked Nonzero to suppress automatic/random audio-processing changes.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeSoundProcessingLockTo(int locked);
 
     /**
      * Creates a command that persists the current runtime configuration.

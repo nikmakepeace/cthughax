@@ -29,17 +29,21 @@ class CthughaPanelFrame : public CthughaPanelBase {
     void updateEnabledState();
     void onPollTimer(wxTimerEvent& event);
     void onChoiceChanged(wxCommandEvent& event);
+    void onLockChanged(wxCommandEvent& event);
     void onFlashlightChanged(wxCommandEvent& event);
-    void onAutoChangeChanged(wxCommandEvent& event);
+    void onAutoChangeModeChanged(wxCommandEvent& event);
     void onFireThresholdChanged(wxCommandEvent& event);
     void onFireSensitivityChanged(wxCommandEvent& event);
-    void onMaxFpsSpin(wxSpinEvent& event);
-    void onMaxFpsText(wxCommandEvent& event);
+    void onMaxFpsChanged(wxCommandEvent& event);
 
     void handleClientEvent(const ControlPanelClientEvent& event);
     void handleProtocolMessage(const ControlJsonValue& message);
     void applyCatalogs(const ControlJsonValue& message);
     void applyState(const ControlJsonValue& message);
+    void applyLocks(const ControlJsonValue* locks);
+    void applyAutoChangeMode(const ControlJsonValue* autoChange);
+    void updateSliderText(wxSlider* slider, wxStaticText* text);
+    void updateSliderTexts();
 
     void updateCatalogForTarget(const char* target, wxChoice* choice,
         const ControlJsonValue& targets);
@@ -48,8 +52,9 @@ class CthughaPanelFrame : public CthughaPanelBase {
     void updateFireLevel(int cumulativeFireLevel, int threshold);
     std::string currentChoiceValue(const char* target, wxChoice* choice) const;
     std::string targetForChoice(wxChoice* choice) const;
+    std::string targetForLock(wxCheckBox* checkBox) const;
     void sendChoiceValue(const char* target, wxChoice* choice);
-    void sendMaxFps();
+    void sendAutoChangeMode();
 
 public:
     explicit CthughaPanelFrame(const std::string& endpoint);

@@ -53,6 +53,7 @@ static int sameModeName(const char* expected, const char* candidate) {
 AudioProcessingState::AudioProcessingState(RandomSource& randomSource_)
     : randomSource(randomSource_)
     , selectedMode(0)
+    , lockedValue(0)
     , initialEntry() { }
 
 int AudioProcessingState::entryCount() const {
@@ -97,6 +98,14 @@ void AudioProcessingState::changeTo(const char* to) {
     selectedMode = optNr(to);
     if ((selectedMode < 0) || (selectedMode >= entryCount()))
         selectedMode = 0;
+}
+
+int AudioProcessingState::locked() const {
+    return lockedValue;
+}
+
+void AudioProcessingState::setLocked(int locked) {
+    lockedValue = locked ? 1 : 0;
 }
 
 const char* AudioProcessingState::text() const {
@@ -147,6 +156,14 @@ void AudioProcessingSelector::changeBy(int by) {
 
 void AudioProcessingSelector::changeTo(const char* to) {
     state.changeTo(to);
+}
+
+int AudioProcessingSelector::locked() const {
+    return state.locked();
+}
+
+void AudioProcessingSelector::setLocked(int locked) {
+    state.setLocked(locked);
 }
 
 const char* AudioProcessingSelector::text() const {

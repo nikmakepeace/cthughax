@@ -97,6 +97,7 @@ public:
     virtual void activate(int index);
     virtual int lockEnabled() const;
     virtual void toggleLock();
+    virtual void setLock(int enabled);
     virtual void toggleChoiceUse(int index);
     virtual void setValue(int index);
 };

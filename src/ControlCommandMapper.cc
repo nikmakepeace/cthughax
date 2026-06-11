@@ -126,6 +126,10 @@ static bool sceneTargetForName(
         *target = RuntimeSceneFlame;
         return true;
     }
+    if (name == "scene.wave") {
+        *target = RuntimeSceneWave;
+        return true;
+    }
     if (name == "scene.translation") {
         *target = RuntimeSceneTranslation;
         return true;
@@ -155,6 +159,19 @@ static bool sceneTargetForName(
         return true;
     }
     return false;
+}
+
+static bool sceneLockTargetForName(
+    const std::string& name, RuntimeSceneTarget* target) {
+    const char suffix[] = ".locked";
+    size_t suffixLength = sizeof(suffix) - 1;
+    if (name.size() <= suffixLength)
+        return false;
+    if (name.compare(name.size() - suffixLength, suffixLength, suffix) != 0)
+        return false;
+
+    return sceneTargetForName(
+        name.substr(0, name.size() - suffixLength), target);
 }
 
 }
@@ -190,6 +207,15 @@ bool controlCommandFromJson(const ControlJsonValue& message,
     }
 
     RuntimeSceneTarget sceneTarget = RuntimeSceneFlame;
+    if (sceneLockTargetForName(targetName, &sceneTarget)) {
+        bool locked = false;
+        if (!readBoolValue(message, &locked, errorCode, errorMessage))
+            return false;
+        command->command = RuntimeCommand::changeSceneLockTo(
+            sceneTarget, locked ? 1 : 0);
+        return true;
+    }
+
     if (sceneTargetForName(targetName, &sceneTarget)) {
         if (!readTextValue(message, &command->textStorage, errorCode,
                 errorMessage))
@@ -233,6 +259,15 @@ bool controlCommandFromJson(const ControlJsonValue& message,
         return true;
     }
 
+    if (targetName == "display.screen.locked") {
+        bool locked = false;
+        if (!readBoolValue(message, &locked, errorCode, errorMessage))
+            return false;
+        command->command = RuntimeCommand::changeScreenLockTo(
+            locked ? 1 : 0);
+        return true;
+    }
+
     if (targetName == "display.screen") {
         if (!readTextValue(message, &command->textStorage, errorCode,
                 errorMessage))
@@ -242,12 +277,30 @@ bool controlCommandFromJson(const ControlJsonValue& message,
         return true;
     }
 
+    if (targetName == "audio.processing.locked") {
+        bool locked = false;
+        if (!readBoolValue(message, &locked, errorCode, errorMessage))
+            return false;
+        command->command = RuntimeCommand::changeSoundProcessingLockTo(
+            locked ? 1 : 0);
+        return true;
+    }
+
     if (targetName == "autoChange.enabled") {
         bool enabled = false;
         if (!readBoolValue(message, &enabled, errorCode, errorMessage))
             return false;
         command->command = RuntimeCommand::changeAutoChangeLockTo(
             enabled ? 0 : 1);
+        return true;
+    }
+
+    if (targetName == "autoChange.changeLittle") {
+        bool enabled = false;
+        if (!readBoolValue(message, &enabled, errorCode, errorMessage))
+            return false;
+        command->command = RuntimeCommand::changeAutoChangeChangeLittleTo(
+            enabled ? 1 : 0);
         return true;
     }
 

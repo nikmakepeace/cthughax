@@ -50,11 +50,13 @@ class FakeSelection : public SceneFlameSelection,
                       public SceneImageSelection {
     std::vector<FakeChoice> choices;
     int currentValueValue;
+    int lockValue;
 
 public:
     FakeSelection()
         : choices()
-        , currentValueValue(0) {
+        , currentValueValue(0)
+        , lockValue(1) {
         choices.push_back(FakeChoice("first", 1));
         choices.push_back(FakeChoice("second", 0));
     }
@@ -80,6 +82,7 @@ public:
     }
     virtual void change(const char*, RandomSource&) { currentValueValue = 1; }
     virtual int changeRandom(RandomSource&) { currentValueValue = 0; return 1; }
+    virtual int lockEnabled() const { return lockValue; }
     virtual void setValue(int index) { currentValueValue = index; }
     virtual const Flame* currentFlame() { return 0; }
     virtual int encodedValue() const { return currentValueValue; }
@@ -91,6 +94,15 @@ public:
     }
     virtual PaletteEntry* currentPaletteEntry() { return 0; }
     virtual const IndexedImage* currentImage() { return 0; }
+};
+
+class FakeExtraLockState : public ControlExtraLockState {
+public:
+    virtual int targetLocked(const char* target) const {
+        if (target == 0)
+            return 0;
+        return std::string(target) == "display.screen" ? 1 : 0;
+    }
 };
 
 class FakeSelections : public SceneVisualSelections {
@@ -125,6 +137,7 @@ public:
 static Config sampleConfig() {
     Config config;
     config.scene.flame = "fire";
+    config.scene.wave = "line";
     config.scene.translation = "plasma";
     config.scene.image = "cthugha";
     config.scene.object = "torus";
@@ -147,12 +160,16 @@ static Config sampleConfig() {
 
 static void testStateSnapshotUsesRuntimeConfig() {
     RuntimeConfigRegistry registry(sampleConfig());
+    FakeSelections selections;
+    FakeExtraLockState extraLocks;
     ControlRuntimeMetricsSnapshot metrics(9, 123, 73);
-    ControlJsonValue state = buildControlStateSnapshot(registry, metrics, 42);
+    ControlJsonValue state = buildControlStateSnapshot(
+        registry, selections, extraLocks, metrics, 42);
 
     assert(state.member("type")->asString() == "state");
     assert(state.member("rev")->asNumber() == 42);
     assert(state.member("scene")->member("flame")->asString() == "fire");
+    assert(state.member("scene")->member("wave")->asString() == "line");
     assert(state.member("scene")->member("palette")->asString() == "volcano");
     assert(state.member("display")->member("maxFps")->asNumber() == 60);
     assert(state.member("display")->member("screen")->asString() == "Source");
@@ -166,6 +183,9 @@ static void testStateSnapshotUsesRuntimeConfig() {
     assert(state.member("autoChange")->member("locked")->asBool() == true);
     assert(state.member("autoChange")->member("enabled")->asBool() == false);
     assert(state.member("autoChange")->member("cumulativeFireLevel")->asNumber() == 500);
+    assert(state.member("locks")->member("scene.wave")->asBool() == true);
+    assert(state.member("locks")->member("display.screen")->asBool() == true);
+    assert(state.member("locks")->member("audio.processing")->asBool() == false);
 }
 
 static void testCatalogSnapshotUsesSelections() {
@@ -183,6 +203,7 @@ static void testCatalogSnapshotUsesSelections() {
     assert(flames->asArray()[0].member("name")->asString() == "first");
     assert(flames->asArray()[0].member("current")->asBool() == true);
     assert(flames->asArray()[1].member("inUse")->asBool() == false);
+    assert(targets->member("scene.wave")->asArray().size() == 2);
     assert(targets->member("audio.processing")->asArray().size() == 4);
     assert(targets->member("audio.fireSource")->asArray().size() == 2);
     assert(targets->member("audio.fireSource")->asArray()[1]
