@@ -7,7 +7,10 @@
 #include <wx/choice.h>
 #include <wx/checkbox.h>
 #include <wx/gauge.h>
+#include <wx/panel.h>
 #include <wx/radiobut.h>
+#include <wx/settings.h>
+#include <wx/sizer.h>
 #include <wx/slider.h>
 #include <wx/stattext.h>
 #include <wx/string.h>
@@ -85,18 +88,54 @@ static const char* messageType(const ControlJsonValue& message) {
     return type->asString().c_str();
 }
 
+static const int labelFlashTicks = 16;
+
+static wxColour labelFlashColour() {
+    return wxColour(255, 239, 128);
 }
+
+static int blendedChannel(int base, int flash, int remaining, int total) {
+    if (total <= 0)
+        return base;
+    return base + ((flash - base) * remaining) / total;
+}
+
+static wxColour blendedColour(
+    const wxColour& base, const wxColour& flash, int remaining, int total) {
+    return wxColour(
+        blendedChannel(base.Red(), flash.Red(), remaining, total),
+        blendedChannel(base.Green(), flash.Green(), remaining, total),
+        blendedChannel(base.Blue(), flash.Blue(), remaining, total));
+}
+
+}
+
+CthughaPanelFrame::LabelFlashState::LabelFlashState()
+    : surface(0)
+    , label(0)
+    , baseBackground()
+    , remainingTicks(0) { }
+
+CthughaPanelFrame::LabelFlashState::LabelFlashState(
+    wxWindow* surface_, wxStaticText* label_,
+    const wxColour& baseBackground_)
+    : surface(surface_)
+    , label(label_)
+    , baseBackground(baseBackground_)
+    , remainingTicks(0) { }
 
 CthughaPanelFrame::CthughaPanelFrame(const std::string& endpoint)
     : CthughaPanelBase(0, wxID_ANY, wxT("Cthugha Control"))
     , client(new ControlPanelClient(endpoint))
     , pollTimer(this)
     , catalogNames()
+    , labelFlashStates()
     , receivedState(0)
     , everConnected(0)
     , updatingControls(0) {
     CreateStatusBar();
     repairGeneratedLayout();
+    initializeLabelFlashes();
     setControlsEnabled(0);
     bindControlEvents();
     updateSliderTexts();
@@ -121,6 +160,180 @@ CthughaPanelFrame::~CthughaPanelFrame() {
 void CthughaPanelFrame::repairGeneratedLayout() {
     m_scrolledWindow1->FitInside();
     Layout();
+}
+
+void CthughaPanelFrame::initializeLabelFlashes() {
+    registerFlashLabel("scene.wave", "Wave");
+    registerFlashLabel("scene.flame", "Flame");
+    registerFlashLabel("scene.translation", "Translation");
+    registerFlashLabel("scene.image", "Image");
+    registerFlashLabel("scene.object", "Object");
+    registerFlashLabel("scene.table", "Wave table");
+    registerFlashLabel("scene.waveScale", "Wave scale");
+    registerFlashLabel("display.screen", "Screen");
+    registerFlashLabel("audio.processing", "Sound processing");
+    registerFlashLabel("scene.palette", "Palette");
+    registerFlashLabel("scene.flashlight", "Flashlight");
+    registerFlashLabel("autoChange.mode", "Autochange");
+    registerFlashLabel(
+        "autoChange.cumulativeFireLevel", "Fire threshold");
+    registerFlashLabel("audio.fireSource", "Fire source");
+    registerFlashLabel("audio.fireSensitivity", "Fire sensitivity");
+    registerFlashLabel("display.maxFps", "Max FPS");
+}
+
+void CthughaPanelFrame::registerFlashLabel(
+    const char* key, const char* label) {
+    wxStaticText* text = findStaticTextByLabel(utf8ToWx(label));
+    if (text == 0)
+        return;
+
+    wxWindow* surface = wrapFlashLabel(text);
+    if (surface == 0)
+        surface = text;
+
+    wxColour background = surface->GetBackgroundColour();
+    if (!background.IsOk() && surface->GetParent() != 0)
+        background = surface->GetParent()->GetBackgroundColour();
+    if (!background.IsOk())
+        background = wxSystemSettings::GetColour(wxSYS_COLOUR_WINDOW);
+
+    surface->SetBackgroundStyle(wxBG_STYLE_COLOUR);
+    surface->SetBackgroundColour(background);
+    text->SetBackgroundStyle(wxBG_STYLE_COLOUR);
+    text->SetBackgroundColour(background);
+    labelFlashStates[key] = LabelFlashState(surface, text, background);
+}
+
+wxStaticText* CthughaPanelFrame::findStaticTextByLabel(
+    const wxString& label) const {
+    wxWindowList& children = m_scrolledWindow1->GetChildren();
+    for (wxWindowList::iterator it = children.begin(); it != children.end();
+         ++it) {
+        wxStaticText* text = dynamic_cast<wxStaticText*>(*it);
+        if (text != 0 && text->GetLabelText() == label)
+            return text;
+    }
+    return 0;
+}
+
+wxWindow* CthughaPanelFrame::wrapFlashLabel(wxStaticText* label) {
+    if (label == 0 || label->GetParent() != m_scrolledWindow1)
+        return 0;
+
+    wxSizer* parentSizer = label->GetContainingSizer();
+    if (parentSizer == 0)
+        parentSizer = m_scrolledWindow1->GetSizer();
+    if (parentSizer == 0)
+        return 0;
+
+    wxSizerItem* item = parentSizer->GetItem(label, false);
+    if (item == 0)
+        return 0;
+
+    size_t index = 0;
+    int found = 0;
+    wxSizerItemList& children = parentSizer->GetChildren();
+    for (wxSizerItemList::compatibility_iterator node = children.GetFirst();
+         node != nullptr; node = node->GetNext(), index++) {
+        if (node->GetData() == item) {
+            found = 1;
+            break;
+        }
+    }
+    if (!found)
+        return 0;
+
+    int proportion = item->GetProportion();
+    int flag = item->GetFlag();
+    int border = item->GetBorder();
+    wxSize minSize = label->GetMinSize();
+    if (!minSize.IsFullySpecified())
+        minSize = label->GetBestSize();
+
+    if (!parentSizer->Detach(label))
+        return 0;
+
+    wxPanel* panel = new wxPanel(m_scrolledWindow1, wxID_ANY);
+    panel->SetBackgroundStyle(wxBG_STYLE_COLOUR);
+    panel->SetMinSize(minSize);
+
+    label->Reparent(panel);
+    wxBoxSizer* labelSizer = new wxBoxSizer(wxHORIZONTAL);
+    labelSizer->Add(label, 0, wxALIGN_CENTER_VERTICAL | wxLEFT | wxRIGHT, 3);
+    panel->SetSizer(labelSizer);
+    labelSizer->Fit(panel);
+
+    parentSizer->Insert(index, panel, proportion, flag, border);
+    m_scrolledWindow1->FitInside();
+    Layout();
+    return panel;
+}
+
+void CthughaPanelFrame::flashLabel(const char* key) {
+    if (!receivedState)
+        return;
+
+    std::map<std::string, LabelFlashState>::iterator it
+        = labelFlashStates.find(key);
+    if (it == labelFlashStates.end())
+        return;
+
+    it->second.remainingTicks = labelFlashTicks;
+    applyLabelFlash(it->second);
+}
+
+void CthughaPanelFrame::updateLabelFlashes() {
+    for (std::map<std::string, LabelFlashState>::iterator it
+             = labelFlashStates.begin();
+         it != labelFlashStates.end(); ++it) {
+        LabelFlashState& state = it->second;
+        if (state.remainingTicks <= 0)
+            continue;
+
+        state.remainingTicks--;
+        if (state.remainingTicks <= 0)
+            restoreLabelFlash(state);
+        else
+            applyLabelFlash(state);
+    }
+}
+
+void CthughaPanelFrame::applyLabelFlash(LabelFlashState& state) {
+    if (state.surface == 0)
+        return;
+    wxColour colour = blendedColour(
+        state.baseBackground, labelFlashColour(), state.remainingTicks,
+        labelFlashTicks);
+    state.surface->SetBackgroundColour(colour);
+    state.surface->Refresh();
+    if (state.label != 0) {
+        state.label->SetBackgroundColour(colour);
+        state.label->Refresh();
+    }
+}
+
+void CthughaPanelFrame::restoreLabelFlash(LabelFlashState& state) {
+    if (state.surface == 0)
+        return;
+    state.surface->SetBackgroundColour(state.baseBackground);
+    state.surface->Refresh();
+    if (state.label != 0) {
+        state.label->SetBackgroundColour(state.baseBackground);
+        state.label->Refresh();
+    }
+}
+
+void CthughaPanelFrame::flashIfChanged(
+    const char* key, const std::string& before, const std::string& after) {
+    if (before != after)
+        flashLabel(key);
+}
+
+void CthughaPanelFrame::flashIfChanged(
+    const char* key, int before, int after) {
+    if (before != after)
+        flashLabel(key);
 }
 
 void CthughaPanelFrame::bindControlEvents() {
@@ -222,6 +435,7 @@ void CthughaPanelFrame::updateEnabledState() {
 }
 
 void CthughaPanelFrame::onPollTimer(wxTimerEvent&) {
+    updateLabelFlashes();
     std::vector<ControlPanelClientEvent> events = client->pollEvents();
     for (std::vector<ControlPanelClientEvent>::const_iterator it
              = events.begin();
@@ -354,31 +568,33 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
     const ControlJsonValue* locks = message.member("locks");
 
     updatingControls = 1;
-    selectChoiceValue("scene.wave", m_wave_choice,
-        stringMember(scene, "wave"));
-    selectChoiceValue("scene.flame", m_flame_choice,
-        stringMember(scene, "flame"));
-    selectChoiceValue("scene.translation", m_translation_choice,
+    applyChoiceState("scene.wave", m_wave_choice, stringMember(scene, "wave"));
+    applyChoiceState(
+        "scene.flame", m_flame_choice, stringMember(scene, "flame"));
+    applyChoiceState("scene.translation", m_translation_choice,
         stringMember(scene, "translation"));
-    selectChoiceValue("scene.image", m_image_choice,
-        stringMember(scene, "image"));
-    selectChoiceValue("scene.object", m_object_choice,
-        stringMember(scene, "object"));
-    selectChoiceValue("scene.table", m_waveTable_choice,
-        stringMember(scene, "table"));
-    selectChoiceValue("scene.waveScale", m_waveScale_choice,
+    applyChoiceState(
+        "scene.image", m_image_choice, stringMember(scene, "image"));
+    applyChoiceState(
+        "scene.object", m_object_choice, stringMember(scene, "object"));
+    applyChoiceState(
+        "scene.table", m_waveTable_choice, stringMember(scene, "table"));
+    applyChoiceState("scene.waveScale", m_waveScale_choice,
         stringMember(scene, "waveScale"));
-    selectChoiceValue("display.screen", m_screen_choice,
-        stringMember(display, "screen"));
-    selectChoiceValue("audio.processing", m_soundProcessing_choice,
+    applyChoiceState(
+        "display.screen", m_screen_choice, stringMember(display, "screen"));
+    applyChoiceState("audio.processing", m_soundProcessing_choice,
         stringMember(audio, "processing"));
-    selectChoiceValue("audio.fireSource", m_fireSource_choice,
+    applyChoiceState("audio.fireSource", m_fireSource_choice,
         stringMember(audio, "fireSource"));
-    selectChoiceValue("scene.palette", m_palette_choice,
-        stringMember(scene, "palette"));
-    m_flashlight_checkBox->SetValue(
-        boolLikeMember(scene, "flashlight") != 0);
+    applyChoiceState(
+        "scene.palette", m_palette_choice, stringMember(scene, "palette"));
+    applyCheckBoxState(
+        "scene.flashlight", m_flashlight_checkBox,
+        boolLikeMember(scene, "flashlight"));
     applyLocks(locks);
+    flashIfChanged("autoChange.mode", currentAutoChangeMode(),
+        autoChangeModeOf(autoChange));
     applyAutoChangeMode(autoChange);
     int fireThreshold = intMember(autoChange, "cumulativeFireLevel",
         m_fireThreshold_slider->GetValue());
@@ -386,16 +602,20 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
     updateFireLevel(cumulativeFireLevel, fireThreshold);
     int thresholdMaximum = fireThreshold > 5000 ? fireThreshold : 5000;
     m_fireThreshold_slider->SetMax(thresholdMaximum);
-    m_fireThreshold_slider->SetValue(
+    applySliderState("autoChange.cumulativeFireLevel", m_fireThreshold_slider,
         clampInt(fireThreshold, 0, thresholdMaximum));
-    m_fireSensitivity_slider->SetValue(clampInt(
+    int fireSensitivity = clampInt(
         intMember(audio, "fireSensitivity",
             m_fireSensitivity_slider->GetValue()),
-        0, 100));
+        0, 100);
+    applySliderState(
+        "audio.fireSensitivity", m_fireSensitivity_slider, fireSensitivity);
     int maxFps = intMember(display, "maxFps", m_maxFps_slider->GetValue());
     int maxFpsMaximum = maxFps > 120 ? maxFps : 120;
     m_maxFps_slider->SetMax(maxFpsMaximum);
-    m_maxFps_slider->SetValue(clampInt(maxFps, 5, maxFpsMaximum));
+    applySliderState(
+        "display.maxFps", m_maxFps_slider,
+        clampInt(maxFps, 5, maxFpsMaximum));
     updateSliderTexts();
     updatingControls = 0;
 
@@ -404,29 +624,55 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
     updateEnabledState();
 }
 
+void CthughaPanelFrame::applyChoiceState(
+    const char* target, wxChoice* choice, const std::string& value) {
+    if (!value.empty())
+        flashIfChanged(target, currentChoiceValue(target, choice), value);
+    selectChoiceValue(target, choice, value);
+}
+
+void CthughaPanelFrame::applyCheckBoxState(
+    const char* key, wxCheckBox* checkBox, int checked) {
+    int value = checked != 0 ? 1 : 0;
+    flashIfChanged(key, checkBox->GetValue() ? 1 : 0, value);
+    checkBox->SetValue(value != 0);
+}
+
+void CthughaPanelFrame::applySliderState(
+    const char* key, wxSlider* slider, int value) {
+    flashIfChanged(key, slider->GetValue(), value);
+    slider->SetValue(value);
+}
+
 void CthughaPanelFrame::applyLocks(const ControlJsonValue* locks) {
-    m_lockWave_checkBox->SetValue(
-        boolLikeMember(locks, "scene.wave") != 0);
-    m_lockFlame_checkBox->SetValue(
-        boolLikeMember(locks, "scene.flame") != 0);
-    m_lockTranslation_checkBox->SetValue(
-        boolLikeMember(locks, "scene.translation") != 0);
-    m_lockImage_checkBox->SetValue(
-        boolLikeMember(locks, "scene.image") != 0);
-    m_lockObject_checkBox->SetValue(
-        boolLikeMember(locks, "scene.object") != 0);
-    m_lockWaveTable_checkBox->SetValue(
-        boolLikeMember(locks, "scene.table") != 0);
-    m_lockWaveScale_checkBox->SetValue(
-        boolLikeMember(locks, "scene.waveScale") != 0);
-    m_lockScreen_checkBox->SetValue(
-        boolLikeMember(locks, "display.screen") != 0);
-    m_lockSoundProcessing_checkBox->SetValue(
-        boolLikeMember(locks, "audio.processing") != 0);
-    m_lockPalette_checkBox->SetValue(
-        boolLikeMember(locks, "scene.palette") != 0);
-    m_lockFlashlight_checkBox->SetValue(
-        boolLikeMember(locks, "scene.flashlight") != 0);
+    applyCheckBoxState(
+        "scene.wave", m_lockWave_checkBox,
+        boolLikeMember(locks, "scene.wave"));
+    applyCheckBoxState(
+        "scene.flame", m_lockFlame_checkBox,
+        boolLikeMember(locks, "scene.flame"));
+    applyCheckBoxState("scene.translation", m_lockTranslation_checkBox,
+        boolLikeMember(locks, "scene.translation"));
+    applyCheckBoxState(
+        "scene.image", m_lockImage_checkBox,
+        boolLikeMember(locks, "scene.image"));
+    applyCheckBoxState(
+        "scene.object", m_lockObject_checkBox,
+        boolLikeMember(locks, "scene.object"));
+    applyCheckBoxState(
+        "scene.table", m_lockWaveTable_checkBox,
+        boolLikeMember(locks, "scene.table"));
+    applyCheckBoxState("scene.waveScale", m_lockWaveScale_checkBox,
+        boolLikeMember(locks, "scene.waveScale"));
+    applyCheckBoxState("display.screen", m_lockScreen_checkBox,
+        boolLikeMember(locks, "display.screen"));
+    applyCheckBoxState("audio.processing", m_lockSoundProcessing_checkBox,
+        boolLikeMember(locks, "audio.processing"));
+    applyCheckBoxState(
+        "scene.palette", m_lockPalette_checkBox,
+        boolLikeMember(locks, "scene.palette"));
+    applyCheckBoxState("scene.flashlight", m_lockFlashlight_checkBox,
+        boolLikeMember(locks, "scene.flashlight"));
 }
 
 void CthughaPanelFrame::applyAutoChangeMode(
@@ -440,6 +686,25 @@ void CthughaPanelFrame::applyAutoChangeMode(
     } else {
         m_autochangeAll_radioBtn->SetValue(true);
     }
+}
+
+std::string CthughaPanelFrame::currentAutoChangeMode() const {
+    if (m_autochangeNone_radioBtn->GetValue())
+        return "none";
+    if (m_autochangeLittle_radioBtn->GetValue())
+        return "little";
+    return "all";
+}
+
+std::string CthughaPanelFrame::autoChangeModeOf(
+    const ControlJsonValue* autoChange) const {
+    int enabled = boolLikeMember(autoChange, "enabled");
+    int changeLittle = boolLikeMember(autoChange, "changeLittle");
+    if (!enabled)
+        return "none";
+    if (changeLittle)
+        return "little";
+    return "all";
 }
 
 void CthughaPanelFrame::updateSliderText(

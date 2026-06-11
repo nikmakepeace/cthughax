@@ -16,14 +16,37 @@
 #include <wx/timer.h>
 
 class CthughaPanelFrame : public CthughaPanelBase {
+    struct LabelFlashState {
+        wxWindow* surface;
+        wxStaticText* label;
+        wxColour baseBackground;
+        int remainingTicks;
+
+        LabelFlashState();
+        LabelFlashState(wxWindow* surface_, wxStaticText* label_,
+            const wxColour& baseBackground_);
+    };
+
     std::unique_ptr<ControlPanelClient> client;
     wxTimer pollTimer;
     std::map<std::string, std::vector<std::string> > catalogNames;
+    std::map<std::string, LabelFlashState> labelFlashStates;
     int receivedState;
     int everConnected;
     int updatingControls;
 
     void repairGeneratedLayout();
+    void initializeLabelFlashes();
+    void registerFlashLabel(const char* key, const char* label);
+    wxStaticText* findStaticTextByLabel(const wxString& label) const;
+    wxWindow* wrapFlashLabel(wxStaticText* label);
+    void flashLabel(const char* key);
+    void updateLabelFlashes();
+    void applyLabelFlash(LabelFlashState& state);
+    void restoreLabelFlash(LabelFlashState& state);
+    void flashIfChanged(
+        const char* key, const std::string& before, const std::string& after);
+    void flashIfChanged(const char* key, int before, int after);
     void bindControlEvents();
     void setControlsEnabled(int enabled);
     void updateEnabledState();
@@ -40,8 +63,15 @@ class CthughaPanelFrame : public CthughaPanelBase {
     void handleProtocolMessage(const ControlJsonValue& message);
     void applyCatalogs(const ControlJsonValue& message);
     void applyState(const ControlJsonValue& message);
+    void applyChoiceState(
+        const char* target, wxChoice* choice, const std::string& value);
+    void applyCheckBoxState(
+        const char* key, wxCheckBox* checkBox, int checked);
+    void applySliderState(const char* key, wxSlider* slider, int value);
     void applyLocks(const ControlJsonValue* locks);
     void applyAutoChangeMode(const ControlJsonValue* autoChange);
+    std::string currentAutoChangeMode() const;
+    std::string autoChangeModeOf(const ControlJsonValue* autoChange) const;
     void updateSliderText(wxSlider* slider, wxStaticText* text);
     void updateSliderTexts();
 
