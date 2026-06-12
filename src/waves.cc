@@ -707,17 +707,22 @@ struct WaveDrawingScale {
     }
 };
 
-static void put_brush_cut(FrameRenderTarget& buffer,
-    const WaveDrawingScale& scale, int x, int y, int val) {
+static void put_sized_brush_cut(FrameRenderTarget& buffer,
+    int brushWidth, int brushHeight, int x, int y, int val) {
     if ((x < 0) || (x >= buffer.width()))
         return;
     if ((y < 0) || (y >= buffer.height()))
         return;
 
-    int left = x - (scale.width - 1) / 2;
-    int right = x + scale.width / 2;
-    int top = y - (scale.height - 1) / 2;
-    int bottom = y + scale.height / 2;
+    if (brushWidth < 1)
+        brushWidth = 1;
+    if (brushHeight < 1)
+        brushHeight = 1;
+
+    int left = x - (brushWidth - 1) / 2;
+    int right = x + brushWidth / 2;
+    int top = y - (brushHeight - 1) / 2;
+    int bottom = y + brushHeight / 2;
 
     if (left < 0)
         left = 0;
@@ -733,6 +738,11 @@ static void put_brush_cut(FrameRenderTarget& buffer,
         for (int xx = left; xx <= right; xx++)
             row[xx] = (unsigned char)val;
     }
+}
+
+static void put_brush_cut(FrameRenderTarget& buffer,
+    const WaveDrawingScale& scale, int x, int y, int val) {
+    put_sized_brush_cut(buffer, scale.width, scale.height, x, y, val);
 }
 
 static void fill_horizontal_span_cut(FrameRenderTarget& buffer,
@@ -770,6 +780,65 @@ static void put_reference_cross_cut(FrameRenderTarget& buffer,
     put_brush_cut(buffer, scale, x + scale.xOffset(1), y, val);
     put_brush_cut(buffer, scale, x, y - scale.yOffset(1), val);
     put_brush_cut(buffer, scale, x, y + scale.yOffset(1), val);
+}
+
+/* Stable per-point jitter breaks up repeated stamps without temporal noise. */
+static unsigned int particle_hash(int x, int y, int val, int spark) {
+    unsigned int h = 2166136261u;
+
+    h = (h ^ (unsigned int)x) * 16777619u;
+    h = (h ^ (unsigned int)y) * 16777619u;
+    h = (h ^ (unsigned int)val) * 16777619u;
+    h = (h ^ (unsigned int)spark) * 16777619u;
+    h ^= h >> 16;
+    h *= 0x7feb352du;
+    h ^= h >> 15;
+    h *= 0x846ca68bu;
+    h ^= h >> 16;
+
+    return h;
+}
+
+static int particle_offset(unsigned int value, int radius) {
+    if (radius <= 0)
+        return 0;
+
+    return int(value % (unsigned int)(radius * 2 + 1)) - radius;
+}
+
+static void put_particle_cut(FrameRenderTarget& buffer,
+    const WaveDrawingScale& scale, int x, int y, int val) {
+    int centerWidth = max(1, (scale.width + 1) / 2);
+    int centerHeight = max(1, (scale.height + 1) / 2);
+    int sparkWidth = max(1, (centerWidth + 1) / 2);
+    int sparkHeight = max(1, (centerHeight + 1) / 2);
+    int xRadius = max(1, scale.xOffset(1));
+    int yRadius = max(1, scale.yOffset(1));
+    unsigned int seed = particle_hash(x, y, val, 0);
+    int sparks = 2 + int(seed % 5u);
+
+    put_sized_brush_cut(buffer, centerWidth, centerHeight, x, y, val);
+
+    for (int i = 0; i < sparks; i++) {
+        unsigned int h = particle_hash(x, y, val, i + 1);
+        int dx = particle_offset(h, xRadius);
+        int dy = particle_offset(h >> 8, yRadius);
+
+        if (dx == 0 && dy == 0) {
+            if (xRadius >= yRadius)
+                dx = (h & 0x10000u) ? xRadius : -xRadius;
+            else
+                dy = (h & 0x10000u) ? yRadius : -yRadius;
+        }
+
+        put_sized_brush_cut(buffer, sparkWidth, sparkHeight,
+            x + dx, y + dy, val);
+    }
+}
+
+void put_particle_cut(FrameRenderTarget& buffer, int x, int y, int val) {
+    WaveDrawingScale scale(buffer);
+    put_particle_cut(buffer, scale, x, y, val);
 }
 
 void putat(FrameRenderTarget& buffer, int x, int y, int val) {
@@ -1389,15 +1458,16 @@ void wave_buff10(FrameRenderTarget& buffer, const FrameGeneratorContext& context
             : row(0) { }
     };
     State& state = runtime.state<State>();
+    WaveDrawingScale scale(buffer);
 
     PreparedWaveSamples sound(context, 2 * MID_X);
 
     state.row = (state.row + 1) % BOTTOM;
     for (i = 0; i < MID_X; i++) {
-        putat(buffer, i, state.row + 1, tableColor(runtime, sound.sample(i, 0)));
-        putat(buffer, i + MID_X, state.row + 1, tableColor(runtime, sound.sample(i, 1)));
-        putat(buffer, i, state.row, tableColor(runtime, sound.sample(i + MID_X, 0)));
-        putat(buffer, i + MID_X, state.row, tableColor(runtime, sound.sample(i + MID_X, 1)));
+        put_particle_cut(buffer, scale, i, state.row + 1, tableColor(runtime, sound.sample(i, 0)));
+        put_particle_cut(buffer, scale, i + MID_X, state.row + 1, tableColor(runtime, sound.sample(i, 1)));
+        put_particle_cut(buffer, scale, i, state.row, tableColor(runtime, sound.sample(i + MID_X, 0)));
+        put_particle_cut(buffer, scale, i + MID_X, state.row, tableColor(runtime, sound.sample(i + MID_X, 1)));
     }
 }
 
@@ -1412,7 +1482,7 @@ void wave_buff11(FrameRenderTarget& buffer, const FrameGeneratorContext& context
         tmp = sound.sample(x, 0);
         tmp2 = sound.sample(x, 1);
 
-        putat(buffer, scale.xOffset(tmp2 + 32) % buffer.width(),
+        put_particle_cut(buffer, scale, scale.xOffset(tmp2 + 32) % buffer.width(),
             scale.yOffset(tmp + 200 - 28) % BOTTOM, tableColor(runtime, tmp));
     }
 }
@@ -1481,14 +1551,14 @@ void wave_pete0(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
         temp = sound.sample(x, 0);
         temp2 = sound.sample((x + 80) % buffer.width(), 0);
 
-        putat(buffer, (scale.xOffset(temp2 >> 2) + state.xoff0) % buffer.width(),
+        put_particle_cut(buffer, scale, (scale.xOffset(temp2 >> 2) + state.xoff0) % buffer.width(),
             (scale.yOffset(temp >> 2) + state.yoff0) % BOTTOM,
             tableColor(runtime, temp));
 
         temp = sound.sample(x, 1) + 128;
         temp2 = sound.sample((x + 80) % buffer.width(), 1) + 128;
 
-        putat(buffer, (scale.xOffset(temp2 >> 2) + state.xoff1) % buffer.width(),
+        put_particle_cut(buffer, scale, (scale.xOffset(temp2 >> 2) + state.xoff1) % buffer.width(),
             (scale.yOffset(temp >> 2) + state.yoff1) % BOTTOM,
             tableColor(runtime, temp));
     }
@@ -1518,11 +1588,15 @@ void wave_pete1(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 
     for (x = 0; x < MID_X; x++) {
         tmp = sound.sample(x, 0);
-        putat_cut(buffer, x, BOTTOM - scale.yOffset(abs(left * widthSine[x]) >> 8), tableColor(runtime, tmp));
+        put_particle_cut(buffer, scale, x,
+            BOTTOM - scale.yOffset(abs(left * widthSine[x]) >> 8),
+            tableColor(runtime, tmp));
     }
     for (x = MID_X; x < buffer.width(); x++) {
         tmp = sound.sample(x, 1);
-        putat_cut(buffer, x, BOTTOM - scale.yOffset(abs(right * widthSine[x]) >> 8), tableColor(runtime, tmp));
+        put_particle_cut(buffer, scale, x,
+            BOTTOM - scale.yOffset(abs(right * widthSine[x]) >> 8),
+            tableColor(runtime, tmp));
     }
 }
 
@@ -1535,10 +1609,10 @@ void wave_pete2(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 
     for (x = 0; x < buffer.height(); x++) {
         tmp = sound.sample(x, 0);
-        putat_cut(buffer, MID_X - scale.xOffset(tmp >> runtime.waveScale), x,
+        put_particle_cut(buffer, scale, MID_X - scale.xOffset(tmp >> runtime.waveScale), x,
             tableColor(runtime, runtime.legacySine(tmp)));
         tmp = sound.sample(x, 1);
-        putat_cut(buffer, MID_X + scale.xOffset(tmp >> runtime.waveScale), x,
+        put_particle_cut(buffer, scale, MID_X + scale.xOffset(tmp >> runtime.waveScale), x,
             tableColor(runtime, runtime.legacySine(tmp)));
     }
 }
@@ -1570,7 +1644,7 @@ void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.xoff0 = state.xoff0 % buffer.width();
 
-        putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff0, state.yoff0, tableColor(runtime, temp));
 
         state.yoff0 += scale.yOffset((sound.sample(x + 1, 0) - temp) >> 1);
         temp = sound.sample(x + 1, 0);
@@ -1580,7 +1654,7 @@ void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.yoff0 = state.yoff0 % buffer.height();
 
-        putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff0, state.yoff0, tableColor(runtime, temp));
     }
 
     temp = sound.sample(0, 1);
@@ -1593,7 +1667,7 @@ void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.xoff1 = state.xoff1 % buffer.width();
 
-        putat(buffer, state.xoff1, state.yoff1, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff1, state.yoff1, tableColor(runtime, temp));
 
         state.yoff1 -= scale.yOffset((sound.sample(x + 1, 1) - temp) >> 1);
         temp = sound.sample(x + 1, 1);
@@ -1603,7 +1677,7 @@ void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.yoff1 = state.yoff1 % buffer.height();
 
-        putat(buffer, state.xoff1, state.yoff1, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff1, state.yoff1, tableColor(runtime, temp));
     }
 }
 
@@ -1634,7 +1708,7 @@ void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.xoff0 = state.xoff0 % buffer.width();
 
-        putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff0, state.yoff0, tableColor(runtime, temp));
 
         state.yoff0 += scale.yOffset(sound.sample(x + 1, 0) - temp);
         temp = sound.sample(x + 1, 0);
@@ -1644,7 +1718,7 @@ void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.yoff0 = state.yoff0 % buffer.height();
 
-        putat(buffer, state.xoff0, state.yoff0, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff0, state.yoff0, tableColor(runtime, temp));
     }
 
     temp = sound.sample(0, 1);
@@ -1657,7 +1731,7 @@ void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.xoff1 = state.xoff1 % buffer.width();
 
-        putat(buffer, state.xoff1, state.yoff1, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff1, state.yoff1, tableColor(runtime, temp));
 
         state.yoff1 -= scale.yOffset(sound.sample(x + 1, 1) - temp);
         temp = sound.sample(x + 1, 1);
@@ -1667,7 +1741,7 @@ void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
         state.yoff1 = state.yoff1 % buffer.height();
 
-        putat(buffer, state.xoff1, state.yoff1, tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, state.xoff1, state.yoff1, tableColor(runtime, temp));
     }
 }
 
@@ -1695,11 +1769,15 @@ void wave_test(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
 
     for (x = 0; x < MID_X; x++) {
         temp = sound.sample(x, 0) + 128;
-        putat_cut(buffer, x, BOTTOM - scale.yOffset(abs((left)*widthSine[x]) >> 8), tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, x,
+            BOTTOM - scale.yOffset(abs((left)*widthSine[x]) >> 8),
+            tableColor(runtime, temp));
     }
     for (x = MID_X; x < buffer.width(); x++) {
         temp = sound.sample(x, 1) + 128;
-        putat_cut(buffer, x, BOTTOM - scale.yOffset(abs((right)*widthSine[x]) >> 8), tableColor(runtime, temp));
+        put_particle_cut(buffer, scale, x,
+            BOTTOM - scale.yOffset(abs((right)*widthSine[x]) >> 8),
+            tableColor(runtime, temp));
     }
 }
 
@@ -1756,7 +1834,7 @@ void wave_aaron(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
             sy = scale.yOffset((runtime.legacySine(state.y) * tmp) >> 9);
             tyl += sy;
 
-            putat_cut(buffer, state.cxl + sx, state.cyl + sy, tableColor(runtime, tmp));
+            put_particle_cut(buffer, scale, state.cxl + sx, state.cyl + sy, tableColor(runtime, tmp));
 
             tmp = sound.sample(i, 1);
 
@@ -1765,7 +1843,7 @@ void wave_aaron(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
             sy = scale.yOffset((runtime.legacySine(state.y) * tmp) >> 9);
             tyr += sy;
 
-            putat_cut(buffer, state.cxr - sx, state.cyr - sy, tableColor(runtime, tmp));
+            put_particle_cut(buffer, scale, state.cxr - sx, state.cyr - sy, tableColor(runtime, tmp));
 
             state.x++;
             state.y++;
@@ -2682,11 +2760,11 @@ void wave_jump(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
             state.speed[i] -= frameRate(context);
 
         if (state.dir[i] > 0)
-            putat_cut(buffer, i,
+            put_particle_cut(buffer, drawingScale, i,
                 drawingScale.yOffset(state.pos[i] >> sampleScale) + buffer.height() / 2,
                 255);
         else
-            putat_cut(buffer, i,
+            put_particle_cut(buffer, drawingScale, i,
                 -drawingScale.yOffset(state.pos[i] >> sampleScale) + buffer.height() / 2,
                 255);
     }
