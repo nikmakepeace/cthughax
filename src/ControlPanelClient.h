@@ -61,6 +61,11 @@ public:
     int sendSetNumber(const std::string& target, int value);
     int sendSetNumber(const std::string& target, double value);
     int sendSetBool(const std::string& target, bool value);
+    int sendSetStringArray(
+        const std::string& target, const std::vector<std::string>& value);
+    int sendSetFilterchainStages(const std::string& target,
+        const std::vector<std::string>& stages,
+        const std::vector<int>& enabled);
 };
 
 #endif

@@ -148,6 +148,41 @@ int ControlPanelClient::sendSetBool(const std::string& target, bool value) {
     return id;
 }
 
+int ControlPanelClient::sendSetStringArray(
+    const std::string& target, const std::vector<std::string>& value) {
+    ControlJsonValue json = ControlJsonValue::arrayValueOf();
+    for (std::vector<std::string>::const_iterator it = value.begin();
+         it != value.end(); ++it)
+        json.append(ControlJsonValue::stringValueOf(*it));
+
+    std::lock_guard<std::mutex> lock(mutex);
+    int id = nextId++;
+    while (outbound.size() >= maxPendingClientMessages)
+        outbound.pop_front();
+    outbound.push_back(setMessage(id, target, json));
+    return id;
+}
+
+int ControlPanelClient::sendSetFilterchainStages(const std::string& target,
+    const std::vector<std::string>& stages,
+    const std::vector<int>& enabled) {
+    ControlJsonValue json = ControlJsonValue::arrayValueOf();
+    for (std::size_t i = 0; i < stages.size(); i++) {
+        ControlJsonValue item = ControlJsonValue::objectValueOf();
+        item.set("stage", ControlJsonValue::stringValueOf(stages[i]));
+        item.set("enabled", ControlJsonValue::boolValueOf(
+            i >= enabled.size() || enabled[i] != 0));
+        json.append(item);
+    }
+
+    std::lock_guard<std::mutex> lock(mutex);
+    int id = nextId++;
+    while (outbound.size() >= maxPendingClientMessages)
+        outbound.pop_front();
+    outbound.push_back(setMessage(id, target, json));
+    return id;
+}
+
 int ControlPanelClient::shouldStop() const {
     std::lock_guard<std::mutex> lock(mutex);
     return stopRequested;

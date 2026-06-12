@@ -220,6 +220,55 @@ static void testMapsPaletteSmoothingChanceCommand() {
     assert(mapped.command.number == 0.75);
 }
 
+static void testMapsFilterchainSequenceCommand() {
+    ControlMappedCommand mapped;
+    std::string code;
+    std::string message;
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"op\":\"set\",\"target\":\"filterchain.sequence\","
+        "\"value\":["
+        "{\"stage\":\"wave\",\"enabled\":true},"
+        "{\"stage\":\"flame\",\"enabled\":false},"
+        "{\"stage\":\"flashlight\",\"enabled\":true}]}"),
+        &mapped, &code, &message));
+
+    assert(mapped.command.type == RuntimeCommandChangeFilterchainSequenceTo);
+    assert(mapped.command.textList.size() == 3);
+    assert(mapped.command.textList[0] == "wave");
+    assert(mapped.command.textList[1] == "flame");
+    assert(mapped.command.textList[2] == "flashlight");
+    assert(mapped.command.valueList.size() == 3);
+    assert(mapped.command.valueList[0] == 1);
+    assert(mapped.command.valueList[1] == 0);
+    assert(mapped.command.valueList[2] == 1);
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"op\":\"set\",\"target\":\"filterchain.sequence\","
+        "\"value\":[\"wave\",\"flame\"]}"),
+        &mapped, &code, &message));
+    assert(mapped.command.textList.size() == 2);
+    assert(mapped.command.textList[0] == "wave");
+    assert(mapped.command.textList[1] == "flame");
+    assert(mapped.command.valueList.size() == 2);
+    assert(mapped.command.valueList[0] == 1);
+    assert(mapped.command.valueList[1] == 1);
+
+    assert(controlCommandFromJson(parseCommand(
+        "{\"v\":1,\"op\":\"set\",\"target\":\"filterchain.enabled\","
+        "\"value\":["
+        "{\"stage\":\"wave\",\"enabled\":true},"
+        "{\"stage\":\"flame\",\"enabled\":false}]}"),
+        &mapped, &code, &message));
+    assert(mapped.command.type == RuntimeCommandChangeFilterchainEnabledTo);
+    assert(mapped.command.textList.size() == 2);
+    assert(mapped.command.textList[0] == "wave");
+    assert(mapped.command.textList[1] == "flame");
+    assert(mapped.command.valueList.size() == 2);
+    assert(mapped.command.valueList[0] == 1);
+    assert(mapped.command.valueList[1] == 0);
+}
+
 static void testRejectsUnknownTargets() {
     ControlMappedCommand mapped;
     std::string code;
@@ -262,6 +311,7 @@ int main() {
     testMapsSoundProcessingLockCommand();
     testMapsCumulativeFireThresholdCommand();
     testMapsPaletteSmoothingChanceCommand();
+    testMapsFilterchainSequenceCommand();
     testRejectsUnknownTargets();
     testRejectsUnsupportedVersion();
     return 0;

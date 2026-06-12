@@ -3,6 +3,9 @@
 #include <assert.h>
 #include <string.h>
 
+#include <string>
+#include <vector>
+
 class RecordingSink : public RuntimeCommandSink {
 public:
     int calls;
@@ -105,6 +108,34 @@ static void testRuntimeCommandFactoriesCaptureIntent() {
     assert(paletteSmoothing.type
         == RuntimeCommandChangePaletteSmoothingChanceTo);
     assert(paletteSmoothing.number == 0.75);
+
+    std::vector<std::string> filterchainStages;
+    filterchainStages.push_back("wave");
+    filterchainStages.push_back("flame");
+    std::vector<int> filterchainEnabled;
+    filterchainEnabled.push_back(1);
+    filterchainEnabled.push_back(0);
+    RuntimeCommand filterchain = RuntimeCommand::changeFilterchainSequenceTo(
+        filterchainStages, filterchainEnabled);
+    assert(filterchain.type == RuntimeCommandChangeFilterchainSequenceTo);
+    assert(filterchain.textList.size() == 2);
+    assert(filterchain.textList[0] == "wave");
+    assert(filterchain.textList[1] == "flame");
+    assert(filterchain.valueList.size() == 2);
+    assert(filterchain.valueList[0] == 1);
+    assert(filterchain.valueList[1] == 0);
+
+    RuntimeCommand filterchainEnabledCommand
+        = RuntimeCommand::changeFilterchainEnabledTo(
+            filterchainStages, filterchainEnabled);
+    assert(filterchainEnabledCommand.type
+        == RuntimeCommandChangeFilterchainEnabledTo);
+    assert(filterchainEnabledCommand.textList.size() == 2);
+    assert(filterchainEnabledCommand.textList[0] == "wave");
+    assert(filterchainEnabledCommand.textList[1] == "flame");
+    assert(filterchainEnabledCommand.valueList.size() == 2);
+    assert(filterchainEnabledCommand.valueList[0] == 1);
+    assert(filterchainEnabledCommand.valueList[1] == 0);
 
     RuntimeCommand sceneChoiceUse
         = RuntimeCommand::toggleSceneChoiceUse(RuntimeScenePalette, 2);

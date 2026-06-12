@@ -1,7 +1,7 @@
 // Runtime coordinate remap executor used by TranslateFilter.
 
 #include "Translate.h"
-#include "FrameRenderTarget.h"
+#include "FrameStageBuffer.h"
 
 Translate::Translate()
     : tableValue() { }
@@ -17,7 +17,15 @@ int Translate::ready() const {
     return tableValue.ready();
 }
 
-void Translate::execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context) const {
+static unsigned char translatedSourcePixel(const FrameStageBuffer& buffer,
+    const unsigned char* src, int sourceIndex) {
+    if (sourceIndex == 0)
+        return 0;
+
+    return src[buffer.visibleLinearOffset(sourceIndex)];
+}
+
+void Translate::execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context) const {
     (void)context;
 
     if (!ready())
@@ -33,21 +41,18 @@ void Translate::execute(FrameRenderTarget& buffer, const FrameGeneratorContext& 
 
     const int* trans = tableValue.data();
 
-    buffer.swapBuffers();
-    unsigned char* src = buffer.passivePixels();
-    unsigned char* dst = buffer.activePixels();
-
-    src[0] = 0;
+    const unsigned char* src = buffer.sourcePixels();
+    unsigned char* dst = buffer.destinationPixels();
 
     if (buffer.visibleRowsArePacked()) {
         for (int i = 0; i < size; i++)
-            dst[i] = src[trans[i]];
+            dst[i] = trans[i] == 0 ? 0 : src[trans[i]];
         return;
     }
 
     for (int y = 0; y < height; y++) {
-        unsigned char* row = buffer.activeRow(y);
+        unsigned char* row = buffer.destinationRow(y);
         for (int x = 0; x < width; x++)
-            row[x] = src[buffer.visibleLinearOffset(*trans++)];
+            row[x] = translatedSourcePixel(buffer, src, *trans++);
     }
 }

@@ -999,7 +999,7 @@ void Application::runFrame(int doDisplay) {
     if (traceFrameTiming)
         frameTiming[3] = secondsClockValue.nowSeconds();
 
-    // Generate indexed active/passive pixels and publish a frame view.
+    // Generate indexed source/destination pixels and publish a frame view.
     SceneSnapshot sceneSnapshot = sceneRuntimeValue->snapshot();
     const IndexedFrame* indexedFrame = runFrameGenerator(audioFrame, sceneSnapshot);
     FrameRenderContext presentationContext = frameRenderContextFor(audioFrame,

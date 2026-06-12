@@ -199,7 +199,6 @@ void FrameGeneratorSceneBinding::applyPendingImageCue(
     imageFilter->setImage(pendingImageCue);
     imageFilter->setPlacement(imagePlacementStrategy.choose(*pendingImageCue,
         geometryValue.width(), geometryValue.height(), randomSourceValue));
-    imageFilter->setOverlayPassiveBuffer(1);
     filterchain->setStageMode(FrameFilterchainSequence::ImageStage,
         FrameFilterArmedOnce);
     applyImageCuePalette(*pendingImageCue, frameBudgetFramesPerSecond);

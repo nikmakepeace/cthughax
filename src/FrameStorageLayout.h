@@ -6,7 +6,8 @@
 #include "DisplayGeometry.h"
 
 /**
- * Describes the byte layout of one active or passive indexed frame allocation.
+ * Describes the byte layout of one source or destination indexed frame
+ * allocation.
  *
  * FrameGeometry describes the logical visible frame. FrameStorageLayout is the
  * storage policy owned by FrameStore: row pitch, hidden rows, allocation size,
@@ -95,7 +96,7 @@ public:
         return visibleByteOffset() + visibleStorageByteCount();
     }
 
-    /** @return Total active/passive allocation size in bytes. */
+    /** @return Total source/destination allocation size in bytes. */
     int allocationByteCount() const {
         return topHiddenByteCount() + visibleStorageByteCount()
             + bottomHiddenByteCount();

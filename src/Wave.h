@@ -3,7 +3,7 @@
 
 #include <vector>
 
-class FrameRenderTarget;
+class FrameStageBuffer;
 class RandomSource;
 class FrameGeneratorContext;
 class LogSink;
@@ -270,11 +270,11 @@ public:
     /**
      * Wave renderer function.
      *
-     * @param buffer Active indexed pixel buffer to draw into.
+     * @param buffer Explicit source/destination indexed pixel buffer.
      * @param context Current frame render audio/time context.
      * @param runtime Wave config, state, lookup tables, and fire budget.
      */
-    typedef void (*Function)(FrameRenderTarget& buffer,
+    typedef void (*Function)(FrameStageBuffer& buffer,
         const FrameGeneratorContext& context, WaveRuntime& runtime);
 
     /**
@@ -318,7 +318,7 @@ public:
     /**
      * Executes the wave renderer for one visual frame.
      *
-     * @param buffer Active indexed pixel buffer to draw into.
+     * @param buffer Explicit source/destination indexed pixel buffer.
      * @param context Current frame render audio/time context.
      * @param config Wave-scale/table/object/dimension settings.
      * @param needsConfiguration Nonzero when renderer should rebuild state.
@@ -327,7 +327,7 @@ public:
      * @param randomSource Random source used by renderer effects.
      * @param log Diagnostics sink for this frame render.
      */
-    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+    void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
         const WaveConfig& config, int needsConfiguration, WaveState& state,
         WaveLookupTables& lookupTables, RandomSource& randomSource,
         LogSink& log) const;

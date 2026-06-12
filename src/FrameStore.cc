@@ -65,30 +65,30 @@ const FrameStorageLayout& FrameStore::layout() const {
     return layoutValue;
 }
 
-FrameBufferView FrameStore::active() {
-    return FrameBufferView(bufferValue.activePixels(), geometryValue.size(),
+FrameBufferView FrameStore::destination() {
+    return FrameBufferView(bufferValue.destinationPixels(), geometryValue.size(),
         layoutValue.pitch());
 }
 
-FrameBufferView FrameStore::passive() {
-    return FrameBufferView(bufferValue.passivePixels(), geometryValue.size(),
+FrameBufferView FrameStore::source() {
+    return FrameBufferView(bufferValue.sourcePixels(), geometryValue.size(),
         layoutValue.pitch());
 }
 
-void FrameStore::swapActivePassive() {
-    bufferValue.swapBuffers();
+void FrameStore::swapSourceAndDestination() {
+    bufferValue.swapSourceAndDestination();
 }
 
 void FrameStore::clear() {
     bufferValue.clear();
 }
 
-unsigned char* FrameStore::activeTopHiddenRows() {
-    return bufferValue.activeTopHiddenRows();
+unsigned char* FrameStore::destinationTopHiddenRows() {
+    return bufferValue.destinationTopHiddenRows();
 }
 
-unsigned char* FrameStore::activeBottomHiddenRows() {
-    return bufferValue.activeBottomHiddenRows();
+unsigned char* FrameStore::destinationBottomHiddenRows() {
+    return bufferValue.destinationBottomHiddenRows();
 }
 
 FrameRenderTarget& FrameStore::renderTarget() {

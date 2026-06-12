@@ -6,15 +6,15 @@
 static const int hiddenBorderRowsPerSide = 3; // Unit: rows; used above and below visible pixels by BorderFilter and flame feedback.
 
 FrameRenderTarget::FrameRenderTarget()
-    : activeAllocation(0)
-    , passiveAllocation(0)
-    , activeBuffer(0)
-    , passiveBuffer(0)
+    : destinationAllocation(0)
+    , sourceAllocation(0)
+    , destinationBuffer(0)
+    , sourceBuffer(0)
     , layoutValue() { }
 
 FrameRenderTarget::~FrameRenderTarget() {
-    delete[] activeAllocation;
-    delete[] passiveAllocation;
+    delete[] destinationAllocation;
+    delete[] sourceAllocation;
 }
 
 int FrameRenderTarget::width() const {
@@ -72,73 +72,78 @@ unsigned char* FrameRenderTarget::visiblePixels(unsigned char* allocation) const
 
 void FrameRenderTarget::allocatePixels() {
 
-    delete[] activeAllocation;
-    delete[] passiveAllocation;
+    delete[] destinationAllocation;
+    delete[] sourceAllocation;
 
-    activeAllocation = new unsigned char[allocationByteCount()];
-    passiveAllocation = new unsigned char[allocationByteCount()];
-    activeBuffer = visiblePixels(activeAllocation);
-    passiveBuffer = visiblePixels(passiveAllocation);
+    destinationAllocation = new unsigned char[allocationByteCount()];
+    sourceAllocation = new unsigned char[allocationByteCount()];
+    destinationBuffer = visiblePixels(destinationAllocation);
+    sourceBuffer = visiblePixels(sourceAllocation);
 
-    memset(activeAllocation, 0, allocationByteCount());
-    memset(passiveAllocation, 0, allocationByteCount());
+    memset(destinationAllocation, 0, allocationByteCount());
+    memset(sourceAllocation, 0, allocationByteCount());
 }
 
-void FrameRenderTarget::swapBuffers() {
-    unsigned char* allocation = activeAllocation;
-    activeAllocation = passiveAllocation;
-    passiveAllocation = allocation;
+void FrameRenderTarget::swapSourceAndDestination() {
+    unsigned char* allocation = destinationAllocation;
+    destinationAllocation = sourceAllocation;
+    sourceAllocation = allocation;
 
-    unsigned char* t = activeBuffer;
-    activeBuffer = passiveBuffer;
-    passiveBuffer = t;
+    unsigned char* t = destinationBuffer;
+    destinationBuffer = sourceBuffer;
+    sourceBuffer = t;
+}
+
+void FrameRenderTarget::copySourceToDestination() {
+    if (destinationAllocation != 0 && sourceAllocation != 0)
+        memcpy(destinationAllocation, sourceAllocation, allocationByteCount());
 }
 
 void FrameRenderTarget::clear() {
-    if (activeAllocation != 0)
-        memset(activeAllocation, 0, allocationByteCount());
-    if (passiveAllocation != 0)
-        memset(passiveAllocation, 0, allocationByteCount());
+    if (destinationAllocation != 0)
+        memset(destinationAllocation, 0, allocationByteCount());
+    if (sourceAllocation != 0)
+        memset(sourceAllocation, 0, allocationByteCount());
 }
 
-unsigned char* FrameRenderTarget::activePixels() {
-    return activeBuffer;
+unsigned char* FrameRenderTarget::destinationPixels() {
+    return destinationBuffer;
 }
 
-unsigned char* FrameRenderTarget::activeRow(int y) {
-    return activeBuffer == 0 ? 0 : activeBuffer + y * pitch();
+unsigned char* FrameRenderTarget::destinationRow(int y) {
+    return destinationBuffer == 0 ? 0 : destinationBuffer + y * pitch();
 }
 
-unsigned char* FrameRenderTarget::passivePixels() {
-    return passiveBuffer;
+unsigned char* FrameRenderTarget::sourcePixels() {
+    return sourceBuffer;
 }
 
-unsigned char* FrameRenderTarget::passiveRow(int y) {
-    return passiveBuffer == 0 ? 0 : passiveBuffer + y * pitch();
+unsigned char* FrameRenderTarget::sourceRow(int y) {
+    return sourceBuffer == 0 ? 0 : sourceBuffer + y * pitch();
 }
 
-const unsigned char* FrameRenderTarget::activePixels() const {
-    return activeBuffer;
+const unsigned char* FrameRenderTarget::destinationPixels() const {
+    return destinationBuffer;
 }
 
-const unsigned char* FrameRenderTarget::activeRow(int y) const {
-    return activeBuffer == 0 ? 0 : activeBuffer + y * pitch();
+const unsigned char* FrameRenderTarget::destinationRow(int y) const {
+    return destinationBuffer == 0 ? 0 : destinationBuffer + y * pitch();
 }
 
-const unsigned char* FrameRenderTarget::passivePixels() const {
-    return passiveBuffer;
+const unsigned char* FrameRenderTarget::sourcePixels() const {
+    return sourceBuffer;
 }
 
-const unsigned char* FrameRenderTarget::passiveRow(int y) const {
-    return passiveBuffer == 0 ? 0 : passiveBuffer + y * pitch();
+const unsigned char* FrameRenderTarget::sourceRow(int y) const {
+    return sourceBuffer == 0 ? 0 : sourceBuffer + y * pitch();
 }
 
-unsigned char* FrameRenderTarget::activeTopHiddenRows() {
-    return activeAllocation;
+unsigned char* FrameRenderTarget::destinationTopHiddenRows() {
+    return destinationAllocation;
 }
 
-unsigned char* FrameRenderTarget::activeBottomHiddenRows() {
-    return activeAllocation == 0 ? 0 : activeAllocation + layoutValue.bottomHiddenByteOffset();
+unsigned char* FrameRenderTarget::destinationBottomHiddenRows() {
+    return destinationAllocation == 0 ? 0 : destinationAllocation + layoutValue.bottomHiddenByteOffset();
 }
 
 int FrameRenderTarget::visibleRowsArePacked() const {

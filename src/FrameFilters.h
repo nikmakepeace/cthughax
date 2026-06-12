@@ -38,18 +38,19 @@ enum TextInjectionVerticalAlign {
     TextInjectionAlignBottom
 };
 
-// Contract: one-shot pixel injector. Writes the selected image into the active
-// buffer, and can mirror the same pixels into passive for immediate display.
+// Contract: one-shot pixel injector. The framework copies source to
+// destination first, then this overlays the selected image into destination.
 class ImageFilter : public FrameFilter {
     const IndexedImage* image;
     ImagePlacement placement;
-    int overlayPassiveBuffer;
 
 public:
     ImageFilter();
 
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
+
+    virtual FrameFilterBufferContract bufferContract() const;
 
     /**
      * Selects the image to draw.
@@ -66,22 +67,15 @@ public:
     void setPlacement(const ImagePlacement& placement_);
 
     /**
-     * Controls whether injected pixels are mirrored into the passive buffer.
-     *
-     * @param enabled Nonzero to copy into passive pixels as well as active pixels.
-     */
-    void setOverlayPassiveBuffer(int enabled);
-
-    /**
-     * Draws the selected image into the active indexed pixel buffer.
+     * Draws the selected image into destination indexed pixels.
      *
      * @param frame Current frame filter wrapper.
      */
     void execute(FrameFilterFrame& frame);
 };
 
-// Contract: feedback filter. Runs the selected Flame over the buffer, usually
-// reading passive pixels and hidden border rows while writing active pixels.
+// Contract: feedback filter. The framework copies source to destination first;
+// the selected Flame reads immutable source where needed and writes destination.
 class FlameFilter : public FrameFilter {
     const Flame* flame;
     int generalFlame;
@@ -92,6 +86,8 @@ public:
 
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
+
+    virtual FrameFilterBufferContract bufferContract() const;
 
     /**
      * Selects the flame feedback implementation.
@@ -108,15 +104,15 @@ public:
     void setGeneralFlame(int generalFlame_);
 
     /**
-     * Runs the selected flame against active/passive indexed pixels.
+     * Runs the selected flame against source/destination indexed pixels.
      *
      * @param frame Current frame filter wrapper.
      */
     void execute(FrameFilterFrame& frame);
 };
 
-// Contract: coordinate remap filter. The Translate executor owns any
-// active/passive swap it needs before remapping passive pixels into active.
+// Contract: coordinate remap filter. The framework prepares immutable source
+// and mutable destination before Translate remaps pixels.
 class TranslateFilter : public FrameFilter {
     Translate translate;
 
@@ -125,6 +121,8 @@ public:
 
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
+
+    virtual FrameFilterBufferContract bufferContract() const;
 
     /**
      * Replaces the coordinate translation table used by this stage.
@@ -141,8 +139,8 @@ public:
     void execute(FrameFilterFrame& frame);
 };
 
-// Contract: sound-reactive drawing filter. Draws into active pixels using the
-// current frame context plus wave-local state; it does not commit the frame.
+// Contract: sound-reactive drawing filter. The framework copies source to
+// destination first; this draws into destination pixels.
 class WaveFilter : public FrameFilter {
     Wave* wave;
     WaveConfig config;
@@ -157,6 +155,8 @@ public:
 
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
+
+    virtual FrameFilterBufferContract bufferContract() const;
 
     /**
      * Selects the wave renderer and its per-scene configuration.
@@ -181,9 +181,8 @@ public:
     void execute(FrameFilterFrame& frame);
 };
 
-// Contract: indexed-buffer text injector. Wraps CP437 text at word boundaries,
-// draws it into active pixels, and lets later frame commits/feed-back stages
-// make it part of the visual material.
+// Contract: indexed-buffer text injector. The framework copies source to
+// destination first; this wraps CP437 text and draws it into destination.
 class TextInjectionFilter : public FrameFilter {
     const BitmapFont* font;
     std::string message;
@@ -198,6 +197,8 @@ public:
 
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
+
+    virtual FrameFilterBufferContract bufferContract() const;
 
     /**
      * Arms or clears the text cue.
@@ -226,15 +227,15 @@ public:
         TextInjectionVerticalAlign verticalAlign_, int marginPixels_);
 
     /**
-     * Draws the active text cue and decrements its remaining frame count.
+     * Draws the armed text cue and decrements its remaining frame count.
      *
      * @param frame Current frame filter wrapper.
      */
     void execute(FrameFilterFrame& frame);
 };
 
-// Contract: frame boundary. Emits optional diagnostics, then swaps active and
-// passive so the finished indexed image becomes the display source.
+// Contract: frame boundary. Emits optional diagnostics; the framework then
+// commits the finished indexed image so it becomes the display source.
 class FrameCommitFilter : public FrameFilter {
     const char* flameName;
     const char* waveName;
@@ -248,6 +249,8 @@ public:
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
+    virtual FrameFilterBufferContract bufferContract() const;
+
     /**
      * Sets borrowed scene names for frame diagnostics.
      *
@@ -260,7 +263,7 @@ public:
         const char* waveScaleName_, const char* tableName_);
 
     /**
-     * Commits the active indexed buffer by swapping active/passive buffers.
+     * Reports diagnostics for destination indexed pixels before framework commit.
      *
      * @param frame Current frame filter wrapper.
      */
@@ -276,6 +279,8 @@ public:
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
+    virtual FrameFilterBufferContract bufferContract() const;
+
     /**
      * Applies the acoustic flashlight effect to the frame palette.
      *
@@ -284,8 +289,8 @@ public:
     void execute(FrameFilterFrame& frame);
 };
 
-// Contract: hidden-row writer. Fills the active buffer border rows used by
-// flame feedback; visible pixels are left to later stages.
+// Contract: hidden-row writer. The framework copies source to destination
+// first; this fills destination border rows used by flame feedback.
 class BorderFilter : public FrameFilter {
     int borderMode;
 
@@ -295,6 +300,8 @@ public:
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
+    virtual FrameFilterBufferContract bufferContract() const;
+
     /**
      * Selects the hidden-border drawing mode.
      *
@@ -303,7 +310,7 @@ public:
     void setBorderMode(int borderMode_);
 
     /**
-     * Writes hidden border rows into the active indexed buffer.
+     * Writes hidden border rows into destination indexed storage.
      *
      * @param frame Current frame filter wrapper.
      */
@@ -321,6 +328,8 @@ public:
 
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
+
+    virtual FrameFilterBufferContract bufferContract() const;
 
     /** @return Owned frame palette supplied to the filterchain. */
     FramePalette& framePalette();
@@ -370,8 +379,10 @@ public:
     /** @return Stable human-readable filter name for diagnostics. */
     virtual const char* name() const;
 
+    virtual FrameFilterBufferContract bufferContract() const;
+
     /**
-     * Publishes the passive indexed pixels as the display-facing frame.
+     * Publishes the committed source indexed pixels as the display-facing frame.
      *
      * @param frame Current frame filter wrapper.
      */

@@ -52,7 +52,7 @@ const char* Flame::description() const {
     return descriptionValue;
 }
 
-void Flame::execute(FrameRenderTarget&, const FrameGeneratorContext&,
+void Flame::execute(FrameStageBuffer&, const FrameGeneratorContext&,
     int, const FlameLookupTables&) const { }
 
 const Flame flameCatalog[] = {
@@ -95,7 +95,7 @@ int Wave::canRun(const WaveConfig& config) const {
     return (*canRunFunctionValue)(config);
 }
 
-void Wave::execute(FrameRenderTarget&, const FrameGeneratorContext&,
+void Wave::execute(FrameStageBuffer&, const FrameGeneratorContext&,
     const WaveConfig&, int, WaveState&, WaveLookupTables&, RandomSource&,
     LogSink&) const { }
 

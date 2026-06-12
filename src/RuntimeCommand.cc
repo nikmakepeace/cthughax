@@ -10,6 +10,8 @@ RuntimeCommand::RuntimeCommand(RuntimeCommandType type_)
     , value(0)
     , number(0.0)
     , text(0)
+    , textList()
+    , valueList()
     , effectControlTarget(0)
     , optionTarget(0)
     , paletteMetadataTarget(0) { }
@@ -135,6 +137,24 @@ RuntimeCommand RuntimeCommand::changeAutoChangeCumulativeFireLevelTo(
 RuntimeCommand RuntimeCommand::changePaletteSmoothingChanceTo(double chance) {
     RuntimeCommand command(RuntimeCommandChangePaletteSmoothingChanceTo);
     command.number = chance;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::changeFilterchainSequenceTo(
+    const std::vector<std::string>& stages,
+    const std::vector<int>& enabled) {
+    RuntimeCommand command(RuntimeCommandChangeFilterchainSequenceTo);
+    command.textList = stages;
+    command.valueList = enabled;
+    return command;
+}
+
+RuntimeCommand RuntimeCommand::changeFilterchainEnabledTo(
+    const std::vector<std::string>& stages,
+    const std::vector<int>& enabled) {
+    RuntimeCommand command(RuntimeCommandChangeFilterchainEnabledTo);
+    command.textList = stages;
+    command.valueList = enabled;
     return command;
 }
 

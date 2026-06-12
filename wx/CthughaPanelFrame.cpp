@@ -4,11 +4,13 @@
 
 #include "CthughaPanelFrame.h"
 
+#include <wx/checklst.h>
 #include <wx/choice.h>
 #include <wx/checkbox.h>
 #include <wx/gauge.h>
 #include <wx/panel.h>
 #include <wx/radiobut.h>
+#include <wx/rearrangectrl.h>
 #include <wx/settings.h>
 #include <wx/sizer.h>
 #include <wx/slider.h>
@@ -126,6 +128,71 @@ static wxColour blendedColour(
         blendedChannel(base.Blue(), flash.Blue(), remaining, total));
 }
 
+static wxString normalizedFilterchainLabel(const wxString& label) {
+    wxString normalized = label.Lower();
+    normalized.Replace(wxT(" "), wxT(""));
+    normalized.Replace(wxT("-"), wxT(""));
+    return normalized;
+}
+
+static int isReorderableFilterchainLabel(const wxString& label) {
+    wxString normalized = normalizedFilterchainLabel(label);
+    return normalized == wxT("image")
+        || normalized == wxT("border")
+        || normalized == wxT("flame")
+        || normalized == wxT("translate")
+        || normalized == wxT("translation")
+        || normalized == wxT("wave")
+        || normalized == wxT("text");
+}
+
+static void appendFilterchainStage(wxArrayString& items, wxArrayInt& order,
+    const wxString& label) {
+    if (!isReorderableFilterchainLabel(label))
+        return;
+
+    order.Add(int(items.GetCount()));
+    items.Add(label);
+}
+
+static void appendDefaultFilterchainStages(
+    wxArrayString& items, wxArrayInt& order) {
+    appendFilterchainStage(items, order, wxT("Image"));
+    appendFilterchainStage(items, order, wxT("Border"));
+    appendFilterchainStage(items, order, wxT("Flame"));
+    appendFilterchainStage(items, order, wxT("Translate"));
+    appendFilterchainStage(items, order, wxT("Wave"));
+    appendFilterchainStage(items, order, wxT("Text"));
+}
+
+static std::string filterchainStageNameForLabel(const wxString& label) {
+    wxString normalized = normalizedFilterchainLabel(label);
+
+    if (normalized == wxT("image"))
+        return "image";
+    if (normalized == wxT("border"))
+        return "border";
+    if (normalized == wxT("flame"))
+        return "flame";
+    if (normalized == wxT("translate"))
+        return "translate";
+    if (normalized == wxT("translation"))
+        return "translate";
+    if (normalized == wxT("wave"))
+        return "wave";
+    if (normalized == wxT("text"))
+        return "text";
+    if (normalized == wxT("flashlight"))
+        return "flashlight";
+    if (normalized == wxT("framecommit"))
+        return "frameCommit";
+    if (normalized == wxT("palette"))
+        return "palette";
+    if (normalized == wxT("indexedframe"))
+        return "indexedFrame";
+    return "";
+}
+
 }
 
 CthughaPanelFrame::LabelFlashState::LabelFlashState()
@@ -148,10 +215,10 @@ CthughaPanelFrame::CthughaPanelFrame(const std::string& endpoint)
     , pollTimer(this)
     , catalogNames()
     , labelFlashStates()
+    , filterchainRearrangeCtrl(0)
     , receivedState(0)
     , everConnected(0)
     , updatingControls(0) {
-    CreateStatusBar();
     repairGeneratedLayout();
     initializeLabelFlashes();
     setControlsEnabled(0);
@@ -161,9 +228,9 @@ CthughaPanelFrame::CthughaPanelFrame(const std::string& endpoint)
         pollTimer.GetId());
 
     if (endpoint.empty()) {
-        SetStatusText(wxT("No control endpoint"));
+        setConnectionStatus(wxT("No control endpoint"));
     } else {
-        SetStatusText(wxT("Connecting"));
+        setConnectionStatus(wxT("Connecting"));
         client->start();
     }
     pollTimer.Start(33);
@@ -175,9 +242,60 @@ CthughaPanelFrame::~CthughaPanelFrame() {
         client->stop();
 }
 
+void CthughaPanelFrame::setConnectionStatus(const wxString& text) {
+    if (m_connected_statusBar != 0) {
+        m_connected_statusBar->SetStatusText(text);
+    } else {
+        SetStatusText(text);
+    }
+}
+
 void CthughaPanelFrame::repairGeneratedLayout() {
+    replaceFilterchainListBox();
     m_scrolledWindow1->FitInside();
     Layout();
+}
+
+void CthughaPanelFrame::replaceFilterchainListBox() {
+    if (filterchainRearrangeCtrl != 0 || m_filterchain_listBox == 0
+        || m_filterChain_panel == 0)
+        return;
+
+    wxArrayString items;
+    wxArrayInt order;
+    for (unsigned int index = 0; index < m_filterchain_listBox->GetCount();
+         index++) {
+        appendFilterchainStage(
+            items, order, m_filterchain_listBox->GetString(index));
+    }
+    if (items.empty())
+        appendDefaultFilterchainStages(items, order);
+
+    wxListBox* placeholder = m_filterchain_listBox;
+    filterchainRearrangeCtrl = new wxRearrangeCtrl(m_filterChain_panel,
+        wxID_ANY, placeholder->GetPosition(), placeholder->GetSize(), order,
+        items, wxLB_SINGLE | wxLB_NEEDED_SB);
+    filterchainRearrangeCtrl->SetMinSize(wxSize(-1, 240));
+    filterchainRearrangeCtrl->SetToolTip(
+        wxT("Move filterchain stages up or down to change their runtime order."));
+    filterchainRearrangeCtrl->Bind(wxEVT_BUTTON,
+        &CthughaPanelFrame::onFilterchainReordered, this);
+    if (filterchainRearrangeCtrl->GetList() != 0)
+        filterchainRearrangeCtrl->GetList()->Bind(wxEVT_CHECKLISTBOX,
+            &CthughaPanelFrame::onFilterchainChecked, this);
+
+    wxSizer* sizer = m_filterChain_panel->GetSizer();
+    if (sizer != 0 && sizer->Replace(placeholder, filterchainRearrangeCtrl)) {
+        wxSizerItem* item = sizer->GetItem(filterchainRearrangeCtrl);
+        if (item != 0)
+            item->SetProportion(1);
+    } else if (sizer != 0) {
+        sizer->Add(filterchainRearrangeCtrl, 1, wxALL | wxEXPAND, 5);
+    }
+
+    placeholder->Destroy();
+    m_filterchain_listBox = 0;
+    m_filterChain_panel->Layout();
 }
 
 void CthughaPanelFrame::initializeLabelFlashes() {
@@ -451,6 +569,8 @@ void CthughaPanelFrame::setControlsEnabled(int enabled) {
     m_fireSensitivity_slider->Enable(enabled != 0);
     m_paletteSmoothing_slider->Enable(enabled != 0);
     m_maxFps_slider->Enable(enabled != 0);
+    if (filterchainRearrangeCtrl != 0)
+        filterchainRearrangeCtrl->Enable(enabled != 0);
 }
 
 void CthughaPanelFrame::updateEnabledState() {
@@ -539,12 +659,28 @@ void CthughaPanelFrame::onMaxFpsChanged(wxCommandEvent&) {
     client->sendSetNumber("display.maxFps", m_maxFps_slider->GetValue());
 }
 
+void CthughaPanelFrame::onFilterchainReordered(wxCommandEvent& event) {
+    event.Skip();
+    if (updatingControls)
+        return;
+
+    CallAfter(&CthughaPanelFrame::sendFilterchainSequence);
+}
+
+void CthughaPanelFrame::onFilterchainChecked(wxCommandEvent& event) {
+    event.Skip();
+    if (updatingControls)
+        return;
+
+    CallAfter(&CthughaPanelFrame::sendFilterchainEnabled);
+}
+
 void CthughaPanelFrame::handleClientEvent(
     const ControlPanelClientEvent& event) {
     switch (event.type) {
     case ControlPanelClientEvent::Connected:
         everConnected = 1;
-        SetStatusText(wxT("Connected"));
+        setConnectionStatus(wxT("Connected"));
         updateEnabledState();
         break;
     case ControlPanelClientEvent::Disconnected:
@@ -552,12 +688,12 @@ void CthughaPanelFrame::handleClientEvent(
             Close();
             return;
         }
-        SetStatusText(wxT("Disconnected"));
+        setConnectionStatus(wxT("Disconnected"));
         receivedState = 0;
         updateEnabledState();
         break;
     case ControlPanelClientEvent::Error:
-        SetStatusText(utf8ToWx(event.text));
+        setConnectionStatus(utf8ToWx(event.text));
         updateEnabledState();
         break;
     case ControlPanelClientEvent::Message:
@@ -576,9 +712,9 @@ void CthughaPanelFrame::handleProtocolMessage(
     } else if (type == "focus") {
         bringToForeground();
     } else if (type == "ack") {
-        SetStatusText(wxT("Connected"));
+        setConnectionStatus(wxT("Connected"));
     } else if (type == "error") {
-        SetStatusText(utf8ToWx(stringMember(&message, "message")));
+        setConnectionStatus(utf8ToWx(stringMember(&message, "message")));
     }
 }
 
@@ -670,7 +806,7 @@ void CthughaPanelFrame::applyState(const ControlJsonValue& message) {
     updatingControls = 0;
 
     receivedState = 1;
-    SetStatusText(wxT("Connected"));
+    setConnectionStatus(wxT("Connected"));
     updateEnabledState();
 }
 
@@ -915,4 +1051,47 @@ void CthughaPanelFrame::sendAutoChangeMode() {
     client->sendSetBool("autoChange.enabled", true);
     client->sendSetBool("autoChange.changeLittle",
         m_autochangeLittle_radioBtn->GetValue());
+}
+
+int CthughaPanelFrame::collectFilterchainStages(
+    std::vector<std::string>& stages, std::vector<int>& enabled) const {
+    if (updatingControls || client.get() == 0 || !client->connected()
+        || filterchainRearrangeCtrl == 0)
+        return 0;
+
+    wxRearrangeList* list = filterchainRearrangeCtrl->GetList();
+    if (list == 0)
+        return 0;
+
+    stages.clear();
+    enabled.clear();
+    for (unsigned int index = 0; index < list->GetCount(); index++) {
+        std::string stage = filterchainStageNameForLabel(list->GetString(index));
+        if (!stage.empty()) {
+            stages.push_back(stage);
+            enabled.push_back(list->IsChecked(index) ? 1 : 0);
+        }
+    }
+
+    return !stages.empty();
+}
+
+void CthughaPanelFrame::sendFilterchainSequence() {
+    std::vector<std::string> stages;
+    std::vector<int> enabled;
+    if (!collectFilterchainStages(stages, enabled))
+        return;
+
+    if (!stages.empty())
+        client->sendSetFilterchainStages(
+            "filterchain.sequence", stages, enabled);
+}
+
+void CthughaPanelFrame::sendFilterchainEnabled() {
+    std::vector<std::string> stages;
+    std::vector<int> enabled;
+    if (!collectFilterchainStages(stages, enabled))
+        return;
+
+    client->sendSetFilterchainStages("filterchain.enabled", stages, enabled);
 }

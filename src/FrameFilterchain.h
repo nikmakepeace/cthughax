@@ -4,6 +4,7 @@
 #define CTHUGHA_FRAME_FILTERCHAIN_H
 
 #include "FrameGeneratorContext.h"
+#include "FrameStageBuffer.h"
 #include "IndexedFrame.h"
 
 #include <vector>
@@ -13,13 +14,37 @@ class FramePalette;
 class LogSink;
 
 /**
+ * Buffer role contract declared by each frame filter.
+ *
+ * The filterchain runner owns physical buffer swaps. Pixel filters see
+ * immutable source pixels and mutable destination pixels; the contract only
+ * says whether the framework should initialize destination from source first.
+ */
+enum FrameFilterBufferContract {
+    /** Pixel stage writes a fresh destination from source/context. */
+    FrameFilterPixelFreshDestination,
+
+    /** Pixel stage starts with destination copied from source, then mutates it. */
+    FrameFilterPixelCopiedSource,
+
+    /** Stage does not read or write indexed pixels. */
+    FrameFilterPaletteOnly,
+
+    /** Framework boundary that commits the current indexed output. */
+    FrameFilterCommitBoundary,
+
+    /** Final stage that publishes the committed indexed output. */
+    FrameFilterPublish
+};
+
+/**
  * Mutable frame object passed through one filterchain execution.
  *
- * Filters use this to access the active/passive indexed buffers, frame context,
- * optional frame palette, and final published IndexedFrame.
+ * Filters use this to access explicit source/destination indexed pixels, frame
+ * context, optional frame palette, and final published IndexedFrame.
  */
 class FrameFilterFrame {
-    FrameRenderTarget* bufferValue;
+    FrameStageBuffer bufferValue;
     const FrameGeneratorContext* contextValue;
     FramePalette* framePaletteValue;
     IndexedFrame* indexedFrameValue;
@@ -29,7 +54,7 @@ public:
     /**
      * Wraps the state for one frame filterchain run.
      *
-     * @param buffer_ Active/passive indexed pixel buffer for this visual frame.
+     * @param buffer_ Physical indexed pixel storage for this visual frame.
      * @param context_ Borrowed per-frame audio/time context.
      * @param framePalette_ Palette state to update or read, or NULL.
      * @param indexedFrame_ Destination for final display frame publication.
@@ -38,8 +63,8 @@ public:
     FrameFilterFrame(FrameRenderTarget& buffer_, const FrameGeneratorContext& context_,
         FramePalette* framePalette_, IndexedFrame* indexedFrame_, LogSink& log_);
 
-    /** @return Active/passive indexed pixel buffer for this frame. */
-    FrameRenderTarget& buffer();
+    /** @return Explicit source/destination indexed pixel IO for this stage. */
+    FrameStageBuffer& buffer();
 
     /** @return Borrowed audio/time context for this frame. */
     const FrameGeneratorContext& context() const;
@@ -77,6 +102,9 @@ public:
     /** Rebuilds internal lookup/cache state after display or scene changes. */
     virtual void refresh() { }
 
+    /** @return Buffer role contract used by the framework before execution. */
+    virtual FrameFilterBufferContract bufferContract() const;
+
     /**
      * Runs this filter for one visual frame.
      *
@@ -108,12 +136,14 @@ class FrameFilterchain {
         unsigned int stage;
         FrameFilter* filter;
         int owned;
+        int enabled;
         FrameFilterRunMode mode;
 
         Entry(unsigned int stage_, FrameFilter* filter_, int owned_)
             : stage(stage_)
             , filter(filter_)
             , owned(owned_)
+            , enabled(1)
             , mode(FrameFilterDisabled) { }
     };
 
@@ -122,6 +152,22 @@ class FrameFilterchain {
     FramePalette* framePaletteValue;
     IndexedFrame indexedFrameValue;
     LogSink* logValue;
+
+    void swapBufferRoles(FrameRenderTarget& buffer,
+        int& currentOutputInDestination, unsigned int stage,
+        const char* filterName, const char* reason) const;
+    void ensureCurrentOutputInDestination(FrameRenderTarget& buffer,
+        int& currentOutputInDestination, unsigned int stage,
+        const char* filterName, const char* reason) const;
+    void ensureCurrentOutputInSource(FrameRenderTarget& buffer,
+        int& currentOutputInDestination, unsigned int stage,
+        const char* filterName, const char* reason) const;
+    void prepareBufferForFilter(FrameRenderTarget& buffer,
+        FrameFilterBufferContract contract, int& currentOutputInDestination,
+        unsigned int stage, const char* filterName) const;
+    void completeBufferForFilter(FrameRenderTarget& buffer,
+        FrameFilterBufferContract contract, int& currentOutputInDestination,
+        unsigned int stage, const char* filterName) const;
 
 public:
     /**
@@ -179,6 +225,24 @@ public:
     int setStageMode(unsigned int stage, FrameFilterRunMode mode);
 
     /**
+     * Sets whether every filter registered under a stage is allowed to execute.
+     *
+     * This gate is independent of run mode, so scene binding can still decide
+     * whether an enabled stage is active, disabled, or armed for one frame.
+     *
+     * @param stage Stage id to update.
+     * @param enabled Nonzero to allow execution, zero to bypass the stage.
+     * @return Number of filters matched by the stage id.
+     */
+    int setStageEnabled(unsigned int stage, int enabled);
+
+    /**
+     * @param stage Stage id to query.
+     * @return First matching filter's enabled gate, or zero if not found.
+     */
+    int stageEnabled(unsigned int stage) const;
+
+    /**
      * @param stage Stage id to query.
      * @return First matching filter's run mode, or FrameFilterDisabled.
      */
@@ -209,7 +273,7 @@ public:
     /**
      * Executes enabled filters in configured stage order for one visual frame.
      *
-     * @param buffer Active/passive indexed pixel buffer to mutate.
+     * @param buffer Physical indexed pixel storage to coordinate and mutate.
      * @param context Per-frame audio/time context; borrowed during the call.
      */
     void run(FrameRenderTarget& buffer, const FrameGeneratorContext& context);

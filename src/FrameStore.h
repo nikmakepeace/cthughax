@@ -47,7 +47,7 @@ public:
 };
 
 /**
- * Owns active/passive indexed frame storage for Frame Generator rendering.
+ * Owns source/destination indexed frame storage for Frame Generator rendering.
  *
  * The store owns the render target passed to filter, flame, translate, wave,
  * border, image, text, and frame-publication stages. Pixel storage is never
@@ -63,14 +63,14 @@ public:
     FrameStore();
 
     /**
-     * Resizes owned active/passive storage to a geometry.
+     * Resizes owned source/destination storage to a geometry.
      *
      * @param geometry New frame geometry.
      */
     void resize(const FrameGeometry& geometry);
 
     /**
-     * Resizes owned active/passive storage to an explicit layout.
+     * Resizes owned source/destination storage to an explicit layout.
      *
      * @param layout New storage layout, including pitch and hidden rows.
      */
@@ -79,26 +79,26 @@ public:
     /** @return Current frame geometry. */
     const FrameGeometry& geometry() const;
 
-    /** @return Current active/passive storage layout. */
+    /** @return Current source/destination storage layout. */
     const FrameStorageLayout& layout() const;
 
-    /** @return Mutable visible active buffer view. */
-    FrameBufferView active();
+    /** @return Mutable visible destination buffer view. */
+    FrameBufferView destination();
 
-    /** @return Mutable visible passive buffer view. */
-    FrameBufferView passive();
+    /** @return Mutable visible source buffer view. */
+    FrameBufferView source();
 
-    /** Swaps active and passive buffers. */
-    void swapActivePassive();
+    /** Swaps source and destination buffers. */
+    void swapSourceAndDestination();
 
-    /** Clears active and passive visible plus hidden storage. */
+    /** Clears source and destination visible plus hidden storage. */
     void clear();
 
-    /** @return First hidden row above the active visible image. */
-    unsigned char* activeTopHiddenRows();
+    /** @return First hidden row above the destination visible image. */
+    unsigned char* destinationTopHiddenRows();
 
-    /** @return First hidden row below the active visible image. */
-    unsigned char* activeBottomHiddenRows();
+    /** @return First hidden row below the destination visible image. */
+    unsigned char* destinationBottomHiddenRows();
 
     /** @return Mutable render target used by generator stages. */
     FrameRenderTarget& renderTarget();

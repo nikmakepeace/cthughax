@@ -17,6 +17,9 @@
 #include <assert.h>
 #include <string.h>
 
+#include <string>
+#include <vector>
+
 int cth_log_enabled(int) {
     return 0;
 }
@@ -550,15 +553,39 @@ class RecordingRuntimeFrameGeneratorControls
     : public RuntimeFrameGeneratorControls {
 public:
     int paletteSmoothingChanceToCalls;
+    int filterchainSequenceToCalls;
+    int filterchainEnabledToCalls;
     double lastPaletteSmoothingChance;
+    std::vector<std::string> lastFilterchainSequence;
+    std::vector<int> lastFilterchainEnabled;
+    std::vector<std::string> lastFilterchainEnabledStages;
+    std::vector<int> lastFilterchainEnabledValues;
 
     RecordingRuntimeFrameGeneratorControls()
         : paletteSmoothingChanceToCalls(0)
+        , filterchainSequenceToCalls(0)
+        , filterchainEnabledToCalls(0)
         , lastPaletteSmoothingChance(0.0) { }
 
     virtual void changePaletteSmoothingChanceTo(double chance) {
         paletteSmoothingChanceToCalls++;
         lastPaletteSmoothingChance = chance;
+    }
+
+    virtual void changeFilterchainSequenceTo(
+        const std::vector<std::string>& stages,
+        const std::vector<int>& enabled) {
+        filterchainSequenceToCalls++;
+        lastFilterchainSequence = stages;
+        lastFilterchainEnabled = enabled;
+    }
+
+    virtual void changeFilterchainEnabledTo(
+        const std::vector<std::string>& stages,
+        const std::vector<int>& enabled) {
+        filterchainEnabledToCalls++;
+        lastFilterchainEnabledStages = stages;
+        lastFilterchainEnabledValues = enabled;
     }
 };
 
@@ -862,6 +889,40 @@ static void testReportsNonSceneRuntimeChanges() {
     assert(paletteSmoothing.uiChanged == 1);
     assert(harness.frameGeneratorControls.paletteSmoothingChanceToCalls == 1);
     assert(harness.frameGeneratorControls.lastPaletteSmoothingChance == 0.65);
+
+    std::vector<std::string> filterchainStages;
+    filterchainStages.push_back("wave");
+    filterchainStages.push_back("flame");
+    std::vector<int> filterchainEnabled;
+    filterchainEnabled.push_back(1);
+    filterchainEnabled.push_back(0);
+    RuntimeChangeSet filterchain = harness.mediator.apply(
+        RuntimeCommand::changeFilterchainSequenceTo(
+            filterchainStages, filterchainEnabled));
+    assert(filterchain.uiChanged == 1);
+    assert(harness.frameGeneratorControls.filterchainSequenceToCalls == 1);
+    assert(harness.frameGeneratorControls.lastFilterchainSequence.size() == 2);
+    assert(harness.frameGeneratorControls.lastFilterchainSequence[0] == "wave");
+    assert(harness.frameGeneratorControls.lastFilterchainSequence[1] == "flame");
+    assert(harness.frameGeneratorControls.lastFilterchainEnabled.size() == 2);
+    assert(harness.frameGeneratorControls.lastFilterchainEnabled[0] == 1);
+    assert(harness.frameGeneratorControls.lastFilterchainEnabled[1] == 0);
+
+    RuntimeChangeSet filterchainEnabledSet = harness.mediator.apply(
+        RuntimeCommand::changeFilterchainEnabledTo(
+            filterchainStages, filterchainEnabled));
+    assert(filterchainEnabledSet.uiChanged == 1);
+    assert(harness.frameGeneratorControls.filterchainEnabledToCalls == 1);
+    assert(harness.frameGeneratorControls.lastFilterchainEnabledStages.size()
+        == 2);
+    assert(harness.frameGeneratorControls.lastFilterchainEnabledStages[0]
+        == "wave");
+    assert(harness.frameGeneratorControls.lastFilterchainEnabledStages[1]
+        == "flame");
+    assert(harness.frameGeneratorControls.lastFilterchainEnabledValues.size()
+        == 2);
+    assert(harness.frameGeneratorControls.lastFilterchainEnabledValues[0] == 1);
+    assert(harness.frameGeneratorControls.lastFilterchainEnabledValues[1] == 0);
 
     RuntimeChangeSet persist = harness.mediator.apply(RuntimeCommand::writeIni());
     assert(persist.persistenceRequested == 1);

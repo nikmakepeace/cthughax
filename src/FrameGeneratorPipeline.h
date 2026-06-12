@@ -44,6 +44,13 @@ public:
     /** @return Nonzero after the filterchain has been created. */
     int initialized() const;
 
+    /**
+     * Replaces the stage sequence used by the current or next filterchain run.
+     *
+     * @param sequence Stage sequence to install.
+     */
+    void setSequence(const FrameFilterchainSequence& sequence);
+
     /** Deletes the owned filterchain and published frame descriptor. */
     void reset();
 
@@ -56,7 +63,7 @@ public:
     /**
      * Runs the owned filterchain against explicit storage and context.
      *
-     * @param target Active/passive indexed render target to mutate.
+     * @param target Source/destination indexed render target to mutate.
      * @param context Borrowed inputs for this frame only.
      * @return Published frame descriptor owned by the filterchain.
      */

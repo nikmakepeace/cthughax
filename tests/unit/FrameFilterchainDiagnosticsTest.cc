@@ -4,6 +4,7 @@
 
 #include "FrameFilterchain.h"
 #include "FrameRenderTarget.h"
+#include "FrameStore.h"
 #include "ProcessServices.h"
 
 #include <assert.h>
@@ -48,9 +49,92 @@ protected:
 
 class NoOpFrameFilter : public FrameFilter {
 public:
+    int executions;
+
+    NoOpFrameFilter()
+        : executions(0) { }
+
     virtual const char* name() const { return "test-filter"; }
 
-    virtual void execute(FrameFilterFrame&) { }
+    virtual void execute(FrameFilterFrame&) { executions++; }
+};
+
+class CopiedSourceProbeFilter : public FrameFilter {
+public:
+    int executions;
+
+    CopiedSourceProbeFilter()
+        : executions(0) { }
+
+    virtual const char* name() const { return "copied-source-probe"; }
+    virtual FrameFilterBufferContract bufferContract() const {
+        return FrameFilterPixelCopiedSource;
+    }
+    virtual void execute(FrameFilterFrame& frame) {
+        FrameStageBuffer& buffer = frame.buffer();
+        assert(buffer.destinationPixels()[0] == 22);
+        assert(buffer.sourcePixels()[0] == 22);
+        buffer.destinationPixels()[0] = 33;
+        executions++;
+    }
+};
+
+class FreshDestinationProbeFilter : public FrameFilter {
+public:
+    int executions;
+
+    FreshDestinationProbeFilter()
+        : executions(0) { }
+
+    virtual const char* name() const { return "fresh-destination-probe"; }
+    virtual FrameFilterBufferContract bufferContract() const {
+        return FrameFilterPixelFreshDestination;
+    }
+    virtual void execute(FrameFilterFrame& frame) {
+        FrameStageBuffer& buffer = frame.buffer();
+        assert(buffer.sourcePixels()[0] == 33);
+        assert(buffer.destinationPixels()[0] == 22);
+        buffer.destinationPixels()[0] = 44;
+        executions++;
+    }
+};
+
+class CommitProbeFilter : public FrameFilter {
+public:
+    int executions;
+
+    CommitProbeFilter()
+        : executions(0) { }
+
+    virtual const char* name() const { return "commit-probe"; }
+    virtual FrameFilterBufferContract bufferContract() const {
+        return FrameFilterCommitBoundary;
+    }
+    virtual void execute(FrameFilterFrame& frame) {
+        FrameStageBuffer& buffer = frame.buffer();
+        assert(buffer.destinationPixels()[0] == 44);
+        assert(buffer.sourcePixels()[0] == 33);
+        executions++;
+    }
+};
+
+class PublishProbeFilter : public FrameFilter {
+public:
+    int executions;
+
+    PublishProbeFilter()
+        : executions(0) { }
+
+    virtual const char* name() const { return "publish-probe"; }
+    virtual FrameFilterBufferContract bufferContract() const {
+        return FrameFilterPublish;
+    }
+    virtual void execute(FrameFilterFrame& frame) {
+        FrameStageBuffer& buffer = frame.buffer();
+        assert(buffer.sourcePixels()[0] == 44);
+        assert(buffer.destinationPixels()[0] == 33);
+        executions++;
+    }
 };
 
 static void testFrameFilterchainUsesInjectedLogSink() {
@@ -72,7 +156,15 @@ static void testFrameFilterchainUsesInjectedLogSink() {
 
     FrameRenderTarget target;
     FrameGeneratorContext context;
+    assert(filterchain.stageEnabled(7) == 1);
+    assert(filterchain.setStageEnabled(7, 0) == 1);
+    assert(filterchain.stageEnabled(7) == 0);
     filterchain.run(target, context);
+    assert(filter.executions == 0);
+    assert(filterchain.setStageEnabled(7, 1) == 1);
+    assert(filterchain.stageEnabled(7) == 1);
+    filterchain.run(target, context);
+    assert(filter.executions == 1);
 
     int sawFilterTiming = 0;
     int sawRunTiming = 0;
@@ -89,7 +181,49 @@ static void testFrameFilterchainUsesInjectedLogSink() {
     assert(sawRunTiming);
 }
 
+static void testFrameFilterchainCoordinatesBufferContracts() {
+    RecordingLogSink log;
+    FrameFilterchain filterchain(log);
+    CopiedSourceProbeFilter destination;
+    FreshDestinationProbeFilter transform;
+    CommitProbeFilter commit;
+    PublishProbeFilter publish;
+
+    filterchain.add(1, &destination);
+    filterchain.add(2, &transform);
+    filterchain.add(3, &commit);
+    filterchain.add(4, &publish);
+
+    std::vector<unsigned int> stages;
+    stages.push_back(1);
+    stages.push_back(2);
+    stages.push_back(3);
+    stages.push_back(4);
+    filterchain.setStageSequence(stages);
+    filterchain.setStageMode(1, FrameFilterEnabled);
+    filterchain.setStageMode(2, FrameFilterEnabled);
+    filterchain.setStageMode(3, FrameFilterEnabled);
+    filterchain.setStageMode(4, FrameFilterEnabled);
+
+    FrameStore store;
+    store.resize(FrameStorageLayout(PixelSize(2, 1), 2, 1));
+    FrameRenderTarget& target = store.renderTarget();
+    target.destinationPixels()[0] = 11;
+    target.sourcePixels()[0] = 22;
+
+    FrameGeneratorContext context;
+    filterchain.run(target, context);
+
+    assert(destination.executions == 1);
+    assert(transform.executions == 1);
+    assert(commit.executions == 1);
+    assert(publish.executions == 1);
+    assert(target.sourcePixels()[0] == 44);
+    assert(target.destinationPixels()[0] == 33);
+}
+
 int main() {
     testFrameFilterchainUsesInjectedLogSink();
+    testFrameFilterchainCoordinatesBufferContracts();
     return 0;
 }

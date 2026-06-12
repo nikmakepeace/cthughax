@@ -24,6 +24,13 @@
 #include <wx/sizer.h>
 #include <wx/gauge.h>
 #include <wx/scrolwin.h>
+#include <wx/panel.h>
+#include <wx/bitmap.h>
+#include <wx/image.h>
+#include <wx/icon.h>
+#include <wx/listbox.h>
+#include <wx/notebook.h>
+#include <wx/statusbr.h>
 #include <wx/frame.h>
 
 ///////////////////////////////////////////////////////////////////////////
@@ -36,6 +43,8 @@ class CthughaPanelBase : public wxFrame
 	private:
 
 	protected:
+		wxNotebook* m_notebook5;
+		wxPanel* m_sceneControls_panel;
 		wxScrolledWindow* m_scrolledWindow1;
 		wxStaticText* m_staticText171;
 		wxStaticText* m_wave_staticText;
@@ -78,6 +87,9 @@ class CthughaPanelBase : public wxFrame
 		wxStaticText* m_fireSensitivity_text;
 		wxSlider* m_maxFps_slider;
 		wxStaticText* m_maxFps_text;
+		wxPanel* m_filterChain_panel;
+		wxListBox* m_filterchain_listBox;
+		wxStatusBar* m_connected_statusBar;
 
 	public:
 

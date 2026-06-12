@@ -1,6 +1,7 @@
 #include "FrameRenderTarget.h"
 #include "CthughaDisplay.h"
 #include "FrameStore.h"
+#include "FrameStageBuffer.h"
 #include "Flame.h"
 #include "Translate.h"
 #include "FrameGeneratorContext.h"
@@ -48,8 +49,8 @@ struct FrameEffectsBenchConfig {
     int height;
     std::string fixtureDir;
     std::string fixtureList;
-    std::string activeImagePath;
-    std::string passiveImagePath;
+    std::string destinationImagePath;
+    std::string sourceImagePath;
 
     FrameEffectsBenchConfig()
         : width(1600)
@@ -115,10 +116,10 @@ void parseFrameEffectsArgs(int* argc, char** argv) {
             config().fixtureDir = arg + 18;
         } else if (strncmp(arg, "--cth-fixtures=", 15) == 0) {
             config().fixtureList = arg + 15;
-        } else if (strncmp(arg, "--cth-active=", 13) == 0) {
-            config().activeImagePath = arg + 13;
-        } else if (strncmp(arg, "--cth-passive=", 14) == 0) {
-            config().passiveImagePath = arg + 14;
+        } else if (strncmp(arg, "--cth-destination=", 18) == 0) {
+            config().destinationImagePath = arg + 18;
+        } else if (strncmp(arg, "--cth-source=", 13) == 0) {
+            config().sourceImagePath = arg + 13;
         } else {
             argv[output++] = argv[i];
         }
@@ -126,8 +127,8 @@ void parseFrameEffectsArgs(int* argc, char** argv) {
 
     *argc = output;
 
-    if (config().activeImagePath.empty() != config().passiveImagePath.empty())
-        failConfiguration("--cth-active and --cth-passive must be specified together");
+    if (config().destinationImagePath.empty() != config().sourceImagePath.empty())
+        failConfiguration("--cth-destination and --cth-source must be specified together");
 }
 
 struct ImageFixture {
@@ -146,8 +147,8 @@ struct ImageFixture {
 struct BufferFixture {
     std::string name;
     ImageFixture base;
-    ImageFixture active;
-    ImageFixture passive;
+    ImageFixture destination;
+    ImageFixture source;
 };
 
 std::vector<TranslateEntry*> translateEntries;
@@ -363,12 +364,12 @@ std::vector<std::string> fixtureNames() {
 std::vector<BufferFixture> loadFixtures() {
     std::vector<BufferFixture> result;
 
-    if (!config().activeImagePath.empty()) {
+    if (!config().destinationImagePath.empty()) {
         BufferFixture fixture;
         fixture.name = "custom";
-        loadImagePath(config().activeImagePath, fixture.active);
-        loadImagePath(config().passiveImagePath, fixture.passive);
-        fixture.base = fixture.active;
+        loadImagePath(config().destinationImagePath, fixture.destination);
+        loadImagePath(config().sourceImagePath, fixture.source);
+        fixture.base = fixture.source;
         result.push_back(fixture);
         return result;
     }
@@ -379,8 +380,8 @@ std::vector<BufferFixture> loadFixtures() {
         BufferFixture fixture;
         fixture.name = names[i];
         fixture.base = loadOrGenerateImage(names[i]);
-        loadImageStem(names[i] + "-active", fixture.active);
-        loadImageStem(names[i] + "-passive", fixture.passive);
+        loadImageStem(names[i] + "-destination", fixture.destination);
+        loadImageStem(names[i] + "-source", fixture.source);
         result.push_back(fixture);
     }
 
@@ -421,18 +422,19 @@ void copyImageWithHiddenRows(unsigned char* visibleBuffer, const ImageFixture& i
 
 void resetForFlame(const BufferFixture& fixture) {
     FrameRenderTarget& buffer = benchmarkBuffer();
-    copyImageWithHiddenRows(buffer.activePixels(),
-        fixture.active.pixels.empty() ? zeroImage() : fixture.active);
-    copyImageWithHiddenRows(buffer.passivePixels(),
-        fixture.passive.pixels.empty() ? fixture.base : fixture.passive);
+    const ImageFixture& source =
+        fixture.source.pixels.empty() ? fixture.base : fixture.source;
+    copyImageWithHiddenRows(buffer.sourcePixels(), source);
+    copyImageWithHiddenRows(buffer.destinationPixels(),
+        fixture.destination.pixels.empty() ? source : fixture.destination);
 }
 
 void resetForTranslate(const BufferFixture& fixture) {
     FrameRenderTarget& buffer = benchmarkBuffer();
-    copyImageWithHiddenRows(buffer.activePixels(),
-        fixture.active.pixels.empty() ? fixture.base : fixture.active);
-    copyImageWithHiddenRows(buffer.passivePixels(),
-        fixture.passive.pixels.empty() ? zeroImage() : fixture.passive);
+    copyImageWithHiddenRows(buffer.sourcePixels(),
+        fixture.source.pixels.empty() ? fixture.base : fixture.source);
+    copyImageWithHiddenRows(buffer.destinationPixels(),
+        fixture.destination.pixels.empty() ? zeroImage() : fixture.destination);
 }
 
 void createTranslationEntries() {
@@ -492,14 +494,15 @@ static void BM_Flame(benchmark::State& state, const Flame* flame,
     FrameGeneratorContext context;
     static FlameLookupTables lookupTables;
     FrameRenderTarget& buffer = benchmarkBuffer();
+    FrameStageBuffer stageBuffer(buffer);
 
     for (auto _ : state) {
         state.PauseTiming();
         resetForFlame(*fixture);
         state.ResumeTiming();
 
-        flame->execute(buffer, context, 0, lookupTables);
-        benchmark::DoNotOptimize(buffer.activePixels()[0]);
+        flame->execute(stageBuffer, context, 0, lookupTables);
+        benchmark::DoNotOptimize(buffer.destinationPixels()[0]);
         benchmark::ClobberMemory();
     }
 
@@ -513,14 +516,15 @@ static void BM_TranslateEntry(benchmark::State& state, TranslateEntry* entry,
     FrameGeneratorContext context;
     Translate translate(entry->table());
     FrameRenderTarget& buffer = benchmarkBuffer();
+    FrameStageBuffer stageBuffer(buffer);
 
     for (auto _ : state) {
         state.PauseTiming();
         resetForTranslate(*fixture);
         state.ResumeTiming();
 
-        translate.execute(buffer, context);
-        benchmark::DoNotOptimize(buffer.activePixels()[0]);
+        translate.execute(stageBuffer, context);
+        benchmark::DoNotOptimize(buffer.destinationPixels()[0]);
         benchmark::ClobberMemory();
     }
 

@@ -6,41 +6,41 @@
 
 #include <math.h>
 
-void wave_dotHor(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_dotVert(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_lineHor(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_lineVert(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_spike(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_spikeH(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_buff9(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_buff10(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_buff11(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_buff14(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_buff15(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_buff16(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_pete0(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_pete1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_pete2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_test(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_aaron(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_wire1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_wire1dot5(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_wire1dot55(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_wire1dot6(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_wire2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_wire2dot1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_lineHLdiff(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_spiral(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_pyro(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_warp(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_laser(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_corner(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_jump(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_sticks(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_grid(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
-void wave_none(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_dotHor(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_dotVert(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_lineHor(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_lineVert(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_spike(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_spikeH(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff9(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff10(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff11(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff14(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff15(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_buff16(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pete0(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pete1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pete2(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_fract1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_fract2(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_test(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_aaron(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1dot5(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1dot55(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire1dot6(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire2(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_wire2dot1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_lineHLdiff(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_spiral(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_pyro(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_warp(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_laser(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_corner(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_jump(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_sticks(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_grid(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
+void wave_none(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
 
 static int waveCanAlwaysRun(const WaveConfig& config) {
     (void)config;
@@ -214,7 +214,7 @@ int Wave::canRun(const WaveConfig& config) const {
     return (*canRunFunctionValue)(config);
 }
 
-void Wave::execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+void Wave::execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
     const WaveConfig& config, int needsConfiguration, WaveState& state,
     WaveLookupTables& lookupTables, RandomSource& randomSource,
     LogSink& log) const {

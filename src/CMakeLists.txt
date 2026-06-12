@@ -121,6 +121,7 @@ set(CTHUGHA_COMMON_SOURCES
     ViewportPolicy.cc
     FrameFilterchain.cc
     FrameFilterchainSequence.cc
+    FrameFilterchainUserStages.cc
     FrameFilters.cc
     FrameFilterchainFactory.cc
     FrameGeneratorFrameBudget.cc

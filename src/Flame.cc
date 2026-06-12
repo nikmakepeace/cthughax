@@ -2,25 +2,25 @@
 
 #include "Flame.h"
 
-void flame_clear(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_upslow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_upsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_upfast(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_leftslow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_leftsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_leftfast(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_rightslow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_rightsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_rightfast(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_water(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_watersubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_skyline(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_weird(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_zzz(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_fade(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_general_subtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_general_slow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
-void flame_down(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_clear(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_upslow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_upsubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_upfast(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_leftslow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_leftsubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_leftfast(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_rightslow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_rightsubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_rightfast(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_water(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_watersubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_skyline(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_weird(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_zzz(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_fade(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_general_subtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_general_slow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
+void flame_down(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime);
 
 FlameRuntime::FlameRuntime(int generalFlame_, const FlameLookupTables& lookupTables_)
     : generalFlame(generalFlame_)
@@ -39,7 +39,7 @@ const char* Flame::description() const {
     return descriptionValue;
 }
 
-void Flame::execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+void Flame::execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
     int generalFlame, const FlameLookupTables& lookupTables) const {
     if (functionValue != 0) {
         FlameRuntime runtime(generalFlame, lookupTables);

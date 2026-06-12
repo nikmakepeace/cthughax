@@ -1,5 +1,6 @@
 #include "FrameFilterchain.h"
 
+#include "FrameRenderTarget.h"
 #include "ProcessServices.h"
 
 #include <chrono>
@@ -10,6 +11,10 @@ const char* FrameFilter::name() const {
     return "frame-filter";
 }
 
+FrameFilterBufferContract FrameFilter::bufferContract() const {
+    return FrameFilterPixelCopiedSource;
+}
+
 static double filterchainNowSeconds() {
     std::chrono::steady_clock::duration elapsed
         = std::chrono::steady_clock::now().time_since_epoch();
@@ -18,14 +23,14 @@ static double filterchainNowSeconds() {
 
 FrameFilterFrame::FrameFilterFrame(FrameRenderTarget& buffer_, const FrameGeneratorContext& context_,
     FramePalette* framePalette_, IndexedFrame* indexedFrame_, LogSink& log_)
-    : bufferValue(&buffer_)
+    : bufferValue(buffer_)
     , contextValue(&context_)
     , framePaletteValue(framePalette_)
     , indexedFrameValue(indexedFrame_)
     , logValue(&log_) { }
 
-FrameRenderTarget& FrameFilterFrame::buffer() {
-    return *bufferValue;
+FrameStageBuffer& FrameFilterFrame::buffer() {
+    return bufferValue;
 }
 
 const FrameGeneratorContext& FrameFilterFrame::context() const {
@@ -148,6 +153,32 @@ int FrameFilterchain::setStageMode(unsigned int stage, FrameFilterRunMode mode) 
     return matched;
 }
 
+int FrameFilterchain::setStageEnabled(unsigned int stage, int enabled) {
+    int matched = 0;
+    int enabledValue = enabled != 0;
+
+    for (unsigned int i = 0; i < filters.size(); i++) {
+        if (filters[i].stage == stage) {
+            matched++;
+            if (filters[i].enabled != enabledValue)
+                filters[i].enabled = enabledValue;
+        }
+    }
+
+    logValue->trace("frame filterchain",
+        "set stage=%u enabled=%d entries=%d\n", stage, enabledValue, matched);
+    return matched;
+}
+
+int FrameFilterchain::stageEnabled(unsigned int stage) const {
+    for (unsigned int i = 0; i < filters.size(); i++) {
+        if (filters[i].stage == stage)
+            return filters[i].enabled;
+    }
+
+    return 0;
+}
+
 FrameFilterRunMode FrameFilterchain::stageMode(unsigned int stage) const {
     for (unsigned int i = 0; i < filters.size(); i++) {
         if (filters[i].stage == stage)
@@ -183,6 +214,90 @@ void FrameFilterchain::refresh() {
         filters[i].filter->refresh();
 }
 
+static const char* bufferContractName(FrameFilterBufferContract contract) {
+    switch (contract) {
+    case FrameFilterPixelFreshDestination:
+        return "pixel-fresh-destination";
+    case FrameFilterPixelCopiedSource:
+        return "pixel-copied-source";
+    case FrameFilterPaletteOnly:
+        return "palette-only";
+    case FrameFilterCommitBoundary:
+        return "commit-boundary";
+    case FrameFilterPublish:
+        return "publish";
+    }
+
+    return "unknown";
+}
+
+void FrameFilterchain::swapBufferRoles(FrameRenderTarget& buffer,
+    int& currentOutputInDestination, unsigned int stage, const char* filterName,
+    const char* reason) const {
+    buffer.swapSourceAndDestination();
+    currentOutputInDestination = !currentOutputInDestination;
+    logValue->trace("frame filterchain",
+        "buffer-swap reason=%s current=%s stage=%u filter=%s\n",
+        reason, currentOutputInDestination ? "destination" : "source", stage,
+        filterName);
+}
+
+void FrameFilterchain::ensureCurrentOutputInDestination(FrameRenderTarget& buffer,
+    int& currentOutputInDestination, unsigned int stage, const char* filterName,
+    const char* reason) const {
+    if (!currentOutputInDestination)
+        swapBufferRoles(buffer, currentOutputInDestination, stage, filterName,
+            reason);
+}
+
+void FrameFilterchain::ensureCurrentOutputInSource(FrameRenderTarget& buffer,
+    int& currentOutputInDestination, unsigned int stage, const char* filterName,
+    const char* reason) const {
+    if (currentOutputInDestination)
+        swapBufferRoles(buffer, currentOutputInDestination, stage, filterName,
+            reason);
+}
+
+void FrameFilterchain::prepareBufferForFilter(FrameRenderTarget& buffer,
+    FrameFilterBufferContract contract, int& currentOutputInDestination,
+    unsigned int stage, const char* filterName) const {
+    switch (contract) {
+    case FrameFilterPixelFreshDestination:
+    case FrameFilterPixelCopiedSource:
+        ensureCurrentOutputInSource(buffer, currentOutputInDestination, stage,
+            filterName, bufferContractName(contract));
+        if (contract == FrameFilterPixelCopiedSource)
+            buffer.copySourceToDestination();
+        break;
+    case FrameFilterCommitBoundary:
+        ensureCurrentOutputInDestination(buffer, currentOutputInDestination,
+            stage,
+            filterName, bufferContractName(contract));
+        break;
+    case FrameFilterPaletteOnly:
+    case FrameFilterPublish:
+        break;
+    }
+}
+
+void FrameFilterchain::completeBufferForFilter(FrameRenderTarget& buffer,
+    FrameFilterBufferContract contract, int& currentOutputInDestination,
+    unsigned int stage, const char* filterName) const {
+    switch (contract) {
+    case FrameFilterPixelFreshDestination:
+    case FrameFilterPixelCopiedSource:
+        currentOutputInDestination = 1;
+        break;
+    case FrameFilterCommitBoundary:
+        ensureCurrentOutputInSource(buffer, currentOutputInDestination, stage,
+            filterName, "commit");
+        break;
+    case FrameFilterPaletteOnly:
+    case FrameFilterPublish:
+        break;
+    }
+}
+
 void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContext& context) {
     indexedFrameValue = IndexedFrame();
     FrameFilterFrame frame(buffer, context, framePaletteValue, &indexedFrameValue,
@@ -191,12 +306,22 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContex
     double runStartSeconds = traceTiming ? filterchainNowSeconds() : 0.0;
     int executedFilters = 0;
     int skippedFilters = 0;
+    int currentOutputInDestination = 0;
 
     for (unsigned int stageIndex = 0; stageIndex < sequence.size(); stageIndex++) {
         unsigned int stage = sequence[stageIndex];
         for (unsigned int filterIndex = 0; filterIndex < filters.size(); filterIndex++) {
             if (filters[filterIndex].stage != stage)
                 continue;
+
+            if (!filters[filterIndex].enabled) {
+                logValue->trace("frame filterchain",
+                    "skipping unchecked stage=%u filter=%s ptr=%p\n",
+                    filters[filterIndex].stage, filters[filterIndex].filter->name(),
+                    filters[filterIndex].filter);
+                skippedFilters++;
+                continue;
+            }
 
             if (filters[filterIndex].mode == FrameFilterDisabled) {
                 logValue->trace("frame filterchain",
@@ -209,16 +334,24 @@ void FrameFilterchain::run(FrameRenderTarget& buffer, const FrameGeneratorContex
 
             double filterStartSeconds = traceTiming ? filterchainNowSeconds() : 0.0;
             FrameFilterRunMode mode = filters[filterIndex].mode;
+            FrameFilter* filter = filters[filterIndex].filter;
+            FrameFilterBufferContract contract = filter->bufferContract();
+            prepareBufferForFilter(buffer, contract, currentOutputInDestination,
+                filters[filterIndex].stage, filter->name());
             filters[filterIndex].filter->execute(frame);
+            completeBufferForFilter(buffer, contract, currentOutputInDestination,
+                filters[filterIndex].stage, filter->name());
             executedFilters++;
             if (traceTiming) {
                 double filterEndSeconds = filterchainNowSeconds();
                 logValue->trace("frame filterchain",
-                    "filter-ms=%.3f stage=%u filter=%s ptr=%p mode=%d\n",
+                    "filter-ms=%.3f stage=%u filter=%s ptr=%p mode=%d contract=%s current=%s\n",
                     (filterEndSeconds - filterStartSeconds) * 1000.0,
                     filters[filterIndex].stage,
                     filters[filterIndex].filter->name(),
-                    filters[filterIndex].filter, int(mode));
+                    filters[filterIndex].filter, int(mode),
+                    bufferContractName(contract),
+                    currentOutputInDestination ? "destination" : "source");
             }
 
             if (filters[filterIndex].mode == FrameFilterArmedOnce) {

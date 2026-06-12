@@ -165,6 +165,16 @@ RuntimeChangeSet RuntimeChangeMediator::apply(const RuntimeCommand& command) {
         frameGeneratorControls.changePaletteSmoothingChanceTo(command.number);
         changes.uiChanged = 1;
         break;
+    case RuntimeCommandChangeFilterchainSequenceTo:
+        frameGeneratorControls.changeFilterchainSequenceTo(
+            command.textList, command.valueList);
+        changes.uiChanged = 1;
+        break;
+    case RuntimeCommandChangeFilterchainEnabledTo:
+        frameGeneratorControls.changeFilterchainEnabledTo(
+            command.textList, command.valueList);
+        changes.uiChanged = 1;
+        break;
     case RuntimeCommandChangeSceneLockTo:
         sceneCommands.setLock(
             sceneSelectionTargetFromRuntime(command.sceneTarget),

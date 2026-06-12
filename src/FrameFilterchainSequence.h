@@ -12,10 +12,10 @@ class FrameFilterchainSequence {
 public:
     /** Named stage ids understood by FrameFilterchainFactory and Frame Generator. */
     enum Stage {
-        /** One-shot indexed image injection into active/passive buffers. */
+        /** One-shot indexed image injection into source/destination buffers. */
         ImageStage,
 
-        /** Palette flashlight adjustment driven by acoustic context. */
+        /** Fixed-tail palette flashlight adjustment driven by acoustic context. */
         FlashlightStage,
 
         /** Hidden border rows used by flame feedback. */
@@ -33,13 +33,13 @@ public:
         /** Text cue injection stage. */
         TextStage,
 
-        /** Active/passive buffer swap and frame diagnostics. */
+        /** Framework commit boundary and frame diagnostics. */
         FrameCommitStage,
 
-        /** Palette transition stage. */
+        /** Fixed-tail palette transition stage. */
         PaletteStage,
 
-        /** Final IndexedFrame publication stage. */
+        /** Fixed-tail IndexedFrame publication stage. */
         IndexedFrameStage
     };
 

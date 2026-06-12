@@ -9,7 +9,7 @@
 #include "ProcessServices.h"
 #include "waves.h"
 #include "disp-sys.h"
-#include "FrameRenderTarget.h"
+#include "FrameStageBuffer.h"
 #include "FrameGeneratorContext.h"
 #include "WaveObject.h"
 
@@ -113,7 +113,7 @@ static void init_wave_options() {
  * - Does: visible drawing behavior.
  * - Colours: how the wave turns its own values into palette indices.  tableColor(runtime, )
  *   means the current table is applied first; "raw" means the byte written to
- *   buffer.activePixels() is already the palette index and bypasses the table.
+ *   buffer.destinationPixels() is already the palette index and bypasses the table.
  * - Sound: where the wave gets audio information.
  *
  * wave_dotHor
@@ -350,7 +350,7 @@ static void init_wave_options() {
  * - Sound: none.
  */
 
-static void draw_line(FrameRenderTarget& buffer, int x1, int y1, int x2, int y2, int c);
+static void draw_line(FrameStageBuffer& buffer, int x1, int y1, int x2, int y2, int c);
 
 OptionOnOff use_objects("use-objects", 0); /* use 3-D objects */
 
@@ -576,7 +576,7 @@ struct WireObjectFrame {
  * the origin; the upper corner therefore gives both the midpoint and the
  * largest extent used for normalization.
  */
-static int setup_wire_object(FrameRenderTarget& buffer, WaveRuntime& runtime,
+static int setup_wire_object(FrameStageBuffer& buffer, WaveRuntime& runtime,
     WireObjectFrame& frame) {
     int j;
 
@@ -635,13 +635,13 @@ static void wire_point(
     z = (frame.obj[segment][endpoint][2] - frame.pz) / frame.objectHalf;
 }
 
-static void project_wire_point(const FrameRenderTarget& buffer,
+static void project_wire_point(const FrameStageBuffer& buffer,
     double ax, double ay, double az, double scale, double cameraDistance, int& sx, int& sy) {
     sx = int((double)ax * scale / (az + cameraDistance) + MID_X);
     sy = int((double)ay * scale / (az + cameraDistance) + MID_Y);
 }
 
-static void draw_axis_wire_model(FrameRenderTarget& buffer, WaveRuntime& runtime,
+static void draw_axis_wire_model(FrameStageBuffer& buffer, WaveRuntime& runtime,
     const WireObjectFrame& frame, const double axis[3], int theta, double scale, double cameraDistance, int col) {
     int i, x1, y1, x2, y2;
     double x, y, z, ax, ay, az;
@@ -683,7 +683,7 @@ struct WaveDrawingScale {
     int height;
 
     /* One reference pixel is 1/320 of the buffer width and 1/240 of the height. */
-    explicit WaveDrawingScale(const FrameRenderTarget& buffer)
+    explicit WaveDrawingScale(const FrameStageBuffer& buffer)
         : bufferWidth(buffer.width())
         , bufferHeight(buffer.height())
         , width(positiveRoundedScale(buffer.width(), 320))
@@ -707,7 +707,7 @@ struct WaveDrawingScale {
     }
 };
 
-static void put_sized_brush_cut(FrameRenderTarget& buffer,
+static void put_sized_brush_cut(FrameStageBuffer& buffer,
     int brushWidth, int brushHeight, int x, int y, int val) {
     if ((x < 0) || (x >= buffer.width()))
         return;
@@ -734,18 +734,18 @@ static void put_sized_brush_cut(FrameRenderTarget& buffer,
         bottom = buffer.height() - 1;
 
     for (int yy = top; yy <= bottom; yy++) {
-        unsigned char* row = buffer.activeRow(yy);
+        unsigned char* row = buffer.destinationRow(yy);
         for (int xx = left; xx <= right; xx++)
             row[xx] = (unsigned char)val;
     }
 }
 
-static void put_brush_cut(FrameRenderTarget& buffer,
+static void put_brush_cut(FrameStageBuffer& buffer,
     const WaveDrawingScale& scale, int x, int y, int val) {
     put_sized_brush_cut(buffer, scale.width, scale.height, x, y, val);
 }
 
-static void fill_horizontal_span_cut(FrameRenderTarget& buffer,
+static void fill_horizontal_span_cut(FrameStageBuffer& buffer,
     int left, int right, int y, int val) {
     if (y < 0 || y >= buffer.height())
         return;
@@ -763,17 +763,17 @@ static void fill_horizontal_span_cut(FrameRenderTarget& buffer,
     if (right >= buffer.width())
         right = buffer.width() - 1;
 
-    unsigned char* row = buffer.activeRow(y);
+    unsigned char* row = buffer.destinationRow(y);
     for (int x = left; x <= right; x++)
         row[x] = (unsigned char)val;
 }
 
-static void put_brush_cut(FrameRenderTarget& buffer, int x, int y, int val) {
+static void put_brush_cut(FrameStageBuffer& buffer, int x, int y, int val) {
     WaveDrawingScale scale(buffer);
     put_brush_cut(buffer, scale, x, y, val);
 }
 
-static void put_reference_cross_cut(FrameRenderTarget& buffer,
+static void put_reference_cross_cut(FrameStageBuffer& buffer,
     const WaveDrawingScale& scale, int x, int y, int val) {
     put_brush_cut(buffer, scale, x, y, val);
     put_brush_cut(buffer, scale, x - scale.xOffset(1), y, val);
@@ -806,7 +806,7 @@ static int particle_offset(unsigned int value, int radius) {
     return int(value % (unsigned int)(radius * 2 + 1)) - radius;
 }
 
-static void put_particle_cut(FrameRenderTarget& buffer,
+static void put_particle_cut(FrameStageBuffer& buffer,
     const WaveDrawingScale& scale, int x, int y, int val) {
     int centerWidth = max(1, (scale.width + 1) / 2);
     int centerHeight = max(1, (scale.height + 1) / 2);
@@ -836,25 +836,25 @@ static void put_particle_cut(FrameRenderTarget& buffer,
     }
 }
 
-void put_particle_cut(FrameRenderTarget& buffer, int x, int y, int val) {
+void put_particle_cut(FrameStageBuffer& buffer, int x, int y, int val) {
     WaveDrawingScale scale(buffer);
     put_particle_cut(buffer, scale, x, y, val);
 }
 
-void putat(FrameRenderTarget& buffer, int x, int y, int val) {
+void putat(FrameStageBuffer& buffer, int x, int y, int val) {
     WaveDrawingScale scale(buffer);
     put_reference_cross_cut(buffer, scale, x, y, val);
 }
 
-void putat_cut(FrameRenderTarget& buffer, int x, int y, int val) {
+void putat_cut(FrameStageBuffer& buffer, int x, int y, int val) {
     putat(buffer, x, y, val);
 }
 
-void putpixel_cut(FrameRenderTarget& buffer, int x, int y, int val) {
+void putpixel_cut(FrameStageBuffer& buffer, int x, int y, int val) {
     put_brush_cut(buffer, x, y, val);
 }
 
-void draw_line(FrameRenderTarget& buffer, int x1, int y1, int x2, int y2, int c) {
+void draw_line(FrameStageBuffer& buffer, int x1, int y1, int x2, int y2, int c) {
     int lx, ly, dx, dy;
     int i, j, k;
     WaveDrawingScale scale(buffer);
@@ -905,7 +905,7 @@ void draw_line(FrameRenderTarget& buffer, int x1, int y1, int x2, int y2, int c)
     }
 }
 
-void do_vwave(FrameRenderTarget& buffer, int ystart, int yend, int x, int val) {
+void do_vwave(FrameStageBuffer& buffer, int ystart, int yend, int x, int val) {
     int ys, ye;
     WaveDrawingScale scale(buffer);
     int left = x - (scale.width - 1) / 2;
@@ -929,7 +929,7 @@ void do_vwave(FrameRenderTarget& buffer, int ystart, int yend, int x, int val) {
         fill_horizontal_span_cut(buffer, left, right, ys, val);
 }
 
-void do_hwave(FrameRenderTarget& buffer, int xstart, int xend, int y, int val) {
+void do_hwave(FrameStageBuffer& buffer, int xstart, int xend, int y, int val) {
     int xs, xe;
     WaveDrawingScale scale(buffer);
     int top = y - (scale.height - 1) / 2;
@@ -989,7 +989,7 @@ public:
 class WaveRenderer {
 public:
     virtual ~WaveRenderer() { }
-    virtual void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const = 0;
+    virtual void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const = 0;
 };
 
 class ProcessedWaveDataRenderer : public WaveRenderer {
@@ -1027,7 +1027,7 @@ public:
     DotWaveRenderer(Orientation orientation_)
         : orientation(orientation_) { }
 
-    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
+    void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
         int x, sample;
         WaveDrawingScale scale(buffer);
 
@@ -1094,7 +1094,7 @@ public:
     LineWaveRenderer(Variant variant_)
         : variant(variant_) { }
 
-    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
+    void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
         switch (variant) {
         case Horizontal:
             executeHorizontal(buffer, context, runtime);
@@ -1112,7 +1112,7 @@ public:
     }
 
 private:
-    void executeHorizontal(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+    void executeHorizontal(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
         WaveRuntime& runtime) const {
         int x, y, sample;
         HorizontalState& state = runtime.state<HorizontalState>();
@@ -1133,7 +1133,7 @@ private:
         }
     }
 
-    void executeVertical(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+    void executeVertical(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
         WaveRuntime& runtime) const {
         int x, sample;
         int last1 = 128;
@@ -1159,7 +1159,7 @@ private:
         }
     }
 
-    void executeWalking(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+    void executeWalking(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
         WaveRuntime& runtime) const {
         int x, sample;
         int last1 = 128;
@@ -1188,7 +1188,7 @@ private:
         }
     }
 
-    void executeOffsetPair(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+    void executeOffsetPair(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
         WaveRuntime& runtime) const {
         int x, sample;
         int last = 128;
@@ -1229,7 +1229,7 @@ public:
     SpikeWaveRenderer(Style style_)
         : style(style_) { }
 
-    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
+    void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
         if (style == Filled)
             executeFilled(buffer, context, runtime);
         else
@@ -1237,7 +1237,7 @@ public:
     }
 
 private:
-    static void drawFilledColumn(FrameRenderTarget& buffer,
+    static void drawFilledColumn(FrameStageBuffer& buffer,
         const WaveDrawingScale& scale, WaveRuntime& runtime, int x,
         int height) {
         if (height <= 0)
@@ -1257,7 +1257,7 @@ private:
         }
     }
 
-    void executeFilled(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+    void executeFilled(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
         WaveRuntime& runtime) const {
         int x, sample;
         WaveDrawingScale scale(buffer);
@@ -1274,7 +1274,7 @@ private:
         }
     }
 
-    void executeHollow(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
+    void executeHollow(FrameStageBuffer& buffer, const FrameGeneratorContext& context,
         WaveRuntime& runtime) const {
         int channel, x, sample;
         int last = 0;
@@ -1310,7 +1310,7 @@ public:
         : samplePreparation(samplePreparation_)
         , sampleShift(sampleShift_) { }
 
-    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
+    void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
         (void)runtime;
 
         PreparedWaveSamples sound(context, samplePreparation == HeightSamples ? BOTTOM : buffer.width(), 0);
@@ -1319,7 +1319,7 @@ public:
     }
 
 private:
-    void drawChannel(FrameRenderTarget& buffer, const PreparedWaveSamples& sound,
+    void drawChannel(FrameStageBuffer& buffer, const PreparedWaveSamples& sound,
         int channel, int startX) const {
         int last = startX;
 
@@ -1361,10 +1361,10 @@ static const LightningWaveRenderer lightningWidthWave(LightningWaveRenderer::Wid
  *****************************************************************************/
 
 /* Writes no pixels. */
-void wave_none(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { }
+void wave_none(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { }
 
 /* Writes fixed raw palette indices: 48, 96, 128, 160, 192, 224, and 255. */
-void wave_grid(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_grid(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     for (int y = 0; y < buffer.height(); y++) {
         for (int x = 0; x < buffer.width(); x++) {
             int c = 0;
@@ -1379,15 +1379,15 @@ void wave_grid(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
                 c = 224;
 
             if (c != 0)
-                buffer.activePixels()[addr(x, y)] = c;
+                buffer.destinationPixels()[addr(x, y)] = c;
         }
     }
 
     for (int i = 0; (i < buffer.width()) && (i < buffer.height()); i++)
-        buffer.activePixels()[addr(i, i)] = 255;
+        buffer.destinationPixels()[addr(i, i)] = 255;
 
     for (int i = 0; (i < buffer.width()) && (i < buffer.height()); i++)
-        buffer.activePixels()[addr(buffer.width() - 1 - i, i)] = 160;
+        buffer.destinationPixels()[addr(buffer.width() - 1 - i, i)] = 160;
 
     putat_cut(buffer, 5, 5, 255);
     putat_cut(buffer, buffer.width() - 6, 5, 192);
@@ -1396,7 +1396,7 @@ void wave_grid(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_dotHor(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* dot horizontal */
+void wave_dotHor(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* dot horizontal */
     dotHorizontalWave.execute(buffer, context, runtime);
 }
 
@@ -1405,7 +1405,7 @@ void wave_dotHor(FrameRenderTarget& buffer, const FrameGeneratorContext& context
  *****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_dotVert(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* dot vertical */
+void wave_dotVert(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* dot vertical */
     dotVerticalWave.execute(buffer, context, runtime);
 }
 
@@ -1414,7 +1414,7 @@ void wave_dotVert(FrameRenderTarget& buffer, const FrameGeneratorContext& contex
  ****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_lineHor(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Line horizontal */
+void wave_lineHor(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Line horizontal */
     lineHorizontalWave.execute(buffer, context, runtime);
 }
 
@@ -1423,7 +1423,7 @@ void wave_lineHor(FrameRenderTarget& buffer, const FrameGeneratorContext& contex
  ****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_lineVert(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Line veritcal short */
+void wave_lineVert(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Line veritcal short */
     lineVerticalWave.execute(buffer, context, runtime);
 }
 
@@ -1432,12 +1432,12 @@ void wave_lineVert(FrameRenderTarget& buffer, const FrameGeneratorContext& conte
  ****************************************************************************/
 
 /* Writes table-mapped spike-height indices, tableColor(runtime, 0..BOTTOM-1). */
-void wave_spike(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Spike */
+void wave_spike(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Spike */
     filledSpikeWave.execute(buffer, context, runtime);
 }
 
 /* Writes table-mapped scaled-amplitude indices, tableColor(runtime, amplitude). */
-void wave_spikeH(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Spike hollow */
+void wave_spikeH(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Spike hollow */
     hollowSpikeWave.execute(buffer, context, runtime);
 }
 
@@ -1446,11 +1446,11 @@ void wave_spikeH(FrameRenderTarget& buffer, const FrameGeneratorContext& context
  *****************************************************************************/
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff9(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Walking */
+void wave_buff9(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Walking */
     walkingLineWave.execute(buffer, context, runtime);
 }
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff10(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Falling */
+void wave_buff10(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Falling */
     int i;
     struct State {
         int row;
@@ -1472,7 +1472,7 @@ void wave_buff10(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 }
 
 /* Writes table-mapped left-channel sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff11(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Lissa */
+void wave_buff11(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Lissa */
     int tmp, x, tmp2;
     WaveDrawingScale scale(buffer);
 
@@ -1488,21 +1488,21 @@ void wave_buff11(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_buff14(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Line X */
+void wave_buff14(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Line X */
     offsetPairLineWave.execute(buffer, context, runtime);
 }
 
 /* Writes fixed raw palette index 255. */
-void wave_buff15(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Lightning 1 */
+void wave_buff15(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Lightning 1 */
     lightningHeightWave.execute(buffer, context, runtime);
 }
 /* Writes fixed raw palette index 255. */
-void wave_buff16(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Lightning 2 */
+void wave_buff16(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Lightning 2 */
     lightningWidthWave.execute(buffer, context, runtime);
 }
 
 /* Writes table-mapped sound sample indices, mostly tableColor(runtime, sample) across 0..255. */
-void wave_pete0(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* FireFlies */
+void wave_pete0(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* FireFlies */
     int temp, temp2, x;
     struct State {
         int xoff0, yoff0;
@@ -1565,7 +1565,7 @@ void wave_pete0(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 }
 
 /* Writes table-mapped signed-amplitude indices, tableColor(runtime, sample). */
-void wave_pete1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_pete1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     int tmp, x, left = 0, right = 0;
     const int* widthSine = runtime.sineForWidth(buffer.width());
     WaveDrawingScale scale(buffer);
@@ -1601,7 +1601,7 @@ void wave_pete1(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 }
 
 /* Writes table-mapped sine lookup indices from runtime-owned sine tables. */
-void wave_pete2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Dot VS sine */
+void wave_pete2(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Dot VS sine */
     int x, tmp;
     WaveDrawingScale scale(buffer);
 
@@ -1618,7 +1618,7 @@ void wave_pete2(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Zippy 1*/
+void wave_fract1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Zippy 1*/
     int temp, x;
     struct State {
         int xoff0, yoff0;
@@ -1682,7 +1682,7 @@ void wave_fract1(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Zippy 2 */
+void wave_fract2(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Zippy 2 */
     int temp, x;
     struct State {
         int xoff0, yoff0;
@@ -1746,7 +1746,7 @@ void wave_fract2(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 }
 
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample + 128), across 0..255. */
-void wave_test(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Test */
+void wave_test(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) { /* Test */
     int temp, x, left = 0, right = 0;
     const int* widthSine = runtime.sineForWidth(buffer.width());
     WaveDrawingScale scale(buffer);
@@ -1789,7 +1789,7 @@ void wave_test(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
  * the rings have a radius of 64.
  */
 /* Writes table-mapped sound sample indices, tableColor(runtime, sample), across 0..255. */
-void wave_aaron(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_aaron(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         int x, y;
         int first;
@@ -1870,7 +1870,7 @@ void wave_aaron(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 
 /* Line horizontal long diff */
 /* Writes table-mapped stereo-difference indices, tableColor(runtime, left - right + 128). */
-void wave_lineHLdiff(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_lineHLdiff(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     int x, tmp;
     struct State {
         int last;
@@ -1911,7 +1911,7 @@ void wave_lineHLdiff(FrameRenderTarget& buffer, const FrameGeneratorContext& con
  * different radii for different edges.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_wire1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         double theta;
         int col;
@@ -1980,7 +1980,7 @@ void wave_wire1(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
  * so all vertices move together and the wireframe remains coherent.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1dot5(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_wire1dot5(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         int theta;
         int col;
@@ -2019,7 +2019,7 @@ void wave_wire1dot5(FrameRenderTarget& buffer, const FrameGeneratorContext& cont
  * keeps Wire1dot5's coherent frame-wide audio scale.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1dot55(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_wire1dot55(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         int theta;
         int col;
@@ -2071,7 +2071,7 @@ void wave_wire1dot55(FrameRenderTarget& buffer, const FrameGeneratorContext& con
  * slice.  The stretch happens before rotation and perspective projection.
  */
 /* Writes one startup-random table-mapped wire index, tableColor(runtime, random 0..255). */
-void wave_wire1dot6(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_wire1dot6(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         int theta;
         int col;
@@ -2203,7 +2203,7 @@ public:
     WireSwarmWaveRenderer(ModelRotation modelRotation_)
         : modelRotation(modelRotation_) { }
 
-    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
+    void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) const {
         State& state = runtime.state<State>();
         Geometry geometry;
 
@@ -2258,7 +2258,7 @@ private:
         }
     }
 
-    int prepareGeometry(FrameRenderTarget& buffer, WaveRuntime& runtime,
+    int prepareGeometry(FrameStageBuffer& buffer, WaveRuntime& runtime,
         const State& state, Geometry& geometry) const {
         int maxX = 0;
         int maxY = 0;
@@ -2352,7 +2352,7 @@ static const WireSwarmWaveRenderer wireSwarmPerCopyAxisWave(WireSwarmWaveRendere
  * selected WObject and draws it at each saved swarm location.
  */
 /* Writes per-copy startup-random table-mapped wire indices, tableColor(runtime, random 0..255). */
-void wave_wire2(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_wire2(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     wireSwarmYAxisWave.execute(buffer, context, runtime);
 }
 
@@ -2362,13 +2362,13 @@ void wave_wire2(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
  * individual models no longer all tumble around their local y axes.
  */
 /* Writes per-copy startup-random table-mapped wire indices, tableColor(runtime, random 0..255). */
-void wave_wire2dot1(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_wire2dot1(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     wireSwarmPerCopyAxisWave.execute(buffer, context, runtime);
 }
 
 /* by Russ */
 /* Writes one cycling table-mapped index per frame, tableColor(runtime, col 0..255). */
-void wave_spiral(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_spiral(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     int i, amp, mx, cx, cy;
     double x, y, ox, oy, a, la, ra;
     struct State {
@@ -2444,7 +2444,7 @@ typedef struct {
 
 /* by Russ */
 /* Writes per-firework random table-mapped indices, tableColor(runtime, random 0..255). */
-void wave_pyro(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_pyro(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     int i, x1, y1;
     struct State {
         int first;
@@ -2541,7 +2541,7 @@ typedef struct {
 } WarpRing;
 
 /* Writes per-ring random table-mapped indices, tableColor(runtime, random 0..255). */
-void wave_warp(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_warp(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     int i, x1, y1;
     struct State {
         int first;
@@ -2631,7 +2631,7 @@ static int laser_intensity_index(int sample) {
 }
 
 /* Writes table-mapped channel intensity. */
-void wave_laser(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_laser(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         int xl, xr;
         int y;
@@ -2667,7 +2667,7 @@ void wave_laser(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 
 /* by Deischi (inspired by RTL2) */
 /* Writes raw fading indices 255, 127, 63, 31, 15, 7, 3, and 1. */
-void wave_corner(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_corner(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         int x, y;
         State()
@@ -2726,7 +2726,7 @@ void wave_corner(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 
 // by Deischi
 /* Writes fixed raw palette index 255. */
-void wave_jump(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_jump(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
     struct State {
         std::vector<int> speed;
         std::vector<int> pos;
@@ -2772,7 +2772,7 @@ void wave_jump(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
 
 // by Deischi
 /* Writes raw random palette indices. */
-void wave_sticks(FrameRenderTarget& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
+void wave_sticks(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime) {
 
     int n = runtime.fire() >> runtime.waveScale;
     for (int i = 0; i < n; i++) {

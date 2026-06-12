@@ -7,6 +7,9 @@
 #include "FrameGeneratorSceneBinding.h"
 #include "FrameStore.h"
 
+#include <string>
+#include <vector>
+
 class CountdownTimerFactory;
 class FramePalette;
 class IndexedFrame;
@@ -33,7 +36,7 @@ struct FrameGeneratorRuntimeConfig {
 /**
  * Application-owned root for indexed frame generation.
  *
- * FrameGeneratorRuntime owns frame geometry, active/passive storage,
+ * FrameGeneratorRuntime owns frame geometry, source/destination storage,
  * filterchain state, scene binding, transition policy, and generator
  * diagnostics. All runtime collaborators are supplied through construction,
  * configuration, binding, or render context.
@@ -46,6 +49,13 @@ class FrameGeneratorRuntime {
     FrameTransitionController transitionControllerValue;
     FrameGeneratorSceneBinding sceneBindingValue;
     FrameGeneratorPipeline pipelineValue;
+    FrameFilterchainSequence filterchainSequenceValue;
+    std::vector<std::string> filterchainStageNamesValue;
+    std::vector<int> filterchainStageEnabledValue;
+    int filterchainStagePolicyActive;
+
+    int filterchainStageEnabled(FrameFilterchainSequence::Stage stage) const;
+    void applyFilterchainStageGates();
 
 public:
     /**
@@ -86,6 +96,25 @@ public:
      * @param chance Probability clamped to 0..1.
      */
     void setPaletteSmoothingChance(double chance);
+
+    /**
+     * Updates the live filterchain stage sequence.
+     *
+     * @param stages Stable user-reorderable stage names. Structural tail stages
+     *        are appended automatically.
+     * @param enabled Per-stage enabled state; omitted entries are enabled.
+     */
+    void setFilterchainSequence(const std::vector<std::string>& stages,
+        const std::vector<int>& enabled);
+
+    /**
+     * Updates live filterchain stage enable gates without changing sequence.
+     *
+     * @param stages Stable user-controlled stage names.
+     * @param enabled Per-stage enabled state; omitted entries are enabled.
+     */
+    void setFilterchainStageEnabled(const std::vector<std::string>& stages,
+        const std::vector<int>& enabled);
 
     /** @return Live palette-smoothing probability, 0..1. */
     double paletteSmoothingChance() const;

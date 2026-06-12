@@ -5,14 +5,15 @@
 
 #include "TranslationTable.h"
 
-class FrameRenderTarget;
+class FrameStageBuffer;
 class FrameGeneratorContext;
 
 /**
  * Runtime executor for one translation table.
  *
- * Translate swaps active/passive buffers, then remaps passive pixels into the
- * active buffer using TranslationTable source-pixel indexes.
+ * Translate remaps immutable source pixels into mutable destination pixels
+ * using TranslationTable source-pixel indexes.  Physical buffer role changes
+ * are owned by FrameFilterchain.
  */
 class Translate {
     TranslationTable tableValue;
@@ -37,11 +38,11 @@ public:
     /**
      * Applies the coordinate remap to a frame buffer.
      *
-     * @param buffer Active/passive indexed pixel buffer. Dimensions must match
+     * @param buffer Indexed source/destination buffer. Dimensions must match
      *        the translation table.
      * @param context Current frame render context; currently unused by translate.
      */
-    void execute(FrameRenderTarget& buffer, const FrameGeneratorContext& context) const;
+    void execute(FrameStageBuffer& buffer, const FrameGeneratorContext& context) const;
 };
 
 #endif

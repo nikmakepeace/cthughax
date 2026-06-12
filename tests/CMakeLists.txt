@@ -416,8 +416,11 @@ add_executable(frame_filterchain_diagnostics_test
     ${CMAKE_SOURCE_DIR}/src/AudioFrame.cc
     ${CMAKE_SOURCE_DIR}/src/FrameFilterchain.cc
     ${CMAKE_SOURCE_DIR}/src/FrameGeneratorContext.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameGeometry.cc
     ${CMAKE_SOURCE_DIR}/src/FrameRenderTarget.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameStore.cc
     ${CMAKE_SOURCE_DIR}/src/ProcessServices.cc
+    ${CMAKE_SOURCE_DIR}/src/SceneGeometry.cc
 )
 
 target_include_directories(frame_filterchain_diagnostics_test PRIVATE
@@ -430,6 +433,23 @@ target_link_libraries(frame_filterchain_diagnostics_test PRIVATE m)
 
 add_test(NAME frame_filterchain_diagnostics_test
     COMMAND frame_filterchain_diagnostics_test)
+
+add_executable(frame_filterchain_user_stages_test
+    unit/FrameFilterchainUserStagesTest.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameFilterchainSequence.cc
+    ${CMAKE_SOURCE_DIR}/src/FrameFilterchainUserStages.cc
+)
+
+target_include_directories(frame_filterchain_user_stages_test PRIVATE
+    ${CMAKE_BINARY_DIR}
+    ${CMAKE_BINARY_DIR}/src
+    ${CMAKE_SOURCE_DIR}/src
+)
+
+target_link_libraries(frame_filterchain_user_stages_test PRIVATE m)
+
+add_test(NAME frame_filterchain_user_stages_test
+    COMMAND frame_filterchain_user_stages_test)
 
 add_executable(frame_clock_test
     unit/FrameClockTest.cc

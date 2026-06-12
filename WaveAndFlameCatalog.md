@@ -168,6 +168,61 @@ offsets, whole-buffer scans, and hidden border rows.
 | `GenSlow` | Configurable feedback kernel | Same configurable offsets as `GenSubt`, but byte-by-byte. Easier to read, slower. |
 | `Down` | Feedback shift | Copies the previous frame downward by one row. Top hidden border row becomes visible. |
 
+## Flame Buffer Protocol
+
+The flame stage is not a pure pixel transform. It participates in the
+active/passive framebuffer protocol used by the whole render pipeline:
+
+```text
+active  = next frame being built
+passive = previously committed/display-facing frame
+```
+
+Some flame kernels call `buffer.swapBuffers()` as their first operation. After
+that swap, the old passive/display-facing frame has become active, and the
+kernel edits it in place. Other kernels never swap; they read `passivePixels()`
+as the previous frame and write a separate result into `activePixels()`.
+
+No built-in flame swaps in the middle or at the end; when swapping happens, it
+happens immediately on entry before sampling.
+
+| Entry | Swap behaviour | Source -> destination | Likely reason |
+|---|---|---|---|
+| `Clear` | No swap | Clears active visible pixels | This is not a feedback transform. It intentionally blanks the next frame before later translate/wave drawing. |
+| `u-Sl` / Up Slow | Swaps immediately | Old passive becomes active; edits active in place | Uses the previous displayed frame as the work buffer, then scan direction plus neighbor offsets create upward smear while avoiding a separate source buffer. |
+| `u-Su` / Up Subtle | No swap | Passive -> active via `flame_general_subtle_filter` | Uses the generalized four-offset helper. Arbitrary/general offsets are safer as a separate previous-frame read and next-frame write. |
+| `u-Fa` / Up Fast | Swaps immediately | Old passive becomes active; edits active in place | Fast in-place upward smear. The scan direction and lower-neighbor reads are part of the effect/legacy behavior. |
+| `l-Sl` / Left Slow | Swaps immediately | Old passive becomes active; edits active in place | Slow in-place left/up drift. Reuses the previous displayed frame as the work buffer. |
+| `l-Su` / Left Subtle | No swap | Passive -> active via `flame_general_subtle_filter` | Generalized leftward offsets use the common passive-to-active helper rather than in-place feedback. |
+| `l-Fa` / Left Fast | Swaps immediately | Old passive becomes active; edits active in place | Fast in-place leftward smear using current/lower-right/lower samples. |
+| `r-Sl` / Right Slow | No swap | Passive -> active | Reads upper-left/current/left/lower from the previous frame while writing the next frame. This avoids clobbering source pixels during rightward drift. |
+| `r-Su` / Right Subtle | No swap | Passive -> active via `flame_general_subtle_filter` | Generalized rightward offsets use the common passive-to-active helper. |
+| `r-Fa` / Right Fast | Swaps immediately | Old passive becomes active; edits active in place | Fast in-place rightward smear using current/lower-left/lower samples. |
+| `Water` | No swap | Passive -> active | The top and bottom halves are computed from the previous frame into the next frame. Separate source/destination prevents the two half-scans from feeding each other mid-frame. |
+| `Wa-s` / Water Subtle | No swap | Passive -> active | Same two-half water protocol as `Water`, but with signed-byte intermediate arithmetic. |
+| `Skyline` | No swap | Passive -> active | Row-local side-neighbor smear. Separate source/destination keeps horizontal diffusion from reading pixels already written this frame. |
+| `Weird` | No swap | Passive -> active | OR-based propagation reads left/current/right/lower from the previous frame. Separate buffers preserve the high-contrast source pattern for the whole pass. |
+| `Zzz` | Swaps immediately | Old passive becomes active; edits active in place | Sparse upward drift/decay can be done in place with the chosen scan direction and two-sample decay table. |
+| `Fade` | Swaps immediately | Old passive becomes active; edits active in place | Uniform decay of the previous displayed frame. No separate source buffer is needed because each pixel depends only on itself. |
+| `GenSubt` | No swap | Passive -> active via `flame_general_subtle_filter` | Configurable offsets can point anywhere in the 3x3 neighborhood plus shift; a fixed in-place scan direction would not be generally safe. |
+| `GenSlow` | No swap | Passive -> active via `flame_general_slow_filter` | Same configurable-offset reason as `GenSubt`, but with byte-by-byte reference-style arithmetic. |
+| `Down` | No swap | Passive, offset one row upward -> active | Explicit previous-frame row shift. It reads from the passive top hidden row into the active top visible row. |
+
+### Reorder Implications
+
+This explains why arbitrary filterchain reordering is unsafe today:
+
+- `Translate` also swaps active/passive before remapping passive into active.
+- `Wave` draws only into active pixels.
+- `FrameCommit` swaps active/passive, and `IndexedFrame` publishes passive.
+- Several flames either swap immediately or overwrite active from passive.
+
+So orders such as `Translate -> Flame` or `Wave -> Flame` are not equivalent
+rearrangements. They change which buffer a later stage sees and which buffer is
+eventually published. The current implementation therefore has an implicit
+buffer dependency graph, even though the UI currently exposes the stages as if
+they were freely reorderable peers.
+
 ### Flame Notes
 
 Direct audio in flame kernels:

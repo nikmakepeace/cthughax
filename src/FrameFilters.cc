@@ -1,5 +1,4 @@
 #include "BorderRenderer.h"
-#include "FrameRenderTarget.h"
 #include "Flame.h"
 #include "FlashlightRenderer.h"
 #include "FramePalette.h"
@@ -14,11 +13,14 @@
 
 ImageFilter::ImageFilter()
     : image(0)
-    , placement()
-    , overlayPassiveBuffer(1) { }
+    , placement() { }
 
 const char* ImageFilter::name() const {
     return "image";
+}
+
+FrameFilterBufferContract ImageFilter::bufferContract() const {
+    return FrameFilterPixelCopiedSource;
 }
 
 void ImageFilter::setImage(const IndexedImage* image_) {
@@ -29,38 +31,26 @@ void ImageFilter::setPlacement(const ImagePlacement& placement_) {
     placement = placement_;
 }
 
-void ImageFilter::setOverlayPassiveBuffer(int enabled) {
-    overlayPassiveBuffer = enabled;
-}
-
 void ImageFilter::execute(FrameFilterFrame& frame) {
     frame.log().trace("frame filterchain", "executing image stage\n");
     if (image == 0 || !placement.visible())
         return;
 
-    FrameRenderTarget& buffer = frame.buffer();
-    unsigned char* active = buffer.activePixels();
-    unsigned char* passive = buffer.passivePixels();
+    FrameStageBuffer& buffer = frame.buffer();
+    unsigned char* destinationPixels = buffer.destinationPixels();
     const unsigned char* sourcePixels = image->pixels();
-    if (active == 0 || sourcePixels == 0)
+    if (destinationPixels == 0 || sourcePixels == 0)
         return;
 
     for (int row = 0; row < placement.height; row++) {
         const unsigned char* source = sourcePixels
             + (placement.sourceY + row) * image->width()
             + placement.sourceX;
-        unsigned char* activeDestination = active
+        unsigned char* destination = destinationPixels
             + (placement.destinationY + row) * buffer.pitch()
             + placement.destinationX;
 
-        memcpy(activeDestination, source, placement.width);
-
-        if (overlayPassiveBuffer && passive != 0) {
-            unsigned char* passiveDestination = passive
-                + (placement.destinationY + row) * buffer.pitch()
-                + placement.destinationX;
-            memcpy(passiveDestination, source, placement.width);
-        }
+        memcpy(destination, source, placement.width);
     }
 }
 
@@ -70,6 +60,10 @@ FlameFilter::FlameFilter()
 
 const char* FlameFilter::name() const {
     return "flame";
+}
+
+FrameFilterBufferContract FlameFilter::bufferContract() const {
+    return FrameFilterPixelCopiedSource;
 }
 
 void FlameFilter::setFlame(const Flame* flame_) {
@@ -94,6 +88,12 @@ const char* TranslateFilter::name() const {
     return "translate";
 }
 
+FrameFilterBufferContract TranslateFilter::bufferContract() const {
+    return translate.ready()
+        ? FrameFilterPixelFreshDestination
+        : FrameFilterPixelCopiedSource;
+}
+
 void TranslateFilter::setTranslate(const TranslationTable& table) {
     translate = Translate(table);
 }
@@ -114,6 +114,10 @@ WaveFilter::WaveFilter()
 
 const char* WaveFilter::name() const {
     return "wave";
+}
+
+FrameFilterBufferContract WaveFilter::bufferContract() const {
+    return FrameFilterPixelCopiedSource;
 }
 
 void WaveFilter::setWave(Wave* wave_, const WaveConfig& config_) {
@@ -154,6 +158,10 @@ TextInjectionFilter::TextInjectionFilter()
 
 const char* TextInjectionFilter::name() const {
     return "text-injection";
+}
+
+FrameFilterBufferContract TextInjectionFilter::bufferContract() const {
+    return FrameFilterPixelCopiedSource;
 }
 
 void TextInjectionFilter::setMessage(const char* message_, int frameCount) {
@@ -311,9 +319,9 @@ static int textInjectionInkColor(const FramePalette* framePalette, int requested
     return bestBrightness > 0 ? bestColor : 255;
 }
 
-static void textInjectionDrawLine(FrameRenderTarget& buffer, const BitmapFont& font,
+static void textInjectionDrawLine(FrameStageBuffer& buffer, const BitmapFont& font,
     const std::string& line, int x, int y, int color) {
-    unsigned char* pixels = buffer.activePixels();
+    unsigned char* pixels = buffer.destinationPixels();
     if (pixels == 0)
         return;
 
@@ -341,9 +349,9 @@ void TextInjectionFilter::execute(FrameFilterFrame& frame) {
     if (framesRemaining <= 0 || message.empty())
         return;
 
-    FrameRenderTarget& buffer = frame.buffer();
+    FrameStageBuffer& buffer = frame.buffer();
     if (font == 0 || font->glyphWidth <= 0 || font->glyphHeight <= 0
-        || buffer.activePixels() == 0) {
+        || buffer.destinationPixels() == 0) {
         framesRemaining = 0;
         return;
     }
@@ -389,6 +397,10 @@ const char* FrameCommitFilter::name() const {
     return "frame-commit";
 }
 
+FrameFilterBufferContract FrameCommitFilter::bufferContract() const {
+    return FrameFilterCommitBoundary;
+}
+
 void FrameCommitFilter::setSceneNames(const char* flameName_, const char* waveName_,
     const char* waveScaleName_, const char* tableName_) {
     flameName = (flameName_ != 0) ? flameName_ : "unknown";
@@ -399,13 +411,13 @@ void FrameCommitFilter::setSceneNames(const char* flameName_, const char* waveNa
 
 void FrameCommitFilter::execute(FrameFilterFrame& frame) {
     frame.log().trace("frame filterchain", "committing indexed buffer frame\n");
-    FrameRenderTarget& buffer = frame.buffer();
+    FrameStageBuffer& buffer = frame.buffer();
 
     if (frame.log().debugEnabled() && (debugReports < 16)) {
         int nonzero = 0;
         int peak = 0;
         for (int y = 0; y < buffer.height(); y++) {
-            const unsigned char* row = buffer.activeRow(y);
+            const unsigned char* row = buffer.destinationRow(y);
             for (int x = 0; x < buffer.width(); x++) {
                 int value = row[x];
                 if (value != 0)
@@ -422,14 +434,16 @@ void FrameCommitFilter::execute(FrameFilterFrame& frame) {
             tableName,
             nonzero, peak, buffer.size());
     }
-
-    buffer.swapBuffers();
 }
 
 FlashlightFilter::FlashlightFilter() { }
 
 const char* FlashlightFilter::name() const {
     return "flashlight";
+}
+
+FrameFilterBufferContract FlashlightFilter::bufferContract() const {
+    return FrameFilterPaletteOnly;
 }
 
 void FlashlightFilter::execute(FrameFilterFrame& frame) {
@@ -446,6 +460,10 @@ const char* BorderFilter::name() const {
     return "border";
 }
 
+FrameFilterBufferContract BorderFilter::bufferContract() const {
+    return FrameFilterPixelCopiedSource;
+}
+
 void BorderFilter::setBorderMode(int borderMode_) {
     borderMode = borderMode_;
 }
@@ -460,6 +478,10 @@ PaletteFilter::PaletteFilter() { }
 
 const char* PaletteFilter::name() const {
     return "palette";
+}
+
+FrameFilterBufferContract PaletteFilter::bufferContract() const {
+    return FrameFilterPaletteOnly;
 }
 
 FramePalette& PaletteFilter::framePalette() {
@@ -494,10 +516,14 @@ const char* IndexedFrameFilter::name() const {
     return "indexed-frame";
 }
 
+FrameFilterBufferContract IndexedFrameFilter::bufferContract() const {
+    return FrameFilterPublish;
+}
+
 void IndexedFrameFilter::execute(FrameFilterFrame& frame) {
     frame.log().trace("frame filterchain", "publishing indexed frame\n");
-    FrameRenderTarget& buffer = frame.buffer();
-    frame.publishIndexedFrame(IndexedFrame(buffer.passivePixels(),
+    FrameStageBuffer& buffer = frame.buffer();
+    frame.publishIndexedFrame(IndexedFrame(buffer.sourcePixels(),
         buffer.width(), buffer.height(), buffer.pitch(), frame.framePalette()));
 }
 

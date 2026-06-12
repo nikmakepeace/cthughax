@@ -1,6 +1,6 @@
 #include "cthugha.h"
 #include "Border.h"
-#include "FrameRenderTarget.h"
+#include "FrameStageBuffer.h"
 #include "FrameGeneratorContext.h"
 #include "cth_buffer.h"
 
@@ -37,17 +37,17 @@ static void copyAudioBorderRow(unsigned char* destination, int width, int pitch,
         memset(destination + width, 0, pitch - width);
 }
 
-void apply_border(FrameRenderTarget& buffer, const FrameGeneratorContext& context, int borderMode) {
-    unsigned char* active = buffer.activePixels();
-    if (active == 0)
+void apply_border(FrameStageBuffer& buffer, const FrameGeneratorContext& context, int borderMode) {
+    unsigned char* destination = buffer.destinationPixels();
+    if (destination == 0)
         return;
 
     int width = buffer.width();
     int pitch = buffer.pitch();
     int hiddenRows = buffer.hiddenBorderRows();
     int hiddenBytes = buffer.hiddenBorderByteCount();
-    unsigned char* top = buffer.activeTopHiddenRows();
-    unsigned char* bottom = buffer.activeBottomHiddenRows();
+    unsigned char* top = buffer.destinationTopHiddenRows();
+    unsigned char* bottom = buffer.destinationBottomHiddenRows();
 
     switch (borderMode) {
     case 0:

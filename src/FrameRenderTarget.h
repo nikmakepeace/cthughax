@@ -6,20 +6,22 @@
 #include "FrameStorageLayout.h"
 
 /**
- * Mutable active/passive indexed pixel target for one Frame Generator store.
+ * Mutable source/destination indexed pixel target for one Frame Generator
+ * store.
  *
- * This is the narrow render-target surface used by legacy filter, flame,
- * translate, wave, border, image, text, and frame-publication code while
- * storage ownership lives in FrameStore. It has no process-wide aliases.
+ * Source is the current frame available for stages to read. Destination is
+ * the scratch/write frame the framework gives to the current stage.
+ * Storage ownership lives in FrameStore. It has no process-wide aliases.
  */
 class FrameRenderTarget {
     friend class FrameStore;
+    friend class FrameFilterchain;
 
 public:
     /** Creates a target with historical default dimensions and no pixels. */
     FrameRenderTarget();
 
-    /** Releases active/passive pixel allocations. */
+    /** Releases source/destination pixel allocations. */
     ~FrameRenderTarget();
 
     /** @return Visible frame width in indexed pixels. */
@@ -68,65 +70,62 @@ public:
      */
     void setLayout(const FrameStorageLayout& layout);
 
-    /** Swaps active and passive allocations. */
-    void swapBuffers();
-
     /**
-     * Clears active and passive visible plus hidden pixel storage.
+     * Clears source and destination visible plus hidden pixel storage.
      */
     void clear();
 
-    /** @return Mutable first visible pixel of the active buffer. */
-    unsigned char* activePixels();
+    /** @return Mutable first visible pixel of the destination buffer. */
+    unsigned char* destinationPixels();
 
     /**
      * @param y Visible row index.
-     * @return Mutable active row start for y.
+     * @return Mutable destination row start for y.
      */
-    unsigned char* activeRow(int y);
+    unsigned char* destinationRow(int y);
 
-    /** @return Mutable first visible pixel of the passive buffer. */
-    unsigned char* passivePixels();
+    /** @return Mutable first visible pixel of the source buffer. */
+    unsigned char* sourcePixels();
 
     /**
      * @param y Visible row index.
-     * @return Mutable passive row start for y.
+     * @return Mutable source row start for y.
      */
-    unsigned char* passiveRow(int y);
+    unsigned char* sourceRow(int y);
 
-    /** @return Immutable first visible pixel of the active buffer. */
-    const unsigned char* activePixels() const;
+    /** @return Immutable first visible pixel of the destination buffer. */
+    const unsigned char* destinationPixels() const;
 
     /**
      * @param y Visible row index.
-     * @return Immutable active row start for y.
+     * @return Immutable destination row start for y.
      */
-    const unsigned char* activeRow(int y) const;
+    const unsigned char* destinationRow(int y) const;
 
-    /** @return Immutable first visible pixel of the passive buffer. */
-    const unsigned char* passivePixels() const;
+    /** @return Immutable first visible pixel of the source buffer. */
+    const unsigned char* sourcePixels() const;
 
     /**
      * @param y Visible row index.
-     * @return Immutable passive row start for y.
+     * @return Immutable source row start for y.
      */
-    const unsigned char* passiveRow(int y) const;
+    const unsigned char* sourceRow(int y) const;
 
     /**
-     * @return First hidden row above the active visible image.
+     * @return First hidden row above the destination visible image.
      */
-    unsigned char* activeTopHiddenRows();
+    unsigned char* destinationTopHiddenRows();
 
     /**
-     * @return First hidden row below the active visible image.
+     * @return First hidden row below the destination visible image.
      */
-    unsigned char* activeBottomHiddenRows();
+    unsigned char* destinationBottomHiddenRows();
 
     /** @return Nonzero when visible rows have no padding. */
     int visibleRowsArePacked() const;
 
     /**
-     * Maps a visible x/y coordinate to a byte offset from activePixels().
+     * Maps a visible x/y coordinate to a byte offset from a visible frame.
      *
      * @param x Visible x coordinate.
      * @param y Visible y coordinate.
@@ -138,7 +137,7 @@ public:
      * Maps a packed visible-stream offset to a pitched storage offset.
      *
      * @param linearOffset Offset in a width-packed visible/hidden row stream.
-     * @return Storage offset from activePixels()/passivePixels().
+     * @return Storage offset from destinationPixels()/sourcePixels().
      */
     int visibleLinearOffset(int linearOffset) const;
 
@@ -146,17 +145,23 @@ private:
     FrameRenderTarget(const FrameRenderTarget&) = delete;
     FrameRenderTarget& operator=(const FrameRenderTarget&) = delete;
 
-    unsigned char* activeAllocation;
-    unsigned char* passiveAllocation;
-    unsigned char* activeBuffer; /* visible pixels next on screen */
-    unsigned char* passiveBuffer; /* visible pixels current on screen */
+    unsigned char* destinationAllocation;
+    unsigned char* sourceAllocation;
+    unsigned char* destinationBuffer;
+    unsigned char* sourceBuffer;
     FrameStorageLayout layoutValue;
 
     int allocationByteCount() const;
     unsigned char* visiblePixels(unsigned char* allocation) const;
 
+    /** Swaps source and destination allocations. */
+    void swapSourceAndDestination();
+
+    /** Copies the full source allocation into destination. */
+    void copySourceToDestination();
+
     /**
-     * Allocates active/passive pixel memory for the current dimensions.
+     * Allocates source/destination pixel memory for the current dimensions.
      *
      * Must run after option parsing has applied the final buffer width/height.
      * The allocation includes hidden rows above and below the visible pixels so

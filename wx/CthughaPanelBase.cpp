@@ -14,16 +14,20 @@ CthughaPanelBase::CthughaPanelBase( wxWindow* parent, wxWindowID id, const wxStr
 	this->SetSizeHints( wxDefaultSize, wxDefaultSize );
 
 	wxFlexGridSizer* fgSizer1;
-	fgSizer1 = new wxFlexGridSizer( 0, 2, 0, 0 );
+	fgSizer1 = new wxFlexGridSizer( 0, 1, 0, 0 );
 	fgSizer1->AddGrowableCol( 0 );
 	fgSizer1->AddGrowableRow( 0 );
 	fgSizer1->SetFlexibleDirection( wxBOTH );
 	fgSizer1->SetNonFlexibleGrowMode( wxFLEX_GROWMODE_SPECIFIED );
 
+	m_notebook5 = new wxNotebook( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0 );
+	m_sceneControls_panel = new wxPanel( m_notebook5, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	m_sceneControls_panel->SetBackgroundColour( wxSystemSettings::GetColour( wxSYS_COLOUR_WINDOW ) );
+
 	wxBoxSizer* bSizer3;
 	bSizer3 = new wxBoxSizer( wxVERTICAL );
 
-	m_scrolledWindow1 = new wxScrolledWindow( this, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHSCROLL|wxVSCROLL );
+	m_scrolledWindow1 = new wxScrolledWindow( m_sceneControls_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxHSCROLL|wxVSCROLL );
 	m_scrolledWindow1->SetScrollRate( 5, 5 );
 	wxFlexGridSizer* fgSizer2;
 	fgSizer2 = new wxFlexGridSizer( 0, 3, 0, 0 );
@@ -292,11 +296,29 @@ CthughaPanelBase::CthughaPanelBase( wxWindow* parent, wxWindowID id, const wxStr
 	bSizer3->Add( m_scrolledWindow1, 1, wxEXPAND | wxALL, 5 );
 
 
-	fgSizer1->Add( bSizer3, 1, wxEXPAND, 5 );
+	m_sceneControls_panel->SetSizer( bSizer3 );
+	m_sceneControls_panel->Layout();
+	bSizer3->Fit( m_sceneControls_panel );
+	m_notebook5->AddPage( m_sceneControls_panel, _("Scene Controls"), true );
+	m_filterChain_panel = new wxPanel( m_notebook5, wxID_ANY, wxDefaultPosition, wxDefaultSize, wxTAB_TRAVERSAL );
+	wxBoxSizer* bSizer5;
+	bSizer5 = new wxBoxSizer( wxVERTICAL );
+
+	m_filterchain_listBox = new wxListBox( m_filterChain_panel, wxID_ANY, wxDefaultPosition, wxDefaultSize, 0, NULL, wxLB_MULTIPLE|wxLB_NEEDED_SB );
+	bSizer5->Add( m_filterchain_listBox, 0, wxALL|wxEXPAND, 5 );
+
+
+	m_filterChain_panel->SetSizer( bSizer5 );
+	m_filterChain_panel->Layout();
+	bSizer5->Fit( m_filterChain_panel );
+	m_notebook5->AddPage( m_filterChain_panel, _("Filter Chain"), false );
+
+	fgSizer1->Add( m_notebook5, 1, wxEXPAND | wxALL, 5 );
 
 
 	this->SetSizer( fgSizer1 );
 	this->Layout();
+	m_connected_statusBar = this->CreateStatusBar( 1, wxSTB_DEFAULT_STYLE|wxSTB_SIZEGRIP, wxID_ANY );
 
 	this->Centre( wxBOTH );
 }

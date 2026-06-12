@@ -6,8 +6,8 @@
 /**
  * Borrowed view over a coordinate-remap table.
  *
- * Each entry is a source pixel index into the previous/passive buffer. Entry
- * N tells Translate which source pixel should become destination pixel N.
+ * Each entry is a source pixel index into the frame source. Entry N tells
+ * Translate which source pixel should become destination pixel N.
  */
 class TranslationTable {
     const char* nameValue;

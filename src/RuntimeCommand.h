@@ -6,6 +6,7 @@
 #define __RUNTIME_COMMAND_H
 
 #include <string>
+#include <vector>
 
 class RuntimeEffectControlTarget;
 class RuntimeOptionTarget;
@@ -46,6 +47,8 @@ enum RuntimeCommandType {
     RuntimeCommandChangeAutoChangeChangeLittleTo,
     RuntimeCommandChangeAutoChangeCumulativeFireLevelTo,
     RuntimeCommandChangePaletteSmoothingChanceTo,
+    RuntimeCommandChangeFilterchainSequenceTo,
+    RuntimeCommandChangeFilterchainEnabledTo,
     RuntimeCommandChangeSceneLockTo,
     RuntimeCommandChangeScreenLockTo,
     RuntimeCommandChangeSoundProcessingLockTo,
@@ -94,6 +97,8 @@ struct RuntimeCommand {
     int value;
     double number;
     const char* text;
+    std::vector<std::string> textList;
+    std::vector<int> valueList;
     RuntimeEffectControlTarget* effectControlTarget;
     RuntimeOptionTarget* optionTarget;
     RuntimePaletteMetadataTarget* paletteMetadataTarget;
@@ -268,6 +273,29 @@ struct RuntimeCommand {
      * @return Runtime command.
      */
     static RuntimeCommand changePaletteSmoothingChanceTo(double chance);
+
+    /**
+     * Creates an absolute frame filterchain sequence command.
+     *
+     * @param stages Stable stage names in desired order. The renderer appends
+     *        structural tail stages that are not user-reorderable.
+     * @param enabled Per-stage enabled state; omitted entries are enabled.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeFilterchainSequenceTo(
+        const std::vector<std::string>& stages,
+        const std::vector<int>& enabled = std::vector<int>());
+
+    /**
+     * Creates an absolute frame filterchain stage-enable command.
+     *
+     * @param stages Stable stage names whose enabled state is being updated.
+     * @param enabled Per-stage enabled state; omitted entries are enabled.
+     * @return Runtime command.
+     */
+    static RuntimeCommand changeFilterchainEnabledTo(
+        const std::vector<std::string>& stages,
+        const std::vector<int>& enabled);
 
     /**
      * Creates an absolute scene-selection lock command.

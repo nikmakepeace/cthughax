@@ -28,6 +28,13 @@ int FrameGeneratorPipeline::initialized() const {
     return filterchainValue.get() != 0;
 }
 
+void FrameGeneratorPipeline::setSequence(
+    const FrameFilterchainSequence& sequence) {
+    sequenceValue = sequence;
+    if (filterchainValue.get() != 0)
+        filterchainValue->setStageSequence(sequenceValue.sequence());
+}
+
 void FrameGeneratorPipeline::reset() {
     filterchainValue.reset();
     sequenceValue = FrameFilterchainSequence();

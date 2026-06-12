@@ -5,7 +5,7 @@
 #include "Interface.h"
 #include "ProcessServices.h"
 #include "cth_buffer.h"
-#include "FrameRenderTarget.h"
+#include "FrameStageBuffer.h"
 #include "flames.h"
 
 #include <string.h>
@@ -40,9 +40,9 @@ struct FlameOffsets {
     }
 };
 
-void flame_general_subtle_filter(FrameRenderTarget& buffer,
+void flame_general_subtle_filter(FrameStageBuffer& buffer,
     const FlameLookupTables& tables, const FlameOffsets& offsets);
-void flame_general_slow_filter(FrameRenderTarget& buffer,
+void flame_general_slow_filter(FrameStageBuffer& buffer,
     const FlameLookupTables& tables, const FlameOffsets& offsets);
 
 static const char* applyLockPrefix(const char* to, OptionOnOff& lock) {
@@ -225,34 +225,34 @@ static FlameOffsets general_offsets(int generalFlame, int width) {
     return offsets;
 }
 
-static unsigned char activeLinearPixel(FrameRenderTarget& buffer, int offset) {
-    return buffer.activePixels()[buffer.visibleLinearOffset(offset)];
+static unsigned char destinationLinearPixel(FrameStageBuffer& buffer, int offset) {
+    return buffer.destinationPixels()[buffer.visibleLinearOffset(offset)];
 }
 
-static unsigned char passiveLinearPixel(FrameRenderTarget& buffer, int offset) {
-    return buffer.passivePixels()[buffer.visibleLinearOffset(offset)];
+static unsigned char sourceLinearPixel(FrameStageBuffer& buffer, int offset) {
+    return buffer.sourcePixels()[buffer.visibleLinearOffset(offset)];
 }
 
 static int signedByteFromUnsigned(unsigned char value) {
     return (value < 128) ? int(value) : int(value) - 256;
 }
 
-static int passiveSignedLinearPixel(FrameRenderTarget& buffer, int offset) {
-    return signedByteFromUnsigned(passiveLinearPixel(buffer, offset));
+static int sourceSignedLinearPixel(FrameStageBuffer& buffer, int offset) {
+    return signedByteFromUnsigned(sourceLinearPixel(buffer, offset));
 }
 
 static int signedPackedPixel(const unsigned char* pixels, int offset) {
     return signedByteFromUnsigned(pixels[offset]);
 }
 
-static void setActiveLinearPixel(FrameRenderTarget& buffer, int offset,
+static void setDestinationLinearPixel(FrameStageBuffer& buffer, int offset,
     unsigned char value) {
-    buffer.activePixels()[buffer.visibleLinearOffset(offset)] = value;
+    buffer.destinationPixels()[buffer.visibleLinearOffset(offset)] = value;
 }
 
-static void clearActiveVisiblePixels(FrameRenderTarget& buffer) {
+static void clearDestinationVisiblePixels(FrameStageBuffer& buffer) {
     for (int y = 0; y < buffer.height(); y++)
-        memset(buffer.activeRow(y), 0, buffer.width());
+        memset(buffer.destinationRow(y), 0, buffer.width());
 }
 
 /*
@@ -260,11 +260,11 @@ static void clearActiveVisiblePixels(FrameRenderTarget& buffer) {
  * Does: clears every visible buffer pixel to palette index 0 before translate
  * and wave drawing.
  * How: clears each visible row through the render-target pitch; it does not
- * read buffer.passivePixels() or the border rows.
+ * read source pixels or the border rows.
  * Sound/border: ignores sound and border input.
  */
-void flame_clear(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
-    clearActiveVisiblePixels(buffer);
+void flame_clear(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+    clearDestinationVisiblePixels(buffer);
 }
 
 /*****************************************************************************
@@ -275,22 +275,21 @@ void flame_clear(FrameRenderTarget& buffer, const FrameGeneratorContext& context
  * UI: u-Sl (Up Slow)
  * Does: diffuses the previous frame upward, making bright pixels drift toward
  * the top with a slow, smooth trail.
- * How: swaps active/passive buffers, then for each destination pixel averages
- * three nearby horizontal samples plus the pixel below and applies divsub,
- * which divides by four and subtracts one.
+ * How: the framework initializes destination from immutable source;
+ * this averages three nearby horizontal samples plus the pixel below and
+ * applies divsub, which divides by four and subtracts one.
  * Sound/border: reads from the hidden bottom border through the below-neighbor
  * samples, so border modes can feed or damp the upward flame.
  */
-void flame_upslow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_upslow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     unsigned int tmp;
     unsigned int tmp2;
-    buffer.swapBuffers();
     int width = buffer.width();
     int ptr = width;
 
     if (buffer.visibleRowsArePacked()) {
-        unsigned char* pixels = buffer.activePixels();
+        unsigned char* pixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         ptr++;
@@ -308,14 +307,14 @@ void flame_upslow(FrameRenderTarget& buffer, const FrameGeneratorContext& contex
     }
 
     ptr++;
-    tmp = (unsigned int)activeLinearPixel(buffer, ptr - 2 - 1)
-        + (unsigned int)activeLinearPixel(buffer, ptr - 1 - 1)
-        + (unsigned int)activeLinearPixel(buffer, ptr - 1);
+    tmp = (unsigned int)destinationLinearPixel(buffer, ptr - 2 - 1)
+        + (unsigned int)destinationLinearPixel(buffer, ptr - 1 - 1)
+        + (unsigned int)destinationLinearPixel(buffer, ptr - 1);
     for (i = buffer.size(); i != 0; i--) {
-        tmp = tmp - (unsigned int)activeLinearPixel(buffer, ptr - 2 - 1)
-            + (unsigned int)activeLinearPixel(buffer, ptr + 1 - 1);
-        tmp2 = tmp + (unsigned int)activeLinearPixel(buffer, ptr + width - 1);
-        setActiveLinearPixel(buffer, ptr - width - 1,
+        tmp = tmp - (unsigned int)destinationLinearPixel(buffer, ptr - 2 - 1)
+            + (unsigned int)destinationLinearPixel(buffer, ptr + 1 - 1);
+        tmp2 = tmp + (unsigned int)destinationLinearPixel(buffer, ptr + width - 1);
+        setDestinationLinearPixel(buffer, ptr - width - 1,
             runtime.lookupTables.divsub[tmp2]);
         ptr++;
     }
@@ -329,7 +328,7 @@ void flame_upslow(FrameRenderTarget& buffer, const FrameGeneratorContext& contex
  * as its own filterchain stage.
  * Sound/border: bottom border rows affect the lower-neighbor samples.
  */
-void flame_upsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_upsubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(-1 + buffer.width(), 0 + buffer.width(),
         1 + buffer.width(), buffer.width() + buffer.width());
 
@@ -339,19 +338,19 @@ void flame_upsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& cont
 /*
  * UI: u-Fa (Up Fast)
  * Does: a faster upward flame with a stronger upward smear.
- * How: swaps active/passive buffers and scans backward, replacing each pixel
- * from itself plus three lower neighbors, then applying divsub.
+ * How: the framework initializes destination from immutable source;
+ * this scans backward, replacing each pixel from itself plus three lower
+ * neighbors, then applying divsub.
  * Sound/border: bottom border rows can inject energy into the upward motion.
  */
-void flame_upfast(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_upfast(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
-    buffer.swapBuffers();
     int width = buffer.width();
     int ptr = buffer.size();
 
     if (buffer.visibleRowsArePacked()) {
-        unsigned char* pixels = buffer.activePixels();
+        unsigned char* pixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -366,11 +365,11 @@ void flame_upfast(FrameRenderTarget& buffer, const FrameGeneratorContext& contex
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)activeLinearPixel(buffer, ptr)
-            + (int)activeLinearPixel(buffer, ptr + width - 1)
-            + (int)activeLinearPixel(buffer, ptr + width + 1)
-            + (int)activeLinearPixel(buffer, ptr + width);
-        setActiveLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
+        tmp = (int)destinationLinearPixel(buffer, ptr)
+            + (int)destinationLinearPixel(buffer, ptr + width - 1)
+            + (int)destinationLinearPixel(buffer, ptr + width + 1)
+            + (int)destinationLinearPixel(buffer, ptr + width);
+        setDestinationLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
         ptr--;
     }
 }
@@ -383,19 +382,19 @@ void flame_upfast(FrameRenderTarget& buffer, const FrameGeneratorContext& contex
  * UI: l-Sl (Left Slow)
  * Does: diffuses the previous frame up and left, producing a slow leftward
  * flame drift.
- * How: swaps active/passive buffers and averages upper-right, current, right,
- * and lower samples into the pixel one row above.
+ * How: the framework initializes destination from immutable source;
+ * this averages upper-right, current, right, and lower samples into the pixel
+ * one row above.
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_leftslow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_leftslow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
-    buffer.swapBuffers();
     int width = buffer.width();
     int ptr = width;
 
     if (buffer.visibleRowsArePacked()) {
-        unsigned char* pixels = buffer.activePixels();
+        unsigned char* pixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -410,11 +409,11 @@ void flame_leftslow(FrameRenderTarget& buffer, const FrameGeneratorContext& cont
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)activeLinearPixel(buffer, ptr - width + 1)
-            + (int)activeLinearPixel(buffer, ptr)
-            + (int)activeLinearPixel(buffer, ptr + 1)
-            + (int)activeLinearPixel(buffer, ptr + width);
-        setActiveLinearPixel(buffer, ptr - width,
+        tmp = (int)destinationLinearPixel(buffer, ptr - width + 1)
+            + (int)destinationLinearPixel(buffer, ptr)
+            + (int)destinationLinearPixel(buffer, ptr + 1)
+            + (int)destinationLinearPixel(buffer, ptr + width);
+        setDestinationLinearPixel(buffer, ptr - width,
             runtime.lookupTables.divsub[tmp]);
         ptr++;
     }
@@ -428,7 +427,7 @@ void flame_leftslow(FrameRenderTarget& buffer, const FrameGeneratorContext& cont
  * own filterchain stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_leftsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_leftsubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(+1, +buffer.width(),
         1 + buffer.width(), buffer.width() + buffer.width());
 
@@ -438,19 +437,19 @@ void flame_leftsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& co
 /*
  * UI: l-Fa (Left Fast)
  * Does: a faster leftward flame/smear.
- * How: swaps active/passive buffers, then averages current, lower-right twice,
- * and lower into each destination pixel through divsub.
+ * How: the framework initializes destination from immutable source;
+ * this averages current, lower-right twice, and lower into each destination
+ * pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_leftfast(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_leftfast(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
-    buffer.swapBuffers();
     int width = buffer.width();
     int ptr = buffer.size();
 
     if (buffer.visibleRowsArePacked()) {
-        unsigned char* pixels = buffer.activePixels();
+        unsigned char* pixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -465,11 +464,11 @@ void flame_leftfast(FrameRenderTarget& buffer, const FrameGeneratorContext& cont
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)activeLinearPixel(buffer, ptr)
-            + (int)activeLinearPixel(buffer, ptr + width + 1)
-            + (int)activeLinearPixel(buffer, ptr + width + 1)
-            + (int)activeLinearPixel(buffer, ptr + width);
-        setActiveLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
+        tmp = (int)destinationLinearPixel(buffer, ptr)
+            + (int)destinationLinearPixel(buffer, ptr + width + 1)
+            + (int)destinationLinearPixel(buffer, ptr + width + 1)
+            + (int)destinationLinearPixel(buffer, ptr + width);
+        setDestinationLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
         ptr--;
     }
 }
@@ -482,11 +481,11 @@ void flame_leftfast(FrameRenderTarget& buffer, const FrameGeneratorContext& cont
  * UI: r-Sl (Right Slow)
  * Does: diffuses the previous frame up and right, producing a slow rightward
  * flame drift.
- * How: reads buffer.passivePixels() without swapping, averaging upper-left, current,
- * left, and lower samples into buffer.activePixels().
+ * How: reads immutable source pixels prepared by the framework, averaging
+ * upper-left, current, left, and lower samples into destination pixels.
  * Sound/border: vertical neighbor reads can pick up top/bottom border rows.
  */
-void flame_rightslow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_rightslow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     int width = buffer.width();
@@ -494,8 +493,8 @@ void flame_rightslow(FrameRenderTarget& buffer, const FrameGeneratorContext& con
     int dst = 1;
 
     if (buffer.visibleRowsArePacked()) {
-        const unsigned char* srcPixels = buffer.passivePixels();
-        unsigned char* dstPixels = buffer.activePixels();
+        const unsigned char* srcPixels = buffer.sourcePixels();
+        unsigned char* dstPixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -511,11 +510,11 @@ void flame_rightslow(FrameRenderTarget& buffer, const FrameGeneratorContext& con
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)passiveLinearPixel(buffer, src - width - 1)
-            + (int)passiveLinearPixel(buffer, src)
-            + (int)passiveLinearPixel(buffer, src - 1)
-            + (int)passiveLinearPixel(buffer, src + width);
-        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
+        tmp = (int)sourceLinearPixel(buffer, src - width - 1)
+            + (int)sourceLinearPixel(buffer, src)
+            + (int)sourceLinearPixel(buffer, src - 1)
+            + (int)sourceLinearPixel(buffer, src + width);
+        setDestinationLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -529,7 +528,7 @@ void flame_rightslow(FrameRenderTarget& buffer, const FrameGeneratorContext& con
  * own filterchain stage.
  * Sound/border: bottom border rows influence the lower offsets.
  */
-void flame_rightsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_rightsubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets(-1, buffer.width() - 1,
         buffer.width(), buffer.width() + buffer.width());
 
@@ -539,19 +538,19 @@ void flame_rightsubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& c
 /*
  * UI: r-Fa (Right Fast)
  * Does: a faster rightward flame/smear.
- * How: swaps active/passive buffers, then averages current, lower-left twice,
- * and lower into each destination pixel through divsub.
+ * How: the framework initializes destination from immutable source;
+ * this averages current, lower-left twice, and lower into each destination
+ * pixel through divsub.
  * Sound/border: bottom border rows influence the lower neighbor reads.
  */
-void flame_rightfast(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_rightfast(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
-    buffer.swapBuffers();
     int width = buffer.width();
     int ptr = buffer.size();
 
     if (buffer.visibleRowsArePacked()) {
-        unsigned char* pixels = buffer.activePixels();
+        unsigned char* pixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -566,11 +565,11 @@ void flame_rightfast(FrameRenderTarget& buffer, const FrameGeneratorContext& con
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)activeLinearPixel(buffer, ptr)
-            + (int)activeLinearPixel(buffer, ptr + width - 1)
-            + (int)activeLinearPixel(buffer, ptr + width - 1)
-            + (int)activeLinearPixel(buffer, ptr + width);
-        setActiveLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
+        tmp = (int)destinationLinearPixel(buffer, ptr)
+            + (int)destinationLinearPixel(buffer, ptr + width - 1)
+            + (int)destinationLinearPixel(buffer, ptr + width - 1)
+            + (int)destinationLinearPixel(buffer, ptr + width);
+        setDestinationLinearPixel(buffer, ptr, runtime.lookupTables.divsub[tmp]);
         ptr--;
     }
 }
@@ -588,7 +587,7 @@ void flame_rightfast(FrameRenderTarget& buffer, const FrameGeneratorContext& con
  * halves use divsub for averaging and decay.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_water(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_water(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     int width = buffer.width();
@@ -597,8 +596,8 @@ void flame_water(FrameRenderTarget& buffer, const FrameGeneratorContext& context
     int dst = 0;
 
     if (buffer.visibleRowsArePacked()) {
-        const unsigned char* srcPixels = buffer.passivePixels();
-        unsigned char* dstPixels = buffer.activePixels();
+        const unsigned char* srcPixels = buffer.sourcePixels();
+        unsigned char* dstPixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = size / 2 + width; i != 0; i--) {
@@ -626,11 +625,11 @@ void flame_water(FrameRenderTarget& buffer, const FrameGeneratorContext& context
     }
 
     for (i = size / 2 + width; i != 0; i--) {
-        tmp = (int)passiveLinearPixel(buffer, src - 1)
-            + (int)passiveLinearPixel(buffer, src)
-            + (int)passiveLinearPixel(buffer, src + 1)
-            + (int)passiveLinearPixel(buffer, src + width);
-        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
+        tmp = (int)sourceLinearPixel(buffer, src - 1)
+            + (int)sourceLinearPixel(buffer, src)
+            + (int)sourceLinearPixel(buffer, src + 1)
+            + (int)sourceLinearPixel(buffer, src + width);
+        setDestinationLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -638,11 +637,11 @@ void flame_water(FrameRenderTarget& buffer, const FrameGeneratorContext& context
     src = width * (buffer.height() - 1);
     dst = width * buffer.height();
     for (i = size / 2; i != 0; i--) {
-        tmp = (int)passiveLinearPixel(buffer, src - width + 1)
-            + (int)passiveLinearPixel(buffer, src)
-            + (int)passiveLinearPixel(buffer, src + 1)
-            + (int)passiveLinearPixel(buffer, src - width);
-        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
+        tmp = (int)sourceLinearPixel(buffer, src - width + 1)
+            + (int)sourceLinearPixel(buffer, src)
+            + (int)sourceLinearPixel(buffer, src + 1)
+            + (int)sourceLinearPixel(buffer, src - width);
+        setDestinationLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst--;
         src--;
     }
@@ -655,7 +654,7 @@ void flame_water(FrameRenderTarget& buffer, const FrameGeneratorContext& context
  * temporaries, preserving the old compact arithmetic behavior.
  * Sound/border: both top and bottom border rows can affect the two halves.
  */
-void flame_watersubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_watersubtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     int width = buffer.width();
@@ -664,8 +663,8 @@ void flame_watersubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& c
     int dst = 0;
 
     if (buffer.visibleRowsArePacked()) {
-        const unsigned char* srcPixels = buffer.passivePixels();
-        unsigned char* dstPixels = buffer.activePixels();
+        const unsigned char* srcPixels = buffer.sourcePixels();
+        unsigned char* dstPixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = size / 2 + width; i != 0; i--) {
@@ -693,11 +692,11 @@ void flame_watersubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& c
     }
 
     for (i = size / 2 + width; i != 0; i--) {
-        tmp = (unsigned char)(passiveSignedLinearPixel(buffer, src - 1)
-            + passiveSignedLinearPixel(buffer, src)
-            + passiveSignedLinearPixel(buffer, src + 1)
-            + passiveSignedLinearPixel(buffer, src + width));
-        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
+        tmp = (unsigned char)(sourceSignedLinearPixel(buffer, src - 1)
+            + sourceSignedLinearPixel(buffer, src)
+            + sourceSignedLinearPixel(buffer, src + 1)
+            + sourceSignedLinearPixel(buffer, src + width));
+        setDestinationLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -705,11 +704,11 @@ void flame_watersubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& c
     src = width * (buffer.height() - 1);
     dst = width * buffer.height();
     for (i = size / 2; i != 0; i--) {
-        tmp = (unsigned char)(passiveSignedLinearPixel(buffer, src - width + 1)
-            + passiveSignedLinearPixel(buffer, src)
-            + passiveSignedLinearPixel(buffer, src + 1)
-            + passiveSignedLinearPixel(buffer, src - width));
-        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
+        tmp = (unsigned char)(sourceSignedLinearPixel(buffer, src - width + 1)
+            + sourceSignedLinearPixel(buffer, src)
+            + sourceSignedLinearPixel(buffer, src + 1)
+            + sourceSignedLinearPixel(buffer, src - width));
+        setDestinationLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst--;
         src--;
     }
@@ -726,7 +725,7 @@ void flame_watersubtle(FrameRenderTarget& buffer, const FrameGeneratorContext& c
  * How: averages left, current, right, and current again through divsub.
  * Sound/border: does not intentionally sample vertical border rows.
  */
-void flame_skyline(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_skyline(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     int tmp;
     int width = buffer.width();
@@ -734,8 +733,8 @@ void flame_skyline(FrameRenderTarget& buffer, const FrameGeneratorContext& conte
     int dst = 0;
 
     if (buffer.visibleRowsArePacked()) {
-        const unsigned char* srcPixels = buffer.passivePixels();
-        unsigned char* dstPixels = buffer.activePixels();
+        const unsigned char* srcPixels = buffer.sourcePixels();
+        unsigned char* dstPixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -751,11 +750,11 @@ void flame_skyline(FrameRenderTarget& buffer, const FrameGeneratorContext& conte
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (int)passiveLinearPixel(buffer, src - 1)
-            + (int)passiveLinearPixel(buffer, src)
-            + (int)passiveLinearPixel(buffer, src + 1)
-            + (int)passiveLinearPixel(buffer, src);
-        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
+        tmp = (int)sourceLinearPixel(buffer, src - 1)
+            + (int)sourceLinearPixel(buffer, src)
+            + (int)sourceLinearPixel(buffer, src + 1)
+            + (int)sourceLinearPixel(buffer, src);
+        setDestinationLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -769,7 +768,7 @@ void flame_skyline(FrameRenderTarget& buffer, const FrameGeneratorContext& conte
  * averaging, which gives this flame its sharper texture.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_weird(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_weird(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
     int width = buffer.width();
@@ -777,8 +776,8 @@ void flame_weird(FrameRenderTarget& buffer, const FrameGeneratorContext& context
     int dst = 1;
 
     if (buffer.visibleRowsArePacked()) {
-        const unsigned char* srcPixels = buffer.passivePixels();
-        unsigned char* dstPixels = buffer.activePixels();
+        const unsigned char* srcPixels = buffer.sourcePixels();
+        unsigned char* dstPixels = buffer.destinationPixels();
         const unsigned char* divsub = runtime.lookupTables.divsub;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -794,11 +793,11 @@ void flame_weird(FrameRenderTarget& buffer, const FrameGeneratorContext& context
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = (unsigned char)(passiveSignedLinearPixel(buffer, src - 1)
-            | passiveSignedLinearPixel(buffer, src)
-            | passiveSignedLinearPixel(buffer, src + 1)
-            | passiveSignedLinearPixel(buffer, src + width));
-        setActiveLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
+        tmp = (unsigned char)(sourceSignedLinearPixel(buffer, src - 1)
+            | sourceSignedLinearPixel(buffer, src)
+            | sourceSignedLinearPixel(buffer, src + 1)
+            | sourceSignedLinearPixel(buffer, src + width));
+        setDestinationLinearPixel(buffer, dst, runtime.lookupTables.divsub[tmp]);
         dst++;
         src++;
     }
@@ -811,19 +810,19 @@ void flame_weird(FrameRenderTarget& buffer, const FrameGeneratorContext& context
 /*
  * UI: Zzz (Zzz)
  * Does: a sparse upward drift/decay effect.
- * How: swaps active/passive buffers, sums left and lower neighbors only, then
- * uses divsub2, which divides by two and subtracts one.
+ * How: the framework initializes destination from immutable source;
+ * this sums left and lower neighbors only, then uses divsub2, which divides by
+ * two and subtracts one.
  * Sound/border: lower neighbor reads can pick up bottom border rows.
  */
-void flame_zzz(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_zzz(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
     unsigned char tmp;
-    buffer.swapBuffers();
     int width = buffer.width();
     int ptr = width;
 
     if (buffer.visibleRowsArePacked()) {
-        unsigned char* pixels = buffer.activePixels();
+        unsigned char* pixels = buffer.destinationPixels();
         const unsigned char* divsub2 = runtime.lookupTables.divsub2;
 
         for (i = buffer.size(); i != 0; i--) {
@@ -835,9 +834,9 @@ void flame_zzz(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
     }
 
     for (i = buffer.size(); i != 0; i--) {
-        tmp = activeLinearPixel(buffer, ptr - 1)
-            + activeLinearPixel(buffer, ptr + width);
-        setActiveLinearPixel(buffer, ptr - width,
+        tmp = destinationLinearPixel(buffer, ptr - 1)
+            + destinationLinearPixel(buffer, ptr + width);
+        setDestinationLinearPixel(buffer, ptr - width,
             runtime.lookupTables.divsub2[tmp]);
         ptr++;
     }
@@ -846,16 +845,16 @@ void flame_zzz(FrameRenderTarget& buffer, const FrameGeneratorContext& context, 
 /*
  * UI: Fade (Fade)
  * Does: uniformly darkens the previous frame without moving it.
- * How: swaps active/passive buffers and subtracts two from each byte, clamped
- * at zero, four pixels at a time through divsub4.
+ * How: the framework initializes destination from immutable source;
+ * this subtracts two from each byte, clamped at zero, four pixels at a time
+ * through divsub4.
  * Sound/border: ignores sound and border input.
  */
-void flame_fade(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_fade(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     int i;
-    buffer.swapBuffers();
 
     if (buffer.visibleRowsArePacked()) {
-        unsigned char* pixels = buffer.activePixels();
+        unsigned char* pixels = buffer.destinationPixels();
         const unsigned int* divsub4 = runtime.lookupTables.divsub4;
         int limit = (buffer.size() / 4) * 4;
 
@@ -866,14 +865,14 @@ void flame_fade(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
 
     for (i = buffer.size() / 4; i != 0; i--) {
         int offset = (buffer.size() / 4 - i) * 4;
-        setActiveLinearPixel(buffer, offset,
-            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset)]);
-        setActiveLinearPixel(buffer, offset + 1,
-            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset + 1)]);
-        setActiveLinearPixel(buffer, offset + 2,
-            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset + 2)]);
-        setActiveLinearPixel(buffer, offset + 3,
-            (unsigned char)runtime.lookupTables.divsub4[activeLinearPixel(buffer, offset + 3)]);
+        setDestinationLinearPixel(buffer, offset,
+            (unsigned char)runtime.lookupTables.divsub4[destinationLinearPixel(buffer, offset)]);
+        setDestinationLinearPixel(buffer, offset + 1,
+            (unsigned char)runtime.lookupTables.divsub4[destinationLinearPixel(buffer, offset + 1)]);
+        setDestinationLinearPixel(buffer, offset + 2,
+            (unsigned char)runtime.lookupTables.divsub4[destinationLinearPixel(buffer, offset + 2)]);
+        setDestinationLinearPixel(buffer, offset + 3,
+            (unsigned char)runtime.lookupTables.divsub4[destinationLinearPixel(buffer, offset + 3)]);
     }
 }
 
@@ -895,7 +894,7 @@ void flame_fade(FrameRenderTarget& buffer, const FrameGeneratorContext& context,
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_subtle(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_general_subtle(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets = general_offsets(runtime.generalFlame, buffer.width());
 
     flame_general_subtle_filter(buffer, runtime.lookupTables, offsets);
@@ -903,19 +902,19 @@ void flame_general_subtle(FrameRenderTarget& buffer, const FrameGeneratorContext
 
 /*
  * Helper for GenSubt.
- * Does: applies the current four offsets directly from buffer.passivePixels() to
- * buffer.activePixels().
+ * Does: applies the current four offsets directly from immutable source pixels
+ * to destination pixels.
  * How: processes four pixels per loop by packing divsub results into an
  * unsigned int using endian-specific pre-shifted lookup tables.
  */
-void flame_general_subtle_filter(FrameRenderTarget& buffer,
+void flame_general_subtle_filter(FrameStageBuffer& buffer,
     const FlameLookupTables& tables, const FlameOffsets& offsets) {
     int i;
     unsigned char tmp;
 
     if (buffer.visibleRowsArePacked()) {
-        const unsigned char* src = buffer.passivePixels();
-        unsigned char* dst = buffer.activePixels();
+        const unsigned char* src = buffer.sourcePixels();
+        unsigned char* dst = buffer.destinationPixels();
         const unsigned char* divsub = tables.divsub;
         const int offset0 = offsets.value[0];
         const int offset1 = offsets.value[1];
@@ -931,11 +930,11 @@ void flame_general_subtle_filter(FrameRenderTarget& buffer,
     }
 
     for (i = 0; i < buffer.size(); i++) {
-        tmp = passiveLinearPixel(buffer, i + offsets.value[0])
-            + passiveLinearPixel(buffer, i + offsets.value[1])
-            + passiveLinearPixel(buffer, i + offsets.value[2])
-            + passiveLinearPixel(buffer, i + offsets.value[3]);
-        setActiveLinearPixel(buffer, i, tables.divsub[tmp]);
+        tmp = sourceLinearPixel(buffer, i + offsets.value[0])
+            + sourceLinearPixel(buffer, i + offsets.value[1])
+            + sourceLinearPixel(buffer, i + offsets.value[2])
+            + sourceLinearPixel(buffer, i + offsets.value[3]);
+        setDestinationLinearPixel(buffer, i, tables.divsub[tmp]);
     }
 }
 
@@ -954,7 +953,7 @@ void flame_general_subtle_filter(FrameRenderTarget& buffer,
  * Sound/border: depends on the selected offsets; any offset crossing top or
  * bottom can use the hidden border rows.
  */
-void flame_general_slow(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_general_slow(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     FlameOffsets offsets = general_offsets(runtime.generalFlame, buffer.width());
 
     flame_general_slow_filter(buffer, runtime.lookupTables, offsets);
@@ -962,19 +961,19 @@ void flame_general_slow(FrameRenderTarget& buffer, const FrameGeneratorContext& 
 
 /*
  * Helper for GenSlow.
- * Does: applies the current four offsets directly from buffer.passivePixels() to
- * buffer.activePixels().
+ * Does: applies the current four offsets directly from immutable source pixels
+ * to destination pixels.
  * How: byte-by-byte sum of four neighbors followed by divsub.  Easier to read
  * than GenSubt's packed path, but slower.
  */
-void flame_general_slow_filter(FrameRenderTarget& buffer,
+void flame_general_slow_filter(FrameStageBuffer& buffer,
     const FlameLookupTables& tables, const FlameOffsets& offsets) {
     int i;
     int tmp;
 
     if (buffer.visibleRowsArePacked()) {
-        const unsigned char* src = buffer.passivePixels();
-        unsigned char* dst = buffer.activePixels();
+        const unsigned char* src = buffer.sourcePixels();
+        unsigned char* dst = buffer.destinationPixels();
         const unsigned char* divsub = tables.divsub;
         const int offset0 = offsets.value[0];
         const int offset1 = offsets.value[1];
@@ -990,33 +989,33 @@ void flame_general_slow_filter(FrameRenderTarget& buffer,
     }
 
     for (i = 0; i < buffer.size(); i++) {
-        tmp = (int)passiveLinearPixel(buffer, i + offsets.value[0])
-            + (int)passiveLinearPixel(buffer, i + offsets.value[1])
-            + (int)passiveLinearPixel(buffer, i + offsets.value[2])
-            + (int)passiveLinearPixel(buffer, i + offsets.value[3]);
-        setActiveLinearPixel(buffer, i, tables.divsub[tmp]);
+        tmp = (int)sourceLinearPixel(buffer, i + offsets.value[0])
+            + (int)sourceLinearPixel(buffer, i + offsets.value[1])
+            + (int)sourceLinearPixel(buffer, i + offsets.value[2])
+            + (int)sourceLinearPixel(buffer, i + offsets.value[3]);
+        setDestinationLinearPixel(buffer, i, tables.divsub[tmp]);
     }
 }
 
 /*
  * UI: Down (Falling Down)
  * Does: shifts the previous frame downward by one row.
- * How: copies rows from buffer.passivePixels() starting one row above the visible
- * buffer into buffer.activePixels().
+ * How: copies rows from source pixels starting one row above the visible buffer
+ * into destination pixels.
  * Sound/border: the top hidden border row becomes the new top visible row, so
  * border mode has a direct visible effect here.
  */
-void flame_down(FrameRenderTarget& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
+void flame_down(FrameStageBuffer& buffer, const FrameGeneratorContext& context, FlameRuntime& runtime) {
     if (buffer.visibleRowsArePacked()) {
-        memcpy(buffer.activePixels(), buffer.passivePixels() - buffer.width(),
+        memcpy(buffer.destinationPixels(), buffer.sourcePixels() - buffer.width(),
             buffer.size());
         return;
     }
 
     for (int y = 0; y < buffer.height(); y++) {
-        unsigned char* dst = buffer.activeRow(y);
+        unsigned char* dst = buffer.destinationRow(y);
         int src = -buffer.width() + y * buffer.width();
         for (int x = 0; x < buffer.width(); x++)
-            dst[x] = passiveLinearPixel(buffer, src + x);
+            dst[x] = sourceLinearPixel(buffer, src + x);
     }
 }

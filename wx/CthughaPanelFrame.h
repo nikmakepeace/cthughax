@@ -15,6 +15,8 @@
 
 #include <wx/timer.h>
 
+class wxRearrangeCtrl;
+
 class CthughaPanelFrame : public CthughaPanelBase {
     struct LabelFlashState {
         wxWindow* surface;
@@ -31,11 +33,14 @@ class CthughaPanelFrame : public CthughaPanelBase {
     wxTimer pollTimer;
     std::map<std::string, std::vector<std::string> > catalogNames;
     std::map<std::string, LabelFlashState> labelFlashStates;
+    wxRearrangeCtrl* filterchainRearrangeCtrl;
     int receivedState;
     int everConnected;
     int updatingControls;
 
+    void setConnectionStatus(const wxString& text);
     void repairGeneratedLayout();
+    void replaceFilterchainListBox();
     void initializeLabelFlashes();
     void registerFlashLabel(const char* key, const char* label);
     wxStaticText* findStaticTextByLabel(const wxString& label) const;
@@ -60,6 +65,8 @@ class CthughaPanelFrame : public CthughaPanelBase {
     void onFireSensitivityChanged(wxCommandEvent& event);
     void onPaletteSmoothingChanged(wxCommandEvent& event);
     void onMaxFpsChanged(wxCommandEvent& event);
+    void onFilterchainReordered(wxCommandEvent& event);
+    void onFilterchainChecked(wxCommandEvent& event);
 
     void handleClientEvent(const ControlPanelClientEvent& event);
     void handleProtocolMessage(const ControlJsonValue& message);
@@ -88,6 +95,10 @@ class CthughaPanelFrame : public CthughaPanelBase {
     std::string targetForLock(wxCheckBox* checkBox) const;
     void sendChoiceValue(const char* target, wxChoice* choice);
     void sendAutoChangeMode();
+    int collectFilterchainStages(
+        std::vector<std::string>& stages, std::vector<int>& enabled) const;
+    void sendFilterchainSequence();
+    void sendFilterchainEnabled();
 
 public:
     explicit CthughaPanelFrame(const std::string& endpoint);

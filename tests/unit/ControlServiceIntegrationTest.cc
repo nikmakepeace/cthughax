@@ -211,6 +211,8 @@ public:
     int calls;
     RuntimeCommandType lastType;
     std::string lastText;
+    std::vector<std::string> lastTextList;
+    std::vector<int> lastValueList;
     int lastValue;
     double lastNumber;
 
@@ -220,6 +222,8 @@ public:
         , calls(0)
         , lastType(RuntimeCommandChangeAll)
         , lastText()
+        , lastTextList()
+        , lastValueList()
         , lastValue(0)
         , lastNumber(0.0) { }
 
@@ -228,6 +232,8 @@ public:
         calls++;
         lastType = command.type;
         lastText = command.text != 0 ? command.text : "";
+        lastTextList = command.textList;
+        lastValueList = command.valueList;
         lastValue = command.value;
         lastNumber = command.number;
 
@@ -271,6 +277,8 @@ public:
             configValue.sceneTransition.paletteSmoothingChance
                 = command.number;
             registry.setBaseline(configValue);
+            changes.uiChanged = 1;
+        } else if (command.type == RuntimeCommandChangeFilterchainSequenceTo) {
             changes.uiChanged = 1;
         }
 
@@ -530,6 +538,47 @@ static void testServiceClientSynchronizesBothDirections() {
     assert(runtimeSink.lastNumber == 0.75);
     assert(latestAckId(observed) == id);
     assert(latestStatePaletteSmoothingChance(observed, -1.0) == 0.75);
+
+    std::vector<std::string> stages;
+    stages.push_back("wave");
+    stages.push_back("flame");
+    stages.push_back("flashlight");
+    std::vector<int> stageEnabled;
+    stageEnabled.push_back(1);
+    stageEnabled.push_back(0);
+    stageEnabled.push_back(1);
+    id = client.sendSetFilterchainStages(
+        "filterchain.sequence", stages, stageEnabled);
+    pump(service, client, observed, 500);
+    assert(runtimeSink.calls == 8);
+    assert(runtimeSink.lastType == RuntimeCommandChangeFilterchainSequenceTo);
+    assert(runtimeSink.lastTextList.size() == 3);
+    assert(runtimeSink.lastTextList[0] == "wave");
+    assert(runtimeSink.lastTextList[1] == "flame");
+    assert(runtimeSink.lastTextList[2] == "flashlight");
+    assert(runtimeSink.lastValueList.size() == 3);
+    assert(runtimeSink.lastValueList[0] == 1);
+    assert(runtimeSink.lastValueList[1] == 0);
+    assert(runtimeSink.lastValueList[2] == 1);
+    assert(latestAckId(observed) == id);
+
+    stageEnabled[0] = 0;
+    stageEnabled[1] = 1;
+    stageEnabled[2] = 0;
+    id = client.sendSetFilterchainStages(
+        "filterchain.enabled", stages, stageEnabled);
+    pump(service, client, observed, 500);
+    assert(runtimeSink.calls == 9);
+    assert(runtimeSink.lastType == RuntimeCommandChangeFilterchainEnabledTo);
+    assert(runtimeSink.lastTextList.size() == 3);
+    assert(runtimeSink.lastTextList[0] == "wave");
+    assert(runtimeSink.lastTextList[1] == "flame");
+    assert(runtimeSink.lastTextList[2] == "flashlight");
+    assert(runtimeSink.lastValueList.size() == 3);
+    assert(runtimeSink.lastValueList[0] == 0);
+    assert(runtimeSink.lastValueList[1] == 1);
+    assert(runtimeSink.lastValueList[2] == 0);
+    assert(latestAckId(observed) == id);
 
     runtimeSink.setAppFlame("second");
     service.runtimeStateChanged();

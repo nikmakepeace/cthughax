@@ -10,6 +10,7 @@
 #include <stdlib.h>
 
 #include <math.h>
+#include <vector>
 
 namespace {
 
@@ -142,6 +143,112 @@ static bool readBoolValue(const ControlJsonValue& message, bool* value,
 
     fail(errorCode, errorMessage, "bad-command", "expected boolean value");
     return false;
+}
+
+static bool readBoolObjectMember(const ControlJsonValue& object,
+    const char* name, bool fallback, bool* value, std::string* errorCode,
+    std::string* errorMessage) {
+    const ControlJsonValue* member = object.member(name);
+    if (member == 0) {
+        *value = fallback;
+        return true;
+    }
+    if (member->type() == ControlJsonValue::BoolType) {
+        *value = member->asBool();
+        return true;
+    }
+    if (member->type() == ControlJsonValue::NumberType) {
+        *value = member->asNumber() != 0.0;
+        return true;
+    }
+    if (member->type() == ControlJsonValue::StringType) {
+        std::string text = member->asString();
+        if (text == "on" || text == "yes" || text == "true"
+            || text == "1") {
+            *value = true;
+            return true;
+        }
+        if (text == "off" || text == "no" || text == "false"
+            || text == "0") {
+            *value = false;
+            return true;
+        }
+    }
+
+    fail(errorCode, errorMessage, "bad-command", "expected boolean stage field");
+    return false;
+}
+
+static bool readFilterchainSequenceValue(const ControlJsonValue& message,
+    std::vector<std::string>* stages, std::vector<int>* enabled,
+    std::string* errorCode, std::string* errorMessage) {
+    const ControlJsonValue* member = message.member("value");
+    if (member == 0) {
+        fail(errorCode, errorMessage, "bad-command", "missing value");
+        return false;
+    }
+    if (member->type() != ControlJsonValue::ArrayType) {
+        fail(errorCode, errorMessage, "bad-command",
+            "expected filterchain array value");
+        return false;
+    }
+
+    stages->clear();
+    enabled->clear();
+    const std::vector<ControlJsonValue>& array = member->asArray();
+    for (std::vector<ControlJsonValue>::const_iterator it = array.begin();
+         it != array.end(); ++it) {
+        if (it->type() == ControlJsonValue::StringType) {
+            stages->push_back(it->asString());
+            enabled->push_back(1);
+            continue;
+        }
+        if (it->type() == ControlJsonValue::ObjectType) {
+            const ControlJsonValue* stage = it->member("stage");
+            if (stage == 0)
+                stage = it->member("name");
+            if (stage == 0 || stage->type() != ControlJsonValue::StringType) {
+                fail(errorCode, errorMessage, "bad-command",
+                    "expected filterchain stage name");
+                return false;
+            }
+
+            bool stageEnabled = true;
+            if (!readBoolObjectMember(*it, "enabled", true, &stageEnabled,
+                    errorCode, errorMessage))
+                return false;
+
+            stages->push_back(stage->asString());
+            enabled->push_back(stageEnabled ? 1 : 0);
+            continue;
+        }
+
+        fail(errorCode, errorMessage, "bad-command",
+            "expected filterchain stage value");
+        return false;
+    }
+    return true;
+}
+
+static bool filterchainStageNameSupported(const std::string& name) {
+    return name == "image" || name == "border" || name == "flame"
+        || name == "translate" || name == "wave" || name == "text"
+        || name == "flashlight" || name == "frameCommit"
+        || name == "palette" || name == "indexedFrame";
+}
+
+static bool validateFilterchainSequenceNames(
+    const std::vector<std::string>& stages, std::string* errorCode,
+    std::string* errorMessage) {
+    for (std::vector<std::string>::const_iterator it = stages.begin();
+         it != stages.end(); ++it) {
+        if (!filterchainStageNameSupported(*it)) {
+            fail(errorCode, errorMessage, "bad-command",
+                "unsupported filterchain stage");
+            return false;
+        }
+    }
+    return true;
 }
 
 static bool sceneTargetForName(
@@ -343,6 +450,32 @@ bool controlCommandFromJson(const ControlJsonValue& message,
             return false;
         command->command
             = RuntimeCommand::changePaletteSmoothingChanceTo(value);
+        return true;
+    }
+
+    if (targetName == "filterchain.sequence") {
+        std::vector<std::string> stages;
+        std::vector<int> enabled;
+        if (!readFilterchainSequenceValue(message, &stages, &enabled,
+                errorCode, errorMessage)
+            || !validateFilterchainSequenceNames(
+                stages, errorCode, errorMessage))
+            return false;
+        command->command
+            = RuntimeCommand::changeFilterchainSequenceTo(stages, enabled);
+        return true;
+    }
+
+    if (targetName == "filterchain.enabled") {
+        std::vector<std::string> stages;
+        std::vector<int> enabled;
+        if (!readFilterchainSequenceValue(message, &stages, &enabled,
+                errorCode, errorMessage)
+            || !validateFilterchainSequenceNames(
+                stages, errorCode, errorMessage))
+            return false;
+        command->command
+            = RuntimeCommand::changeFilterchainEnabledTo(stages, enabled);
         return true;
     }
 
