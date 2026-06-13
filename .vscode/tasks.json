@@ -44,6 +44,48 @@
         "problemMatcher": "$msCompile"
     },
     {
+        "label": "CMake: configure macOS app",
+        "type": "shell",
+        "command": "cmake",
+        "args": [
+            "-S",
+            "${workspaceFolder}",
+            "-B",
+            "${workspaceFolder}/build",
+            "-DCMAKE_BUILD_TYPE=Release",
+            "-DCTH_BUILD_X11=OFF",
+            "-DCTH_BUILD_SDL3=ON",
+            "-DCTH_ENABLE_MINIAUDIO=ON",
+            "-DCTH_MINIAUDIO_NO_RUNTIME_LINKING=ON",
+            "-DCTH_BUILD_WX_PANEL=ON",
+            "-DCTH_ENABLE_PULSE=OFF",
+            "-DCTH_BUILD_TESTS=ON",
+            "-DCTH_BUILD_BENCHMARKS=OFF"
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "problemMatcher": []
+    },
+    {
+        "label": "Package: macOS app",
+        "type": "shell",
+        "command": "cmake",
+        "args": [
+            "--build",
+            "${workspaceFolder}/build",
+            "--target",
+            "cthugha_macos_app",
+            "--parallel",
+            "8"
+        ],
+        "options": {
+            "cwd": "${workspaceFolder}"
+        },
+        "dependsOn": "CMake: configure macOS app",
+        "problemMatcher": "$msCompile"
+    },
+    {
         "label": "CMake: configure benchmarks",
         "type": "shell",
         "command": "cmake",

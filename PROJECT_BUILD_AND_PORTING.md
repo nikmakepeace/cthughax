@@ -121,6 +121,32 @@ cmake --build build --target cthugha
 ctest --test-dir build --output-on-failure
 ```
 
+macOS app-bundle package:
+
+```sh
+cmake -S . -B build -G Ninja \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCTH_BUILD_X11=OFF \
+  -DCTH_BUILD_SDL3=ON \
+  -DCTH_ENABLE_MINIAUDIO=ON \
+  -DCTH_MINIAUDIO_NO_RUNTIME_LINKING=ON \
+  -DCTH_BUILD_WX_PANEL=ON \
+  -DCTH_ENABLE_PULSE=OFF \
+  -DCTH_BUILD_TESTS=ON \
+  -DCTH_BUILD_BENCHMARKS=OFF
+cmake --build build --target cthugha_macos_app
+```
+
+The package target writes `build/dist/CthughaNix.app`. The bundle includes the
+SDL app binary, `cthugha-panel`, the source `resources` directory, and copied
+non-system shared libraries under `Contents/Frameworks` with install names
+rewritten to bundle-relative paths. The app launcher changes into
+`Contents/Resources` before starting `cthugha`, preserving the existing
+`./resources/...` lookup behavior. On Apple builds, the bundle is ad-hoc signed
+by default through `CTH_MACOS_CODESIGN_IDENTITY=-`; pass
+`-DCTH_MACOS_CODESIGN_IDENTITY=` to skip signing or set a Developer ID identity
+for a distributable signed build.
+
 X11 compatibility build:
 
 ```sh

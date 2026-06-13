@@ -21,6 +21,10 @@ option(CTH_ENABLE_MIXER "Enable OSS mixer controls when soundcard headers are av
 option(CTH_ENABLE_MINIMP3 "Enable embedded minimp3 decoding" ON)
 option(CTH_ENABLE_MINIAUDIO "Enable miniaudio playback/capture devices" ON)
 option(CTH_MINIAUDIO_NO_RUNTIME_LINKING "Build miniaudio without runtime library/framework loading (Apple app-bundle path)" OFF)
+if(APPLE)
+    set(CTH_MACOS_CODESIGN_IDENTITY "-" CACHE STRING
+        "macOS app-bundle signing identity; use empty string to skip signing")
+endif()
 
 set(CTH_DEV_DSP "/dev/dsp" CACHE STRING "Default OSS DSP device")
 set(CTH_DEV_MIXER "/dev/mixer" CACHE STRING "Default OSS mixer device")
@@ -198,6 +202,29 @@ if(CTH_BUILD_BENCHMARKS)
     find_package(benchmark CONFIG REQUIRED)
     find_package(Python3 COMPONENTS Interpreter REQUIRED)
     add_subdirectory(tests/benchmarks)
+endif()
+
+if(APPLE)
+    if(TARGET cthugha AND TARGET cthugha-panel AND Python3_Interpreter_FOUND)
+        add_custom_target(cthugha_macos_app
+            COMMAND ${Python3_EXECUTABLE}
+                ${CMAKE_CURRENT_SOURCE_DIR}/tools/package_macos_app.py
+                --app-name CthughaNix
+                --bundle-id org.cthughanix.CthughaNix
+                --version ${PROJECT_VERSION}
+                --app-binary $<TARGET_FILE:cthugha>
+                --panel-binary $<TARGET_FILE:cthugha-panel>
+                --resources-dir ${CMAKE_CURRENT_SOURCE_DIR}/resources
+                --output-dir ${CMAKE_BINARY_DIR}/dist
+                --codesign-identity "${CTH_MACOS_CODESIGN_IDENTITY}"
+            DEPENDS cthugha cthugha-panel
+            USES_TERMINAL
+            VERBATIM
+        )
+    else()
+        message(STATUS
+            "  macOS app bundle : unavailable (requires SDL3 app, wx panel, and Python3)")
+    endif()
 endif()
 
 install(DIRECTORY resources/img/ DESTINATION ${CTH_DATA_DIR}/img)
