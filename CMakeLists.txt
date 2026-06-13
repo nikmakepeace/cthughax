@@ -209,12 +209,16 @@ if(APPLE)
         add_custom_target(cthugha_macos_app
             COMMAND ${Python3_EXECUTABLE}
                 ${CMAKE_CURRENT_SOURCE_DIR}/tools/package_macos_app.py
-                --app-name CthughaNix
-                --bundle-id org.cthughanix.CthughaNix
+                --app-name CthughaX
+                --panel-app-name "CthughaX Panel"
+                --bundle-id org.cthughax.CthughaX
+                --panel-bundle-id org.cthughax.CthughaXPanel
                 --version ${PROJECT_VERSION}
                 --app-binary $<TARGET_FILE:cthugha>
                 --panel-binary $<TARGET_FILE:cthugha-panel>
                 --resources-dir ${CMAKE_CURRENT_SOURCE_DIR}/resources
+                --main-icon ${CMAKE_CURRENT_SOURCE_DIR}/resources/macos/cthughax.icns
+                --panel-icon ${CMAKE_CURRENT_SOURCE_DIR}/resources/macos/cthughax-panel.icns
                 --output-dir ${CMAKE_BINARY_DIR}/dist
                 --codesign-identity "${CTH_MACOS_CODESIGN_IDENTITY}"
             DEPENDS cthugha cthugha-panel

@@ -137,15 +137,19 @@ cmake -S . -B build -G Ninja \
 cmake --build build --target cthugha_macos_app
 ```
 
-The package target writes `build/dist/CthughaNix.app`. The bundle includes the
-SDL app binary, `cthugha-panel`, the source `resources` directory, and copied
-non-system shared libraries under `Contents/Frameworks` with install names
-rewritten to bundle-relative paths. The app launcher changes into
-`Contents/Resources` before starting `cthugha`, preserving the existing
-`./resources/...` lookup behavior. On Apple builds, the bundle is ad-hoc signed
-by default through `CTH_MACOS_CODESIGN_IDENTITY=-`; pass
-`-DCTH_MACOS_CODESIGN_IDENTITY=` to skip signing or set a Developer ID identity
-for a distributable signed build.
+The package target writes `build/dist/CthughaX.app` and
+`build/dist/CthughaX Panel.app`. The main bundle uses
+`resources/macos/cthughax.icns`; the panel bundle uses
+`resources/macos/cthughax-panel.icns`. The bundles include their non-system
+shared libraries under `Contents/Frameworks` with install names rewritten to
+bundle-relative paths. `CthughaX.app` also includes the source `resources`
+directory and a nested `CthughaX Panel.app` so the in-app control-panel shortcut
+works even when only the main app bundle is copied. The separate
+`CthughaX Panel.app` is also provided beside the main app for direct launch with
+its own Finder/Dock identity.
+On Apple builds, the bundles are ad-hoc signed by default through
+`CTH_MACOS_CODESIGN_IDENTITY=-`; pass `-DCTH_MACOS_CODESIGN_IDENTITY=` to skip
+signing or set a Developer ID identity for a distributable signed build.
 
 X11 compatibility build:
 
