@@ -11,6 +11,8 @@
 
 char screen_first[256] = ""; /* Start with this scrn-fkt */
 
+static const double display3DReferenceWidth = 640.0;
+
 class VisualFrameView {
     ScreenRenderContext& context;
 
@@ -504,7 +506,7 @@ int prepare_3d(ScreenRenderContext& context, int maxZ) {
     /* calculate the maximal size of the "sheet" */
     x = sqr(visualBuffer(context).width() / 2);
     y = sqr(visualBuffer(context).height() / 2);
-    z = sqr((float)(visualBuffer(context).width()) / 640.0 * (float)maxZ);
+    z = sqr((float)(visualBuffer(context).width()) / display3DReferenceWidth * (float)maxZ);
     l = sqrt(x + y + z);
 
     update_3d_scale_factor(context);
@@ -524,8 +526,8 @@ int prepare_3d(ScreenRenderContext& context, int maxZ) {
         rotate(P[i], rot, ro[i]);
 
     for (i = 0; i < 256; i++) {
-        height_offset[i].x = int(ro[3][0] * i * double(visualBuffer(context).width()) / 640.0 * SC);
-        height_offset[i].y = int(ro[3][1] * i * double(visualBuffer(context).width()) / 640.0 * SC);
+        height_offset[i].x = int(ro[3][0] * i * double(visualBuffer(context).width()) / display3DReferenceWidth * SC);
+        height_offset[i].y = int(ro[3][1] * i * double(visualBuffer(context).width()) / display3DReferenceWidth * SC);
     }
 
     /* calculate the step sizes */

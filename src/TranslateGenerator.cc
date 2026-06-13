@@ -8,6 +8,20 @@
 #include <stdint.h>
 
 static const double PI = 3.14159265358979323846;
+static const int translationReferenceWidth = 320;
+static const int translationReferenceHeight = 200;
+
+static const int hurricaneReferenceEyeYOffset = 10;
+static const double hurricaneEyeSlowRadiusSquared = 2500.0;
+static const long hurricaneRotationDivisor = 700L;
+
+static const int cycloneStormMinEyes = 2;
+static const int cycloneStormEyeCountRange = 3;
+static const int cycloneStormCenterPadding = 20;
+static const int cycloneStormMinReferenceRadius = 28;
+static const int cycloneStormReferenceRadiusRange = 72;
+static const int cycloneStormMinSpeedPercent = 60;
+static const int cycloneStormSpeedPercentRange = 150;
 
 class GeneratorRandom {
     uint32_t state;
@@ -41,6 +55,60 @@ static int clampInt(int value, int low, int high) {
     if (value > high)
         return high;
     return value;
+}
+
+static int scaledReferencePixels(int value, int actualPixels, int referencePixels) {
+    if (value < 0)
+        return -scaledReferencePixels(-value, actualPixels, referencePixels);
+    if (actualPixels <= 0 || referencePixels <= 0)
+        return value;
+
+    return (value * actualPixels + referencePixels / 2) / referencePixels;
+}
+
+static double referenceDeltaPixels(int value, int actualPixels,
+    int referencePixels) {
+    if (actualPixels <= 0 || referencePixels <= 0)
+        return (double)value;
+
+    return (double)value * (double)referencePixels / (double)actualPixels;
+}
+
+static int randomPaddedCoordinate(GeneratorRandom& random, int extent,
+    int padding) {
+    if (extent <= 0)
+        return 0;
+    if (padding < 0)
+        padding = 0;
+
+    int range = extent - 2 * padding;
+    if (range > 0)
+        return padding + random.next(range);
+
+    return random.next(extent);
+}
+
+static int wrappedCoordinate(int value, int extent) {
+    if (extent <= 0)
+        return 0;
+
+    value %= extent;
+    if (value < 0)
+        value += extent;
+    return value;
+}
+
+static int nearestWrappedDelta(int source, int origin, int extent) {
+    int delta = source - origin;
+    if (extent <= 0)
+        return delta;
+
+    int halfExtent = extent / 2;
+    if (delta > halfExtent)
+        delta -= extent;
+    else if (delta < -halfExtent)
+        delta += extent;
+    return delta;
 }
 
 static unsigned int randomSeedBase(RandomSource& randomSource) {
@@ -313,7 +381,96 @@ public:
  * September 1994, ofer@brm.co.il / oferf@itexjct.jct.ac.il.
  * Linux/cthugha-L changes by Harald Deischinger.
  */
+struct CycloneTranslationEye {
+    int x;
+    int y;
+    double referenceRadiusSquared;
+    long speedPercent;
+};
+
+static CycloneTranslationEye hurricaneTranslationEye(
+    const TranslateGenerationTarget& target) {
+    CycloneTranslationEye eye;
+    eye.x = target.width / 3;
+    eye.y = target.height / 2
+        - scaledReferencePixels(hurricaneReferenceEyeYOffset,
+            target.height, translationReferenceHeight);
+    eye.referenceRadiusSquared = hurricaneEyeSlowRadiusSquared;
+    eye.speedPercent = 100;
+    return eye;
+}
+
+static void mapCycloneTranslationPixel(const TranslateGenerationTarget& target,
+    const TranslateGeneratorOptions& options, const CycloneTranslationEye& eye,
+    int x, int y, long baseSpeed, int& mapX, int& mapY) {
+    long sp = baseSpeed * eye.speedPercent / 100L;
+
+    int dx = x - eye.x;
+    int dy = y - eye.y;
+
+    if (options.slowX || options.slowY) {
+        double referenceDx = referenceDeltaPixels(dx,
+            target.width, translationReferenceWidth);
+        double referenceDy = referenceDeltaPixels(dy,
+            target.height, translationReferenceHeight);
+        double dSquared = referenceDx * referenceDx
+            + referenceDy * referenceDy + 1.0;
+        if (options.slowY)
+            dx = (int)((double)dx * eye.referenceRadiusSquared / dSquared);
+        if (options.slowX)
+            dy = (int)((double)dy * eye.referenceRadiusSquared / dSquared);
+    }
+
+    if (options.reverse)
+        sp = -sp;
+
+    mapX = (int)(x + (dy * sp) / hurricaneRotationDivisor);
+    mapY = (int)(y - (dx * sp) / hurricaneRotationDivisor);
+
+    mapY = wrappedCoordinate(mapY, target.height);
+    mapX = wrappedCoordinate(mapX, target.width);
+}
+
+static void generateHurricaneTranslationTable(const TranslateGenerationTarget& target,
+    const TranslateGeneratorOptions& options, std::vector<int>& table) {
+    GeneratorRandom random(options.seed);
+    table.assign(target.size, 0);
+
+    CycloneTranslationEye eye = hurricaneTranslationEye(target);
+    int speed = clampInt(options.speed, 30, 300);
+    int speedJitterPercent = clampInt(options.speedJitterPercent, 0, 100);
+
+    for (int y = 0; y < target.height; y++) {
+        for (int x = 0; x < target.width; x++) {
+            long sp;
+            if (speedJitterPercent == 0)
+                sp = speed;
+            else {
+                int speedFactor = random.next(speedJitterPercent + 1)
+                    - speedJitterPercent / 3;
+                sp = speed * (100L + speedFactor) / 100L;
+            }
+
+            int mapX;
+            int mapY;
+            mapCycloneTranslationPixel(target, options, eye, x, y, sp,
+                mapX, mapY);
+
+            table[x + y * target.width] = mapY * target.width + mapX;
+        }
+    }
+}
+
 class HurricaneTranslateGenerator : public TranslateGenerator {
+public:
+    void generate(const TranslateGenerationTarget& target,
+        const TranslateGeneratorOptions& options,
+        std::vector<int>& table) const {
+        generateHurricaneTranslationTable(target, options, table);
+    }
+};
+
+class CycloneStormTranslateGenerator : public TranslateGenerator {
 public:
     void generate(const TranslateGenerationTarget& target,
         const TranslateGeneratorOptions& options,
@@ -321,10 +478,32 @@ public:
         GeneratorRandom random(options.seed);
         table.assign(target.size, 0);
 
-        int xCenter = target.width / 3;
-        int yCenter = target.height / 2 - 10;
         int speed = clampInt(options.speed, 30, 300);
         int speedJitterPercent = clampInt(options.speedJitterPercent, 0, 100);
+        int eyeCount = cycloneStormMinEyes
+            + random.next(cycloneStormEyeCountRange);
+        CycloneTranslationEye eyes[cycloneStormMinEyes
+            + cycloneStormEyeCountRange - 1];
+
+        int xPadding = scaledReferencePixels(cycloneStormCenterPadding,
+            target.width, translationReferenceWidth);
+        int yPadding = scaledReferencePixels(cycloneStormCenterPadding,
+            target.height, translationReferenceHeight);
+
+        for (int i = 0; i < eyeCount; i++) {
+            int referenceRadius = cycloneStormMinReferenceRadius
+                + random.next(cycloneStormReferenceRadiusRange + 1);
+            int speedPercent = cycloneStormMinSpeedPercent
+                + random.next(cycloneStormSpeedPercentRange + 1);
+
+            eyes[i].x = randomPaddedCoordinate(random, target.width, xPadding);
+            eyes[i].y = randomPaddedCoordinate(random, target.height, yPadding);
+            eyes[i].referenceRadiusSquared
+                = (double)referenceRadius * (double)referenceRadius;
+            eyes[i].speedPercent = speedPercent;
+            if (random.next(2))
+                eyes[i].speedPercent = -eyes[i].speedPercent;
+        }
 
         for (int y = 0; y < target.height; y++) {
             for (int x = 0; x < target.width; x++) {
@@ -337,30 +516,40 @@ public:
                     sp = speed * (100L + speedFactor) / 100L;
                 }
 
-                int dx = x - xCenter;
-                int dy = y - yCenter;
+                double mappedDeltaX = 0.0;
+                double mappedDeltaY = 0.0;
+                double totalWeight = 0.0;
 
-                if (options.slowX || options.slowY) {
-                    long dSquared = (long)dx * dx + (long)dy * dy + 1;
-                    if (options.slowY)
-                        dx = (int)(dx * 2500L / dSquared);
-                    if (options.slowX)
-                        dy = (int)(dy * 2500L / dSquared);
+                for (int i = 0; i < eyeCount; i++) {
+                    int dx = x - eyes[i].x;
+                    int dy = y - eyes[i].y;
+                    double referenceDx = referenceDeltaPixels(dx,
+                        target.width, translationReferenceWidth);
+                    double referenceDy = referenceDeltaPixels(dy,
+                        target.height, translationReferenceHeight);
+                    double dSquared = referenceDx * referenceDx
+                        + referenceDy * referenceDy + 1.0;
+                    double weight = eyes[i].referenceRadiusSquared / dSquared;
+
+                    int sourceX;
+                    int sourceY;
+                    mapCycloneTranslationPixel(target, options, eyes[i],
+                        x, y, sp, sourceX, sourceY);
+                    mappedDeltaX += weight
+                        * (double)nearestWrappedDelta(sourceX, x,
+                            target.width);
+                    mappedDeltaY += weight
+                        * (double)nearestWrappedDelta(sourceY, y,
+                            target.height);
+                    totalWeight += weight;
                 }
 
-                if (options.reverse)
-                    sp = -sp;
-
-                int mapX = (int)(x + (dy * sp) / 700);
-                int mapY = (int)(y - (dx * sp) / 700);
-
-                while (mapY < 0)
-                    mapY += target.height;
-                while (mapX < 0)
-                    mapX += target.width;
-                mapY %= target.height;
-                mapX %= target.width;
-
+                int mapX = wrappedCoordinate(
+                    (int)((double)x + mappedDeltaX / totalWeight),
+                    target.width);
+                int mapY = wrappedCoordinate(
+                    (int)((double)y + mappedDeltaY / totalWeight),
+                    target.height);
                 table[x + y * target.width] = mapY * target.width + mapX;
             }
         }
@@ -563,6 +752,7 @@ static TranslateGeneratorOptions spaceOptions(int speed, int speedJitterPercent)
 
 const TranslationCatalog& defaultTranslationCatalog() {
     static BigHalfWheelTranslateGenerator bigHalfWheel;
+    static CycloneStormTranslateGenerator cycloneStorm;
     static DownSpiralTranslateGenerator downSpiral;
     static GenericSpiralTranslateGenerator genericSpiral;
     static HurricaneTranslateGenerator hurricane;
@@ -574,6 +764,8 @@ const TranslationCatalog& defaultTranslationCatalog() {
 
     if (!initialized) {
         catalog.add("bighalfwheel", "Krusty wheel 1", bigHalfWheel);
+        catalog.add("cyclone-storm", "Cyclone storm", cycloneStorm,
+            randomizeSeed());
         catalog.add("downspiral", "Krusty wheel 2", downSpiral);
         catalog.add("gentable", "Black holes", genericSpiral,
             genericOptions(10, 10.0, 2.0, 0.1, 0));

@@ -6,6 +6,8 @@
 
 #include <math.h>
 
+static const int legacySinePeriod = 320;
+
 void wave_dotHor(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
 void wave_dotVert(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
 void wave_lineHor(FrameStageBuffer& buffer, const FrameGeneratorContext& context, WaveRuntime& runtime);
@@ -100,14 +102,14 @@ const int* WaveLookupTables::sineForWidth(int width) {
 
 int WaveLookupTables::legacySine(int index) {
     if (legacySineValues.empty()) {
-        legacySineValues.resize(320);
-        for (int i = 0; i < 320; i++)
+        legacySineValues.resize(legacySinePeriod);
+        for (int i = 0; i < legacySinePeriod; i++)
             legacySineValues[i] = (int)(128 * sin((double)i * 0.03927));
     }
 
-    index %= 320;
+    index %= legacySinePeriod;
     if (index < 0)
-        index += 320;
+        index += legacySinePeriod;
 
     return legacySineValues[index];
 }

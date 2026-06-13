@@ -71,7 +71,27 @@ static void testCatalogRandomizesSeedsFromInjectedRandomSource() {
     assert(generator.seeds[1] == (0x1234abcdu ^ (0x9e3779b9u * 2u)));
 }
 
+static void testDefaultCatalogIncludesCycloneStorm() {
+    SequenceRandomSource randomSource;
+    std::vector<GeneratedTranslationTable> tables;
+    defaultTranslationCatalog().generateAll(12, 8, randomSource, tables);
+
+    int found = 0;
+    for (unsigned int i = 0; i < tables.size(); i++) {
+        if (tables[i].id == "cyclone-storm") {
+            found = 1;
+            assert(tables[i].description == "Cyclone storm");
+            assert(tables[i].width == 12);
+            assert(tables[i].height == 8);
+            assert(tables[i].table.size() == 96);
+        }
+    }
+
+    assert(found);
+}
+
 int main() {
     testCatalogRandomizesSeedsFromInjectedRandomSource();
+    testDefaultCatalogIncludesCycloneStorm();
     return 0;
 }
