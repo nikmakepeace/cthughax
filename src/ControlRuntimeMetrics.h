@@ -8,13 +8,12 @@
 class AcousticContext;
 
 struct ControlRuntimeMetricsSnapshot {
-    int fire;
     int cumulativeFireLevel;
     int fireSensitivity;
 
     ControlRuntimeMetricsSnapshot();
-    ControlRuntimeMetricsSnapshot(int fire_, int cumulativeFireLevel_,
-        int fireSensitivity_);
+    ControlRuntimeMetricsSnapshot(
+        int cumulativeFireLevel_, int fireSensitivity_);
 };
 
 class ControlRuntimeMetrics {

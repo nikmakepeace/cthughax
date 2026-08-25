@@ -7,14 +7,12 @@
 #include "AudioAnalyzer.h"
 
 ControlRuntimeMetricsSnapshot::ControlRuntimeMetricsSnapshot()
-    : fire(0)
-    , cumulativeFireLevel(0)
+    : cumulativeFireLevel(0)
     , fireSensitivity(100) { }
 
-ControlRuntimeMetricsSnapshot::ControlRuntimeMetricsSnapshot(int fire_,
+ControlRuntimeMetricsSnapshot::ControlRuntimeMetricsSnapshot(
     int cumulativeFireLevel_, int fireSensitivity_)
-    : fire(fire_)
-    , cumulativeFireLevel(cumulativeFireLevel_)
+    : cumulativeFireLevel(cumulativeFireLevel_)
     , fireSensitivity(fireSensitivity_) { }
 
 AcousticControlRuntimeMetrics::AcousticControlRuntimeMetrics(
@@ -22,7 +20,6 @@ AcousticControlRuntimeMetrics::AcousticControlRuntimeMetrics(
     : acousticContext(acousticContext_) { }
 
 ControlRuntimeMetricsSnapshot AcousticControlRuntimeMetrics::snapshot() const {
-    return ControlRuntimeMetricsSnapshot(acousticContext.fire(),
-        acousticContext.cumulativeFireLevel(),
+    return ControlRuntimeMetricsSnapshot(acousticContext.cumulativeFireLevel(),
         acousticContext.fireSensitivity());
 }

@@ -176,7 +176,7 @@ public:
     ControlRuntimeMetricsSnapshot snapshotValue;
 
     FakeRuntimeMetrics()
-        : snapshotValue(0, 0, 100) { }
+        : snapshotValue(0, 100) { }
 
     virtual ControlRuntimeMetricsSnapshot snapshot() const {
         return snapshotValue;

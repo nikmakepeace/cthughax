@@ -176,7 +176,6 @@ ControlJsonValue buildControlStateSnapshot(
     ControlJsonValue audio = ControlJsonValue::objectValueOf();
     audio.set("processing",
         ControlJsonValue::stringValueOf(config.scene.audioProcessing));
-    audio.set("fire", ControlJsonValue::numberValueOf(metrics.fire));
     audio.set("cumulativeFireLevel",
         ControlJsonValue::numberValueOf(metrics.cumulativeFireLevel));
     audio.set("fireSensitivity",

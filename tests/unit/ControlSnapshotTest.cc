@@ -163,7 +163,7 @@ static void testStateSnapshotUsesRuntimeConfig() {
     RuntimeConfigRegistry registry(sampleConfig());
     FakeSelections selections;
     FakeExtraLockState extraLocks;
-    ControlRuntimeMetricsSnapshot metrics(9, 123, 73);
+    ControlRuntimeMetricsSnapshot metrics(123, 73);
     ControlJsonValue state = buildControlStateSnapshot(
         registry, selections, extraLocks, metrics, 42);
 
@@ -176,7 +176,6 @@ static void testStateSnapshotUsesRuntimeConfig() {
     assert(state.member("display")->member("screen")->asString() == "Source");
     assert(state.member("display")->member("showFps")->asBool() == true);
     assert(state.member("audio")->member("processing")->asString() == "FFT");
-    assert(state.member("audio")->member("fire")->asNumber() == 9);
     assert(state.member("audio")->member("cumulativeFireLevel")->asNumber() == 123);
     assert(state.member("audio")->member("fireSensitivity")->asNumber() == 73);
     assert(state.member("audio")->member("fireSource")->asString()
